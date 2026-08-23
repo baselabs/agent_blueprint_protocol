@@ -22,6 +22,14 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     hex_metadata.config
     docs/federation-mapping.md
     docs/protocol.md
+    docs/design/requirement-map.md
+    docs/adr/compiled-registry.md
+    docs/adr/deny-default-clamps.md
+    docs/adr/detached-jws-envelope.md
+    docs/adr/federation-lanes.md
+    docs/adr/no-versioning-rule.md
+    docs/adr/non-authorizing-boundary.md
+    docs/adr/two-consumer-amendment.md
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
@@ -60,6 +68,14 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     priv/conformance
     docs/protocol.md
     docs/federation-mapping.md
+    docs/design/requirement-map.md
+    docs/adr/compiled-registry.md
+    docs/adr/deny-default-clamps.md
+    docs/adr/detached-jws-envelope.md
+    docs/adr/federation-lanes.md
+    docs/adr/no-versioning-rule.md
+    docs/adr/non-authorizing-boundary.md
+    docs/adr/two-consumer-amendment.md
     .formatter.exs
     mix.exs
     README.md

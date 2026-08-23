@@ -293,8 +293,9 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "package-files-entry-drop",
       path: "mix.exs",
-      from: "        \"docs/protocol.md\",\n        \"docs/federation-mapping.md\",\n",
-      to: "        \"docs/protocol.md\",\n",
+      from:
+        "        \"priv/conformance\",\n        \"docs/protocol.md\",\n        \"docs/federation-mapping.md\",\n",
+      to: "        \"priv/conformance\",\n        \"docs/protocol.md\",\n",
       command: ~w(mix test test/architecture/package_boundary_test.exs)
     },
     %{

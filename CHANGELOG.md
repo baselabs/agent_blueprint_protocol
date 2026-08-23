@@ -2,7 +2,27 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
-## 0.1.0 — 2026-08-23
+## [Unreleased]
+
+## [0.1.1] — 2026-08-23
+
+### Changed — documentation packaging (no code change)
+
+- The Hex archive and hexdocs now ship the full documentation set,
+  matching the house packaging convention: the seven architecture
+  decision records (`docs/adr/`), the requirement map
+  (`docs/design/requirement-map.md` — every build gate's recorded red
+  proof, previously repository-side only), and
+  `docs/federation-mapping.md` joins the hexdocs extras.
+- The publish guard gained a scoped exemption for the requirement map's
+  fenced red receipts (verbatim gate output that quotes the very tokens
+  the guard bans): fences are stripped for that one file, and a pin
+  proves a banned token outside a fence still reds.
+- README restructured to the house convention: Installation directly
+  after the introduction (`"~> 0.1"`), a function-level "What it
+  provides" section, and the requirement map's archive status corrected.
+
+## [0.1.0] — 2026-08-23
 
 Initial public release: the Agent Blueprint Protocol, its Elixir
 reference implementation, the conformance corpus, and the

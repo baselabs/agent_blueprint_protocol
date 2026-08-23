@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.1.1"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -71,6 +71,14 @@ defmodule AgentBlueprintProtocol.MixProject do
         "priv/conformance",
         "docs/protocol.md",
         "docs/federation-mapping.md",
+        "docs/design/requirement-map.md",
+        "docs/adr/compiled-registry.md",
+        "docs/adr/deny-default-clamps.md",
+        "docs/adr/detached-jws-envelope.md",
+        "docs/adr/federation-lanes.md",
+        "docs/adr/no-versioning-rule.md",
+        "docs/adr/non-authorizing-boundary.md",
+        "docs/adr/two-consumer-amendment.md",
         ".formatter.exs",
         "mix.exs",
         "README.md",
@@ -98,6 +106,15 @@ defmodule AgentBlueprintProtocol.MixProject do
         "README.md",
         "CHANGELOG.md",
         "docs/protocol.md",
+        "docs/federation-mapping.md",
+        "docs/design/requirement-map.md",
+        "docs/adr/compiled-registry.md",
+        "docs/adr/deny-default-clamps.md",
+        "docs/adr/detached-jws-envelope.md",
+        "docs/adr/federation-lanes.md",
+        "docs/adr/no-versioning-rule.md",
+        "docs/adr/non-authorizing-boundary.md",
+        "docs/adr/two-consumer-amendment.md",
         "LICENSE",
         "NOTICE",
         "SECURITY.md",

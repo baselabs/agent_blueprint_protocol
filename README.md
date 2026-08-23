@@ -17,6 +17,53 @@ Protocol validity never grants authority. A consuming host remains responsible
 for identity, tenancy, policy, live authorization, effect ownership, execution,
 and evidence retention.
 
+## Installation
+
+```elixir
+def deps do
+  [
+    {:agent_blueprint_protocol, "~> 0.1"}
+  ]
+end
+```
+
+The package has **zero production dependencies**, no application callback, and
+no supervision tree.
+
+## What it provides
+
+Decoding and validation (every result is a typed fact or a typed denial —
+never an authorization decision):
+
+- `decode_blueprint/2` — bounded, fail-closed decode of a Blueprint: canonical
+  byte verification, registry validation, portability scan, digest comparison.
+- `decode_deployment/2` — the same pipeline for a Deployment Manifest bound to
+  one Blueprint release digest.
+- `decode_federation_envelope/2` — the 23-member federation task envelope
+  through the shared registry engine; `federation_mapping/0` returns the
+  A2A/MCP Tasks field mapping as data.
+- `canonical_bytes/1` — the exact canonical (JCS) wire bytes of a decoded
+  artifact.
+
+Semantics:
+
+- `negotiate/2` — the evolution gate: revision sets, required core fields,
+  and the positional extension state machine (unknown critical denies,
+  unknown optional quarantines byte-exactly).
+- `intersect/1` — the bounds algebra: the pointwise narrowest intersection of
+  Blueprint bounds, Deployment `host_bounds`, and host policy; protected
+  narrowings deny or clamp-with-evidence, never silently.
+- `verify_compatibility/2` — identity-exact matching of manifest build
+  identities against host-observed identities.
+- `reconcile/3` — the one call per import: the pinned eight-stage pass
+  (canonical, digest, negotiation, structure, portability, signatures, bind,
+  bounds), reject-or-annotate, never repair, under host-supplied inputs.
+
+Tooling: `mix conformance.verify` executes the shipped 88-case corpus;
+`mix conformance.mutations` re-proves the corpus catches named implementation
+breaks; `mix verifier.agreement` byte-agrees the Elixir runner with the
+independent TypeScript verifier.
+
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
@@ -24,14 +71,13 @@ and conformance corpus are implemented and gated locally: 882 tests
 (59 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, an 88-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
-The normative protocol document is [`docs/protocol.md`](docs/protocol.md),
-which ships in the Hex archive; every build gate's recorded red proof is
-in the repository at `docs/design/requirement-map.md` (repository-side,
-not in the Hex archive),
-and `mix release.candidate` re-derives that map's completeness from the
-live project.
+The normative protocol document is [`docs/protocol.md`](docs/protocol.md).
+Every build gate's recorded red proof ships in the Hex archive at
+[`docs/design/requirement-map.md`](docs/design/requirement-map.md), and
+`mix release.candidate` re-derives that map's completeness from the live
+project on every run.
 
-Version 0.1.0 is the first public release. The package is pre-1.0:
+The 0.1.x line is the first public release line. The package is pre-1.0:
 shipped contracts may change within 0.x under pre-1.0 conventions, and
 every contract change lands with a red-capable test.
 
@@ -46,16 +92,6 @@ every contract change lands with a red-capable test.
 - Zero third-party/Hex production dependencies and no supervision tree.
 - No product-specific tenant, key, grant, endpoint, database, provider, or
   engine identifiers in portable artifacts.
-
-## Installation
-
-```elixir
-def deps do
-  [
-    {:agent_blueprint_protocol, "~> 0.1.0"}
-  ]
-end
-```
 
 ## Development
 
