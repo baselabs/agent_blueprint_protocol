@@ -41,13 +41,11 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   - Corpus `.json` files carry the text-pattern-exempt class: they are
     digest-bound by `conformance.verify` (any edit reds the corpus hash),
     and byte patterns still apply to them.
-  - The requirement map's fenced ```red blocks are verbatim machine
-    output — recorded gate receipts, the map's whole purpose — so they
-    quote the very tokens this guard bans, exactly as this guard's own
-    pattern block names them. For that one file the fences are STRIPPED
-    before both scans; every byte outside a fence is scanned like any
-    other shipped file (pinned by the fence-scope test below: a banned
-    token planted in the map OUTSIDE a fence still reds).
+  - The requirement map stays repository-side BY DESIGN and ships in no
+    archive: its fenced `red` receipts are verbatim gate output quoting
+    the very tokens this guard bans (the catch is the evidence), so
+    archiving the map reds this guard outright. The recorded red lives
+    in the map's own publish-guard entry.
 
   Goes RED on: a `.kimosabe` path or reference planted in any archived file
   (README, a lib module, a corpus member); a tracker numeral or slug added
@@ -99,11 +97,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
   @text_extensions [".md", ".ex", ".exs"]
 
-  # The one shipped file whose fenced ```red blocks are recorded gate
-  # receipts: they are stripped before scanning, and only for this file.
-  @receipt_fenced_path "docs/design/requirement-map.md"
-  @red_fence ~r/```red\n.*?```/s
-
   test "every declared package file exists" do
     missing = for entry <- declared_paths(), expand(entry) == [], do: entry
 
@@ -128,7 +121,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     offenders =
       for path <- archive_files(),
           pattern <- @byte_patterns,
-          content = scan_content(path),
+          content = File.read!(path),
           String.contains?(content, pattern) do
         {path, pattern}
       end
@@ -143,7 +136,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
       for path <- archive_files(),
           text_file?(path),
           pattern <- @text_patterns,
-          content = scan_content(path),
+          content = File.read!(path),
           Regex.scan(pattern, content) != [] do
         {path, Regex.source(pattern), Enum.take(Regex.scan(pattern, content), 3)}
       end
@@ -156,25 +149,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   end
 
   # ---- exemption pins -------------------------------------------------------------
-
-  test "the requirement map's fence exemption is scoped (a banned token outside a fence reds)" do
-    map = File.read!(@receipt_fenced_path)
-
-    # The map itself, fences stripped, matches no pattern (the live exemption).
-    stripped = strip_red_fences(map)
-
-    assert byte_clean?(stripped) and text_clean?(stripped),
-           "the requirement map carries banned material OUTSIDE its red fences — " <>
-             "the exemption is for receipts only; scrub the prose"
-
-    # A banned token planted OUTSIDE a fence survives the strip (the pin:
-    # the strip is fence-scoped, never a whole-file pass).
-    planted = stripped <> "\nsee .kimosabe/notes\n"
-
-    assert String.contains?(planted, ".kimosabe") and
-             not byte_clean?(strip_red_fences(planted)),
-           "fence-strip exemption vacuous: out-of-fence content in the map is not scanned"
-  end
 
   # The exemption record above ("registry data is published-by-design; no
   # pattern targets it") is mechanical, not prose: the live registry fixtures
@@ -237,24 +211,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   end
 
   # ---- helpers ------------------------------------------------------------------
-
-  # The scanned content for a file: the requirement map's ```red receipt
-  # fences are stripped (recorded machine output — see the exemption
-  # record above); every other file scans whole.
-  defp scan_content(path) do
-    content = File.read!(path)
-    if path == @receipt_fenced_path, do: strip_red_fences(content), else: content
-  end
-
-  defp strip_red_fences(content), do: Regex.replace(@red_fence, content, "")
-
-  defp byte_clean?(content) do
-    Enum.all?(@byte_patterns, &(not String.contains?(content, &1)))
-  end
-
-  defp text_clean?(content) do
-    Enum.all?(@text_patterns, &(not Regex.match?(&1, content)))
-  end
 
   defp declared_paths do
     Mix.Project.config()[:package][:files]

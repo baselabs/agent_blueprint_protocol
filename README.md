@@ -22,7 +22,7 @@ and evidence retention.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.1"}
+    {:agent_blueprint_protocol, "~> 0.1.0"}
   ]
 end
 ```
@@ -71,11 +71,14 @@ and conformance corpus are implemented and gated locally: 882 tests
 (59 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, an 88-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
-The normative protocol document is [`docs/protocol.md`](docs/protocol.md).
-Every build gate's recorded red proof ships in the Hex archive at
-[`docs/design/requirement-map.md`](docs/design/requirement-map.md), and
-`mix release.candidate` re-derives that map's completeness from the live
-project on every run.
+The normative protocol document, [`docs/protocol.md`](docs/protocol.md),
+ships in the Hex archive. Every build gate's recorded red proof is the
+requirement
+map ([`docs/design/requirement-map.md`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/docs/design/requirement-map.md))
+— public in this repository, deliberately not in the archive (its verbatim
+red receipts quote the very internal tokens the publish guard bans from
+the archive), and `mix release.candidate` re-derives its completeness
+from the live project on every run.
 
 The 0.1.x line is the first public release line. The package is pre-1.0:
 shipped contracts may change within 0.x under pre-1.0 conventions, and

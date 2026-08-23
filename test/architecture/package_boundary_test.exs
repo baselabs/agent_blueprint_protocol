@@ -22,7 +22,6 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     hex_metadata.config
     docs/federation-mapping.md
     docs/protocol.md
-    docs/design/requirement-map.md
     docs/adr/compiled-registry.md
     docs/adr/deny-default-clamps.md
     docs/adr/detached-jws-envelope.md
@@ -68,7 +67,6 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     priv/conformance
     docs/protocol.md
     docs/federation-mapping.md
-    docs/design/requirement-map.md
     docs/adr/compiled-registry.md
     docs/adr/deny-default-clamps.md
     docs/adr/detached-jws-envelope.md

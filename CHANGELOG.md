@@ -8,19 +8,21 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Changed — documentation packaging (no code change)
 
-- The Hex archive and hexdocs now ship the full documentation set,
-  matching the house packaging convention: the seven architecture
-  decision records (`docs/adr/`), the requirement map
-  (`docs/design/requirement-map.md` — every build gate's recorded red
-  proof, previously repository-side only), and
-  `docs/federation-mapping.md` joins the hexdocs extras.
-- The publish guard gained a scoped exemption for the requirement map's
-  fenced red receipts (verbatim gate output that quotes the very tokens
-  the guard bans): fences are stripped for that one file, and a pin
-  proves a banned token outside a fence still reds.
+- The Hex archive and hexdocs now ship the seven architecture decision
+  records (`docs/adr/`), and `docs/federation-mapping.md` joins the
+  hexdocs extras — matching the house packaging convention of the
+  published `bounded_authority_protocol` package.
+- The requirement map stays repository-side BY DESIGN (public in the
+  repository, not in the archive): its verbatim red receipts quote the
+  very internal tokens the publish guard bans from the archive, so
+  archiving it reds the guard — that red is now recorded in the map's
+  own publish-guard entry as the boundary's proof. An earlier draft of
+  this release stripped the map's receipt fences from the guard's scan
+  instead; cross-vendor review correctly blocked it as a guard blind
+  spot that would have shipped the banned tokens verbatim.
 - README restructured to the house convention: Installation directly
-  after the introduction (`"~> 0.1"`), a function-level "What it
-  provides" section, and the requirement map's archive status corrected.
+  after the introduction, a function-level "What it provides" section,
+  and the requirement map's boundary stated.
 
 ## [0.1.0] — 2026-08-23
 

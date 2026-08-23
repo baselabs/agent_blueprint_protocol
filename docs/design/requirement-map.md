@@ -534,41 +534,20 @@ publish-guard violation: a shipped text file references internal material:
 EXIT=2
 ```
 
+This map stays repository-side BY DESIGN and ships in no Hex archive:
+its fenced `red` receipts are verbatim gate output quoting the very
+tokens the publish guard bans (the catch is the evidence), so archiving
+the map reds that guard outright — recorded here as the boundary's own
+red proof:
+
 ```red
-$ # no plant: docs/design/requirement-map.md archived before the fence-receipt
-$ # exemption existed (every hit below sits inside the map's `red` receipts)
+$ # no plant: docs/design/requirement-map.md added to package.files
 $ mix test test/architecture/publish_guard_test.exs
 publish-guard violation: a shipped text file references internal material:
   docs/design/requirement-map.md: /(?<![+x])\b0\d{3}\b/ [["0011"], ["0017"], ["0005"]]
   docs/design/requirement-map.md: /\b(ticket|issue)\s+0\d{3}/ [["ticket 0011", "ticket"]]
   docs/design/requirement-map.md: /\bkimosabe\b/ [["kimosabe"], ["kimosabe"], ["kimosabe"]]
-EXIT=1
-```
-
-```red
-$ # plant: strip_red_fences/1 wipes the whole file (degenerate strip) — the
-$ # fence-scope pin must fire
-$ mix test test/architecture/publish_guard_test.exs
-1) test the requirement map's fence exemption is scoped (a banned token outside a fence reds)
-     fence-strip exemption vacuous: out-of-fence content in the map is not scanned
-Result: 8/9 passed
-```
-
-### case: "the requirement map's fence exemption is scoped (a banned token outside a fence reds)"
-
-The archived requirement map's fenced `red` blocks are verbatim gate receipts —
-they quote the tokens the guard bans, so they are stripped before the
-scan for that one file. This pin holds the scope: the map OUTSIDE its
-fences must be clean, and a banned token planted outside a fence must
-still red (a degenerate whole-file strip reds this pin, never a green).
-
-```red
-$ # plant: strip_red_fences/1 wipes the whole file (degenerate strip)
-$ mix test test/architecture/publish_guard_test.exs
-1) test the requirement map's fence exemption is scoped (a banned token outside a fence reds)
-     fence-strip exemption vacuous: out-of-fence content in the map is not scanned
-     code: assert String.contains?(planted, ".kimosabe") and
-Result: 8/9 passed
+Result: 7/8 passed
 ```
 
 ### case: "no code file carries an internal tracker citation"
