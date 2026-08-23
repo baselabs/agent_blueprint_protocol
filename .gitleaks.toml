@@ -1,0 +1,26 @@
+title = "agent_blueprint_protocol gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Deliberately key-shaped deny-path test fixtures (inert example values, not secrets)"
+regexTarget = "line"
+regexes = [
+  '''eyJhbGciOiJFZERTQSJ9''',
+  '''QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGk''',
+]
+
+# The conformance corpus's deterministic Ed25519 PUBLIC keys — derived at
+# authoring from SHA-256 of fixed seed strings (generator:
+# scripts/generate_conformance_corpus.exs); public by construction, and the
+# corpus's signature-negative cases NEED byte-plausible keys to be honest
+# fixtures. Listed by prefix fragment, assembled from parts.
+[[allowlists]]
+description = "Corpus deterministic public keys (SHA-256-seeded Ed25519, public material)"
+regexTarget = "line"
+regexes = [
+  '''WQlg''' + '''ThEsdw5vUa2NVjfS''',
+  '''corpus-signature-valid''',
+  '''corpus-receipt''',
+]
