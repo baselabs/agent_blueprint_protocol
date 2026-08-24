@@ -1,7 +1,7 @@
 # Agent Blueprint Protocol — normative protocol document
 
-Status: release candidate (unpublished). This document is normative for
-the shipped reference implementation and its conformance corpus (digest
+Status: published pre-1.0 protocol (0.1.x release line). This document is
+normative for the shipped reference implementation and its conformance corpus (digest
 `sha-256:k0ltF0KWcORTzkyr6dP7TPU9M2VdpewAvf_O8w2D7Wo`, 88 cases). Where
 this document and the package's compiled data disagree, the package and
 its corpus are the truth and this document is a defect.

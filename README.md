@@ -4,7 +4,7 @@ Agent Blueprint Protocol is a portable, non-authorizing contract for describing
 an agent capability and binding one immutable release to an execution
 environment.
 
-The package is being built as the public reference implementation for two
+The public package is the reference implementation for two
 language-neutral artifacts:
 
 - **Blueprint Core** — stable identity, typed ports, logical capability

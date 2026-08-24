@@ -4,6 +4,11 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ## [Unreleased]
 
+### Documentation
+
+- Reconcile the normative protocol header and README introduction to the live public 0.1.x
+  package state; remove the obsolete pre-publication/release-candidate framing.
+
 ### Fixed
 
 - GitHub CI now selects Node 24.19.0 through the immutable `setup-node` v7.0.0
