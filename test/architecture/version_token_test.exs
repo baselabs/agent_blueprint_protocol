@@ -32,4 +32,33 @@ defmodule AgentBlueprintProtocol.Architecture.VersionTokenTest do
       refute ArchitectureScan.version_token?(name), "did not expect #{name} to be flagged"
     end
   end
+
+  test "only the enumerated package contract identity may carry a version token" do
+    assert :ok =
+             ArchitectureScan.check_durable_identifier(%{
+               path: "mix.exs",
+               kind: :package_source_ref,
+               name: ~s(source_ref: "v\#{@version}")
+             })
+
+    for fixture <- [
+          %{
+            path: "docs/package.exs",
+            kind: :package_source_ref,
+            name: ~s(source_ref: "v\#{@version}")
+          },
+          %{path: "mix.exs", kind: :package_source_ref, name: ~s(source_ref: "v2")},
+          %{path: "lib/agent_blueprint_protocol/v2.ex", kind: :path, name: "v2"},
+          %{path: "lib/agent_blueprint_protocol/release_v2.ex", kind: :path, name: "release_v2"},
+          %{
+            path: "lib/agent_blueprint_protocol.ex",
+            kind: :module,
+            name: "AgentBlueprintProtocol.V2"
+          },
+          %{path: "lib/agent_blueprint_protocol.ex", kind: :function, name: "decode_v2"}
+        ] do
+      assert {:error, :implementation_version_identifier} =
+               ArchitectureScan.check_durable_identifier(fixture)
+    end
+  end
 end

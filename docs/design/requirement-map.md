@@ -785,6 +785,25 @@ did not expect AgentBlueprintProtocol to be flagged
 Result: 1/2 passed
 ```
 
+### case: "only the enumerated package contract identity may carry a version token"
+
+```red
+$ # before the exact path/kind/value allowlist existed
+$ mix test test/architecture/version_token_test.exs
+** (UndefinedFunctionError) function AgentBlueprintProtocol.ArchitectureScan.check_durable_identifier/1 is undefined or private
+Result: 2/3 passed
+```
+
+### case: "the package source identity is observed from the real package metadata"
+
+```red
+$ # mutate the actual mix.exs package source_ref from v#{@version} to v2
+$ mix test test/architecture/identifier_naming_test.exs
+left: [%{name: "source_ref: \"v2\"", path: "mix.exs", kind: :package_source_ref}]
+right: [%{name: "source_ref: \"v#{@version}\"", path: "mix.exs", kind: :package_source_ref}]
+Result: 2/3 passed
+```
+
 ```red
 $ # probe: canonical spellings under the stem set ["Base","Ed","Ipv"]
 $ elixir -e '... probe of version_token? for IPv4 IPv6 Utf8 Sha256 Rfc8785'

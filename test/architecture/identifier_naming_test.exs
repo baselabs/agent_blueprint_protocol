@@ -14,7 +14,9 @@ defmodule AgentBlueprintProtocol.Architecture.IdentifierNamingTest do
     offenders =
       for path <- ArchitectureScan.source_files(),
           {kind, name} <- ArchitectureScan.identifiers(path),
-          ArchitectureScan.version_token?(name),
+          {:error, :implementation_version_identifier} <- [
+            ArchitectureScan.check_durable_identifier(%{path: path, kind: kind, name: name})
+          ],
           do: {path, kind, name}
 
     assert offenders == [],
@@ -25,10 +27,27 @@ defmodule AgentBlueprintProtocol.Architecture.IdentifierNamingTest do
   test "no shipped path segment carries a version token" do
     offenders =
       for seg <- ArchitectureScan.path_segments(),
-          ArchitectureScan.version_token?(seg),
+          {:error, :implementation_version_identifier} <- [
+            ArchitectureScan.check_durable_identifier(%{path: seg, kind: :path, name: seg})
+          ],
           do: seg
 
     assert offenders == [],
            "version tokens found in shipped paths (forbidden in shipped names): #{inspect(offenders)}"
+  end
+
+  test "the package source identity is observed from the real package metadata" do
+    assert ArchitectureScan.package_source_ref_observations() == [
+             %{
+               path: "mix.exs",
+               kind: :package_source_ref,
+               name: ~S(source_ref: "v#{@version}")
+             }
+           ]
+
+    assert Enum.all?(
+             ArchitectureScan.package_source_ref_observations(),
+             &(ArchitectureScan.check_durable_identifier(&1) == :ok)
+           )
   end
 end

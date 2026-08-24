@@ -47,24 +47,51 @@ defmodule AgentBlueprintProtocol.ArchitectureScan do
     Enum.reverse(acc)
   end
 
-  @doc """
-  True when a string carries a release/version token: a `v`/`V` followed by a
-  digit at the start of a name (`V2Blueprint`, `v1`), after a snake boundary
-  (`decode_v2`, `_v2beta`), at a CamelCase hump (`BlueprintV2Parser`), or as a
-  digit-suffixed capitalized word (`Es6Number`, `Http2Stream`, `HTTP2Stream`,
-  `Query2` — acronym spellings included). A lowercase digit-word in snake
-  spelling (`base64url`, `ipv4`, `es6_digits`) is left alone: that is the
-  conventional standard/algorithm spelling, while a capitalized word carrying
-  a trailing digit is version genealogy unless its stem is a recorded
-  non-version name (see `@non_version_hump_stems`).
-  """
   @non_version_hump_stems ["Base", "Ed", "IPV", "IPv", "Ipv"]
 
+  @contract_identities MapSet.new([
+                         {"mix.exs", :package_source_ref, ~S(source_ref: "v#{@version}")}
+                       ])
+
+  @doc false
+  def package_source_ref_observations do
+    "mix.exs"
+    |> File.read!()
+    |> then(&Regex.scan(~r/source_ref:\s*"v(?:#\{@version\}|\d+)"/, &1))
+    |> Enum.map(fn [name] -> %{path: "mix.exs", kind: :package_source_ref, name: name} end)
+  end
+
+  @doc "True when a string carries a conventional implementation-version token."
   def version_token?(string) do
     Regex.match?(~r/(^|_)v\d/i, string) or
       Regex.match?(~r/[a-z0-9]V\d/, string) or
       version_hump_digit?(string)
   end
+
+  @doc """
+  Applies this repository's durable-identifier decision to one observed name.
+
+  Implementation genealogy is rejected. The sole version-bearing durable
+  identity is the exact package tag source reference emitted from `mix.exs`;
+  path, kind, and spelling are all part of the allowlist key.
+  """
+  def check_durable_identifier(%{path: path, kind: kind, name: name}) do
+    identity = {path, kind, name}
+
+    cond do
+      MapSet.member?(@contract_identities, identity) ->
+        :ok
+
+      version_token?(name) or package_source_ref?(name) ->
+        {:error, :implementation_version_identifier}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp package_source_ref?(name),
+    do: Regex.match?(~r/\bsource_ref\b.*\bv(?:#\{@version\}|\d)/i, name)
 
   defp version_hump_digit?(string) do
     ~r/[A-Z]+[a-z]*\d+/
