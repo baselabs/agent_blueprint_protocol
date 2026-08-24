@@ -4,6 +4,13 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- GitHub CI now selects Node 24.19.0 through the immutable `setup-node` v7.0.0
+  commit before running the complete quality gate. This removes dependence on
+  the runner image's ambient Node release while preserving the verifier's
+  Node 24 minimum.
+
 ## [0.1.1] — 2026-08-23
 
 ### Changed — documentation packaging (no code change)

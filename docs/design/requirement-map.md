@@ -4,8 +4,9 @@ A gate without a red proof is not a gate. This map records, for every
 build-failing gate the package ships, the exact mutation that reddens it,
 the command that observes the red, and the verbatim failing output. All
 proofs on this page were re-derived live on **2026-08-23** against the
-release-candidate tree (plant → run → reverse-restore; the restored suite
-is green: 882 passed, 59 properties, 823 tests).
+release-candidate tree, with the CI toolchain entry re-derived on
+**2026-08-24** (plant → run → reverse-restore; the restored suite is green:
+883 passed, 59 properties, 824 tests).
 
 Structure contract (checked mechanically by `mix release.candidate`):
 
@@ -246,6 +247,27 @@ output. Plants marked *(dead-code note)* needed a reachable public probe:
 the Elixir compiler eliminates never-called private functions, so
 beam-census plants must be public (that elimination is itself load-bearing
 for the census gates — a private dead function cannot smuggle a call).
+
+### case: "the quality job selects an immutable supported Node runtime"
+
+```red
+$ # plant: remove the setup-node step from the quality job
+$ mix test test/architecture/ci_node_toolchain_test.exs
+the quality job must pin the setup action and the supported Node release
+Result: 0/1 passed
+$ # plant: replace Node 24.19.0 with the runner's ambient Node 22.23.2
+$ mix test test/architecture/ci_node_toolchain_test.exs
+the quality job must pin the setup action and the supported Node release
+Result: 0/1 passed
+$ # plant: add a second setup-node step for Node 25.9.0 before mix quality
+$ mix test test/architecture/ci_node_toolchain_test.exs
+the quality job must select Node exactly once
+Result: 0/1 passed
+```
+
+The verifier floor is independently live: placing an executable that reports
+`v22.23.2` first on `PATH` makes `mix verifier.agreement` fail with
+`node 22 ... is below the >= 24 requirement`.
 
 ### case: "the byte loop is exactly tail-accumulate with a single final test"
 
