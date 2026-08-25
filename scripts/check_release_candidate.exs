@@ -319,6 +319,12 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix test test/architecture/publish_guard_test.exs)
     },
     %{
+      name: "publish-guard-untracked-archive-member",
+      path: "lib/archive_tracking_probe.ex",
+      create: "defmodule AgentBlueprintProtocol.ArchiveTrackingProbe do\nend\n",
+      command: ~w(mix test test/architecture/publish_guard_test.exs)
+    },
+    %{
       name: "publish-guard-text-reference",
       path: "SECURITY.md",
       from: "reporting for `baselabs/agent_blueprint_protocol`. Do not open a public issue\n",
@@ -545,6 +551,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       Enum.each(@reprove_copy_paths, &copy_path(&1, scratch))
       File.ln_s!(Path.expand("../deps", __DIR__), Path.join(scratch, "deps"))
       copy_build(scratch)
+      initialize_git_repo!(scratch)
       apply_plant!(Path.join(scratch, plant.path), plant)
 
       {output, status} =
@@ -574,6 +581,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
         Enum.each(@reprove_copy_paths, &copy_path(&1, scratch))
         File.ln_s!(Path.expand("../deps", __DIR__), Path.join(scratch, "deps"))
         copy_build(scratch)
+        initialize_git_repo!(scratch)
 
         {output, status} =
           System.cmd(hd(command), tl(command),
@@ -619,6 +627,20 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
         {:ok, _} = File.cp_r(source, target)
       end
     end
+  end
+
+  defp initialize_git_repo!(scratch) do
+    commands = [
+      ["init", "--initial-branch=main"],
+      ["config", "user.email", "release-candidate@example.invalid"],
+      ["config", "user.name", "Release Candidate"],
+      ["add", "--all"],
+      ["commit", "-m", "baseline"]
+    ]
+
+    Enum.each(commands, fn args ->
+      {_output, 0} = System.cmd("git", args, cd: scratch, stderr_to_stdout: true)
+    end)
   end
 
   # A plant is one of three ops: an exact-anchor text replacement (from/to),

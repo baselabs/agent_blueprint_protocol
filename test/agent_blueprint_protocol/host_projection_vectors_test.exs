@@ -1,11 +1,9 @@
 defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
   @moduledoc """
-  Host example vectors: one Blueprint Core + one estate
-  Deployment Manifest projected from a reference host definition shapes —
-  the read-only validation of the protocol against a host that already
-  composes authority-policy inputs in a reference fixture. The vectors mirror the
-  reference host fixture (two governed proposers, one estate read, one
-  objective-driven mutation).
+  Host example vectors: one Blueprint Core + one estate Deployment Manifest
+  projected from reference definition shapes. They validate the protocol
+  against a self-contained fixture with two governed proposers, one estate
+  read, and one objective-driven mutation.
 
   Two portability-name findings are pinned as reds, not hidden:
 
@@ -43,10 +41,10 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
   @definition_version 7
   @max_age_days 7
 
-  # The reference host action surface, one operation family per modeled action (the
+  # The reference action surface, one operation family per modeled action (the
   # falsifier table): an estate read, the objective-driven mutation, and the
-  # two governed proposers. The mutation family's name is the bounded-
-  # authority operation string the fixture records for the operation.
+  # two governed proposers. The mutation family uses the fixture's operation
+  # identifier.
   @reference_action_families %{
     "example.estate.investigate" => {"read", "none", "none"},
     "example.estate.act_under_objective" => {"mutation", "none", "external_authority_required"},
@@ -124,8 +122,8 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
 
   # The effect-once identity echo: the host's idempotency identity
   # (org, account, asset definition, definition version, as_of) with the two
-  # tenant-identifier members under their projected names — the original member names
-  # are portability-denylisted and are red-tested below.
+  # tenant-identifier members under their projected names — the original
+  # member names are portability-denylisted and red-tested below.
   defp echo_schema do
     object_schema(
       [
@@ -553,20 +551,20 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
     # Each tenant-identifier name is tested ALONE: a schema carrying both
     # would stay green if the denylist ever dropped just one of the two
     # (the single-name allow regression).
-    for live_name <- ["org_id", "account_id"] do
-      live_named_echo =
+    for denied_name <- ["org_id", "account_id"] do
+      denied_named_echo =
         object_schema(
           [
-            {live_name, string_schema()},
+            {denied_name, string_schema()},
             {"asset_definition", string_schema()},
             {"definition_version", integer_schema()},
             {"as_of", string_schema()}
           ],
-          [live_name, "asset_definition", "definition_version", "as_of"]
+          [denied_name, "asset_definition", "definition_version", "as_of"]
         )
 
       assert {:error, :forbidden_portable_value} =
-               Blueprint.from_value(blueprint_value(echo_schema: live_named_echo))
+               Blueprint.from_value(blueprint_value(echo_schema: denied_named_echo))
     end
 
     # The projected names on the same shape stay green.

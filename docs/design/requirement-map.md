@@ -528,6 +528,16 @@ publish-guard violation: a shipped path is a symlink (the archive would carry th
 Result: 3/4 passed
 ```
 
+### case: "every archived file is tracked"
+
+```red
+$ # plant: create lib/archive_tracking_probe.ex after the source index is recorded
+$ mix test test/architecture/publish_guard_test.exs
+publish-guard violation: an untracked file would ship in the archive:
+  lib/archive_tracking_probe.ex
+Result: 7/8 passed
+```
+
 ### case: "no archived file carries a private-path byte pattern"
 
 Decided-red acceptance of this slice (M1):
@@ -570,6 +580,46 @@ publish-guard violation: a shipped text file references internal material:
   docs/design/requirement-map.md: /\b(ticket|issue)\s+0\d{3}/ [["ticket 0011", "ticket"]]
   docs/design/requirement-map.md: /\bkimosabe\b/ [["kimosabe"], ["kimosabe"], ["kimosabe"]]
 Result: 7/8 passed
+```
+
+### case: "tracked files and reachable history contain no consumer-specific topology"
+
+```red
+$ # natural red: run before the current tree and seven reachable commits were scrubbed
+$ mix test test/architecture/public_surface_privacy_test.exs
+1) test tracked files and reachable history contain no consumer-specific topology
+code: assert result == {0, false, false, false, false}
+Result: 3/4 passed
+```
+
+### case: "candidate normalization is red-capable without publishing protected terms"
+
+```red
+$ # plant: corrupt the generic test-canary digest
+$ mix test test/architecture/public_surface_privacy_test.exs
+1) test candidate normalization is red-capable without publishing protected terms
+code: assert forbidden?(@test_canary, test_hmacs, @test_key)
+Result: 3/4 passed
+```
+
+### case: "invalid UTF-8 is handled deterministically"
+
+```red
+$ # plant: make invalid-byte normalization raise
+$ mix test test/architecture/public_surface_privacy_test.exs
+1) test invalid UTF-8 is handled deterministically
+code: refute forbidden?(<<255, 254, 0, 1>>)
+Result: 3/4 passed
+```
+
+### case: "Git plumbing detects tracked, historical, merge, ref-name, and tag violations"
+
+```red
+$ # plant: remove the raw-object override while replacement refs are active
+$ mix test test/architecture/public_surface_privacy_test.exs
+1) test Git plumbing detects tracked, historical, merge, ref-name, and tag violations
+code: assert scan_repo(repo, test_hmacs, @test_key) == {1, false, true, false, false, false}
+Result: 3/4 passed
 ```
 
 ### case: "no code file carries an internal tracker citation"

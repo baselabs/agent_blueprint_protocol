@@ -17,11 +17,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
   - Byte patterns (any archive file, including binaries): `.kimosabe`,
     `kimosabe/`, `.claude/`, `.serena`, `.mcp.json`, `/Users/`, `/home/`,
-    and the internal owner/org tokens (`ExampleCommerce`, `ExampleCommerce`,
-    `baselabs.com`, `com.baselabs`). The first seven contain `.` or `/`,
-    which the base64url alphabet excludes, so none can false-positive inside a
-    digest, key, or signature token; the name patterns are long
-    mixed-case strings that cannot arise in any encoded token.
+    `baselabs.com`, and `com.baselabs`. These contain `.` or `/`, which the
+    base64url alphabet excludes, so none can false-positive inside a digest,
+    key, or signature token. Consumer-specific names and topology are enforced
+    repository-wide by `PublicSurfacePrivacyTest` using opaque fingerprints.
   - Reference patterns (text files only: `.md`, `.ex`, `.exs`): tracker
     numerals `00NN` (word-bounded; quoted base64url digests are intact word
     tokens and the only shipped digest form is `sha-256:`-prefixed, so the
@@ -35,9 +34,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
   - Registry data is RFC 2606 example-class content (`com.example.*`
     namespaces, `Example*` owners, `example.com` URIs) — the public
-    package reveals no internal names; the real ones are banned BYTES
-    everywhere in the archive (the 2026-08-23 user directive that
-    superseded the compiled-registry ADR's published-by-design stance).
+    package reveals no internal names; consumer-specific names are denied
+    everywhere in the tracked repository by the privacy gate.
   - Corpus `.json` files carry the text-pattern-exempt class: they are
     digest-bound by `conformance.verify` (any edit reds the corpus hash),
     and byte patterns still apply to them.
@@ -50,7 +48,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   Goes RED on: a `.kimosabe` path or reference planted in any archived file
   (README, a lib module, a corpus member); a tracker numeral or slug added
   to a shipped text file; an internal design citation left in shipped
-  docs; any internal owner/org name in any archived file.
+  docs; or any archive member absent from the tracked source tree. The
+  repository-wide privacy gate separately denies consumer-specific names.
   """
 
   use ExUnit.Case, async: true
@@ -63,8 +62,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     ".mcp.json",
     "/Users/",
     "/home/",
-    "ExampleCommerce",
-    "ExampleCommerce",
     "baselabs.com",
     "com.baselabs"
   ]
@@ -114,6 +111,17 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     assert offenders == [],
            "publish-guard violation: a shipped path is a symlink (the archive " <>
              "would carry the target path itself):\n" <>
+             Enum.map_join(offenders, "\n", &"  #{&1}")
+  end
+
+  test "every archived file is tracked" do
+    {tracked, 0} = System.cmd("git", ["ls-files", "-z"], stderr_to_stdout: true)
+    tracked = tracked |> String.split(<<0>>, trim: true) |> MapSet.new()
+
+    offenders = Enum.reject(archive_files(), &MapSet.member?(tracked, &1))
+
+    assert offenders == [],
+           "publish-guard violation: an untracked file would ship in the archive:\n" <>
              Enum.map_join(offenders, "\n", &"  #{&1}")
   end
 
