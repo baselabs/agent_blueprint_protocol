@@ -11,6 +11,17 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Fixed
 
+- The gitleaks secret-scan configuration was invalid TOML (a string
+  concatenation TOML does not support) and, independently, nothing executed
+  it — no CI job or alias ran gitleaks, so a committed credential would have
+  passed the complete quality gate. The config now parses (the corpus key
+  fragment is matched via a single-character class instead of concatenation),
+  the generated conformance corpus is allowlisted by path (per-value fragments
+  had rotted: the federation corpus keys were uncovered), and CI runs a
+  full-history gitleaks v8.30.1 scan as its own job, pinned to the release
+  commit. Red-proven against a staged canary secret; every finding the
+  allowlists suppress was adjudicated as deterministic public-by-construction
+  fixture material.
 - GitHub CI now selects Node 24.19.0 through the immutable `setup-node` v7.0.0
   commit before running the complete quality gate. This removes dependence on
   the runner image's ambient Node release while preserving the verifier's

@@ -15,12 +15,27 @@ regexes = [
 # authoring from SHA-256 of fixed seed strings (generator:
 # scripts/generate_conformance_corpus.exs); public by construction, and the
 # corpus's signature-negative cases NEED byte-plausible keys to be honest
-# fixtures. Listed by prefix fragment, assembled from parts.
+# fixtures. The single-character class keeps this config file free of the
+# contiguous key fragment while matching it (TOML has no string
+# concatenation, so the fragment cannot be assembled from parts here).
 [[allowlists]]
 description = "Corpus deterministic public keys (SHA-256-seeded Ed25519, public material)"
 regexTarget = "line"
 regexes = [
-  '''WQlg''' + '''ThEsdw5vUa2NVjfS''',
+  '''WQlg[T]hEsdw5vUa2NVjfS''',
   '''corpus-signature-valid''',
   '''corpus-receipt''',
 ]
+
+# The generated corpus tree is deliberately key-shaped inert fixture material
+# end to end: every key derives at authoring from SHA-256 of a fixed public
+# seed string (scripts/generate_conformance_corpus.exs — :crypto.generate_key
+# over :crypto.hash(:sha256, seed)), and signature-negative cases NEED
+# byte-plausible keys to be honest fixtures. Path-scoped because the corpus
+# regenerates and per-value fragments rot (the federation corpus shipped with
+# keys no fragment above covers). Stated tradeoff: a real secret pasted under
+# priv/conformance/ would be invisible to this scan — that tree is only ever
+# machine-generated, never hand-edited.
+[[allowlists]]
+description = "Generated conformance corpus (deterministic public-by-construction fixtures)"
+paths = ['''priv/conformance/.*''']
