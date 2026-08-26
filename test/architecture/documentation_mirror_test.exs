@@ -96,31 +96,46 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
     end
   end
 
+  # safe_eval returns {:ok, value, binding} | {:error, exception} —
+  # the tagged success shape cannot collide with any evaluation RESULT,
+  # so a raising line is never mistaken for a successful one.
   defp eval_setup(expr, binding, line, offs) do
     case safe_eval(expr, binding) do
-      {_, binding} -> {offs, binding}
-      {:error, reason} -> {offs ++ ["setup line failed (#{reason}): #{inspect(line)}"], binding}
+      {:ok, _value, binding} ->
+        {offs, binding}
+
+      {:error, reason} ->
+        {offs ++ ["setup line raised #{inspect(reason)}: #{inspect(line)}"], binding}
     end
   end
 
   defp eval_pair(expr_src, claim_src, binding) do
     with {:ok, expr} <- Code.string_to_quoted(expr_src),
          {:ok, claim} <- Code.string_to_quoted(claim_src),
-         {value, binding} <- safe_eval(expr, binding),
-         {claimed, _} <- safe_eval(claim, []) do
+         {:ok, value, binding} <- safe_eval(expr, binding),
+         {:ok, claimed, _} <- safe_eval(claim, []) do
       if equivalent?(value, claimed) do
         {:equal, binding}
       else
         {:drift, value}
       end
     else
-      {:error, :parse} -> {:error, "does not parse"}
-      {:error, reason} -> {:error, inspect(reason)}
+      {:error, {_meta, _msg, _token} = parse_error} ->
+        {:error, "does not parse (#{parse_kind(parse_error)})"}
+
+      {:error, exception} when is_exception(exception) ->
+        {:error, "raised #{inspect(exception)}"}
+
+      {:error, other} ->
+        {:error, inspect(other)}
     end
   end
 
+  defp parse_kind({_, msg, _}), do: msg
+
   defp safe_eval(quoted, binding) do
-    Code.eval_quoted(quoted, binding, eval_env())
+    {value, new_binding} = Code.eval_quoted(quoted, binding, eval_env())
+    {:ok, value, new_binding}
   rescue
     e -> {:error, e}
   end
@@ -130,20 +145,19 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
     __ENV__
   end
 
-  # Structural equality over plain values; structs/tuples normalize to
-  # comparable shapes so guide claims can stay concise.
+  # Structural equality: structs normalize to maps (concise claims);
+  # tuples stay tuples — a guide claiming a LIST where the API returns
+  # a TUPLE is a wrong-return-form red, not a pass.
   defp equivalent?(left, right), do: normalize(left) == normalize(right)
 
-  defp normalize(%_{__struct__: _} = struct) do
-    struct |> Map.from_struct() |> normalize()
+  defp normalize(%_{} = value) do
+    value |> Map.from_struct() |> normalize()
   end
 
   defp normalize(%{} = map),
     do: Map.new(map, fn {k, v} -> {normalize(k), normalize(v)} end)
 
   defp normalize(list) when is_list(list), do: Enum.map(list, &normalize/1)
-
-  defp normalize(tuple) when is_tuple(tuple), do: tuple |> Tuple.to_list() |> normalize()
 
   defp normalize(value), do: value
 end

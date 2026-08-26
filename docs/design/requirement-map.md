@@ -1101,7 +1101,7 @@ Result: 0/1 passed
 $ # plant: a guide example calling a function that does not exist
 $ mix test test/architecture/documentation_mirror_test.exs
 1) test every result-claiming guide example mirrors the real package
-documentation/producer.md (block 0): line failed (#{reason}): "AgentBlueprintProtocol.Json.parse(bytes) # => {:ok, {:object, [{\"a\", {:integer, 1}}]}}"
+documentation/producer.md (block 0): line failed (raised %UndefinedFunctionError{module: AgentBlueprintProtocol.Json, function: :parse, arity: 1, reason: nil, message: nil}): "AgentBlueprintProtocol.Json.parse(bytes) # => {:ok, {:object, [{\"a\", {:integer, 1}}]}}"
 Result: 0/1 passed
 ```
 

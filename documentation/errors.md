@@ -22,7 +22,14 @@ Closed worlds: `unknown_member`, `missing_required_field`,
 
 Digests and tamper: `digest_algorithm_unsupported`,
 `digest_encoding_invalid`, `digest_mismatch`,
-`deployment_digest_mismatch`.
+`deployment_digest_mismatch`, `attestation_malformed`.
+
+Evolution: `protocol_revision_unsupported` (both directions),
+`required_core_field_unsupported`,
+`required_core_field_not_digest_covered` (an evidence-only member
+laundered into a requirement is a tamper blind spot),
+`extension_schema_unavailable`,
+`extension_schema_digest_mismatch`.
 
 ## Reject the import (reconcile halts)
 
@@ -39,6 +46,25 @@ Signature surface: `signature_algorithm_unsupported`,
 `protected_bound_clamp_denied` — a protected bound narrows; the host
 opts into the acknowledge posture or rejects.
 
+## Reject the artifact (extension + schema surface)
+
+Extension registry: `extension_duplicate`,
+`extension_namespace_invalid`, `extension_unknown_critical` (also for
+reserved namespaces declared critical), `extension_criticality_conflict`,
+`extension_retired`, `extension_payload_forbidden`. Schema documents:
+`schema_dialect_unknown`, `schema_keyword_not_allowed`,
+`schema_keyword_value_invalid`, `schema_complexity_exceeded`,
+`schema_ref_unresolvable`, `schema_ref_cycle`, `schema_invalid_shape`.
+
+## Reject the artifact (bounds + predicates + portability)
+
+Bounds families: `bound_unknown`, `bound_source_missing`,
+`bound_unit_mismatch`, `bound_value_invalid`, `missing_ceiling`,
+`unknown_bound`. Predicates: `predicate_op_unknown`,
+`predicate_path_unresolved`, `predicate_nodes_exceeded`. Portability:
+`forbidden_portable_value`, `nonportable_content` (an authority-shaped
+claim riding portable content).
+
 ## Quarantine-class (retained, never executed)
 
 Unknown optional extensions round-trip byte-exactly and are typed as
@@ -53,6 +79,9 @@ crossings deny, never degrade silently.
 
 ## Operator-only (never a wire condition)
 
-The `corpus_*` family — loader and index integrity failures in the
-conformance tooling. If you see one, fix the corpus; no host artifact
-produces them.
+The `corpus_*` family — `corpus_index_invalid`, `corpus_hash_mismatch`,
+`corpus_file_set_mismatch`, `corpus_case_id_duplicate`,
+`corpus_count_mismatch`, `corpus_applicability_incomplete`,
+`corpus_empty`, `corpus_case_invalid` — loader and index integrity
+failures in the conformance tooling. If you see one, fix the corpus;
+no host artifact produces them.
