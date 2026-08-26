@@ -20,8 +20,10 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   PARSED document, never raw file bytes — and the schema must lie inside
   `Schema`'s bounded 2020-12 dialect (the digest pins that too). This
   package owns `com.example/federation`'s schema and ships it authored
-  (`federation_schema/0`); the product-owned entries carry `nil` until
-  their owners author one.
+  (`federation_schema/0`); the estate-contract product registration carries
+  the FIRST product-owned pin, bound to its corpus-resident document
+  (`priv/conformance/schemas/estate-contract.schema.json`); the remaining
+  product-owned entries carry `nil` until their owners author one.
   Registry entries are published facts about namespaces; the registry carries no authority.
   Registry entries are published facts about namespaces; the registry carries no authority.
   """
@@ -79,6 +81,15 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   # Compile-time content as a literal-returning function (module attributes
   # cannot hold the defining module's own structs); a change here is a code
   # release either way — the drift-unrepresentable acceptance holds.
+  #
+  # The estate-contract product registration: the FIRST product-owned critical
+  # namespace with an authored schema pin. The document itself is corpus data
+  # (priv/conformance/schemas/estate-contract.schema.json — hash-bound in the
+  # corpus index, shipped in the archive); the pin below is
+  # Digest.hash(:extension_schema, JCS(parsed document)), and the binding test
+  # in ExtensionRegistryTest proves pin and shipped document agree. The
+  # placeholder estate namespace deprecates in the same release: its payload
+  # role (a free-object condition body) is superseded by the validated channel.
   defp entries do
     [
       %__MODULE__{
@@ -112,9 +123,18 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
         namespace: "com.example.platform/estate",
         owner: "ExamplePlatform",
         criticality: :optional,
-        state: :active,
+        state: :deprecated,
         schema_digest: nil,
         a2a_uri: "https://example.com/extensions/platform-estate",
+        promoted_at_revision: nil
+      },
+      %__MODULE__{
+        namespace: "com.example.platform/estate-contract",
+        owner: "ExamplePlatform",
+        criticality: :critical,
+        state: :active,
+        schema_digest: "sha-256:_qRt8AhIyCZ9yWN1L-ODiESW-37YXZWaMAEZH7cszvg",
+        a2a_uri: "https://example.com/extensions/platform-estate-contract",
         promoted_at_revision: nil
       },
       %__MODULE__{
@@ -133,7 +153,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
     Map.new(entries(), fn entry -> {entry.namespace, entry} end)
   end
 
-  @doc "The compiled registry entries (the five first-release rows; no reserved rows)."
+  @doc "The compiled registry entries (the six registered rows; one deprecated)."
   @spec registered_extensions() :: [t()]
   def registered_extensions, do: entries()
 

@@ -26,8 +26,8 @@ defmodule AgentBlueprintProtocol.Conformance.CorpusTest do
   end
 
   describe "a floor-valid corpus loads" do
-    test "the minimal 86-cell corpus returns the loaded struct" do
-      assert length(Builder.minimal_cases()) == 86
+    test "the minimal 90-cell corpus returns the loaded struct" do
+      assert length(Builder.minimal_cases()) == 90
       assert {:ok, %Corpus{}} = Corpus.load(minimal())
     end
 
@@ -586,15 +586,15 @@ defmodule AgentBlueprintProtocol.Conformance.CorpusTest do
   end
 
   describe "the floor itself" do
-    test "is the pinned design commitment: 16 surfaces x 29 classes, 86 required cells" do
+    test "is the pinned design commitment: 16 surfaces x 31 classes, 90 required cells" do
       floor = Corpus.floor()
       assert map_size(floor) == 16
       assert length(Corpus.surfaces()) == 16
-      assert length(Corpus.classes()) == 29
+      assert length(Corpus.classes()) == 31
       assert MapSet.new(Corpus.surfaces()) == MapSet.new(Map.keys(floor))
 
       required = floor |> Enum.map(fn {_s, %{required: r}} -> length(r) end) |> Enum.sum()
-      assert required == 86
+      assert required == 90
     end
 
     test "every surface carries its falsifiable n_a reason" do

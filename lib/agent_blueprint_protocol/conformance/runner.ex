@@ -865,7 +865,9 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
        "revision" => outcome.protocol_revision,
        "critical" => Enum.sort(outcome.critical_extensions),
        "quarantined" => Enum.sort(outcome.quarantined_extensions),
-       "notices" => Enum.sort(outcome.notices)
+       # JSON-shaped: notice atoms stringify here so in-process comparisons
+       # and the serialized report agree (the verifier twin emits strings).
+       "notices" => outcome.notices |> Enum.sort() |> Enum.map(&Atom.to_string/1)
      }}
   end
 

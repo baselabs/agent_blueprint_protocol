@@ -28,6 +28,8 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/federation-lanes.md
     docs/adr/no-versioning-rule.md
     docs/adr/non-authorizing-boundary.md
+    docs/adr/producer-surface.md
+    docs/adr/product-extension-registration.md
     docs/adr/two-consumer-amendment.md
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
@@ -73,6 +75,8 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/federation-lanes.md
     docs/adr/no-versioning-rule.md
     docs/adr/non-authorizing-boundary.md
+    docs/adr/producer-surface.md
+    docs/adr/product-extension-registration.md
     docs/adr/two-consumer-amendment.md
     .formatter.exs
     mix.exs

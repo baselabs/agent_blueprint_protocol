@@ -135,7 +135,7 @@ report determinism, CLI exit codes) run here as well.
 
 Proves: the shipped corpus loads, integrity-verifies (per-file hashes,
 exact file set both directions, counts, id-uniqueness, applicability
-totality), executes, and agrees — 88/0 at the recorded digest.
+totality), executes, and agrees — 94/0 at the recorded digest.
 
 ```red
 $ # plant: one byte of a corpus case JSON flipped (duplicate_member -> xuplicate_member)

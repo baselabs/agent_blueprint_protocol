@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "0.1.1"
+  @version "0.2.0"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -77,6 +77,8 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/federation-lanes.md",
         "docs/adr/no-versioning-rule.md",
         "docs/adr/non-authorizing-boundary.md",
+        "docs/adr/producer-surface.md",
+        "docs/adr/product-extension-registration.md",
         "docs/adr/two-consumer-amendment.md",
         ".formatter.exs",
         "mix.exs",
@@ -112,6 +114,8 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/federation-lanes.md",
         "docs/adr/no-versioning-rule.md",
         "docs/adr/non-authorizing-boundary.md",
+        "docs/adr/producer-surface.md",
+        "docs/adr/product-extension-registration.md",
         "docs/adr/two-consumer-amendment.md",
         "LICENSE",
         "NOTICE",

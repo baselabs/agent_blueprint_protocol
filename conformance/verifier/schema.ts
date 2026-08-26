@@ -683,7 +683,10 @@ function evalItems(
   pointers: Map<string, Value>,
 ): EvalResult {
   if (index >= items.length) return ok(undefined);
-  const result = evaluate(items[index]!, sub, [String(index), ...loc], memo, pointers);
+  // Schema first, instance second — the historical swap here evaluated each
+  // item AS the schema (object-shaped items passed vacuously, scalar items
+  // crashed); the tier schemas are the first corpus-bearing items user.
+  const result = evaluate(sub, items[index]!, [String(index), ...loc], memo, pointers);
   if (!result.ok) return result;
   return evalItems(items, index + 1, sub, loc, memo, pointers);
 }

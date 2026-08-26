@@ -2,14 +2,58 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
-## [Unreleased]
+## [0.2.0] — 2026-08-25
 
-### Documentation
+### Added — product-extension registration
 
-- Reconcile the normative protocol header and README introduction to the live public 0.1.x
-  package state; remove the obsolete pre-publication/release-candidate framing.
+- The extension registry registers `com.example.platform/estate-contract`
+  (owner `ExamplePlatform`, **critical**, active, never promoted) — the first
+  product-owned critical namespace with an authored schema digest pin, riding
+  the `:authored_extensions` validated channel: critical bodies validate
+  against a host-supplied schema whose `extension_schema` JCS digest matches
+  the registry pin, then thread into `from_value/2` as authored content. The
+  schema document covers the asset materialization window (`definition
+  {name, version}` + nullable `window_days`) and the objective condition AST
+  (leaves `materialization_present` / `materialization_stale` /
+  `materialization_count_within`; composites `and`/`or` n-ary, `not` unary),
+  hand-tiered as uniform-depth strict tiers because the bounded dialect denies
+  `$ref` cycles — portable condition depth is three composite tiers
+  (metered complexity 415/512). See `docs/adr/product-extension-registration.md`.
+- The schema document ships as corpus data
+  (`priv/conformance/schemas/estate-contract.schema.json`); `lib/` records only
+  the digest pin, and a test binds the pin to the SHIPPED document (the corpus
+  index hashes raw file bytes, the pin hashes JCS of the parsed document — the
+  test is the bridge between the two domains).
+- The conformance corpus grows 88 → 94 cases: the validated-channel cells
+  (valid attach with matching schema, schema absent, digest mismatch,
+  criticality conflict, the tier-bound deny) and the deprecated-optional
+  retention cell; two new applicability classes (`extension_schema_unavailable`,
+  `extension_deprecated_retained`); the floor is now 16 surfaces × 31 classes /
+  90 required cells. Corpus digest
+  `sha-256:Lhpk9CraZbpGoNs5EhUi9inVlZIn4-7mxs9hQ7K5a_c`; registry digest
+  `sha-256:6sKyVlqYeL7DfUOr0bfeNzneASJoih6yYfmA_C0Qadw`.
+- `docs/adr/producer-surface.md` records the producer-surface disposition: the
+  documented per-artifact constructors ARE the intended producer surface for
+  hosts; the facade stays a verification facade.
+
+### Deprecated
+
+- `com.example.platform/estate` (the placeholder optional namespace) is
+  `deprecated`: its payload role — a condition body carried verbatim as a free
+  object — is superseded by the schema-validated channel. Optional bodies in
+  existing artifacts remain verifiable, retained with a typed
+  `extension_deprecated` notice.
 
 ### Fixed
+
+- The second-language verifier's schema `items` evaluation had its schema and
+  instance arguments swapped, so no cross-language case had ever actually
+  validated array items (object-shaped items passed vacuously; scalar items
+  crashed the verifier). The estate-contract tier schemas are the first
+  corpus-bearing `items` user; the byte-identical agreement gate now proves
+  both languages validate items identically.
+
+### Changed — from the unreleased queue
 
 - The gitleaks secret-scan configuration was invalid TOML (a string
   concatenation TOML does not support) and, independently, nothing executed
@@ -26,6 +70,9 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   commit before running the complete quality gate. This removes dependence on
   the runner image's ambient Node release while preserving the verifier's
   Node 24 minimum.
+- The normative protocol header and README introduction were reconciled to the
+  live public 0.1.x package state (obsolete pre-publication/release-candidate
+  framing removed).
 
 ## [0.1.1] — 2026-08-23
 

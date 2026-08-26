@@ -98,6 +98,8 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
     "extension_unknown_critical",
     "extension_unknown_optional_roundtrip",
     "extension_criticality_conflict",
+    "extension_schema_unavailable",
+    "extension_deprecated_retained",
     "bound_widening_operational",
     "bound_widening_protected",
     "forbidden_portable_value",
@@ -151,12 +153,12 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
     },
     "negotiation.negotiate" => %{
       required:
-        ~w(valid revision_above_max revision_below_min required_field_unsupported required_field_not_covered extension_unknown_critical extension_criticality_conflict),
+        ~w(valid revision_above_max revision_below_min required_field_unsupported required_field_not_covered extension_unknown_critical extension_criticality_conflict extension_schema_unavailable invalid_constraint invalid_cardinality),
       n_a: "byte/signature classes - negotiation consumes decoded headers"
     },
     "extension.resolve" => %{
       required:
-        ~w(valid extension_unknown_critical extension_unknown_optional_roundtrip extension_criticality_conflict forbidden_portable_value invalid_constraint),
+        ~w(valid extension_unknown_critical extension_unknown_optional_roundtrip extension_criticality_conflict extension_deprecated_retained forbidden_portable_value invalid_constraint),
       n_a: "revision classes - owned by negotiation"
     },
     "bounds.new" => %{

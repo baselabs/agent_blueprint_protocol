@@ -25,6 +25,7 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
     DeploymentFixture,
     Evidence,
     ExtensionRegistry,
+    Json,
     Negotiation,
     Reconcile
   }
@@ -32,6 +33,25 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
   alias AgentBlueprintProtocol.BoundsAlgebra
   alias AgentBlueprintProtocol.Deployment.Observations
   alias AgentBlueprintProtocol.Negotiation.Support
+
+  # The registered product extension rides the VALIDATED channel: the shipped
+  # corpus document supplies the host schema, the compiled registry pins its
+  # digest, and the blueprint threads the namespace through
+  # :authored_extensions (the render-path rehearsal the registration unblocks).
+  @estate_contract_namespace "com.example.platform/estate-contract"
+
+  defp estate_contract_schema do
+    {:ok, raw} = File.read("priv/conformance/schemas/estate-contract.schema.json")
+    {:ok, tagged} = Json.decode(raw)
+    tagged
+  end
+
+  defp product_support do
+    %Support{
+      revisions: MapSet.new([1]),
+      schemas: %{@estate_contract_namespace => estate_contract_schema()}
+    }
+  end
 
   # The reference pair used by this projection: AssetDefinition
   # (name "daily_position_summary", definition_version 7) + an
@@ -52,7 +72,7 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
     "example.estate.propose_objective" => {"mutation", "human_required", "none"}
   }
 
-  # ---- the reference-shaped condition AST (carried verbatim in the estate body) ----------
+  # ---- the reference-shaped condition AST (carried in the product body) ----------
 
   defp condition_ast do
     {:object,
@@ -83,6 +103,26 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
               {"max_age_days", {:integer, @max_age_days}}
             ]}
          ]}}
+     ]}
+  end
+
+  # The registered product envelope: the asset materialization window contract
+  # alongside the objective condition AST, both under the pinned schema.
+  defp product_contract_body do
+    {:object,
+     [
+       {"asset_materialization_window",
+        {:object,
+         [
+           {"definition",
+            {:object,
+             [
+               {"name", {:string, @definition_name}},
+               {"version", {:integer, @definition_version}}
+             ]}},
+           {"window_days", :null}
+         ]}},
+       {"objective_condition", condition_ast()}
      ]}
   end
 
@@ -274,8 +314,11 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
         ]}},
       {"extensions",
        BlueprintFixture.extensions(
-         optional: %{"com.example.platform/estate" => condition_ast()},
-         critical: Keyword.get(opts, :critical_extensions, %{})
+         critical:
+           Map.merge(
+             %{@estate_contract_namespace => product_contract_body()},
+             Keyword.get(opts, :critical_extensions, %{})
+           )
        )},
       {"input_ports",
        {:array,
@@ -318,7 +361,11 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
   end
 
   defp blueprint(opts \\ []) do
-    {:ok, blueprint} = Blueprint.from_value(blueprint_value(opts))
+    {:ok, blueprint} =
+      Blueprint.from_value(blueprint_value(opts), %{
+        authored_extensions: [@estate_contract_namespace]
+      })
+
     blueprint
   end
 
@@ -446,7 +493,7 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
 
     %Reconcile.Inputs{
       host_bounds: bounds,
-      support: Keyword.get(opts, :support, %Support{revisions: MapSet.new([1])}),
+      support: Keyword.get(opts, :support, product_support()),
       keys: [],
       protected_clamp: :deny,
       observations: %Observations{
@@ -464,25 +511,34 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
 
   # ---- green end-to-end ---------------------------------------------------------------
 
-  test "the projected pair reconciles green with the estate extension retained" do
+  test "the projected pair reconciles green with the product contract validated" do
     blueprint = blueprint()
     deployment = deployment(blueprint)
 
     assert {:ok, %Evidence{clamps: [], optional_extensions_retained: retained} = evidence} =
              Reconcile.reconcile(blueprint, deployment, inputs(deployment: deployment))
 
-    assert "com.example.platform/estate" in retained
+    # The product extension is CRITICAL and schema-validated — it is not a
+    # retained optional; its carriage is proven by the green negotiation over
+    # the digest-pinned document and the byte-exact round trip below.
+    assert retained == []
     assert Enum.all?(evidence.checks, & &1.verified)
 
     assert Enum.take(evidence.not_verified, 7) ==
              ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth)a
 
+    # The registered body travels byte-exactly in the portable artifact.
+    assert {:object, members} = Blueprint.to_value(blueprint)
+    {"extensions", {:object, regions}} = List.keyfind(members, "extensions", 0)
+    {"critical", {:object, critical}} = List.keyfind(regions, "critical", 0)
+    {@estate_contract_namespace, body} = List.keyfind(critical, @estate_contract_namespace, 0)
+    assert body == product_contract_body()
+
     # Mapping pins: release ← definition_version (the gate predicate and the
-    # deployment's bound release agree with it), window_days ← a nullable
-    # input port, and the estate binding's max_age_ms is the condition's
+    # deployment's bound release agree with it), window_days ← a nullable input
+    # port, and the estate binding's max_age_ms is the condition's
     # max_age_days rendered in milliseconds.
-    {:object, blueprint_members} = Blueprint.to_value(blueprint)
-    blueprint_members_map = Map.new(blueprint_members)
+    blueprint_members_map = Map.new(members)
 
     assert Map.fetch!(blueprint_members_map, "release_number") == {:integer, @definition_version}
 
@@ -541,7 +597,10 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
   test "a digest lie on the reference-derived Blueprint denies :digest_mismatch" do
     honest = blueprint()
     lying_value = blueprint_value(declared_digest: "sha-256:#{String.duplicate("A", 43)}")
-    lying = Blueprint.from_value(lying_value) |> elem(1)
+
+    lying =
+      Blueprint.from_value(lying_value, %{authored_extensions: [@estate_contract_namespace]})
+      |> elem(1)
 
     assert {:error, %{code: :digest_mismatch}} =
              Reconcile.reconcile(lying, deployment(honest), inputs())

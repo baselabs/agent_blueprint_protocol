@@ -963,6 +963,248 @@ fed_support = %{
   }
 }
 
+# The registered product-extension document, single-sourced here (the generator
+# writes it to schemas/estate-contract.schema.json; the registry pin binds to
+# the parsed document, and ExtensionRegistryTest proves pin and shipped file
+# agree — a stale regeneration reds that binding).
+estate_contract_schema = %{
+  "type" => "object",
+  "additionalProperties" => false,
+  "properties" => %{
+    "asset_materialization_window" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "definition" => %{"$ref" => "#/$defs/definition_ref"},
+        "window_days" => %{"type" => ["integer", "null"], "minimum" => 1}
+      },
+      "required" => ["definition", "window_days"]
+    },
+    "objective_condition" => %{
+      "oneOf" => [
+        %{"$ref" => "#/$defs/leaf"},
+        %{"$ref" => "#/$defs/tier_1"},
+        %{"$ref" => "#/$defs/tier_2"},
+        %{"$ref" => "#/$defs/tier_3"}
+      ]
+    }
+  },
+  "required" => ["asset_materialization_window", "objective_condition"],
+  "$defs" => %{
+    "definition_ref" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "name" => %{"type" => "string", "minLength" => 1},
+        "version" => %{"type" => "integer", "minimum" => 1}
+      },
+      "required" => ["name", "version"]
+    },
+    "leaf_present" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "materialization_present"},
+        "definition" => %{"$ref" => "#/$defs/definition_ref"}
+      },
+      "required" => ["op", "definition"]
+    },
+    "leaf_stale" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "materialization_stale"},
+        "definition" => %{"$ref" => "#/$defs/definition_ref"},
+        "max_age_days" => %{"type" => "integer", "minimum" => 1}
+      },
+      "required" => ["op", "definition", "max_age_days"]
+    },
+    "leaf_count_within" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "materialization_count_within"},
+        "definition" => %{"$ref" => "#/$defs/definition_ref"},
+        "days" => %{"type" => "integer", "minimum" => 1},
+        "max" => %{"type" => "integer", "minimum" => 0}
+      },
+      "required" => ["op", "definition", "days", "max"]
+    },
+    "leaf" => %{
+      "oneOf" => [
+        %{"$ref" => "#/$defs/leaf_present"},
+        %{"$ref" => "#/$defs/leaf_stale"},
+        %{"$ref" => "#/$defs/leaf_count_within"}
+      ]
+    },
+    "tier_1" => %{
+      "oneOf" => [
+        %{"$ref" => "#/$defs/and_over_leaf"},
+        %{"$ref" => "#/$defs/or_over_leaf"},
+        %{"$ref" => "#/$defs/not_over_leaf"}
+      ]
+    },
+    "and_over_leaf" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "and"},
+        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/leaf"}, "minItems" => 1}
+      },
+      "required" => ["op", "args"]
+    },
+    "or_over_leaf" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "or"},
+        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/leaf"}, "minItems" => 1}
+      },
+      "required" => ["op", "args"]
+    },
+    "not_over_leaf" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "not"},
+        "args" => %{
+          "type" => "array",
+          "items" => %{"$ref" => "#/$defs/leaf"},
+          "minItems" => 1,
+          "maxItems" => 1
+        }
+      },
+      "required" => ["op", "args"]
+    },
+    "tier_2" => %{
+      "oneOf" => [
+        %{"$ref" => "#/$defs/and_over_tier_1"},
+        %{"$ref" => "#/$defs/or_over_tier_1"},
+        %{"$ref" => "#/$defs/not_over_tier_1"}
+      ]
+    },
+    "and_over_tier_1" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "and"},
+        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/tier_1"}, "minItems" => 1}
+      },
+      "required" => ["op", "args"]
+    },
+    "or_over_tier_1" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "or"},
+        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/tier_1"}, "minItems" => 1}
+      },
+      "required" => ["op", "args"]
+    },
+    "not_over_tier_1" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "not"},
+        "args" => %{
+          "type" => "array",
+          "items" => %{"$ref" => "#/$defs/tier_1"},
+          "minItems" => 1,
+          "maxItems" => 1
+        }
+      },
+      "required" => ["op", "args"]
+    },
+    "tier_3" => %{
+      "oneOf" => [
+        %{"$ref" => "#/$defs/and_over_tier_2"},
+        %{"$ref" => "#/$defs/or_over_tier_2"},
+        %{"$ref" => "#/$defs/not_over_tier_2"}
+      ]
+    },
+    "and_over_tier_2" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "and"},
+        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/tier_2"}, "minItems" => 1}
+      },
+      "required" => ["op", "args"]
+    },
+    "or_over_tier_2" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "or"},
+        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/tier_2"}, "minItems" => 1}
+      },
+      "required" => ["op", "args"]
+    },
+    "not_over_tier_2" => %{
+      "type" => "object",
+      "additionalProperties" => false,
+      "properties" => %{
+        "op" => %{"const" => "not"},
+        "args" => %{
+          "type" => "array",
+          "items" => %{"$ref" => "#/$defs/tier_2"},
+          "minItems" => 1,
+          "maxItems" => 1
+        }
+      },
+      "required" => ["op", "args"]
+    }
+  }
+}
+
+# The host posture for the product extension: the compiled registry resolves
+# the entry (criticality, pin); the host supplies the authored document.
+estate_support = %{
+  "revisions" => [1],
+  "schemas" => %{
+    "com.example/federation" => fed_support["schemas"]["com.example/federation"],
+    "com.example.platform/estate-contract" => estate_contract_schema
+  }
+}
+
+# Reference product bodies: the window contract and the condition AST in the
+# tier_1 reference shape.
+estate_window = %{
+  "definition" => %{"name" => "daily_position_summary", "version" => 7},
+  "window_days" => nil
+}
+
+estate_leaf_present = %{
+  "op" => "materialization_present",
+  "definition" => %{"name" => "daily_position_summary", "version" => 7}
+}
+
+estate_leaf_stale = %{
+  "op" => "materialization_stale",
+  "definition" => %{"name" => "daily_position_summary", "version" => 7},
+  "max_age_days" => 7
+}
+
+estate_condition = %{"op" => "and", "args" => [estate_leaf_present, estate_leaf_stale]}
+
+estate_body = %{
+  "asset_materialization_window" => estate_window,
+  "objective_condition" => estate_condition
+}
+
+estate_artifact = fn condition ->
+  Map.put(base_artifact, "extensions", %{
+    "critical" => %{
+      "com.example/federation" => %{"issuer" => "org-a"},
+      "com.example.platform/estate-contract" => %{
+        "asset_materialization_window" => estate_window,
+        "objective_condition" => condition
+      }
+    },
+    "optional" => %{}
+  })
+end
+
 negotiation_cases = [
   %{
     "id" => "negotiation-valid",
@@ -1041,6 +1283,84 @@ negotiation_cases = [
           }
       },
       "support" => fed_support
+    },
+    "expected" => %{"verdict" => "invalid", "code" => "extension_criticality_conflict"}
+  },
+  %{
+    "id" => "negotiation-estate-contract-valid",
+    "surface" => "negotiation.negotiate",
+    "class" => "valid",
+    "input" => %{"artifact" => estate_artifact.(estate_condition), "support" => estate_support},
+    "expected" => %{
+      "verdict" => "valid",
+      "revision" => 1,
+      "critical" => ["com.example.platform/estate-contract", "com.example/federation"]
+    }
+  },
+  %{
+    "id" => "negotiation-estate-contract-schema-absent",
+    "surface" => "negotiation.negotiate",
+    "class" => "extension_schema_unavailable",
+    "input" => %{
+      "artifact" => estate_artifact.(estate_condition),
+      "support" => %{"revisions" => [1], "schemas" => %{}}
+    },
+    "expected" => %{"verdict" => "invalid", "code" => "extension_schema_unavailable"}
+  },
+  %{
+    "id" => "negotiation-estate-contract-digest-mismatch",
+    "surface" => "negotiation.negotiate",
+    "class" => "invalid_constraint",
+    "input" => %{
+      "artifact" => estate_artifact.(estate_condition),
+      "support" => %{
+        "revisions" => [1],
+        "schemas" => %{
+          "com.example/federation" => fed_support["schemas"]["com.example/federation"],
+          "com.example.platform/estate-contract" => %{"type" => "object"}
+        }
+      }
+    },
+    "expected" => %{"verdict" => "invalid", "code" => "extension_schema_digest_mismatch"}
+  },
+  %{
+    "id" => "negotiation-estate-contract-tier-bound",
+    "surface" => "negotiation.negotiate",
+    "class" => "invalid_cardinality",
+    "input" => %{
+      "artifact" =>
+        estate_artifact.(%{
+          "op" => "and",
+          "args" => [
+            # Uniform tiers 1..3 then one more composite level: the portable
+            # depth bound denies at the top selector (oneOf exactly-one).
+            %{"op" => "and", "args" => [estate_leaf_present, estate_leaf_stale]}
+            |> then(fn t1 ->
+              %{"op" => "and", "args" => [t1, t1]}
+            end)
+            |> then(fn t2 ->
+              %{"op" => "and", "args" => [t2, t2]}
+            end)
+            |> then(fn t3 ->
+              %{"op" => "and", "args" => [t3, t3]}
+            end)
+          ]
+        }),
+      "support" => estate_support
+    },
+    "expected" => %{"verdict" => "invalid", "code" => "invalid_cardinality"}
+  },
+  %{
+    "id" => "negotiation-estate-contract-criticality-conflict",
+    "surface" => "negotiation.negotiate",
+    "class" => "extension_criticality_conflict",
+    "input" => %{
+      "artifact" =>
+        Map.put(base_artifact, "extensions", %{
+          "critical" => %{"com.example/federation" => %{"issuer" => "org-a"}},
+          "optional" => %{"com.example.platform/estate-contract" => estate_body}
+        }),
+      "support" => estate_support
     },
     "expected" => %{"verdict" => "invalid", "code" => "extension_criticality_conflict"}
   }
@@ -1126,6 +1446,24 @@ extension_cases = [
         Map.put(fed_support, "schemas", %{"com.example/federation" => %{"type" => "array"}})
     },
     "expected" => %{"verdict" => "invalid", "code" => "extension_schema_digest_mismatch"}
+  },
+  %{
+    "id" => "extension-resolve-estate-deprecated-retained",
+    "surface" => "extension.resolve",
+    "class" => "extension_deprecated_retained",
+    "input" => %{
+      "artifact" =>
+        Map.put(base_artifact, "extensions", %{
+          "critical" => %{"com.example/federation" => %{"issuer" => "org-a"}},
+          "optional" => %{"com.example.platform/estate" => %{"payload" => 1}}
+        }),
+      "support" => fed_support
+    },
+    "expected" => %{
+      "verdict" => "valid",
+      "quarantined" => [],
+      "notices" => ["extension_deprecated"]
+    }
   }
 ]
 
@@ -1513,6 +1851,7 @@ golden_deployment_value = CorpusGen.add_empty_attestations(DeploymentFixture.wit
 
 data = %{
   "schemas/object.schema.json" => object_schema,
+  "schemas/estate-contract.schema.json" => estate_contract_schema,
   "vectors/blueprint-golden.json" => CorpusGen.plain_value(golden_blueprint_value),
   "vectors/deployment-golden.json" => CorpusGen.plain_value(golden_deployment_value),
   "vectors/rfc8785-numbers.json" => %{

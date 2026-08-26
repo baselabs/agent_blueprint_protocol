@@ -294,14 +294,33 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
              Negotiation.negotiate(
                artifact_value(
                  extensions:
+                   extensions(
+                     optional: %{"com.example.commerce/classification-labels" => {:object, []}}
+                   )
+               ),
+               support()
+             )
+
+    assert outcome.optional_retained == ["com.example.commerce/classification-labels"]
+    assert outcome.quarantined_extensions == []
+    assert outcome.notices == []
+  end
+
+  test "a deprecated optional namespace retains its body WITH a typed notice" do
+    # The placeholder estate namespace, deprecated at the estate-contract
+    # registration: retained (old artifacts stay verifiable) but never silently —
+    # the notice is the honesty record.
+    assert {:ok, outcome} =
+             Negotiation.negotiate(
+               artifact_value(
+                 extensions:
                    extensions(optional: %{"com.example.platform/estate" => {:object, []}})
                ),
                support()
              )
 
     assert outcome.optional_retained == ["com.example.platform/estate"]
-    assert outcome.quarantined_extensions == []
-    assert outcome.notices == []
+    assert outcome.notices == [:extension_deprecated]
   end
 
   # ---- critical body validation ---------------------------------------------------------

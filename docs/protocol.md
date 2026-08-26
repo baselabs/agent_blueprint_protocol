@@ -2,7 +2,7 @@
 
 Status: published pre-1.0 protocol (0.1.x release line). This document is
 normative for the shipped reference implementation and its conformance corpus (digest
-`sha-256:k0ltF0KWcORTzkyr6dP7TPU9M2VdpewAvf_O8w2D7Wo`, 88 cases). Where
+`sha-256:Lhpk9CraZbpGoNs5EhUi9inVlZIn4-7mxs9hQ7K5a_c`, 94 cases). Where
 this document and the package's compiled data disagree, the package and
 its corpus are the truth and this document is a defect.
 
@@ -195,8 +195,17 @@ Registered at this release:
 | `com.example.commerce/graph` | ExampleCommerce | critical | active |
 | `com.example.commerce/classification-labels` | ExampleCommerce | optional | active |
 | `com.example.commerce/rubric-assertion` | ExampleCommerce | optional | active |
-| `com.example.platform/estate` | ExamplePlatform | optional | active |
+| `com.example.platform/estate` | ExamplePlatform | optional | deprecated |
+| `com.example.platform/estate-contract` | ExamplePlatform | critical | active |
 | `com.example/federation` | Agent Blueprint Protocol | critical | active |
+
+`com.example.platform/estate-contract` is the product-extension registration:
+the first product-owned critical namespace with an authored schema pin. The
+document ships as corpus data
+(`priv/conformance/schemas/estate-contract.schema.json`); `lib/` carries only
+the digest pin, test-bound to the shipped file. The deprecated
+`com.example.platform/estate` placeholder retains its optional bodies with a
+typed notice — existing artifacts stay verifiable.
 
 Critical-extension bodies validate only against a host-supplied schema
 whose digest matches the registry's `schema_digest`; no schema denies
@@ -337,10 +346,10 @@ self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-88 cases covering every required cell of the 16-surface × 29-class
+94 cases covering every required cell of the 16-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:k0ltF0KWcORTzkyr6dP7TPU9M2VdpewAvf_O8w2D7Wo`. Corpus identity
+`sha-256:Lhpk9CraZbpGoNs5EhUi9inVlZIn4-7mxs9hQ7K5a_c`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over `%{path => binary}` and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,

@@ -59,7 +59,7 @@ Semantics:
   (canonical, digest, negotiation, structure, portability, signatures, bind,
   bounds), reject-or-annotate, never repair, under host-supplied inputs.
 
-Tooling: `mix conformance.verify` executes the shipped 88-case corpus;
+Tooling: `mix conformance.verify` executes the shipped 94-case corpus;
 `mix conformance.mutations` re-proves the corpus catches named implementation
 breaks; `mix verifier.agreement` byte-agrees the Elixir runner with the
 independent TypeScript verifier.
@@ -67,9 +67,9 @@ independent TypeScript verifier.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated locally: 883 tests
+and conformance corpus are implemented and gated locally: 903 tests
 (59 properties) at 100% coverage, zero Dialyzer errors, `--strict`
-Credo clean, an 88-case conformance corpus with a mutation gate, and a
+Credo clean, a 94-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
 The normative protocol document, [`docs/protocol.md`](docs/protocol.md),
 ships in the Hex archive. Every build gate's recorded red proof is the
@@ -117,8 +117,8 @@ coupling). Every gate carries a recorded red proof — see the requirement map a
 
 ### Conformance corpus
 
-The package ships a portable conformance corpus (`priv/conformance/`) — 88
-cases covering every required cell of the 16-surface × 29-class applicability
+The package ships a portable conformance corpus (`priv/conformance/`) — 94
+cases covering every required cell of the 16-surface × 31-class applicability
 floor, full-registry golden artifacts, RFC 8785 number vectors, and
 deterministic Ed25519 fixtures. Run it:
 
