@@ -134,13 +134,11 @@ Cardinality `1` members are required; `0..1` members are optional.
 The failure precedence is the pinned closed-world order: unknown
 member → missing required → type → constraint → cardinality →
 nested → cross-field hooks. Every sub-member listed inside an
-object/array type is required unless marked `(opt)`. The
-machine-readable grammar artifacts are pinned to these tables by
-their own derivation gate.
+object/array type is required unless marked `(opt)`.
 
 | Member | Card. | Type | Constraints |
 |---|---|---|---|
-| `blueprint_id` | 1 | string | — |
+| `blueprint_id` | 1 | string | value: producer-qualified name |
 | `capability_requirements` | 1 | array<object{ operation_family:string; argument_schema:custom; result_schema:custom; operation_kind:enum(computation\|mutation\|read); impact_class:enum(authority\|money\|ordinary\|secret); classification_ceiling:enum(confidential\|internal\|public\|restricted); approval_trait:enum(human_required\|none\|separated_human_required); authority_trait:enum(external_authority_required\|local_policy\|none) }> | max 64, unique by operation_family |
 | `ceilings` | 1 | object{ max_attempts:integer; max_concurrency:integer; max_depth:integer; max_descendants:integer; max_elapsed_ms:integer; max_fan_out:integer; max_tokens:integer; max_cost:object{ amount:integer; currency:string } } | — |
 | `classification_ceiling` | 1 | enum(confidential\|internal\|public\|restricted) | — |
@@ -151,13 +149,13 @@ their own derivation gate.
 | `output_contract` | 1 | object{ port:string; classification_ceiling:enum(confidential\|internal\|public\|restricted) } | — |
 | `output_ports` | 1 | array<object{ name:string; schema:custom; classification_ceiling:enum(confidential\|internal\|public\|restricted); required:boolean }> | max 64, unique by name |
 | `producer` | 1 | object{ identity:string; created_at:string; toolchain:string } | — |
-| `protocol_revision` | 1 | integer | — |
-| `release_number` | 1 | integer | — |
+| `protocol_revision` | 1 | integer | value: positive integer |
+| `release_number` | 1 | integer | value: positive integer |
 | `required_core_fields` | 1 | array<string> | unique by value |
 | `triggers` | 1 | array<enum(condition\|delegated\|evaluation\|manual\|schedule)> | min 1, unique by value |
 | `signatures` | 0..1 | array<custom> | max 16 |
 | `attestations` | 0..1 | array<any> | max 16 |
-| `content_digest` | 1 | string | — |
+| `content_digest` | 1 | string | value: tagged digest |
 
 ### Member grammar — Deployment Manifest (19 members)
 
@@ -165,9 +163,7 @@ Cardinality `1` members are required; `0..1` members are optional.
 The failure precedence is the pinned closed-world order: unknown
 member → missing required → type → constraint → cardinality →
 nested → cross-field hooks. Every sub-member listed inside an
-object/array type is required unless marked `(opt)`. The
-machine-readable grammar artifacts are pinned to these tables by
-their own derivation gate.
+object/array type is required unless marked `(opt)`.
 
 | Member | Card. | Type | Constraints |
 |---|---|---|---|
@@ -182,14 +178,14 @@ their own derivation gate.
 | `host_bounds` | 1 | object{ approval_trait:enum(human_required\|none\|separated_human_required); authority_trait:enum(external_authority_required\|local_policy\|none); classification_ceiling:enum(confidential\|internal\|public\|restricted); disclosure_ceiling:enum(detail\|full\|none\|summary); effect_impact_ceiling:enum(authority\|money\|ordinary\|secret); max_attempts:integer; max_concurrency:integer; max_cost:object{ amount:integer; currency:string }; max_depth:integer; max_descendants:integer; max_elapsed_ms:integer; max_fan_out:integer; max_tokens:integer } | — |
 | `lifecycle` | 1 | object{ state:enum(active\|draft\|retired); activated_at (opt):string; retired_at (opt):string } | — |
 | `model_policy` | 1 | object{ allowed_model_roles:array<string>; max_tokens:integer; max_cost:object{ amount:integer; currency:string } } | — |
-| `protocol_revision` | 1 | integer | — |
+| `protocol_revision` | 1 | integer | value: positive integer |
 | `required_core_fields` | 1 | array<string> | unique by value |
 | `scope_projection` | 1 | object{ adapter_identity:string } | — |
 | `signer_custody` | 1 | enum(external_kms\|holder_edge\|host_managed) | — |
 | `tool_bindings` | 1 | array<object{ logical_operation:string; adapter_identity:string; descriptor_digest:string; schema_digest:string; attested_at:string }> | max 128, unique by logical_operation |
 | `signatures` | 0..1 | array<custom> | max 16 |
 | `attestations` | 0..1 | array<any> | max 16 |
-| `deployment_digest` | 1 | string | — |
+| `deployment_digest` | 1 | string | value: tagged digest |
 
 ## 3. Bytes
 
@@ -412,37 +408,40 @@ verification failure). Correlation grants nothing.
 ### Member grammar — Federation TaskEnvelope (23 members)
 
 The envelope is a closed world: one wire member per logical field,
-cardinality 1 each, carried as the extension body under the
-`com.example/federation` namespace on both transports. Members marked
-nullable MAY be `null`; the receipt-bearing members feed the Terminal
-Commitment's seven-component digest. The per-member machine grammar is
-pinned with the CDDL artifacts.
+carried as the extension body under the `com.example/federation`
+namespace on both transports. Cardinality `1` members are required;
+`0..1` members are optional (absent — there is no null form). Cross-
+member hooks: `checkpoint_status` MUST NOT coexist with `terminal_state`
+(`:invalid_constraint`), and the terminal hooks bind
+`terminal_state`/`evidence_receipt` presence together. The receipt's
+`terminal_commitment` is the domain-separated digest of the seven
+Terminal-Commitment components.
 
-| Member | Wire form |
-|---|---|
-| `task_identity` | task identity (string) |
-| `idempotency_identity` | idempotency key reference (string) |
-| `parent_execution_reference` | parent execution reference (nullable string) |
-| `initiating_subject` | initiating subject identity (nullable string) |
-| `blueprint_digest` | exact Blueprint content digest (tagged) |
-| `deployment_digest` | exact Deployment content digest (tagged) |
-| `input_commitment` | input commitment digest (tagged) |
-| `result_schema` | string |
-| `result_classification_ceiling` | ordinal classification ceiling (enum) |
-| `time_policy` | bounded time policy (object) |
-| `resource_policy` | bounded resource policy (object) |
-| `recovery_handle` | recovery handle (nullable string) |
-| `issuer` | issuer identity (string) |
-| `subject` | subject identity (string) |
-| `audience` | audience identity (string) |
-| `identity_mapping_evidence` | identity-mapping evidence (object; correlation only) |
-| `checkpoint_request` | typed checkpoint request (string) |
-| `checkpoint_status` | checkpoint status (enum) |
-| `checkpoint_commitment` | checkpoint decision commitment (tagged digest) |
-| `terminal_state` | terminal state (enum; string-checked) |
-| `evidence_receipt` | signed evidence receipt (detached JWS envelope) |
-| `compatibility_reference` | exact compatibility reference (string) |
-| `authority_proof_references` | authority-proof references (array of strings) |
+| Member | Card. | Wire form |
+|---|---|---|
+| `task_identity` | 1 | identifier string |
+| `idempotency_identity` | 1 | identifier string |
+| `parent_execution_reference` | 0..1 | identifier string |
+| `initiating_subject` | 0..1 | identifier string |
+| `blueprint_digest` | 1 | tagged digest |
+| `deployment_digest` | 1 | tagged digest |
+| `input_commitment` | 1 | tagged digest |
+| `result_schema` | 1 | tagged digest (result schema identity) |
+| `result_classification_ceiling` | 1 | classification enum element |
+| `time_policy` | 1 | object{ elapsed_ms: positive integer } |
+| `resource_policy` | 1 | object{ attempts, concurrency, tokens, cost: positive integers } |
+| `recovery_handle` | 1 | identifier string |
+| `issuer` | 1 | identifier string |
+| `subject` | 1 | identifier string |
+| `audience` | 1 | identifier string |
+| `identity_mapping_evidence` | 1 | identity-evidence object (correlation only) |
+| `checkpoint_request` | 0..1 | object{ kind: checkpoint enum; request_digest: tagged digest } |
+| `checkpoint_status` | 0..1 | checkpoint-status enum |
+| `checkpoint_commitment` | 0..1 | tagged digest |
+| `terminal_state` | 0..1 | terminal-state enum |
+| `evidence_receipt` | 0..1 | object{ result_digest: tagged; checkpoint_history_commitment: tagged; terminal_commitment: tagged; signature: detached JWS envelope } |
+| `compatibility_reference` | 1 | array (min 1, unique by name) of object{ name: identifier; identity: nonempty string } |
+| `authority_proof_references` | 1 | array of tagged digests |
 
 ## 12. Error vocabulary
 
@@ -461,7 +460,7 @@ raised, the subject it names, and the host action it demands):
 | `base64url_padded` | a base64url value arrives padded | offending member | reject the artifact |
 | `binding_attestation_stale` | a tool-binding attestation is older than the pinned freshness window | tool_bindings | reject the import as stale |
 | `binding_descriptor_mismatch` | a bound tool's descriptor digest differs from the observed descriptor | tool_bindings | halt the binding (rug-pull guard) |
-| `binding_incomplete` | the binding check set is incomplete where completeness is required | bind surface | treat the import as unverified on that surface |
+| `binding_incomplete` | the binding check set is incomplete where completeness is required | bind surface | halt the import (reconcile denies) |
 | `bound_source_missing` | an intersection input names a bound source that is absent | bounds sources | reject the intersection call |
 | `bound_unit_mismatch` | two bounds meet with incompatible units | bounds | reject the intersection call |
 | `bound_unknown` | an unknown bound name appears | bounds | reject the artifact |
@@ -504,7 +503,7 @@ raised, the subject it names, and the host action it demands):
 | `lifecycle_state_invalid` | a deployment lifecycle state is unknown | lifecycle | reject the manifest |
 | `missing_ceiling` | an operational bound is absent (never infinity) | ceilings | reject the artifact |
 | `missing_required_field` | a required member is absent | the member | reject the artifact |
-| `no_authoritative_recovery` | effect_owner idempotency names none where authority requires recovery | effect_owner | reject the import |
+| `no_authoritative_recovery` | a mutation-kind operation is bound while the effect owner's recovery is none | effect_owner | reject the import |
 | `non_canonical_bytes` | interchange bytes are not already canonical | bytes | reject before any semantic read |
 | `nonportable_content` | an authority-shaped claim rides portable content | offending member | reject the artifact |
 | `number_not_double_expressible` | an above-window integer is not exactly double-expressible | offending lexeme | reject the artifact |
@@ -522,10 +521,10 @@ raised, the subject it names, and the host action it demands):
 | `schema_keyword_value_invalid` | a schema keyword carries an invalid value | schema document | reject the artifact |
 | `schema_ref_cycle` | a schema $ref cycle | schema document | reject the artifact |
 | `schema_ref_unresolvable` | a schema $ref resolves nowhere | schema document | reject the artifact |
-| `signature_algorithm_unsupported` | an unknown signature algorithm | signatures | verified: false entry; treat unverified |
-| `signature_key_unsupported` | no supplied key matches, or a small-order key | signatures | verified: false entry; treat unverified |
-| `signature_malformed` | a signature envelope fails its parse | signatures | verified: false entry; treat unverified |
-| `signature_not_verified` | the cryptographic verification fails | signatures | verified: false entry; treat unverified |
+| `signature_algorithm_unsupported` | an unknown signature algorithm | signatures | halt the import (reconcile denies) |
+| `signature_key_unsupported` | no supplied key matches, or a small-order key | signatures | halt the import (reconcile denies) |
+| `signature_malformed` | a signature envelope fails its parse | signatures | halt the import (reconcile denies) |
+| `signature_not_verified` | the cryptographic verification fails | signatures | halt the import (reconcile denies) |
 | `trailing_bytes` | bytes follow the JSON value | bytes | reject the artifact |
 | `unknown_bound` | a bounds member name is unknown | bounds | reject the artifact |
 | `unknown_member` | a member is outside the closed world | the member | reject the artifact |

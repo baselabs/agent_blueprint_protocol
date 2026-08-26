@@ -917,6 +917,22 @@ the error semantics table drifted from Error.codes/0 — missing: ["unknown_memb
 Result: 1/2 passed
 ```
 
+```red
+$ # plant: a cardinality drift (signatures 0..1 documented as 1)
+$ mix test test/architecture/spec_member_grammar_test.exs
+1) test the grammar tables match the compiled member tables in both directions
+  Blueprint Core: signatures: documented cardinality "1", compiled "0..1"
+Result: 1/2 passed
+```
+
+```red
+$ # plant: an error-table row duplicated
+$ mix test test/architecture/spec_member_grammar_test.exs
+1) test the error semantics table covers exactly the closed error vocabulary
+the error semantics table repeats rows: ["unknown_member"]
+Result: 1/2 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript

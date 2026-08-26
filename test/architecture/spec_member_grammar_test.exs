@@ -2,10 +2,9 @@ defmodule AgentBlueprintProtocol.Architecture.SpecMemberGrammarTest do
   @moduledoc """
   Grammar-coupling gates: the specification's member-grammar tables and
   error-semantics table cross-read against the compiled truth in both
-  directions. The prose grammar cannot drift from the shipped tables (a
-  member renamed or dropped on either side reds), and the error table
-  covers exactly the closed error vocabulary (a missing or invented code
-  reds).
+  directions. A member renamed, dropped, or re-cardinalized on either
+  side reds; the error table covers exactly the closed error vocabulary
+  with no repeated rows.
   """
 
   use ExUnit.Case, async: true
@@ -16,9 +15,15 @@ defmodule AgentBlueprintProtocol.Architecture.SpecMemberGrammarTest do
     spec = File.read!(@spec_path)
 
     expectations = [
-      {"Blueprint Core", AgentBlueprintProtocol.Blueprint.table() |> Enum.map(& &1.name)},
-      {"Deployment Manifest", AgentBlueprintProtocol.Deployment.table() |> Enum.map(& &1.name)},
-      {"Federation TaskEnvelope", AgentBlueprintProtocol.Federation.envelope_members()}
+      {"Blueprint Core",
+       AgentBlueprintProtocol.Blueprint.table() |> Enum.map(&{&1.name, &1.required})},
+      {"Deployment Manifest",
+       AgentBlueprintProtocol.Deployment.table() |> Enum.map(&{&1.name, &1.required})},
+      # Federation's compiled table is private: its names pin via
+      # envelope_members/0 and its cardinality via the corpus (a nil card
+      # in the expectation skips the cardinality arm for that member).
+      {"Federation TaskEnvelope",
+       AgentBlueprintProtocol.Federation.envelope_members() |> Enum.map(&{&1, nil})}
     ]
 
     offenders =
@@ -39,9 +44,13 @@ defmodule AgentBlueprintProtocol.Architecture.SpecMemberGrammarTest do
     table = table_members(spec, "## 12. Error vocabulary")
     compiled = AgentBlueprintProtocol.Error.codes() |> Enum.map(&to_string/1) |> Enum.sort()
 
-    documented = Enum.sort(table)
+    duplicated = table -- Enum.uniq(table)
+    documented = Enum.sort(Enum.uniq(table))
     missing = compiled -- documented
     invented = documented -- compiled
+
+    assert duplicated == [],
+           "the error semantics table repeats rows: #{inspect(Enum.uniq(duplicated))}"
 
     assert missing == [] and invented == [],
            "the error semantics table drifted from Error.codes/0 — " <>
@@ -64,9 +73,10 @@ defmodule AgentBlueprintProtocol.Architecture.SpecMemberGrammarTest do
       _ ->
         []
     end)
-    |> Enum.uniq()
   end
 
+  # compiled: [{name, required?}] (required? nil = names-only). The spec
+  # rows carry name + cardinality column ("1" / "0..1").
   defp table_drift(spec, title, compiled) do
     section =
       spec
@@ -78,26 +88,49 @@ defmodule AgentBlueprintProtocol.Architecture.SpecMemberGrammarTest do
     else
       # only the FIRST table of the section (the member grammar itself),
       # bounded by the next heading of either depth
-      names =
+      rows =
         section
         |> String.split("\n")
         |> Enum.take_while(&(!String.starts_with?(&1, ["### ", "## "])))
-        |> Enum.flat_map(fn
-          "| `" <> _ = row ->
-            [row |> String.replace_prefix("| `", "") |> String.split("`") |> hd()]
+        |> Enum.flat_map(&parse_grammar_row/1)
 
-          _ ->
-            []
-        end)
+      spec_names = Enum.map(rows, &elem(&1, 0))
+      compiled_names = Enum.map(compiled, &elem(&1, 0))
+      missing = compiled_names -- spec_names
+      invented = spec_names -- compiled_names
 
-      missing = compiled -- names
-      invented = names -- compiled
+      card_mismatches =
+        for {name, required} <- compiled,
+            required != nil,
+            row = List.keyfind(rows, name, 0),
+            row != nil,
+            drift = card_drift(row, required),
+            drift != nil do
+          drift
+        end
 
-      drifts =
-        List.wrap(if missing != [], do: "missing members: #{inspect(missing)}") ++
-          List.wrap(if invented != [], do: "invented members: #{inspect(invented)}")
-
-      drifts
+      List.wrap(if missing != [], do: "missing members: #{inspect(missing)}") ++
+        List.wrap(if invented != [], do: "invented members: #{inspect(invented)}") ++
+        card_mismatches
     end
   end
+
+  defp card_drift({name, documented}, required) do
+    expected = if required, do: "1", else: "0..1"
+
+    if documented == expected do
+      nil
+    else
+      "#{name}: documented cardinality #{inspect(documented)}, compiled #{inspect(expected)}"
+    end
+  end
+
+  defp parse_grammar_row("| `" <> _ = row) do
+    case Regex.run(~r/^\| `([^`]+)` \| (1|0\.\.1) \|/, row) do
+      [_, name, card] -> [{name, card}]
+      nil -> []
+    end
+  end
+
+  defp parse_grammar_row(_), do: []
 end
