@@ -8,9 +8,10 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   tree — never a frozen copy that could drift:
 
   - the README install requirement pins the exact current version;
-  - SECURITY.md's supported table names the current `major.minor` line;
-  - CHANGELOG.md opens an entry for the current version, and that entry
-    carries the live corpus digest and case total;
+  - SECURITY.md's supported table opens with the current `major.minor`
+    line marked supported;
+  - CHANGELOG.md opens with the entry for the current version, and that
+    entry carries the live corpus digest and case total;
   - every count claim in README (tests, properties, corpus cases,
     coverage) matches the live value.
   """
@@ -37,16 +38,19 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
 
     security = File.read!(@security_path)
 
-    assert security =~ "| #{line}.x |",
-           "SECURITY.md supported table does not name the #{line}.x line"
+    assert first_supported_row(security) == {"#{line}.x", "yes"},
+           "SECURITY.md supported table's first row must be the #{line}.x " <>
+             "line marked yes (got #{inspect(first_supported_row(security))})"
   end
 
   test "the CHANGELOG entry for the current version carries the corpus identity" do
     version = current_version()
     changelog = File.read!(@changelog_path)
+    first = first_version_heading(changelog)
 
-    assert changelog =~ "## [#{version}]",
-           "CHANGELOG.md has no entry for the current version #{version}"
+    assert first == version,
+           "CHANGELOG.md's first entry is #{inspect(first)} — the current " <>
+             "release entry (#{version}) must open the changelog"
 
     entry = current_entry(changelog, version)
     index = File.read!(@index_path)
@@ -114,6 +118,26 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
 
       [_] ->
         ""
+    end
+  end
+
+  # The supported table's first DATA row (a stale first row — wrong line,
+  # or the current line marked no — reds; older lines may follow).
+  defp first_supported_row(security) do
+    case Regex.run(
+           ~r/^\| Version \| Supported \|\n\| -+ \| -+ \|\n\| ([^|]+?) \| ([^|]+?) \|/m,
+           security
+         ) do
+      [_, version, status] -> {String.trim(version), String.trim(status)}
+      nil -> {nil, nil}
+    end
+  end
+
+  # The changelog's first version heading must be the current release.
+  defp first_version_heading(changelog) do
+    case Regex.run(~r/^## \[([^\]]+)\]/m, changelog) do
+      [_, heading] -> heading
+      nil -> ""
     end
   end
 

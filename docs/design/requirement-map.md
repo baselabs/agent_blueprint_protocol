@@ -627,8 +627,9 @@ Result: 3/4 passed
 Documentation-currency gate: the README install requirement pins the
 exact current version (every hex requirement string in README is an
 install pin and must name it), and SECURITY.md's supported-version
-table carries the current `major.minor` line. The version is read live
-from `mix.exs`, never frozen.
+table opens with the current `major.minor` line marked supported (a
+stale first row — wrong line, or the right line marked no — reds). The
+version is read live from `mix.exs`, never frozen.
 
 ```red
 $ # organic red: README pin left at the 0.1 line while the project is at 0.2.1
@@ -640,27 +641,35 @@ Result: 2/3 passed
 ```
 
 ```red
-$ # plant: SECURITY.md supported row reverted to the 0.1.x line
+$ # plant: bogus first data row inserted above the current line
 $ mix test test/architecture/documentation_currency_test.exs
 1) test README and SECURITY.md name the current released version
-SECURITY.md supported table does not name the 0.2.x line
-code: assert security =~ "| #{line}.x |",
+SECURITY.md supported table's first row must be the 0.2.x line marked yes (got {"0.0.x", "no"})
 Result: 2/3 passed
 ```
 
 ### case: "the CHANGELOG entry for the current version carries the corpus identity"
 
-CHANGELOG must open an entry for the current version, and that entry
-must carry the live corpus digest and the case total from
-`priv/conformance/index.json` — every release names the conformance
-identity it ships.
+The changelog's FIRST version heading must be the current release (a
+stale top entry reds), and that entry must carry the live corpus digest
+and the case total from `priv/conformance/index.json` — every release
+names the conformance identity it ships.
 
 ```red
-$ # organic red: version bumped to 0.2.1 before the changelog entry exists
+$ # plant: current entry's heading renamed — no entry names the live version
 $ mix test test/architecture/documentation_currency_test.exs
 1) test the CHANGELOG entry for the current version carries the corpus identity
-CHANGELOG.md has no entry for the current version 0.2.1
-code: assert changelog =~ "## [#{version}]",
+CHANGELOG.md's first entry is "0.2.1-unreleased" — the current release entry (0.2.1) must open the changelog
+code: assert first == version,
+Result: 1/2 passed
+```
+
+```red
+$ # plant: stale placeholder entry inserted above the current one
+$ mix test test/architecture/documentation_currency_test.exs
+1) test the CHANGELOG entry for the current version carries the corpus identity
+CHANGELOG.md's first entry is "0.0.0" — the current release entry (0.2.1) must open the changelog
+code: assert first == version,
 Result: 1/2 passed
 ```
 
@@ -685,9 +694,11 @@ Result: 1/2 passed
 
 Document-citation gate: across every markdown file the package ships,
 a named section citation (`A2A §7.6.4`, `ECMA-262 §7.1.12.1`) must name
-a pinned external standard or a shipped in-repo document. Bare section
-numbers and requirement numbers after a standard's designation inherit
-their target from surrounding prose and stay unchecked.
+a pinned external standard or another document in the SHIPPED set — a
+citation of a repo-only document (unshipped) or a nonexistent one reds
+equally. Bare section numbers and requirement numbers after a
+standard's designation inherit their target from surrounding prose and
+stay unchecked.
 
 ```red
 $ # organic red: two changelog entries cited an internal working document as "base §6" / "base-§8.2"
@@ -699,11 +710,22 @@ code: assert offenders == [],
 Result: 0/1 passed
 ```
 
+```red
+$ # plant: a shipped doc citing a repo-only (unshipped) document by name — requirement-map §3 in docs/protocol.md
+$ mix test test/architecture/document_citation_gate_test.exs
+1) test named section citations name a shipped document or a pinned standard
+a shipped document cites a document that exists nowhere:
+  docs/protocol.md: "requirement-map §…" names no shipped document or standard
+Result: 0/1 passed
+```
+
 ### case: "shipped markdown links resolve to real files"
 
-Every markdown link target without a scheme must resolve to a file in
-the repository, as must every GitHub blob/tree URL into this
-repository; other URLs and pure anchors are external and unchecked.
+Every markdown link target without a scheme must resolve, relative to
+the directory of the document containing it (markdown link semantics),
+to a file in the repository, as must every GitHub blob/tree URL into
+this repository (those are root-relative); other URLs and pure anchors
+are external and unchecked.
 
 ```red
 $ # plant: "See [the internals note](docs/internals-note.md) and internals §12" appended to README
@@ -716,6 +738,16 @@ code: assert offenders == [],
 a shipped document cites a document that exists nowhere:
   README.md: "internals §…" names no shipped document or standard
 Result: 0/2 passed
+```
+
+```red
+$ # plant: a file-relative dangling link inside a nested doc (docs/protocol.md → adr/nonexistent-doc.md);
+$ # # the VALID file-relative link adr/producer-surface.md on the same line stays green (containing-dir resolution)
+$ mix test test/architecture/document_citation_gate_test.exs
+1) test shipped markdown links resolve to real files
+a shipped document links to a file that does not exist:
+  docs/protocol.md: adr/nonexistent-doc.md resolves to no file in this repository
+Result: 0/1 passed
 ```
 
 ### case: "no code file carries an internal tracker citation"

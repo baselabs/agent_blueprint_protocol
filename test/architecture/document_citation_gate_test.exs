@@ -6,11 +6,12 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
 
   - a NAMED section citation (`A2A §7.6.4`, `ECMA-262 §7.1.12.1`) names a
     document immediately before the `§` — that document must be a pinned
-    external standard or a shipped in-repo document; a citation of a
-    document that exists nowhere (the historical `base §6` form) reds;
-  - every markdown link target without a scheme must resolve to a file in
-    this repository, as must every GitHub blob/tree URL into this
-    repository.
+    external standard or another document in the SHIPPED set (a citation
+    of a repo-only or nonexistent document reds equally);
+  - every markdown link target without a scheme must resolve, relative
+    to the directory of the document containing it, to a file in this
+    repository, as must every GitHub blob/tree URL into this repository
+    (those are repository-root-relative).
 
   Bare section numbers (`§3.2.2.2`) and requirement numbers after a
     standard's designation (`RFC 4648 §3.3`) inherit their target from the
@@ -46,7 +47,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
       for file <- shipped_markdown(),
           source = File.read!(file),
           target <- link_targets(source),
-          path <- repo_path(target),
+          path <- repo_path(file, target),
           not File.exists?(path),
           uniq: true do
         {file, target}
@@ -67,8 +68,11 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
     |> Enum.sort()
   end
 
+  # The citation allowlist stems from the SHIPPED set only: a shipped
+  # document citing a repo-only document by name is as dangling as citing
+  # one that exists nowhere, for a reader of the archive.
   defp repo_doc_stems do
-    (Path.wildcard("*.md") ++ Path.wildcard("docs/**/*.md"))
+    shipped_markdown()
     |> Enum.map(&Path.basename(&1, ".md"))
   end
 
@@ -87,14 +91,15 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
     |> Enum.map(fn [_, target] -> target end)
   end
 
-  # A target resolves to a repo file when it is relative (no scheme) or a
-  # GitHub blob/tree URL into this repository; other URLs and pure anchors
-  # are external and not checked.
-  defp repo_path(target) do
+  # A target resolves to a repo file when it is relative to the CONTAINING
+  # document's directory (markdown link semantics; GitHub blob/tree URLs
+  # are repository-root-relative); other URLs and pure anchors are
+  # external and not checked.
+  defp repo_path(file, target) do
     cond do
       String.contains?(target, "://") -> github_repo_path(target)
       String.starts_with?(target, "#") or String.starts_with?(target, "mailto:") -> []
-      true -> [strip_anchor(target)]
+      true -> [Path.expand(strip_anchor(target), Path.dirname(Path.expand(file)))]
     end
   end
 

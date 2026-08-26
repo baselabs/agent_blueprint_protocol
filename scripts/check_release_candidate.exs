@@ -469,32 +469,37 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       to: "      Regex.match?(~r/[a-z0-9]/, string) or\n",
       command: ~w(mix test test/architecture/version_token_test.exs)
     },
+    # Documentation-gate plants: anchors are version-independent (release
+    # text mutates; these stable anchors and corruptions red the gates at
+    # every future version without rotting the plant table).
     %{
       name: "currency-readme-stale-pin",
       path: "README.md",
-      from: "{:agent_blueprint_protocol, \"~> 0.2.1\"}",
-      to: "{:agent_blueprint_protocol, \"~> 0.1.0\"}",
+      from: "    {:agent_blueprint_protocol,",
+      to: "    {:stale_pin, \"~> 0.0.1\"},\n    {:agent_blueprint_protocol,",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
       name: "currency-security-stale-row",
       path: "SECURITY.md",
-      from: "| 0.2.x | yes |",
-      to: "| 0.1.x | yes |",
+      from: "| Version | Supported |\n| --- | --- |\n",
+      to: "| Version | Supported |\n| --- | --- |\n| 0.0.x | no |\n",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
       name: "currency-changelog-current-entry",
       path: "CHANGELOG.md",
-      from: "## [0.2.1] — 2026-08-25",
-      to: "## [0.2.0-x] — 2026-08-25",
+      from:
+        "# Changelog\n\nAll notable public changes to `agent_blueprint_protocol` are documented here.\n",
+      to:
+        "# Changelog\n\nAll notable public changes to `agent_blueprint_protocol` are documented here.\n\n## [0.0.0] — 1970-01-01\n\nstale placeholder\n",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
       name: "currency-readme-stale-count",
       path: "README.md",
-      from: "implemented and gated: 904 tests\n",
-      to: "implemented and gated: 899 tests\n",
+      from: "## Intended properties",
+      to: "9999999998 tests of filler.\n\n## Intended properties",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
