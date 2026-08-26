@@ -468,6 +468,48 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       from: "      Regex.match?(~r/[a-z0-9]V\\d/, string) or\n",
       to: "      Regex.match?(~r/[a-z0-9]/, string) or\n",
       command: ~w(mix test test/architecture/version_token_test.exs)
+    },
+    %{
+      name: "currency-readme-stale-pin",
+      path: "README.md",
+      from: "{:agent_blueprint_protocol, \"~> 0.2.1\"}",
+      to: "{:agent_blueprint_protocol, \"~> 0.1.0\"}",
+      command: ~w(mix test test/architecture/documentation_currency_test.exs)
+    },
+    %{
+      name: "currency-security-stale-row",
+      path: "SECURITY.md",
+      from: "| 0.2.x | yes |",
+      to: "| 0.1.x | yes |",
+      command: ~w(mix test test/architecture/documentation_currency_test.exs)
+    },
+    %{
+      name: "currency-changelog-current-entry",
+      path: "CHANGELOG.md",
+      from: "## [0.2.1] — 2026-08-25",
+      to: "## [0.2.0-x] — 2026-08-25",
+      command: ~w(mix test test/architecture/documentation_currency_test.exs)
+    },
+    %{
+      name: "currency-readme-stale-count",
+      path: "README.md",
+      from: "implemented and gated: 904 tests\n",
+      to: "implemented and gated: 899 tests\n",
+      command: ~w(mix test test/architecture/documentation_currency_test.exs)
+    },
+    %{
+      name: "citation-dangling-section",
+      path: "README.md",
+      from: "## Status\n",
+      to: "## Status\n\ninternals §12 has more.\n",
+      command: ~w(mix test test/architecture/document_citation_gate_test.exs)
+    },
+    %{
+      name: "citation-dangling-link",
+      path: "README.md",
+      from: "## Status\n",
+      to: "## Status\n\nSee [the note](docs/internals-note.md).\n",
+      command: ~w(mix test test/architecture/document_citation_gate_test.exs)
     }
   ]
 

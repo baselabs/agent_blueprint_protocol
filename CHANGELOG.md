@@ -2,6 +2,50 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.2.1] — 2026-08-25
+
+### Fixed — public documentation credibility
+
+- README install pin corrected to the current release line (`~> 0.2.1`;
+  the previous `~> 0.1.0` excluded every 0.2.x release in Hex
+  requirement semantics).
+- SECURITY.md's supported-version table names the 0.2.x line (0.1.x is
+  no longer supported — upgrade to the current line).
+- Two changelog entries cited an internal working document by section
+  number (a document that ships nowhere); both are reworded to
+  self-contained prose, and a new document-citation gate (below) keeps
+  the class dead.
+- `docs/protocol.md` states the producer surface explicitly in its
+  shipped-surface section (`Blueprint.from_value/2`,
+  `Deployment.from_value/2`, the per-artifact `content_digest/1` and
+  `canonical_bytes/1`), resolving the pointer the producer-surface ADR
+  relied on.
+- The federation mapping's pinned sources now carry canonical
+  repository URLs, each pinned by plain SHA-1 of the served bytes
+  (A2A `lf.a2a.v1` line at commit `cfc9d34b`; the MCP Tasks extension
+  draft at commit `0d0a6bd4`).
+- README rewritten for external readers: CI, Hex version, and license
+  badges; an outsider-readable status section; current test and corpus
+  counts.
+
+### Added — documentation gates
+
+- Documentation-currency gate
+  (`test/architecture/documentation_currency_test.exs`): README,
+  SECURITY.md, and CHANGELOG version claims, install pins, count
+  claims, and the current release's corpus identity (digest and case
+  total) are checked against the live project on every run.
+- Document-citation gate
+  (`test/architecture/document_citation_gate_test.exs`): shipped
+  markdown documents may cite only documents that exist — a named
+  section citation must name a shipped document or a pinned external
+  standard, and every repository-relative link must resolve to a real
+  file.
+
+The conformance corpus is unchanged at 94 cases, digest
+`sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`.
+
 ## [0.2.0] — 2026-08-25
 
 ### Added — product-extension registration
@@ -509,7 +553,8 @@ second-language verifier.
 - Blueprint artifact + generic registry engine: the ONE
   table-driven decode/validate engine (`AgentBlueprintProtocol.Registry`)
   parameterized by `AgentBlueprintProtocol.Blueprint.table/0`'s
-  18-member field registry (base §6), with the pinned failure precedence
+  18-member field registry (the closed-world Blueprint core member
+  table), with the pinned failure precedence
   (unknown member → missing required → type → constraint → cardinality →
   nested → cross-field hooks). `Blueprint.decode/2` runs the fail-closed
   pipeline in order: canonical verify (`:non_canonical_bytes` before any
@@ -545,7 +590,7 @@ second-language verifier.
 - Tagged content digests (`AgentBlueprintProtocol.Digest`):
   `"sha-256:<43-char unpadded base64url>"` wire strings over domain-separated
   preimages (`SHA-256(separator || <<0>> || canonical JCS bytes)` under the
-  registered base-§8.2 separators), `from_tagged/1` fail-closed parsing
+  registered domain-separation separators), `from_tagged/1` fail-closed parsing
   (unknown algorithm tag vs malformed body, wrong-length bodies included),
   constant-time `equal?/2`, and `verify_content/3` (parse, then compare;
   divergence denies `:digest_mismatch`). SHA-256 conformance is pinned to the

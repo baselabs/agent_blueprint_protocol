@@ -393,3 +393,18 @@ engine, `Schema` as the bounded 2020-12 dialect + instance validator,
 tooling (`Conformance.Corpus/Runner/Report/Cli` + the escript entry).
 The module tree is strictly downward (bytes → algebra → artifacts →
 conformance); the engine knows tables, never domains.
+
+### Producer surface
+
+Hosts that render artifacts produce them through the per-artifact
+constructors, never through facade-level minting: compose the member
+value, construct it with `Blueprint.from_value/2` or
+`Deployment.from_value/2` (threading `:authored_extensions` for
+critical namespaces whose bodies negotiation validated against a
+digest-pinned schema), compute the release identity with the
+artifact's `content_digest/1`, and serialize with its
+`canonical_bytes/1`. The round-trip property (decode → `to_value/1` →
+encode is a fixed point) is the byte-exactness guarantee a producer
+relies on. The facade stays a verification facade: it delegates and
+never implements, and no facade-level producer functions grow
+(`docs/adr/producer-surface.md`).

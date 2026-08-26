@@ -10,14 +10,20 @@ transport are warranted. The profile is one registered extension
 untyped extension channel, with the same JCS-canonical object and the same
 detached Ed25519 signature envelope on both.
 
-## Pinned sources (re-derived 2026-08-22)
+## Pinned sources (re-derived 2026-08-22; bytes re-verified 2026-08-25)
 
-| Source | Version / path | shasum |
-|---|---|---|
-| `a2a.proto` | A2A **1.0.0** (package `lf.a2a.v1`) | `fc18e7c29777b64dc1b4119a02859fbfd5937383` |
-| `ext-tasks` spec | `specification/draft/tasks.md` | `52dd19738a3dac86518c28344b18630e29b12999` |
-| `ext-tasks` schema | `schema/draft/schema.ts` | `edb18b6edeab2ebb9807c8c03cccd8984d1d0ebc` |
-| `ext-tasks` types | `schema/draft/spec.types.ts` | `4070c34bf3a88ebe3eff45809f91d805cf30c5b3` |
+Each row pins the exact bytes by plain SHA-1 of the file content, and
+each canonical URL names the commit that serves those bytes today (the
+A2A row is the `lf.a2a.v1` line at that commit — its proto bytes differ
+from both the `v1.0.0` and `v1.0.1` tags; the extension rows are the
+draft branch `HEAD` — the extension has no tagged releases).
+
+| Source | Version / path | plain SHA-1 | Canonical URL |
+|---|---|---|---|
+| `a2a.proto` | package `lf.a2a.v1`; `specification/a2a.proto` @ `cfc9d34b` | `fc18e7c29777b64dc1b4119a02859fbfd5937383` | [a2aproject/A2A @ cfc9d34b](https://github.com/a2aproject/A2A/blob/cfc9d34bc41e368827eb6446d31f912e44f795c5/specification/a2a.proto) |
+| `ext-tasks` spec | `specification/draft/tasks.md` @ `0d0a6bd4` | `52dd19738a3dac86518c28344b18630e29b12999` | [modelcontextprotocol/ext-tasks @ 0d0a6bd4](https://github.com/modelcontextprotocol/ext-tasks/blob/0d0a6bd4c258b35caa3c810a1dd506cf105b1501/specification/draft/tasks.md) |
+| `ext-tasks` schema | `schema/draft/schema.ts` @ `0d0a6bd4` | `edb18b6edeab2ebb9807c8c03cccd8984d1d0ebc` | [modelcontextprotocol/ext-tasks @ 0d0a6bd4](https://github.com/modelcontextprotocol/ext-tasks/blob/0d0a6bd4c258b35caa3c810a1dd506cf105b1501/schema/draft/schema.ts) |
+| `ext-tasks` types | `schema/draft/spec.types.ts` @ `0d0a6bd4` | `4070c34bf3a88ebe3eff45809f91d805cf30c5b3` | [modelcontextprotocol/ext-tasks @ 0d0a6bd4](https://github.com/modelcontextprotocol/ext-tasks/blob/0d0a6bd4c258b35caa3c810a1dd506cf105b1501/schema/draft/spec.types.ts) |
 
 Line citations in the table are the LIVE line numbers of these exact files.
 

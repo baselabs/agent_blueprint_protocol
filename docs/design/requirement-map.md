@@ -622,6 +622,102 @@ code: assert scan_repo(repo, test_hmacs, @test_key) == {1, false, true, false, f
 Result: 3/4 passed
 ```
 
+### case: "README and SECURITY.md name the current released version"
+
+Documentation-currency gate: the README install requirement pins the
+exact current version (every hex requirement string in README is an
+install pin and must name it), and SECURITY.md's supported-version
+table carries the current `major.minor` line. The version is read live
+from `mix.exs`, never frozen.
+
+```red
+$ # organic red: README pin left at the 0.1 line while the project is at 0.2.1
+$ mix test test/architecture/documentation_currency_test.exs
+1) test README and SECURITY.md name the current released version
+README install requirement is stale: ["\"~> 0.1.0\""] — the current version is 0.2.1
+code: assert Enum.uniq(pins) == ["~> " <> version],
+Result: 2/3 passed
+```
+
+```red
+$ # plant: SECURITY.md supported row reverted to the 0.1.x line
+$ mix test test/architecture/documentation_currency_test.exs
+1) test README and SECURITY.md name the current released version
+SECURITY.md supported table does not name the 0.2.x line
+code: assert security =~ "| #{line}.x |",
+Result: 2/3 passed
+```
+
+### case: "the CHANGELOG entry for the current version carries the corpus identity"
+
+CHANGELOG must open an entry for the current version, and that entry
+must carry the live corpus digest and the case total from
+`priv/conformance/index.json` — every release names the conformance
+identity it ships.
+
+```red
+$ # organic red: version bumped to 0.2.1 before the changelog entry exists
+$ mix test test/architecture/documentation_currency_test.exs
+1) test the CHANGELOG entry for the current version carries the corpus identity
+CHANGELOG.md has no entry for the current version 0.2.1
+code: assert changelog =~ "## [#{version}]",
+Result: 1/2 passed
+```
+
+### case: "README count claims match the live test tree and corpus index"
+
+Every numeric claim in README — test totals, property totals, corpus
+case counts (`94-case` and `N cases` forms), and the coverage
+percentage — must match the live census (test/property macros across
+the test tree), the corpus index, and the configured coverage
+threshold. A README that stops making a claim reds as stale.
+
+```red
+$ # organic red: README still states the previous release's suite total
+$ mix test test/architecture/documentation_currency_test.exs
+1) test README count claims match the live test tree and corpus index
+README test count claims ["899"] — the live value is 845
+code: assert_claim(readme, ~r/\b(\d+) tests\b/, live_test_count(), "test count")
+Result: 1/2 passed
+```
+
+### case: "named section citations name a shipped document or a pinned standard"
+
+Document-citation gate: across every markdown file the package ships,
+a named section citation (`A2A §7.6.4`, `ECMA-262 §7.1.12.1`) must name
+a pinned external standard or a shipped in-repo document. Bare section
+numbers and requirement numbers after a standard's designation inherit
+their target from surrounding prose and stay unchecked.
+
+```red
+$ # organic red: two changelog entries cited an internal working document as "base §6" / "base-§8.2"
+$ mix test test/architecture/document_citation_gate_test.exs
+1) test named section citations name a shipped document or a pinned standard
+a shipped document cites a document that exists nowhere:
+  CHANGELOG.md: "base §…" names no shipped document or standard
+code: assert offenders == [],
+Result: 0/1 passed
+```
+
+### case: "shipped markdown links resolve to real files"
+
+Every markdown link target without a scheme must resolve to a file in
+the repository, as must every GitHub blob/tree URL into this
+repository; other URLs and pure anchors are external and unchecked.
+
+```red
+$ # plant: "See [the internals note](docs/internals-note.md) and internals §12" appended to README
+$ mix test test/architecture/document_citation_gate_test.exs
+1) test shipped markdown links resolve to real files
+a shipped document links to a file that does not exist:
+  README.md: docs/internals-note.md resolves to no file in this repository
+code: assert offenders == [],
+2) test named section citations name a shipped document or a pinned standard
+a shipped document cites a document that exists nowhere:
+  README.md: "internals §…" names no shipped document or standard
+Result: 0/2 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript

@@ -1,5 +1,9 @@
 # Agent Blueprint Protocol
 
+[![CI](https://github.com/baselabs/agent_blueprint_protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/baselabs/agent_blueprint_protocol/actions/workflows/ci.yml)
+[![Hex Version](https://img.shields.io/hexpm/v/agent_blueprint_protocol.svg)](https://hex.pm/packages/agent_blueprint_protocol)
+[![License](https://img.shields.io/hexpm/l/agent_blueprint_protocol.svg)](https://hex.pm/packages/agent_blueprint_protocol)
+
 Agent Blueprint Protocol is a portable, non-authorizing contract for describing
 an agent capability and binding one immutable release to an execution
 environment.
@@ -22,7 +26,7 @@ and evidence retention.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.1.0"}
+    {:agent_blueprint_protocol, "~> 0.2.1"}
   ]
 end
 ```
@@ -67,18 +71,14 @@ independent TypeScript verifier.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated locally: 899 tests
+and conformance corpus are implemented and gated: 904 tests
 (59 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, a 94-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
 The normative protocol document, [`docs/protocol.md`](docs/protocol.md),
-ships in the Hex archive. Every build gate's recorded red proof is the
-requirement
-map ([`docs/design/requirement-map.md`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/docs/design/requirement-map.md))
-— public in this repository, deliberately not in the archive (its verbatim
-red receipts quote the very internal tokens the publish guard bans from
-the archive), and `mix release.candidate` re-derives its completeness
-from the live project on every run.
+ships in the Hex archive. The full gate battery and every gate's
+recorded red proof are public in this repository under
+[`docs/design/requirement-map.md`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/docs/design/requirement-map.md).
 
 The 0.x series is the public pre-1.0 line: shipped contracts may
 change within 0.x under pre-1.0 conventions, and every contract change
