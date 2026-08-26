@@ -17,7 +17,11 @@ defmodule AgentBlueprintProtocol.RegistryEqualityGate do
   @index_path "priv/conformance/index.json"
 
   def run do
-    findings = json_findings() ++ elixir_findings() ++ typescript_findings() ++ index_findings()
+    findings =
+      case json_findings() do
+        [] -> elixir_findings() ++ typescript_findings() ++ index_findings() ++ shape_findings()
+        missing -> missing
+      end
 
     if findings != [] do
       raise """
@@ -58,7 +62,7 @@ defmodule AgentBlueprintProtocol.RegistryEqualityGate do
   end
 
   defp number_or_null(nil), do: :null
-  defp number_or_null(n) when is_number(n), do: {:number, n}
+  defp number_or_null(n) when is_integer(n), do: {:integer, n}
 
   defp string_or_null(nil), do: :null
   defp string_or_null(s) when is_binary(s), do: {:string, s}
@@ -76,6 +80,38 @@ defmodule AgentBlueprintProtocol.RegistryEqualityGate do
         "#{@registry_path} is missing — the governance-canonical source ships with the specification"
       ]
     end
+  end
+
+  # Closed-world shape: the governance json carries exactly the declared
+  # fields — an edit to unprojected content (the format member, an
+  # invented entry field) reds here even though the digest projection
+  # only covers the declared entry fields.
+  @entry_fields ~w(a2a_uri criticality namespace owner promoted_at_revision schema_digest state)
+
+  defp shape_findings do
+    raw = @registry_path |> File.read!() |> Jason.decode!()
+
+    top =
+      List.wrap(
+        if Map.keys(raw) |> Enum.sort() != ["entries", "format"],
+          do:
+            "the governance json's top-level members are #{inspect(Map.keys(raw) |> Enum.sort())} — exactly entries and format are declared"
+      )
+
+    format =
+      List.wrap(
+        if raw["format"] != "agent-blueprint-protocol-registry",
+          do: "the governance json's format member is #{inspect(raw["format"])}"
+      )
+
+    rows =
+      for row <- entry_rows(),
+          extra = Map.keys(row) -- @entry_fields,
+          extra != [] do
+        "entry #{inspect(row["namespace"])} carries undeclared members: #{inspect(Enum.sort(extra))}"
+      end
+
+    top ++ format ++ rows
   end
 
   defp elixir_findings do

@@ -374,10 +374,20 @@ EXIT=1
 ```
 
 ```red
-$ # plant: the governance json's owner edited
+$ # plant: the governance json's owner edited (verbatim — all three comparisons fail)
 $ mix registry.equality
 registry equality: FAILED
+the Elixir twin's digest is sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs — the governance json says sha-256:CYgxTnNJorrlBSUBwfLhgiN2ks0OQ454BSjujYZmJ4A
 the TypeScript twin's digest is sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs — the governance json says sha-256:CYgxTnNJorrlBSUBwfLhgiN2ks0OQ454BSjujYZmJ4A
+the corpus index pins registry digest sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs — the governance json says sha-256:CYgxTnNJorrlBSUBwfLhgiN2ks0OQ454BSjujYZmJ4A
+EXIT=1
+```
+
+```red
+$ # plant: unprojected content edited (the format member) — closed-world shape arm
+$ mix registry.equality
+registry equality: FAILED
+the governance json's format member is "tampered"
 EXIT=1
 ```
 

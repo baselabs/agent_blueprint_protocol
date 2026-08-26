@@ -75,5 +75,10 @@ gate's founding run:
     TypeScript twin, and corpus index all carry
     sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs)
 
-A hand-edit on any of the four carriers reds the gate (both directions
-red-proven: a twin edit, a governance-json edit).
+A hand-edit on any carrier reds: declared-field edits via the digest
+comparison (both directions red-proven — a twin edit, a
+governance-json edit), and any other byte of the governance json via
+the gate's closed-world shape check (the format member and undeclared
+entry members red; red-proven) — the file's own bytes are additionally
+covered end-to-end by the release identity chain's specification
+digest.
