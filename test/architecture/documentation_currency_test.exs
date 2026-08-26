@@ -93,9 +93,22 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
 
   # A version claim is a three-part number standing ALONE (not a
   # §-prefixed section reference, not part of a longer dotted
-  # sequence like RFC subsection numbering).
-  defp version_claims(content),
-    do: ~r/(?<!§)(?<!\.)\b\d+\.\d+\.\d+\b(?!\.)/ |> Regex.scan(content) |> Enum.map(&hd/1)
+  # sequence like RFC subsection numbering). Bare-number matches
+  # require a word boundary, so a `v`-tagged token (v1.0.0) does not
+  # match — external projects' release tags (the A2A v1.x tags in the
+  # federation mapping) stay exempt BY that mechanism. Every
+  # this-project version is 0.x, so v-tagged 0.x tokens are scanned
+  # separately and must also name the current version.
+  defp version_claims(content) do
+    bare = ~r/(?<!§)(?<!\.)\b\d+\.\d+\.\d+\b(?!\.)/ |> Regex.scan(content) |> Enum.map(&hd/1)
+
+    vtagged =
+      ~r/v(0\.\d+\.\d+)\b/
+      |> Regex.scan(content)
+      |> Enum.map(fn [_, v] -> "v" <> v end)
+
+    bare ++ vtagged
+  end
 
   test "README count claims match the live test tree and corpus index" do
     readme = File.read!(@readme_path)

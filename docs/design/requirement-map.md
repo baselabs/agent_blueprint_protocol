@@ -1047,6 +1047,13 @@ shipped documents carry stale concrete version claims (only 0.3.0 may appear): [
 Result: 1/2 passed
 ```
 
+```red
+$ # plant: a stale v-tagged claim (v0.1.0) — every this-project version is 0.x, so v-tagged 0.x tokens are claims
+$ mix test test/architecture/documentation_currency_test.exs
+shipped documents carry stale concrete version claims (only 0.3.0 may appear): [{"CONTRIBUTING.md", "v0.1.0"}]
+Result: 3/4 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript
