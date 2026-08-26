@@ -818,6 +818,68 @@ a shipped document links to a file that does not exist:
 Result: 0/1 passed
 ```
 
+### case: "the specification carries the conformance-language boilerplate and uses its keywords"
+
+Specification-language gate: the normative document carries the BCP 14
+boilerplate (RFC 2119 + RFC 8174, all-caps-only rule) and uses each
+conformance keyword — MUST, MUST NOT, SHOULD, SHOULD NOT, MAY —
+uppercase and word-bounded at least once.
+
+```red
+$ # organic red: the sweep not yet landed (no boilerplate in the document)
+$ mix test test/architecture/spec_conformance_language_test.exs
+1) test the specification carries the conformance-language boilerplate and uses its keywords
+the BCP 14 boilerplate fragment "to be interpreted as described in BCP 14" is missing from the normative document
+Result: 0/1 passed
+```
+
+```red
+$ # plant: the boilerplate's closing phrase reworded
+$ mix test test/architecture/spec_conformance_language_test.exs
+1) test the specification carries the conformance-language boilerplate and uses its keywords
+the BCP 14 boilerplate fragment "as shown here" is missing from the normative document
+Result: 1/2 passed
+```
+
+### case: "every fenced specification example is bound to a live corpus case by exact bytes"
+
+Every fenced json example in the specification names its conformance
+corpus case (`corpus:<case-id>` fence info), the id exists in the
+shipped corpus, and the fence bytes equal that case's input text — a
+specification example cannot drift from the corpus, and an unbound
+example cannot ship. At least one corpus-bound example must exist (a
+vacuous gate reds).
+
+```red
+$ # organic red: no fenced example in the specification at all (vacuity arm)
+$ mix test test/architecture/spec_conformance_language_test.exs
+1) test every fenced specification example is bound to a live corpus case by exact bytes
+the specification carries no corpus-bound example — the example/corpus coupling gate would be vacuous
+Result: 0/1 passed
+```
+
+```red
+$ # plant: an untagged json fence appended to the specification
+$ mix test test/architecture/spec_conformance_language_test.exs
+1) test every fenced specification example is bound to a live corpus case by exact bytes
+  fence "" ("{"unbound": true}…): no corpus case tag (expected `corpus:<case-id>` in the fence info)
+Result: 1/2 passed
+```
+
+```red
+$ # plant: a fence tagged with a corpus id that does not exist
+$ mix test test/architecture/spec_conformance_language_test.exs
+  fence " corpus:no-such-case-id" ("{}…"): names corpus case "no-such-case-id", which is not in the corpus
+Result: 1/2 passed
+```
+
+```red
+$ # plant: a fence tagged with the real id but drifted bytes
+$ mix test test/architecture/spec_conformance_language_test.exs
+  fence " corpus:blueprint-decode-valid" ("{"drifted": true}…): does not byte-match corpus case "blueprint-decode-valid"
+Result: 1/2 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript

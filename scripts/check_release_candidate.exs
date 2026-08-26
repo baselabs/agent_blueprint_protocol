@@ -546,6 +546,27 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "spec-language-boilerplate-strip",
+      path: "spec/protocol.md",
+      from: "capitals, as shown here.",
+      to: "capitals, as implied.",
+      command: ~w(mix test test/architecture/spec_conformance_language_test.exs)
+    },
+    %{
+      name: "spec-example-untagged-fence",
+      path: "spec/protocol.md",
+      from: "## 3. Bytes\n",
+      to: "## 3. Bytes\n\n```json\n{\"unbound\": true}\n```\n",
+      command: ~w(mix test test/architecture/spec_conformance_language_test.exs)
+    },
+    %{
+      name: "spec-example-tampered-bytes",
+      path: "spec/protocol.md",
+      from: "## 3. Bytes\n",
+      to: "## 3. Bytes\n\n```json corpus:blueprint-decode-valid\n{\"drifted\": true}\n```\n",
+      command: ~w(mix test test/architecture/spec_conformance_language_test.exs)
+    },
+    %{
       name: "second-normative-document",
       path: "docs/protocol.md",
       create: "A stale second copy of the normative document.\n",
