@@ -22,7 +22,7 @@ the filesystem, which a file-loading registry would violate.
 
 Contradiction closure: the early "package.files gains `priv/registry`"
 line is superseded by this decision. The archive's registry-relevant
-addition is exactly `docs/protocol.md` (the normative protocol
+addition is exactly `spec/protocol.md` (the normative protocol
 document) and the previously frozen set; the requirement map records
 the reconciliation.
 

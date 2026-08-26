@@ -12,14 +12,21 @@
 #    - the named conformance-lane entries exist;
 #    - every entry carries a fenced `red` block with a command line and a
 #      failure-marker line (a fence of green output reds the check).
-# 2. docs/protocol.md exists, is declared in package.files, and is in the
-#    package-boundary allowlist inside package_boundary_test.exs.
-# 3. protocol.md is coupled to the shipped implementation: every facade
-#    function name, every registry namespace, and the corpus digest +
+# 2. Exactly one normative document: spec/protocol.md exists, is declared
+#    in package.files, is in the package-boundary allowlist inside
+#    package_boundary_test.exs, and no second copy lives at docs/.
+# 3. The specification is coupled to the shipped implementation: every
+#    facade function name, every registry namespace, and the corpus digest +
 #    case total from priv/conformance/index.json must appear in it, as
 #    must the non-authorizing stance.
+# 4. The release identity chain (priv/release-metadata.json) matches live
+#    state on every field: specification digest over the working-tree
+#    spec/ files, package version, corpus and registry digests, corpus
+#    index hash, verifier runtime, and the archive-authorization flag.
+#    The file is never trusted — every link is re-derived and compared.
 #
-# A missing or vacuous entry, or any protocol.md drift, is a hard failure.
+# A missing or vacuous entry, any specification drift, or a broken
+# identity-chain link is a hard failure.
 
 defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   # Citation payloads are runtime-concatenated so this script's own source
@@ -28,7 +35,9 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   @citation_probe "0" <> "016"
 
   @map_path "docs/design/requirement-map.md"
-  @protocol_path "docs/protocol.md"
+  @protocol_path "spec/protocol.md"
+  @metadata_path "priv/release-metadata.json"
+  @metadata_format "agent-blueprint-protocol-release-metadata"
 
   # A red fence must contain a command line and at least one line that can
   # only come from a failing run. Markers are output-shaped (ExUnit
@@ -81,8 +90,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "protocol-doc-dropped-from-package",
       path: "mix.exs",
-      from: "        \"priv/conformance\",\n        \"docs/protocol.md\",\n",
-      to: "        \"priv/conformance\",\n",
+      from: "        \"spec/protocol.md\",\n        \"spec/README.md\",\n",
+      to: "        \"spec/README.md\",\n",
       command: ~w(mix release.candidate)
     },
     # ---- per-case plants: every architecture case re-proven every run ----
@@ -293,9 +302,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "package-files-entry-drop",
       path: "mix.exs",
-      from:
-        "        \"priv/conformance\",\n        \"docs/protocol.md\",\n        \"docs/federation-mapping.md\",\n",
-      to: "        \"priv/conformance\",\n        \"docs/protocol.md\",\n",
+      from: "        \"priv/conformance\",\n        \"priv/release-metadata.json\",\n",
+      to: "        \"priv/conformance\",\n",
       command: ~w(mix test test/architecture/package_boundary_test.exs)
     },
     %{
@@ -515,6 +523,33 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       from: "## Status\n",
       to: "## Status\n\nSee [the note](docs/internals-note.md).\n",
       command: ~w(mix test test/architecture/document_citation_gate_test.exs)
+    },
+    %{
+      name: "identity-chain-corpus-link-tamper",
+      path: "priv/release-metadata.json",
+      from: "\"format\":\"agent-blueprint-protocol-release-metadata\"",
+      to: "\"format\":\"tampered-release-metadata\"",
+      command: ~w(mix release.candidate)
+    },
+    %{
+      name: "identity-chain-spec-digest-stale",
+      path: "spec/README.md",
+      from: "## Release identity chain\n",
+      to: "## Release identity chain\n\nAn unrecorded post-certification edit.\n",
+      command: ~w(mix release.candidate)
+    },
+    %{
+      name: "spec-extraction-dangling-link",
+      path: "spec/README.md",
+      from: "## Extraction\n",
+      to: "## Extraction\n\nSee [the map](../docs/design/requirement-map.md).\n",
+      command: ~w(mix spec.extraction)
+    },
+    %{
+      name: "second-normative-document",
+      path: "docs/protocol.md",
+      create: "A stale second copy of the normative document.\n",
+      command: ~w(mix release.candidate)
     }
   ]
 
@@ -532,6 +567,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "mix.lock",
     "priv",
     "scripts",
+    "spec",
     "test"
   ]
 
@@ -545,7 +581,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     findings =
       map_completeness_findings(map_text) ++
         protocol_presence_findings() ++
-        protocol_coupling_findings()
+        protocol_coupling_findings() ++
+        identity_chain_findings()
 
     if findings != [] do
       raise """
@@ -864,7 +901,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     |> Enum.map(fn [_, desc] -> desc end)
   end
 
-  # ---- 2. protocol.md presence ---------------------------------------------------
+  # ---- 2. exactly one normative document -------------------------------------------
 
   defp protocol_presence_findings do
     findings = []
@@ -874,6 +911,17 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
         findings
       else
         ["release candidate: #{@protocol_path} does not exist" | findings]
+      end
+
+    findings =
+      if File.exists?("docs/protocol.md") do
+        [
+          "release candidate: docs/protocol.md exists — the normative " <>
+            "document is #{@protocol_path}; a second copy reds"
+          | findings
+        ]
+      else
+        findings
       end
 
     files = Mix.Project.config()[:package][:files] || []
@@ -987,6 +1035,78 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   defp documented?(protocol, :facade_function, name), do: String.contains?(protocol, "#{name}/")
   defp documented?(protocol, _label, item), do: String.contains?(protocol, item)
 
+  # ---- 4. release identity chain ------------------------------------------
+  #
+  # priv/release-metadata.json pins the release identity: the
+  # specification digest, package version, corpus/registry digests, the
+  # corpus index hash, the verifier runtime floor, and the
+  # archive-authorization stance. Every field is re-derived from live
+  # state and compared — the file is never trusted (a tampered, stale,
+  # or unexpected field reds). This chain is what certifies that the
+  # specification and its evidence co-version.
+
+  @doc """
+  The specification digest: SHA-256 over the framed, path-sorted files
+  of the working-tree spec/ directory (per file: u64 path length, path,
+  u64 byte length, bytes), tagged `sha-256:<unpadded base64url>`.
+  """
+  @spec spec_digest() :: String.t()
+  def spec_digest do
+    framed =
+      "spec/**/*"
+      |> Path.wildcard()
+      |> Enum.reject(&File.dir?/1)
+      |> Enum.sort()
+      |> Enum.map_join(fn path ->
+        bytes = File.read!(path)
+        <<byte_size(path)::unsigned-64>> <> path <> <<byte_size(bytes)::unsigned-64>> <> bytes
+      end)
+
+    "sha-256:" <> Base.url_encode64(:crypto.hash(:sha256, framed), padding: false)
+  end
+
+  @doc "The full release-metadata map, derived from live state."
+  @spec expected_metadata() :: %{optional(String.t()) => term()}
+  def expected_metadata do
+    index = read!("priv/conformance/index.json")
+
+    %{
+      "format" => @metadata_format,
+      "package" => Mix.Project.config()[:app] |> to_string(),
+      "package_version" => Mix.Project.config()[:version],
+      "spec_digest" => spec_digest(),
+      "corpus_digest" => extract_json_string(index, "corpus_digest"),
+      "registry_digest" => extract_json_string(index, "registry_digest"),
+      "index_sha256_base64url" => Base.encode64(:crypto.hash(:sha256, index), padding: false),
+      "verifier_runtime" => "node>=24",
+      "archive_is_publication_authorization" => false
+    }
+  end
+
+  defp identity_chain_findings do
+    expected = expected_metadata()
+
+    if File.exists?(@metadata_path) do
+      actual = Jason.decode!(read!(@metadata_path))
+
+      mismatched =
+        for field <- Enum.sort(Map.keys(expected)),
+            Map.get(actual, field) != expected[field] do
+          "identity chain: #{field} is #{inspect(Map.get(actual, field))} — " <>
+            "the live value is #{inspect(expected[field])}"
+        end
+
+      unexpected =
+        for field <- Enum.sort(Map.keys(actual) -- Map.keys(expected)) do
+          "identity chain: unexpected field #{inspect(field)} in #{@metadata_path}"
+        end
+
+      mismatched ++ unexpected
+    else
+      ["identity chain: #{@metadata_path} is missing"]
+    end
+  end
+
   defp read!(path) do
     if File.exists?(path) do
       File.read!(path)
@@ -1001,6 +1121,11 @@ end
 # and for eyeballing the reprove inventory. NEVER a green claim: the exit
 # code is a distinct 3, so a wrapping gate cannot mistake a listing for a
 # passed check (fail-closed, matching ABP_RC_REPROVE=off's named-skip rule).
+#
+# ABP_RC_NO_RUN=1 loads the module WITHOUT running anything — the library
+# mode other scripts (the release-metadata generator) require this file
+# for its derivations; they set the flag, and the derivation functions
+# stay under the same fail-closed check that runs them.
 if System.get_env("ABP_RC_LIST_PLANTS") == "1" do
   Enum.each(AgentBlueprintProtocol.ReleaseCandidateCheck.plants(), fn plant ->
     IO.puts(Jason.encode!(plant))
@@ -1008,5 +1133,7 @@ if System.get_env("ABP_RC_LIST_PLANTS") == "1" do
 
   System.halt(3)
 else
-  AgentBlueprintProtocol.ReleaseCandidateCheck.run()
+  if System.get_env("ABP_RC_NO_RUN") != "1" do
+    AgentBlueprintProtocol.ReleaseCandidateCheck.run()
+  end
 end

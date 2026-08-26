@@ -69,7 +69,7 @@ defmodule AgentBlueprintProtocol.MixProject do
       files: [
         "lib",
         "priv/conformance",
-        "docs/protocol.md",
+        "priv/release-metadata.json",
         "docs/federation-mapping.md",
         "docs/adr/compiled-registry.md",
         "docs/adr/deny-default-clamps.md",
@@ -80,6 +80,8 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/producer-surface.md",
         "docs/adr/product-extension-registration.md",
         "docs/adr/two-consumer-amendment.md",
+        "spec/protocol.md",
+        "spec/README.md",
         ".formatter.exs",
         "mix.exs",
         "README.md",
@@ -106,7 +108,7 @@ defmodule AgentBlueprintProtocol.MixProject do
       extras: [
         "README.md",
         "CHANGELOG.md",
-        "docs/protocol.md",
+        "spec/protocol.md",
         "docs/federation-mapping.md",
         "docs/adr/compiled-registry.md",
         "docs/adr/deny-default-clamps.md",
@@ -141,6 +143,9 @@ defmodule AgentBlueprintProtocol.MixProject do
       "release.candidate": [
         "run --no-start scripts/check_release_candidate.exs"
       ],
+      "spec.extraction": [
+        "run --no-start scripts/check_spec_extraction.exs"
+      ],
       quality: [
         "hex.audit",
         "deps.unlock --check-unused",
@@ -154,6 +159,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "verifier.agreement",
         "dialyzer",
         "docs --warnings-as-errors",
+        "spec.extraction",
         "release.candidate"
       ]
     ]

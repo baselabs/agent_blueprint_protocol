@@ -21,7 +21,6 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     SECURITY.md
     hex_metadata.config
     docs/federation-mapping.md
-    docs/protocol.md
     docs/adr/compiled-registry.md
     docs/adr/deny-default-clamps.md
     docs/adr/detached-jws-envelope.md
@@ -31,6 +30,9 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/producer-surface.md
     docs/adr/product-extension-registration.md
     docs/adr/two-consumer-amendment.md
+    priv/release-metadata.json
+    spec/protocol.md
+    spec/README.md
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
@@ -67,7 +69,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
   @declared_files ~w(
     lib
     priv/conformance
-    docs/protocol.md
+    priv/release-metadata.json
     docs/federation-mapping.md
     docs/adr/compiled-registry.md
     docs/adr/deny-default-clamps.md
@@ -78,6 +80,8 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/producer-surface.md
     docs/adr/product-extension-registration.md
     docs/adr/two-consumer-amendment.md
+    spec/protocol.md
+    spec/README.md
     .formatter.exs
     mix.exs
     README.md
@@ -106,6 +110,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     "verifier.agreement",
     "dialyzer",
     "docs --warnings-as-errors",
+    "spec.extraction",
     "release.candidate"
   ]
 

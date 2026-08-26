@@ -1,10 +1,15 @@
-# Agent Blueprint Protocol — normative protocol document
+# Agent Blueprint Protocol — specification
 
 Status: published pre-1.0 protocol (0.x release line). This document is
-normative for the shipped reference implementation and its conformance corpus (digest
-`sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`, 94 cases). Where
-this document and the package's compiled data disagree, the package and
-its corpus are the truth and this document is a defect.
+the normative specification of the Agent Blueprint Protocol. The
+reference implementation and its conformance corpus (digest
+`sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`, 94 cases) are
+certified against this document at every release through the release
+identity chain — the specification digest, the package version, and the
+corpus and registry digests are pinned together per release, and the
+release-candidate check asserts the chain from live state. Where this
+document and the implementation disagree, one of them is defective and
+the release does not ship until the chain is reconciled.
 
 **The protocol is non-authorizing.** It validates structure, canonical
 bytes, bounds, compatibility, and evidence. Protocol validity never
@@ -259,7 +264,8 @@ deny-ordered check including attestation freshness
 A 23-member task envelope carried in A2A `Task.metadata` / MCP `_meta`
 under the registered `com.example/federation` extension; the full
 field-by-field A2A/MCP mapping (3 native, 5 partial, 15 extension
-members) ships as `docs/federation-mapping.md`. Zero native wire
+members) also ships with the reference implementation's document set.
+Zero native wire
 fields; no native transport. State codecs are lossy-aware: A2A
 `REJECTED`/`AUTH_REQUIRED` deny crossing into MCP, `UNSPECIFIED` is
 unmapped (`:federation_state_unmappable`); cancellation is a request,
@@ -406,5 +412,5 @@ artifact's `content_digest/1`, and serialize with its
 `canonical_bytes/1`. The round-trip property (decode → `to_value/1` →
 encode is a fixed point) is the byte-exactness guarantee a producer
 relies on. The facade stays a verification facade: it delegates and
-never implements, and no facade-level producer functions grow
-(`docs/adr/producer-surface.md`).
+never implements, and no facade-level producer functions grow (the
+accepted producer-surface decision record).

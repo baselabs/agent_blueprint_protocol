@@ -229,15 +229,68 @@ $ # plant M3: one architecture-case entry removed from this map
 $ mix release.candidate
 requirement-map: missing entry for case: "no shipped module/function/atom carries a version token"
 EXIT=1
-$ # plant M4: "docs/protocol.md" dropped from package.files
+$ # plant M4: "spec/protocol.md" dropped from package.files
 $ mix release.candidate
-release candidate: docs/protocol.md missing from package.files
+release candidate: spec/protocol.md missing from package.files
 EXIT=1
 reprove caught: publish-guard-toolpath-plant   # the M1-M4 acceptance plants
 reprove caught: spec-coverage-undocumented-fn  # are replanted in scratch copies
 reprove caught: map-entry-removal              # EVERY run — a plant that stays
 reprove caught: protocol-doc-dropped-from-package
 reprove survived: <name>   # the raise form — a vacuous plant (calibration-proven)
+```
+
+The release identity chain (priv/release-metadata.json) is asserted from
+live state on every run — the specification digest over the working-tree
+spec/ files, the package version, the corpus and registry digests, the
+corpus index hash, the verifier runtime floor, and the
+archive-authorization stance; the file is never trusted:
+
+```red
+$ # plant: one identity-chain link tampered (the format field)
+$ mix release.candidate
+release candidate: FAILED
+identity chain: format is "tampered-release-metadata" — the live value is "agent-blueprint-protocol-release-metadata"EXIT=1
+```
+
+```red
+$ # plant: a specification file edited without regenerating the metadata
+$ mix release.candidate
+release candidate: FAILED
+identity chain: spec_digest is "sha-256:SystAAJPBzc8Uhbaoih3PT9-1cEwdyiW1V0Fu12aChY" — the live value is "sha-256:6xyHdg2qFDEJMRUVQnnw9UEWWHoHR_XG26O2Tq9Pgmk"EXIT=1
+```
+
+```red
+$ # plant: a second copy of the normative document at docs/protocol.md
+$ mix release.candidate
+release candidate: FAILED
+release candidate: docs/protocol.md exists — the normative document is spec/protocol.md; a second copy redsEXIT=1
+```
+
+### alias: spec.extraction
+
+The specification-extraction check: spec/ + priv/conformance extract as a
+standalone tree that renders with no dangling references. The local form
+copies the working tree's two paths into a scratch; the CI workflow runs
+the literal repository-filter extraction (`git filter-repo --path spec/
+--path priv/conformance`) and re-runs the same script with `--tree` over
+the result. Links resolve relative to their containing document INSIDE
+the extracted tree; named section citations must name a pinned external
+standard or an in-tree document; no `../` or `docs/` path literal may
+appear in the specification's markdown.
+
+```red
+$ # plant: a repository-relative citation in spec/README.md
+$ mix spec.extraction
+spec extraction: FAILED
+dangling reference: spec/README.md links ../docs/design/requirement-map.md, which is absent from the extracted treeEXIT=1
+```
+
+```red
+$ # organic red during the founding: a path literal left in the moved document
+$ mix spec.extraction
+spec extraction: FAILED
+self-containment: spec/protocol.md carries the path literal "docs/" — a repository-relative reference that dangles post-extractionEXIT=1
 ```
 
 ## The architecture lane

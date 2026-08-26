@@ -44,6 +44,38 @@ jobs:
       - name: Run gitleaks over full history
         run: go run github.com/zricethezav/gitleaks/v8@83d9cd684c87d95d656c1458ef04895a7f1cbd8e git --config .gitleaks.toml --redact --no-banner
 
+  spec-extraction:
+    name: Specification extraction
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install git-filter-repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git-filter-repo
+
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.20.2"
+          otp-version: "29.0.3"
+
+      # The submission-time extraction, tested: the two governed paths are
+      # filtered out of a scratch clone, and the extracted tree must render
+      # with no dangling references (the same assertions the local
+      # `mix spec.extraction` gate runs on every build).
+      - name: Extract the standalone specification tree
+        run: |
+          git clone --no-local "$GITHUB_WORKSPACE" /tmp/spec-extraction-clone
+          git -C /tmp/spec-extraction-clone filter-repo --path spec/ --path priv/conformance
+
+      - name: Verify the extracted tree renders self-contained
+        run: elixir scripts/check_spec_extraction.exs --tree /tmp/spec-extraction-clone
+
   quality:
     name: Complete quality and package boundary
     runs-on: ubuntu-24.04

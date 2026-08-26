@@ -75,7 +75,7 @@ and conformance corpus are implemented and gated: 904 tests
 (59 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, a 94-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
-The normative protocol document, [`docs/protocol.md`](docs/protocol.md),
+The normative specification, [`spec/protocol.md`](spec/protocol.md),
 ships in the Hex archive. The full gate battery and every gate's
 recorded red proof are public in this repository under
 [`docs/design/requirement-map.md`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/docs/design/requirement-map.md).
