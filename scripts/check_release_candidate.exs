@@ -546,6 +546,13 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "mirror-guide-claim-drift",
+      path: "documentation/host-integration.md",
+      from: "profile.depth # => 32",
+      to: "profile.depth # => 31",
+      command: ~w(mix test test/architecture/documentation_mirror_test.exs)
+    },
+    %{
       name: "release-asset-report-drift",
       path: "verifier/report.ts",
       from: "      [\"exit_status\", int(report.exitStatus)],",
@@ -648,6 +655,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "SECURITY.md",
     "usage-rules.md",
     "conformance",
+    "documentation",
     "docs",
     "lib",
     "mix.exs",

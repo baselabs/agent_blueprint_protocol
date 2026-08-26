@@ -48,6 +48,19 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     spec/errata.md
     CONTRIBUTING.md
     CODE_OF_CONDUCT.md
+    documentation/errors.md
+    documentation/extension-author.md
+    documentation/faq.md
+    documentation/federation.md
+    documentation/getting-started.md
+    documentation/host-integration.md
+    documentation/operations.md
+    documentation/portability.md
+    documentation/producer.md
+    documentation/registry.md
+    documentation/upgrading.md
+    documentation/what-a-blueprint-is.md
+    documentation/what-a-deployment-is.md
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
@@ -107,6 +120,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     spec/errata.md
     CONTRIBUTING.md
     CODE_OF_CONDUCT.md
+    documentation
     .formatter.exs
     mix.exs
     README.md

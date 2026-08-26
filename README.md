@@ -34,6 +34,21 @@ end
 The package has **zero production dependencies**, no application callback, and
 no supervision tree.
 
+## When to use — and when NOT
+
+**Use this protocol when** you need a portable, verifiable contract for
+what an agent is and what it may do: bounds that can only narrow,
+evidence commitments that survive independent verification, and a
+conformance corpus that proves the whole surface. It complements the
+transport and discovery protocols — a blueprint rides IN A2A task
+metadata and MCP `_meta`.
+
+**Do NOT use it if you need an agent to HAVE authority.** This grants
+none: identity, tenancy, live policy, effect ownership, execution,
+billing, and evaluation truth stay with the host, always. If your
+problem is granting permissions, this is the wrong layer — you need a
+policy engine, and a blueprint can carry its requirements to one.
+
 ## What it provides
 
 Decoding and validation (every result is a typed fact or a typed denial —
@@ -71,7 +86,7 @@ independent TypeScript verifier.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated: 910 tests
+and conformance corpus are implemented and gated: 911 tests
 (59 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, a 94-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.

@@ -1080,6 +1080,31 @@ shipped documents carry stale concrete version claims (only 0.3.0 may appear): [
 Result: 3/4 passed
 ```
 
+### case: "every result-claiming guide example mirrors the real package"
+
+Mirror-test gate: every result-claiming elixir block in the
+documentation corpus executes line-by-line against the real package
+with the claimed value compared to the evaluated one — a guide example
+that would not run (wrong API shape, wrong return form, fabricated
+output) reds; a corpus with no result-claiming examples reds as
+vacuous.
+
+```red
+$ # plant: a guide claim drifted (profile.depth claimed 31)
+$ mix test test/architecture/documentation_mirror_test.exs
+1) test every result-claiming guide example mirrors the real package
+documentation/host-integration.md (block 0): profile.depth evaluated to 32, guide claims 31
+Result: 0/1 passed
+```
+
+```red
+$ # plant: a guide example calling a function that does not exist
+$ mix test test/architecture/documentation_mirror_test.exs
+1) test every result-claiming guide example mirrors the real package
+documentation/producer.md (block 0): line failed (#{reason}): "AgentBlueprintProtocol.Json.parse(bytes) # => {:ok, {:object, [{\"a\", {:integer, 1}}]}}"
+Result: 0/1 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript
