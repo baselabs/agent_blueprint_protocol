@@ -341,6 +341,22 @@ taskenvelope golden "federation-decode-valid" fails its derived schema: :invalid
 EXIT=1
 ```
 
+```red
+$ # plant: a top-level syntax line the disciplined subset does not carry (enum widening)
+$ mix grammar.derivation
+grammar derivation: FAILED
+blueprint.cddl: unsupported top-level syntax: "classification /= \"topsecret\""
+EXIT=1
+```
+
+```red
+$ # plant: the grammar loosened (a required member made optional) — cross-read arm
+$ mix grammar.derivation
+grammar derivation: FAILED
+grammar loosened required members: ["release_number"]
+EXIT=1
+```
+
 ## The architecture lane
 
 Every test case under `test/architecture/`, with its plant and failing

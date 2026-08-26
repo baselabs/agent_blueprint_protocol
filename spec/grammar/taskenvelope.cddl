@@ -1,6 +1,6 @@
 ; Agent Blueprint Protocol — Federation TaskEnvelope grammar (normative)
-; RFC 8610 CDDL. Pinned to the compiled federation table by the
-; derivation gate; corpus goldens validate under the derived JSON
+; RFC 8610 CDDL. Bound to the compiled federation table by the derivation
+; gate (member names cross-read); corpus goldens validate under the derived JSON
 ; Schema. Cross-member hooks (checkpoint_status vs terminal_state
 ; coexistence, terminal hook binding) are reference-implementation-
 ; enforced and noted here as comments.

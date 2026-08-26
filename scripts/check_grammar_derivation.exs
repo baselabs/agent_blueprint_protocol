@@ -70,7 +70,7 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
         cond do
           write? ->
             File.write!(path, json)
-            corpus_findings(root, decode_case, schema)
+            corpus_findings(root, decode_case, schema) ++ table_coupling_findings(root, schema)
 
           not File.exists?(path) ->
             ["#{path} is missing — run `mix grammar.derivation --write`"]
@@ -82,12 +82,65 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
             ]
 
           true ->
-            corpus_findings(root, decode_case, schema)
+            corpus_findings(root, decode_case, schema) ++ table_coupling_findings(root, schema)
         end
 
       {:error, reason} ->
         ["#{cddl}: #{reason}"]
     end
+  end
+
+  # Root cross-read: the derived root schema carries EXACTLY the
+  # compiled registry's member names and required flags — a loosened
+  # grammar (member dropped from required, member invented) reds even
+  # when every corpus golden still carries the member.
+  defp table_coupling_findings(root, schema) do
+    {compiled_names, compiled_required} =
+      case root do
+        "blueprint" ->
+          table = AgentBlueprintProtocol.Blueprint.table()
+          {Enum.map(table, & &1.name), table |> Enum.filter(& &1.required) |> Enum.map(& &1.name)}
+
+        "deployment" ->
+          table = AgentBlueprintProtocol.Deployment.table()
+          {Enum.map(table, & &1.name), table |> Enum.filter(& &1.required) |> Enum.map(& &1.name)}
+
+        "taskenvelope" ->
+          names = AgentBlueprintProtocol.Federation.envelope_members()
+          {names, nil}
+      end
+
+    root_def = schema["$defs"][root]
+    derived_names = Map.keys(root_def["properties"] || %{})
+    derived_required = root_def["required"] || []
+
+    name_drift =
+      List.wrap(
+        if compiled_names -- derived_names != [],
+          do: "grammar is missing members: #{inspect(compiled_names -- derived_names)}"
+      ) ++
+        List.wrap(
+          if derived_names -- compiled_names != [],
+            do: "grammar invents members: #{inspect(derived_names -- compiled_names)}"
+        )
+
+    required_drift =
+      if compiled_required == nil do
+        []
+      else
+        List.wrap(
+          if compiled_required -- derived_required != [],
+            do:
+              "grammar loosened required members: #{inspect(compiled_required -- derived_required)}"
+        ) ++
+          List.wrap(
+            if derived_required -- compiled_required != [],
+              do:
+                "grammar tightened members into required: #{inspect(derived_required -- compiled_required)}"
+          )
+      end
+
+    name_drift ++ required_drift
   end
 
   # Corpus goldens: every VALID case of the artifact's decode surface
@@ -190,6 +243,8 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
   # Rules are line-oriented: a rule starts at `name =` and its body is
   # the remaining text on that line plus, if braces open, subsequent
   # lines until the braces balance.
+  defp parse_rules("", rules, _partial), do: {:ok, rules}
+
   defp parse_rules(source, rules, _partial) do
     lines = String.split(source, "\n")
 
@@ -203,6 +258,9 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
         else
           {:error, reason} -> {:error, "#{name}: #{reason}"}
         end
+
+      {:error, _reason} = error ->
+        error
 
       nil ->
         {:ok, rules}
@@ -228,7 +286,11 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
         {name, body, remainder}
 
       nil ->
-        take_rule(rest)
+        # Fail-closed: a top-level line that is not a rule start is
+        # unsupported syntax (continuation lines were consumed with
+        # their rule body) — skipping it would let the normative
+        # grammar text diverge from the derived schema silently.
+        {:error, "unsupported top-level syntax: #{inspect(line)}"}
     end
   end
 
@@ -500,5 +562,5 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
   defp pad(depth), do: String.duplicate("  ", depth)
 end
 
-write? = System.get_env("ABP_GRAMMAR_WRITE") == "1"
+write? = System.argv() == ["--write"] or System.get_env("ABP_GRAMMAR_WRITE") == "1"
 AgentBlueprintProtocol.GrammarDerivation.run(write?)

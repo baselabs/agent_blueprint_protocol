@@ -136,8 +136,12 @@ member → missing required → type → constraint → cardinality →
 nested → cross-field hooks. Every sub-member listed inside an
 object/array type is required unless marked `(opt)`. The machine-
 readable grammar artifacts (CDDL under `spec/grammar/`, with the
-derived JSON Schema beside them) are pinned to these tables by the
-grammar-derivation gate.
+derived JSON Schema beside them) are bound to these tables by the
+grammar-derivation gate: root member sets and required flags are
+cross-read against the compiled registries, and the corpus goldens
+validate under the derived schemas. The derived schemas close the
+artifact root; sub-object closure and cross-member hooks remain the
+reference implementation's to enforce.
 
 | Member | Card. | Type | Constraints |
 |---|---|---|---|
@@ -168,8 +172,12 @@ member → missing required → type → constraint → cardinality →
 nested → cross-field hooks. Every sub-member listed inside an
 object/array type is required unless marked `(opt)`. The machine-
 readable grammar artifacts (CDDL under `spec/grammar/`, with the
-derived JSON Schema beside them) are pinned to these tables by the
-grammar-derivation gate.
+derived JSON Schema beside them) are bound to these tables by the
+grammar-derivation gate: root member sets and required flags are
+cross-read against the compiled registries, and the corpus goldens
+validate under the derived schemas. The derived schemas close the
+artifact root; sub-object closure and cross-member hooks remain the
+reference implementation's to enforce.
 
 | Member | Card. | Type | Constraints |
 |---|---|---|---|

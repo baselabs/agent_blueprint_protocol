@@ -1,6 +1,7 @@
 ; Agent Blueprint Protocol — Blueprint Core grammar (normative)
-; RFC 8610 CDDL. This grammar is pinned to the compiled registry table
-; by the derivation gate; the corpus goldens validate under the derived
+; RFC 8610 CDDL. This grammar's root member set and required flags are
+; cross-read against the compiled registry table by the derivation
+; gate; sub-object closure remains the reference implementation's; the corpus goldens validate under the derived
 ; JSON Schema. By-key uniqueness (operation_family, logical_operation,
 ; name, value) is enforced by the reference implementation and is not
 ; expressible in JSON Schema; the members are marked unique in comments.
