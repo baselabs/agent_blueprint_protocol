@@ -829,8 +829,16 @@ uppercase and word-bounded at least once.
 $ # organic red: the sweep not yet landed (no boilerplate in the document)
 $ mix test test/architecture/spec_conformance_language_test.exs
 1) test the specification carries the conformance-language boilerplate and uses its keywords
-the BCP 14 boilerplate fragment "to be interpreted as described in BCP 14" is missing from the normative document
+the BCP 14 boilerplate fragment "interpreted as described in" is missing from the normative document
 Result: 0/1 passed
+```
+
+```red
+$ # plant: every body-use of MUST NOT lowered (keyword-usage arm; the boilerplate quote alone must not satisfy it)
+$ mix test test/architecture/spec_conformance_language_test.exs
+1) test the specification carries the conformance-language boilerplate and uses its keywords
+the normative document never uses the conformance keyword MUST NOT outside the boilerplate (uppercase, word-bounded)
+Result: 1/2 passed
 ```
 
 ```red

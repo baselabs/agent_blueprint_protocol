@@ -20,7 +20,10 @@ defmodule AgentBlueprintProtocol.Architecture.SpecConformanceLanguageTest do
     "[RFC8174]",
     "as shown here"
   ]
-  @keywords ~w(MUST MUST NOT SHOULD SHOULD NOT MAY)
+  # Compound keywords are single list entries (~w would split them);
+  # keyword USE is counted over the document with the boilerplate
+  # paragraph itself removed, so quoting a keyword is not using it.
+  @keywords ["MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "MAY"]
 
   test "the specification carries the conformance-language boilerplate and uses its keywords" do
     spec = File.read!(@spec_path)
@@ -31,10 +34,12 @@ defmodule AgentBlueprintProtocol.Architecture.SpecConformanceLanguageTest do
                "from the normative document"
     end
 
+    body = strip_boilerplate(spec)
+
     for keyword <- @keywords do
-      assert Regex.match?(keyword_pattern(keyword), spec),
+      assert Regex.match?(keyword_pattern(keyword), body),
              "the normative document never uses the conformance keyword " <>
-               "#{keyword} (uppercase, word-bounded)"
+               "#{keyword} outside the boilerplate (uppercase, word-bounded)"
     end
   end
 
@@ -63,6 +68,13 @@ defmodule AgentBlueprintProtocol.Architecture.SpecConformanceLanguageTest do
   defp keyword_pattern("MUST"), do: ~r/\bMUST\b(?! NOT)/
   defp keyword_pattern(other), do: ~r/\b#{Regex.escape(other)}\b/
 
+  # Removes the boilerplate paragraph (from its opening quote block to
+  # the closing "as shown here.") so keyword mentions inside it do not
+  # satisfy the usage check.
+  defp strip_boilerplate(spec) do
+    String.replace(spec, ~r/The key words "MUST".*?as shown here\./s, "")
+  end
+
   # A json fence MUST carry the info tag `corpus:<case-id>`; the id MUST
   # exist in the shipped corpus; the fence bytes MUST equal the case's
   # input text.
@@ -81,7 +93,9 @@ defmodule AgentBlueprintProtocol.Architecture.SpecConformanceLanguageTest do
   end
 
   defp id_offences(id, body, inputs) do
-    if String.trim_trailing(body) == inputs[id] do
+    # Exact bytes: the fence body is the case text plus exactly the one
+    # newline that precedes the closing fence — nothing else may differ.
+    if body == inputs[id] <> "\n" do
       []
     else
       ["does not byte-match corpus case #{inspect(id)}"]

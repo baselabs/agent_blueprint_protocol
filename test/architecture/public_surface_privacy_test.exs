@@ -1,7 +1,11 @@
 defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
   use ExUnit.Case, async: false
 
-  @moduletag timeout: 180_000
+  # The history scan is O(tracked files × commits); observed 150–190s
+  # under load at the 0.2.1 tree, so the budget carries headroom rather
+  # than sitting inside noise of the runtime (a timeout here is a flake,
+  # not a privacy finding).
+  @moduletag timeout: 480_000
 
   @forbidden_hmacs MapSet.new([
                      "b588ad7e20b48289a4be8ca875a2fbfc461914717baba46fc18ba63c462205e0",

@@ -46,8 +46,11 @@ production dependencies.
 ### Terminology
 
 - **Artifact** — a Blueprint or Deployment Manifest value together with
-  its exact canonical bytes; the artifact's identity is the content
-  digest of those bytes.
+  its exact canonical bytes; the artifact's identity is its content
+  digest — the digest of the artifact's digest-covered members over
+  those canonical bytes (the digest section defines the exact input;
+  the digest member itself, signatures, and attestations are
+  excluded).
 - **Host** — the consuming runtime. Every non-establishment obligation
   in this protocol belongs to a host, and a green result never
   transfers one to the package.
@@ -119,7 +122,7 @@ token; the Hex package version is the sole version number.
 
 A complete, valid Blueprint as it travels on the wire (the conformance
 corpus's `blueprint-decode-valid` case, byte-exact — every fenced
-example in this specification is a corpus case):
+JSON example in this specification is a corpus case):
 
 ```json corpus:blueprint-decode-valid
 {"blueprint_id":"example.demo/echo","capability_requirements":[{"approval_trait":"none","argument_schema":{"type":"object"},"authority_trait":"none","classification_ceiling":"internal","impact_class":"ordinary","operation_family":"example.demo.read_shape","operation_kind":"read","result_schema":{"type":"object"}}],"ceilings":{"max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},"classification_ceiling":"internal","content_digest":"sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8","effect_intents":[{"impact_class":"ordinary","logical_operation":"record_summary","operation_kind":"mutation"}],"evaluation_assertions":[{"kind":"output_schema","port":"result","schema":{"type":"object"}}],"extensions":{"critical":{},"optional":{}},"input_ports":[{"classification_ceiling":"internal","name":"request","required":true,"schema":{"type":"object"}}],"output_contract":{"classification_ceiling":"internal","port":"result"},"output_ports":[{"classification_ceiling":"internal","name":"result","required":true,"schema":{"type":"object"}}],"producer":{"created_at":"2026-08-20T00:00:00Z","identity":"example.demo","toolchain":"example.demo.toolchain"},"protocol_revision":1,"release_number":1,"required_core_fields":[],"triggers":["manual"]}
@@ -346,8 +349,9 @@ verification failure). Correlation grants nothing.
 ## 12. Error vocabulary
 
 A closed typed set — `%Error{code, subject, detail}`. An
-implementation MUST NOT emit an undeclared code, and every declared
-code must be reachable (enforced two-directionally by a build gate).
+implementation MUST NOT emit an undeclared code, and every code it
+declares MUST be reachable (enforced two-directionally by a build
+gate).
 The 74 codes of this release:
 
 `base64url_invalid · base64url_padded · invalid_syntax ·
@@ -397,7 +401,7 @@ and `not_verified` — which MUST be non-empty BY CONSTRUCTION, always
 naming at least the seven host-owned surfaces this protocol structurally
 cannot establish: `tenancy`, `live_policy`, `authority`,
 `effect_ownership`, `execution`, `billing`, `evaluation_truth`. A
-caller cannot read an Evidence record and conclude "everything is
+caller SHOULD NOT read an Evidence record and conclude "everything is
 fine": the record itself names what it did not check.
 
 ## 14. Portability
@@ -406,8 +410,8 @@ Portable artifacts MUST NOT contain secrets, private keys, live grants,
 tenant identifiers, raw endpoints, database primary keys, or backend
 engine identifiers — enforced structurally (member-name and value-shape
 denylists over the open regions, at any depth, name-spelling-normalized)
-and red-cased per class in the corpus. A portability pass SHOULD NOT be
-read as sufficiency — the guard is necessary, not sufficient: opaque
+and red-cased per class in the corpus. A portability pass is not
+sufficiency — the guard is necessary, not sufficient: opaque
 quarantined extension bodies are typed as unscanned, and portability
 claims attach only to schema-validated content. Concrete provider/model
 names, credentials, engine ids, and endpoints resolve host-side and are

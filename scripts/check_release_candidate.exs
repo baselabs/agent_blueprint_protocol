@@ -546,6 +546,13 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "spec-language-keyword-strip",
+      path: "spec/protocol.md",
+      from: "a host MAY opt into",
+      to: "a host may opt into",
+      command: ~w(mix test test/architecture/spec_conformance_language_test.exs)
+    },
+    %{
       name: "spec-language-boilerplate-strip",
       path: "spec/protocol.md",
       from: "capitals, as shown here.",
