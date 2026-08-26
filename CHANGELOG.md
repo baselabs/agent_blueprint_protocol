@@ -2,6 +2,29 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.4.1] — 2026-08-26
+
+### Fixed — verification posture hardening
+
+- CI green on the public repository (GitHub Actions is free for
+  public repos; the prior 'billing-blocked' posture was wrong and is
+  retired). The standing CI failures are fixed: a stale reprove copy
+  path (a pre-promotion directory that never exists in a fresh
+  checkout) crashed the release-candidate check.
+- The README test-count claim is tied to the suite-REGISTERED count,
+  not just the source macro census: the release-candidate check
+  asserts macro census == registered count == README claim (both
+  divergence arms red-proven and replanted in the evidence map).
+- The deferred-work registry (twelve named items, each with its
+  checkable reopen trigger) ships inside the specification tree's
+  FOUNDATION-TRANSITION document — the durable record no longer lives
+  only in planning artifacts.
+
+The conformance corpus is unchanged at 94 cases, digest
+`sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
+digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
+
 ## [0.4.0] — 2026-08-26
 
 ### Added — examples gallery + minutes-long quickstart

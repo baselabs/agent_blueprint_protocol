@@ -26,7 +26,7 @@ and evidence retention.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.4.0"}
+    {:agent_blueprint_protocol, "~> 0.4.1"}
   ]
 end
 ```
