@@ -41,6 +41,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     spec/grammar/derived/blueprint.schema.json
     spec/grammar/derived/deployment.schema.json
     spec/grammar/derived/taskenvelope.schema.json
+    spec/registry/registry.json
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
@@ -93,6 +94,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     spec/LICENSE
     spec/NOTICE
     spec/grammar
+    spec/registry/registry.json
     .formatter.exs
     mix.exs
     README.md
@@ -123,6 +125,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     "docs --warnings-as-errors",
     "spec.extraction",
     "grammar.derivation",
+    "registry.equality",
     "release.candidate"
   ]
 

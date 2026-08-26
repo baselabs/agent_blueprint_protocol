@@ -1,0 +1,59 @@
+{
+  "format": "agent-blueprint-protocol-registry",
+  "entries": [
+  {
+    "a2a_uri": "https://example.com/extensions/commerce-graph",
+    "criticality": "critical",
+    "namespace": "com.example.commerce/graph",
+    "owner": "ExampleCommerce",
+    "promoted_at_revision": null,
+    "schema_digest": null,
+    "state": "active"
+  },
+{
+    "a2a_uri": "https://example.com/extensions/commerce-classification-labels",
+    "criticality": "optional",
+    "namespace": "com.example.commerce/classification-labels",
+    "owner": "ExampleCommerce",
+    "promoted_at_revision": null,
+    "schema_digest": null,
+    "state": "active"
+  },
+{
+    "a2a_uri": "https://example.com/extensions/commerce-rubric-assertion",
+    "criticality": "optional",
+    "namespace": "com.example.commerce/rubric-assertion",
+    "owner": "ExampleCommerce",
+    "promoted_at_revision": null,
+    "schema_digest": null,
+    "state": "active"
+  },
+{
+    "a2a_uri": "https://example.com/extensions/platform-estate",
+    "criticality": "optional",
+    "namespace": "com.example.platform/estate",
+    "owner": "ExamplePlatform",
+    "promoted_at_revision": null,
+    "schema_digest": null,
+    "state": "deprecated"
+  },
+{
+    "a2a_uri": "https://example.com/extensions/platform-estate-contract",
+    "criticality": "critical",
+    "namespace": "com.example.platform/estate-contract",
+    "owner": "ExamplePlatform",
+    "promoted_at_revision": null,
+    "schema_digest": "sha-256:s_ToZWwxrhhd4vVxAyUh2Q6Gddston4tBSLHTLvCQAw",
+    "state": "active"
+  },
+{
+    "a2a_uri": "https://example.com/extensions/federation",
+    "criticality": "critical",
+    "namespace": "com.example/federation",
+    "owner": "Agent Blueprint Protocol",
+    "promoted_at_revision": null,
+    "schema_digest": "sha-256:NgfEJT8JXJqRMpQS5TVBQDrk97-PzUtbgnRgWc8Dki0",
+    "state": "active"
+  }
+  ]
+}

@@ -328,9 +328,11 @@ Namespace form: reverse-DNS-plus-path (`com.example.commerce/graph`),
 lowercase, one `/`, length-ceilinged, and not parseable as an absolute
 URI with a network authority (a namespace can never double as an
 endpoint). The registry MUST ship as compiled-in data in the package —
-registry content is a code release; there is no registry directory or
-file, and drift between shipped code and shipped registry is
-unrepresentable. Registered at this release:
+registry content is a code release; there is no runtime registry file,
+and drift between shipped code and shipped registry is
+unrepresentable. The governance-canonical SOURCE is the specification
+tree's registry document (`spec/registry/registry.json`), bound to both
+compiled twins and the corpus index by the registry equality gate. Registered at this release:
 
 | Namespace | Owner | Criticality | State |
 |---|---|---|---|

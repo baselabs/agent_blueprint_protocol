@@ -34,6 +34,7 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
     "spec/grammar/derived/blueprint.schema.json",
     "spec/grammar/derived/deployment.schema.json",
     "spec/grammar/derived/taskenvelope.schema.json",
+    "spec/registry/registry.json",
     "priv/conformance/index.json"
   ]
 

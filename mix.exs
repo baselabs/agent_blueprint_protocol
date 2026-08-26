@@ -85,6 +85,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "spec/LICENSE",
         "spec/NOTICE",
         "spec/grammar",
+        "spec/registry/registry.json",
         ".formatter.exs",
         "mix.exs",
         "README.md",
@@ -152,6 +153,9 @@ defmodule AgentBlueprintProtocol.MixProject do
       "grammar.derivation": [
         "run --no-start scripts/check_grammar_derivation.exs"
       ],
+      "registry.equality": [
+        "run --no-start scripts/check_registry_equality.exs"
+      ],
       quality: [
         "hex.audit",
         "deps.unlock --check-unused",
@@ -167,6 +171,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs --warnings-as-errors",
         "spec.extraction",
         "grammar.derivation",
+        "registry.equality",
         "release.candidate"
       ]
     ]

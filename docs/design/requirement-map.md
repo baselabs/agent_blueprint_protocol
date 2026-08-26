@@ -357,6 +357,30 @@ grammar loosened required members: ["release_number"]
 EXIT=1
 ```
 
+### alias: registry.equality
+
+The registry equality gate: spec/registry/registry.json is the
+governance-canonical registry source; the canonical digest over its
+entries must equal the Elixir twin's digest, the TypeScript twin's
+digest (read by running the verifier's own registry module), and the
+corpus index's pinned registry digest. A hand-edit on any carrier reds.
+
+```red
+$ # plant: the Elixir twin's first owner edited
+$ mix registry.equality
+registry equality: FAILED
+the Elixir twin's digest is sha-256:izMUzS8i3PGJGsz0d3NoONWubvuD4iOzeRWRx6CDICY — the governance json says sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs
+EXIT=1
+```
+
+```red
+$ # plant: the governance json's owner edited
+$ mix registry.equality
+registry equality: FAILED
+the TypeScript twin's digest is sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs — the governance json says sha-256:CYgxTnNJorrlBSUBwfLhgiN2ks0OQ454BSjujYZmJ4A
+EXIT=1
+```
+
 ## The architecture lane
 
 Every test case under `test/architecture/`, with its plant and failing

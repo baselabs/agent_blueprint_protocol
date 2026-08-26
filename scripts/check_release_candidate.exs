@@ -546,6 +546,13 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "registry-twin-edit",
+      path: "lib/agent_blueprint_protocol/extension_registry.ex",
+      from: "owner: \"ExampleCommerce\",\n        criticality: :critical",
+      to: "owner: \"ExampleCommerceX\",\n        criticality: :critical",
+      command: ~w(mix registry.equality)
+    },
+    %{
       name: "grammar-cddl-mutation",
       path: "spec/grammar/blueprint.cddl",
       from: "  release_number: positive-integer",
@@ -624,6 +631,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "NOTICE",
     "SECURITY.md",
     "usage-rules.md",
+    "conformance",
     "docs",
     "lib",
     "mix.exs",
