@@ -933,6 +933,21 @@ the error semantics table repeats rows: ["unknown_member"]
 Result: 1/2 passed
 ```
 
+### case: "every threat-model corpus citation resolves to a live corpus class"
+
+Threat-traceability gate: the Security/Privacy threat model cites only
+conformance classes the corpus actually exercises — an untraceable
+security claim (a class the corpus does not carry) reds, and a threat
+model with no citations reds as vacuous.
+
+```red
+$ # plant: a threat row citing a class the corpus does not carry
+$ mix test test/architecture/spec_threat_traceability_test.exs
+1) test every threat-model corpus citation resolves to a live corpus class
+the threat model cites corpus classes that do not exist (untraceable security claims): ["made_up_threat_class"]
+Result: 0/1 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript

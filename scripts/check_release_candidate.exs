@@ -546,6 +546,13 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "spec-threat-untraceable-citation",
+      path: "spec/protocol.md",
+      from: "`tamper_meaningful_byte` `digest_mismatch`",
+      to: "`tamper_meaningful_byte` `made_up_threat_class`",
+      command: ~w(mix test test/architecture/spec_threat_traceability_test.exs)
+    },
+    %{
       name: "spec-grammar-member-rename",
       path: "spec/protocol.md",
       from: "| `blueprint_id` | 1 |",

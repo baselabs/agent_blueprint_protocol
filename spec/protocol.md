@@ -644,3 +644,66 @@ encode is a fixed point) is the byte-exactness guarantee a producer
 relies on. The facade stays a verification facade: it delegates and
 never implements, and no facade-level producer functions grow (the
 accepted producer-surface decision record).
+
+## 17. Security considerations (normative)
+
+The threat model is not invented for this section: every threat below is
+exercised by the conformance corpus as a named red class, and the gate
+in the reference implementation reds a threat row that cites a class the
+corpus does not carry.
+
+| Threat | Vector | Corpus class | Mitigation |
+|---|---|---|---|
+| Artifact tamper | bytes edited after signing | `tamper_meaningful_byte` `digest_mismatch` | content digests over exact received bytes; `:digest_mismatch` before any semantic read |
+| Canonicality laundering | non-canonical spellings of the same value | `invalid_duplicate` | MUST-already-be-canonical interchange bytes; `:non_canonical_bytes` |
+| Signature substitution | a signature lifted onto another artifact/purpose | `signature_invalid` | purpose-pinned signed attributes; digest covers revision + identity members |
+| Protocol downgrade | an older/newer revision forced on a consumer | `revision_above_max` `revision_below_min` | explicit revision SETs, both directions deny `:protocol_revision_unsupported` |
+| Extension rug-pull via registry | unknown/retired namespace forced critical | `extension_unknown_critical` | registry-state table; deny with typed codes |
+| Schema-pin evasion | critical body validated against a different schema | `extension_schema_unavailable` | digest-pinned schemas; `:extension_schema_digest_mismatch` |
+| Tool rug-pull | a bound tool's descriptor replaced out-of-band | `binding_stale` `compatibility_range_rejected` | binding verification: descriptor-digest equality + attestation freshness + identity-exact entries |
+| Ceiling widening | a bound or ceiling raised after the fact | `bound_widening_operational` `bound_widening_protected` | bounds may narrow only; protected narrowing denies by default; effective bounds never widen host policy |
+| Quarantined-content laundering | unscanned payload smuggled into a claim | `extension_unknown_optional_roundtrip` `forbidden_portable_value` | quarantine is typed unscanned; portability claims attach only to schema-validated content |
+| Receipt equivocation | two diverging terminal receipts for one task | `terminal_equivocation` `federation_terminal_conflict` | Terminal Commitment over seven components; ANY divergence denies |
+| Misaddressed execution | a receipt verified by the wrong receiver | `audience_mismatch` | issuer/subject/audience checked against the receiving context |
+| Required-field laundering | an evidence-only member promoted to a requirement | `required_field_not_covered` | required core fields MUST be digest-covered |
+
+The non-authorizing boundary is itself a security property: every
+verification result is evidence, the `not_verified` set is non-empty by
+construction naming the host-owned surfaces, and no code path grants
+authority. Small-order Ed25519 keys reject; the package performs no key
+discovery or trust selection — a wrong key is a typed denial, never a
+silent pass.
+
+## 18. Privacy considerations (normative)
+
+The portability guard is the protocol's data-minimization profile,
+stated as a normative constraint set: portable artifacts MUST NOT carry
+secrets, private keys, live grants, tenant identifiers, raw endpoints,
+database primary keys, or backend engine identifiers — enforced
+structurally at any depth (member-name and value-shape denylists,
+name-spelling-normalized) and exercised per class by the corpus
+(`forbidden_portable_value`). The honest limits are part of the
+contract: quarantined extension bodies are typed as unscanned
+(`extension_unknown_optional_roundtrip` carries the round-trip
+obligation), and portability claims attach only to schema-validated
+content — a producer MUST NOT present a portability pass as a privacy
+guarantee. Federation identity members (`issuer`, `subject`,
+`audience`, `identity_mapping_evidence`) are correlation material only:
+an authority-shaped claim in the evidence block denies
+`:nonportable_content`, and possession of a key is never an identity
+claim.
+
+## 19. Positioning — protocol neighbors (informative)
+
+The Agent Blueprint Protocol does not compete with the transport and
+discovery protocols; it completes them. AI Catalog owns discovery,
+verifiable identity, and attestation; A2A owns agent-to-agent tasks;
+MCP owns tools and data. ABP owns the portable CONTRACT layer — the
+artifact that says what an agent is, what it may do (bounds, ceilings),
+what it must prove (evidence), and how a host verifies all of it
+fail-closed without granting authority. A blueprint rides IN A2A task
+metadata and MCP `_meta` (the federation profile proves the carriage);
+a Trust-Manifest-style discovery record can reference a blueprint by
+digest without either protocol subsuming the other. Where a neighbor
+mandates a signature envelope, ABP already speaks it: detached JWS over
+JCS canonical bytes is the shared primitive.
