@@ -1121,6 +1121,15 @@ examples/echo-blueprint.json is not a byte-exact conformance corpus case
 Result: 1/2 passed
 ```
 
+```red
+$ # plant: a DENIAL-case artifact as an example (the gallery gate is verdict-aware —
+$ # # an example whose only corpus appearance is a denial is not a verified example)
+$ mix test test/architecture/examples_gallery_test.exs
+1) test every example artifact is a byte-exact corpus case
+examples/planted-denial.json is not a byte-exact conformance corpus case
+Result: 1/2 passed
+```
+
 ### case: "the gallery documents at least one blueprint + deployment pair"
 
 The gallery's shape floor: at least one blueprint example and at least

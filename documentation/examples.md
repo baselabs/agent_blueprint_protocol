@@ -20,6 +20,13 @@ The minimal valid pair: `echo-blueprint.json` + `echo-deployment.json`.
   (absent is an error, never infinity).
 - `input_ports` / `output_ports` / `output_contract` — the typed
   surface: a `request` port in, a `result` port out, ceiling `internal`.
+- `classification_ceiling` (`internal`) — the artifact-wide
+  disclosure ceiling.
+- `effect_intents` — one declared effect: `record_summary`, kind
+  `mutation`, impact `ordinary`. This is the effect the deployment's
+  `effect_owner` binding exists to own.
+- `evaluation_assertions` — an output-schema assertion on the `result`
+  port.
 - `triggers` (`["manual"]`) — how execution starts.
 - `producer` — identity, Z-form timestamp, toolchain.
 - `protocol_revision` (1), `release_number` (1) — the revision line.
@@ -30,8 +37,10 @@ The minimal valid pair: `echo-blueprint.json` + `echo-deployment.json`.
 
 ### The deployment, member by member
 
+- `protocol_revision` (1) — the revision line, digest-covered.
 - `blueprint_release` — the exact binding: the echo blueprint's id,
   release, and content digest. Digest equality only.
+- `scope_projection` — the adapter the deployment projects onto.
 - `tool_bindings` — the read_shape operation bound to an adapter with
   descriptor and schema digests (rug-pull guards).
 - `data_bindings` — the `shape_orders` dataset, classification
@@ -47,9 +56,8 @@ The minimal valid pair: `echo-blueprint.json` + `echo-deployment.json`.
 
 ## Verify the pair
 
-```bash
-mix conformance.verify    # the corpus (including these bytes) verifies
-```
-
 The examples ARE corpus cases — digests and all — which is what makes
-them honest: what you read is what the corpus executes.
+them honest: what you read is what the corpus executes. The corpus
+(including these bytes) verifies on every package build; the
+standalone kit attached to each git release tag re-runs it against the
+shipped archive.

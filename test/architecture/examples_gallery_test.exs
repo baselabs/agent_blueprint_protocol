@@ -42,12 +42,19 @@ defmodule AgentBlueprintProtocol.Architecture.ExamplesGalleryTest do
            "no deployment example in the gallery"
   end
 
+  # VALID-verdict corpus case texts only: an example whose only corpus
+  # appearances are DENIAL cases (tampered bytes, mismatched digests)
+  # is not a verified example — the gallery shows artifacts the corpus
+  # accepts.
   defp corpus_case_texts do
     "priv/conformance/cases/*.json"
     |> Path.wildcard()
     |> Enum.flat_map(fn path ->
       %{"cases" => cases} = path |> File.read!() |> Jason.decode!()
-      Enum.map(cases, & &1["input"]["text"])
+
+      cases
+      |> Enum.filter(&(&1["expected"]["verdict"] == "valid"))
+      |> Enum.map(& &1["input"]["text"])
     end)
   end
 end
