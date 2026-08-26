@@ -1,0 +1,244 @@
+{
+  "$defs": {
+    "checkpoint-kind": {
+      "type": "string"
+    },
+    "checkpoint-request-object": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/checkpoint-kind"
+        },
+        "request_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        }
+      },
+      "required": [
+        "kind",
+        "request_digest"
+      ],
+      "type": "object"
+    },
+    "checkpoint-status": {
+      "type": "string"
+    },
+    "classification": {
+      "enum": [
+        "confidential",
+        "internal",
+        "public",
+        "restricted"
+      ]
+    },
+    "classification-element": {
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/classification"
+        },
+        "markers": {
+          "items": {
+            "$ref": "#/$defs/marker"
+          },
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      "required": [
+        "level",
+        "markers"
+      ],
+      "type": "object"
+    },
+    "compatibility-ref-element": {
+      "properties": {
+        "identity": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/identity-string"
+        }
+      },
+      "required": [
+        "identity",
+        "name"
+      ],
+      "type": "object"
+    },
+    "evidence-receipt-object": {
+      "properties": {
+        "checkpoint_history_commitment": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "result_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "signature": {},
+        "terminal_commitment": {
+          "$ref": "#/$defs/tagged-digest"
+        }
+      },
+      "required": [
+        "checkpoint_history_commitment",
+        "result_digest",
+        "signature",
+        "terminal_commitment"
+      ],
+      "type": "object"
+    },
+    "identity-string": {
+      "type": "string"
+    },
+    "marker": {
+      "enum": [
+        "pci",
+        "phi"
+      ]
+    },
+    "positive-integer": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "producer-qualified": {
+      "type": "string"
+    },
+    "resource-policy-object": {
+      "properties": {
+        "attempts": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "concurrency": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "cost": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "tokens": {
+          "$ref": "#/$defs/positive-integer"
+        }
+      },
+      "required": [
+        "attempts",
+        "concurrency",
+        "cost",
+        "tokens"
+      ],
+      "type": "object"
+    },
+    "tagged-digest": {
+      "type": "string"
+    },
+    "taskenvelope": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "authority_proof_references": {
+          "items": {
+            "$ref": "#/$defs/tagged-digest"
+          },
+          "minItems": 0,
+          "type": "array"
+        },
+        "blueprint_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "checkpoint_commitment": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "checkpoint_request": {
+          "$ref": "#/$defs/checkpoint-request-object"
+        },
+        "checkpoint_status": {
+          "$ref": "#/$defs/checkpoint-status"
+        },
+        "compatibility_reference": {
+          "items": {
+            "$ref": "#/$defs/compatibility-ref-element"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "deployment_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "evidence_receipt": {
+          "$ref": "#/$defs/evidence-receipt-object"
+        },
+        "idempotency_identity": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "identity_mapping_evidence": {},
+        "initiating_subject": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "input_commitment": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "issuer": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "parent_execution_reference": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "recovery_handle": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "resource_policy": {
+          "$ref": "#/$defs/resource-policy-object"
+        },
+        "result_classification_ceiling": {
+          "$ref": "#/$defs/classification-element"
+        },
+        "result_schema": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "subject": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "task_identity": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "terminal_state": {
+          "$ref": "#/$defs/terminal-state"
+        },
+        "time_policy": {
+          "$ref": "#/$defs/time-policy-object"
+        }
+      },
+      "required": [
+        "audience",
+        "authority_proof_references",
+        "blueprint_digest",
+        "compatibility_reference",
+        "deployment_digest",
+        "idempotency_identity",
+        "identity_mapping_evidence",
+        "input_commitment",
+        "issuer",
+        "recovery_handle",
+        "resource_policy",
+        "result_classification_ceiling",
+        "result_schema",
+        "subject",
+        "task_identity",
+        "time_policy"
+      ],
+      "type": "object"
+    },
+    "terminal-state": {
+      "type": "string"
+    },
+    "time-policy-object": {
+      "properties": {
+        "elapsed_ms": {
+          "$ref": "#/$defs/positive-integer"
+        }
+      },
+      "required": [
+        "elapsed_ms"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/taskenvelope"
+}

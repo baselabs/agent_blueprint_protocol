@@ -1,0 +1,496 @@
+{
+  "$defs": {
+    "approval-trait": {
+      "enum": [
+        "human_required",
+        "none",
+        "separated_human_required"
+      ]
+    },
+    "as-of-mode": {
+      "enum": [
+        "none",
+        "required"
+      ]
+    },
+    "authority-trait": {
+      "enum": [
+        "external_authority_required",
+        "local_policy",
+        "none"
+      ]
+    },
+    "blueprint-release-object": {
+      "properties": {
+        "blueprint_id": {
+          "$ref": "#/$defs/producer-qualified"
+        },
+        "content_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "release_number": {
+          "$ref": "#/$defs/positive-integer"
+        }
+      },
+      "required": [
+        "blueprint_id",
+        "content_digest",
+        "release_number"
+      ],
+      "type": "object"
+    },
+    "build-identity-element": {
+      "properties": {
+        "digest": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "kind": {
+          "enum": [
+            "adapter",
+            "build",
+            "extension",
+            "package"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "digest",
+        "kind",
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "classification": {
+      "enum": [
+        "confidential",
+        "internal",
+        "public",
+        "restricted"
+      ]
+    },
+    "cost-object": {
+      "properties": {
+        "amount": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ],
+      "type": "object"
+    },
+    "data-binding-element": {
+      "properties": {
+        "as_of": {
+          "properties": {
+            "max_age_ms": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "mode": {
+              "$ref": "#/$defs/as-of-mode"
+            }
+          },
+          "required": [
+            "max_age_ms",
+            "mode"
+          ],
+          "type": "object"
+        },
+        "classification_ceiling": {
+          "$ref": "#/$defs/classification"
+        },
+        "logical_dataset": {
+          "$ref": "#/$defs/identity-string"
+        }
+      },
+      "required": [
+        "as_of",
+        "classification_ceiling",
+        "logical_dataset"
+      ],
+      "type": "object"
+    },
+    "deployment": {
+      "additionalProperties": false,
+      "properties": {
+        "attestations": {
+          "items": {},
+          "maxItems": 16,
+          "minItems": 0,
+          "type": "array"
+        },
+        "authority_requirement": {
+          "properties": {
+            "adapter_identity": {
+              "$ref": "#/$defs/identity-string"
+            },
+            "profile_identity": {
+              "$ref": "#/$defs/identity-string"
+            }
+          },
+          "required": [
+            "adapter_identity",
+            "profile_identity"
+          ],
+          "type": "object"
+        },
+        "blueprint_release": {
+          "$ref": "#/$defs/blueprint-release-object"
+        },
+        "build_identities": {
+          "items": {
+            "$ref": "#/$defs/build-identity-element"
+          },
+          "maxItems": 128,
+          "minItems": 1,
+          "type": "array"
+        },
+        "data_bindings": {
+          "items": {
+            "$ref": "#/$defs/data-binding-element"
+          },
+          "maxItems": 64,
+          "minItems": 0,
+          "type": "array"
+        },
+        "deployment_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "effect_owner": {
+          "$ref": "#/$defs/effect-owner-object"
+        },
+        "eligibility": {
+          "$ref": "#/$defs/eligibility-object"
+        },
+        "evaluation_binding": {
+          "$ref": "#/$defs/evaluation-binding-object"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions-object"
+        },
+        "host_bounds": {
+          "$ref": "#/$defs/host-bounds-object"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/lifecycle-object"
+        },
+        "model_policy": {
+          "$ref": "#/$defs/model-policy-object"
+        },
+        "protocol_revision": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "required_core_fields": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "type": "array"
+        },
+        "scope_projection": {
+          "properties": {
+            "adapter_identity": {
+              "$ref": "#/$defs/identity-string"
+            }
+          },
+          "required": [
+            "adapter_identity"
+          ],
+          "type": "object"
+        },
+        "signatures": {
+          "items": {},
+          "maxItems": 16,
+          "minItems": 0,
+          "type": "array"
+        },
+        "signer_custody": {
+          "$ref": "#/$defs/signer-custody"
+        },
+        "tool_bindings": {
+          "items": {
+            "$ref": "#/$defs/tool-binding-element"
+          },
+          "maxItems": 128,
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      "required": [
+        "authority_requirement",
+        "blueprint_release",
+        "build_identities",
+        "data_bindings",
+        "deployment_digest",
+        "effect_owner",
+        "eligibility",
+        "evaluation_binding",
+        "extensions",
+        "host_bounds",
+        "lifecycle",
+        "model_policy",
+        "protocol_revision",
+        "required_core_fields",
+        "scope_projection",
+        "signer_custody",
+        "tool_bindings"
+      ],
+      "type": "object"
+    },
+    "disclosure": {
+      "enum": [
+        "detail",
+        "full",
+        "none",
+        "summary"
+      ]
+    },
+    "effect-owner-object": {
+      "properties": {
+        "adapter_identity": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "idempotency": {
+          "$ref": "#/$defs/idempotency-object"
+        }
+      },
+      "required": [
+        "adapter_identity",
+        "idempotency"
+      ],
+      "type": "object"
+    },
+    "eligibility-object": {
+      "properties": {
+        "beneficiary": {},
+        "owner": {},
+        "runtime_principal": {}
+      },
+      "required": [
+        "beneficiary",
+        "owner",
+        "runtime_principal"
+      ],
+      "type": "object"
+    },
+    "evaluation-binding-object": {
+      "properties": {
+        "adapter_identity": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "corpus": {
+          "properties": {
+            "digest": {
+              "$ref": "#/$defs/tagged-digest"
+            },
+            "name": {
+              "$ref": "#/$defs/identity-string"
+            }
+          },
+          "required": [
+            "digest",
+            "name"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "adapter_identity",
+        "corpus"
+      ],
+      "type": "object"
+    },
+    "extensions-object": {},
+    "host-bounds-object": {
+      "properties": {
+        "approval_trait": {
+          "$ref": "#/$defs/approval-trait"
+        },
+        "authority_trait": {
+          "$ref": "#/$defs/authority-trait"
+        },
+        "classification_ceiling": {
+          "$ref": "#/$defs/classification"
+        },
+        "disclosure_ceiling": {
+          "$ref": "#/$defs/disclosure"
+        },
+        "effect_impact_ceiling": {
+          "$ref": "#/$defs/impact-class"
+        },
+        "max_attempts": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_concurrency": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_cost": {
+          "$ref": "#/$defs/cost-object"
+        },
+        "max_depth": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_descendants": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_elapsed_ms": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_fan_out": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_tokens": {
+          "$ref": "#/$defs/positive-integer"
+        }
+      },
+      "required": [
+        "approval_trait",
+        "authority_trait",
+        "classification_ceiling",
+        "disclosure_ceiling",
+        "effect_impact_ceiling",
+        "max_attempts",
+        "max_concurrency",
+        "max_cost",
+        "max_depth",
+        "max_descendants",
+        "max_elapsed_ms",
+        "max_fan_out",
+        "max_tokens"
+      ],
+      "type": "object"
+    },
+    "idempotency-object": {
+      "properties": {
+        "key_derivation": {
+          "enum": [
+            "host"
+          ]
+        },
+        "recovery": {
+          "enum": [
+            "authoritative",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "key_derivation",
+        "recovery"
+      ],
+      "type": "object"
+    },
+    "identity-string": {
+      "type": "string"
+    },
+    "impact-class": {
+      "enum": [
+        "authority",
+        "money",
+        "ordinary",
+        "secret"
+      ]
+    },
+    "lifecycle-object": {
+      "properties": {
+        "activated_at": {
+          "type": "string"
+        },
+        "retired_at": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "draft",
+            "retired"
+          ]
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "type": "object"
+    },
+    "model-policy-object": {
+      "properties": {
+        "allowed_model_roles": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "type": "array"
+        },
+        "max_cost": {
+          "$ref": "#/$defs/cost-object"
+        },
+        "max_tokens": {
+          "$ref": "#/$defs/positive-integer"
+        }
+      },
+      "required": [
+        "allowed_model_roles",
+        "max_cost",
+        "max_tokens"
+      ],
+      "type": "object"
+    },
+    "positive-integer": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "producer-qualified": {
+      "type": "string"
+    },
+    "signer-custody": {
+      "enum": [
+        "external_kms",
+        "holder_edge",
+        "host_managed"
+      ]
+    },
+    "tagged-digest": {
+      "type": "string"
+    },
+    "tool-binding-element": {
+      "properties": {
+        "adapter_identity": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "attested_at": {
+          "type": "string"
+        },
+        "descriptor_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "logical_operation": {
+          "$ref": "#/$defs/identity-string"
+        },
+        "schema_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        }
+      },
+      "required": [
+        "adapter_identity",
+        "attested_at",
+        "descriptor_digest",
+        "logical_operation",
+        "schema_digest"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/deployment"
+}

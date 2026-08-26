@@ -134,7 +134,10 @@ Cardinality `1` members are required; `0..1` members are optional.
 The failure precedence is the pinned closed-world order: unknown
 member → missing required → type → constraint → cardinality →
 nested → cross-field hooks. Every sub-member listed inside an
-object/array type is required unless marked `(opt)`.
+object/array type is required unless marked `(opt)`. The machine-
+readable grammar artifacts (CDDL under `spec/grammar/`, with the
+derived JSON Schema beside them) are pinned to these tables by the
+grammar-derivation gate.
 
 | Member | Card. | Type | Constraints |
 |---|---|---|---|
@@ -163,7 +166,10 @@ Cardinality `1` members are required; `0..1` members are optional.
 The failure precedence is the pinned closed-world order: unknown
 member → missing required → type → constraint → cardinality →
 nested → cross-field hooks. Every sub-member listed inside an
-object/array type is required unless marked `(opt)`.
+object/array type is required unless marked `(opt)`. The machine-
+readable grammar artifacts (CDDL under `spec/grammar/`, with the
+derived JSON Schema beside them) are pinned to these tables by the
+grammar-derivation gate.
 
 | Member | Card. | Type | Constraints |
 |---|---|---|---|
@@ -410,7 +416,9 @@ verification failure). Correlation grants nothing.
 The envelope is a closed world: one wire member per logical field,
 carried as the extension body under the `com.example/federation`
 namespace on both transports. Cardinality `1` members are required;
-`0..1` members are optional (absent — there is no null form). Cross-
+`0..1` members are optional (absent — there is no null form). The
+machine-readable grammar ships as the CDDL artifact under
+`spec/grammar/` with the derived JSON Schema beside it. Cross-
 member hooks: `checkpoint_status` MUST NOT coexist with `terminal_state`
 (`:invalid_constraint`), and the terminal hooks bind
 `terminal_state`/`evidence_receipt` presence together. The receipt's

@@ -28,6 +28,12 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
     "spec/README.md",
     "spec/LICENSE",
     "spec/NOTICE",
+    "spec/grammar/blueprint.cddl",
+    "spec/grammar/deployment.cddl",
+    "spec/grammar/taskenvelope.cddl",
+    "spec/grammar/derived/blueprint.schema.json",
+    "spec/grammar/derived/deployment.schema.json",
+    "spec/grammar/derived/taskenvelope.schema.json",
     "priv/conformance/index.json"
   ]
 

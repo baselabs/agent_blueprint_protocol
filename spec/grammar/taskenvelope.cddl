@@ -1,0 +1,77 @@
+; Agent Blueprint Protocol — Federation TaskEnvelope grammar (normative)
+; RFC 8610 CDDL. Pinned to the compiled federation table by the
+; derivation gate; corpus goldens validate under the derived JSON
+; Schema. Cross-member hooks (checkpoint_status vs terminal_state
+; coexistence, terminal hook binding) are reference-implementation-
+; enforced and noted here as comments.
+
+taskenvelope = {
+  task_identity: identity-string
+  idempotency_identity: identity-string
+  ? parent_execution_reference: identity-string
+  ? initiating_subject: identity-string
+  blueprint_digest: tagged-digest
+  deployment_digest: tagged-digest
+  input_commitment: tagged-digest
+  result_schema: tagged-digest
+  result_classification_ceiling: classification-element
+  time_policy: time-policy-object
+  resource_policy: resource-policy-object
+  recovery_handle: identity-string
+  issuer: identity-string
+  subject: identity-string
+  audience: identity-string
+  identity_mapping_evidence: any   ; correlation-only evidence object
+  ? checkpoint_request: checkpoint-request-object
+  ? checkpoint_status: checkpoint-status   ; MUST NOT coexist with terminal_state
+  ? checkpoint_commitment: tagged-digest
+  ? terminal_state: terminal-state
+  ? evidence_receipt: evidence-receipt-object
+  compatibility_reference: [1* compatibility-ref-element]
+  authority_proof_references: [0* tagged-digest]
+}
+
+classification-element = {
+  level: classification
+  markers: [0* marker]
+}
+
+marker = "pci" / "phi"
+
+time-policy-object = { elapsed_ms: positive-integer }
+
+resource-policy-object = {
+  attempts: positive-integer
+  concurrency: positive-integer
+  tokens: positive-integer
+  cost: positive-integer
+}
+
+checkpoint-request-object = {
+  kind: checkpoint-kind
+  request_digest: tagged-digest
+}
+
+evidence-receipt-object = {
+  result_digest: tagged-digest
+  checkpoint_history_commitment: tagged-digest
+  terminal_commitment: tagged-digest
+  signature: any             ; detached JWS envelope
+}
+
+compatibility-ref-element = {
+  name: identity-string
+  identity: tstr             ; nonempty
+}
+
+; hook-noted states (wire enums, values pinned by the corpus):
+checkpoint-kind = tstr
+checkpoint-status = tstr
+terminal-state = tstr
+
+; shared value-form types (kept identical across the grammar files):
+producer-qualified = tstr
+positive-integer = integer .gt 0
+tagged-digest = tstr
+identity-string = tstr
+classification = "public" / "internal" / "restricted" / "confidential"

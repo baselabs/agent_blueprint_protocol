@@ -308,6 +308,39 @@ dangling reference: spec/README.md links missing-ref.md, which is absent from th
 EXIT=1
 ```
 
+### alias: grammar.derivation
+
+The grammar-derivation gate: the CDDL grammars under spec/grammar/ are
+the normative machine-readable grammar; the JSON Schema files under
+spec/grammar/derived/ are derived from them (byte-exact, never
+hand-edited); and the corpus golden artifacts must validate under the
+derived schemas — mutating the CDDL, hand-editing a derived file, or
+breaking corpus agreement each red.
+
+```red
+$ # plant: the CDDL mutated (release_number typed tstr)
+$ mix grammar.derivation
+grammar derivation: FAILED
+spec/grammar/derived/blueprint.schema.json does not match a fresh derivation of blueprint.cddl — the derived files are never hand-edited (regenerate, or fix the CDDL)
+EXIT=1
+```
+
+```red
+$ # plant: a derived schema hand-edited (a key renamed)
+$ mix grammar.derivation
+grammar derivation: FAILED
+spec/grammar/derived/blueprint.schema.json does not match a fresh derivation of blueprint.cddl — the derived files are never hand-edited (regenerate, or fix the CDDL)
+EXIT=1
+```
+
+```red
+$ # plant: the CDDL edited so a corpus golden disagrees (classification element flattened to the enum)
+$ mix grammar.derivation
+grammar derivation: FAILED
+taskenvelope golden "federation-decode-valid" fails its derived schema: :invalid_constraint
+EXIT=1
+```
+
 ## The architecture lane
 
 Every test case under `test/architecture/`, with its plant and failing

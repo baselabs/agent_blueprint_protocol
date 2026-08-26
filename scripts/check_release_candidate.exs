@@ -546,6 +546,20 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "grammar-cddl-mutation",
+      path: "spec/grammar/blueprint.cddl",
+      from: "  release_number: positive-integer",
+      to: "  release_number: tstr",
+      command: ~w(mix grammar.derivation)
+    },
+    %{
+      name: "grammar-derived-hand-edit",
+      path: "spec/grammar/derived/blueprint.schema.json",
+      from: "\"blueprint_id\",",
+      to: "\"blueprint_id_edited\",",
+      command: ~w(mix grammar.derivation)
+    },
+    %{
       name: "spec-threat-untraceable-citation",
       path: "spec/protocol.md",
       from: "`tamper_meaningful_byte` `digest_mismatch`",

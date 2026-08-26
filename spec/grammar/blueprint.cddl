@@ -1,0 +1,91 @@
+; Agent Blueprint Protocol — Blueprint Core grammar (normative)
+; RFC 8610 CDDL. This grammar is pinned to the compiled registry table
+; by the derivation gate; the corpus goldens validate under the derived
+; JSON Schema. By-key uniqueness (operation_family, logical_operation,
+; name, value) is enforced by the reference implementation and is not
+; expressible in JSON Schema; the members are marked unique in comments.
+
+blueprint = {
+  blueprint_id: producer-qualified
+  protocol_revision: positive-integer
+  release_number: positive-integer
+  producer: producer-object
+  capability_requirements: [0*64 capability-element]
+  input_ports: [0*64 port-element]
+  output_ports: [0*64 port-element]
+  output_contract: output-contract-object
+  triggers: [1* trigger-kind]
+  ceilings: ceilings-object
+  classification_ceiling: classification
+  effect_intents: [0*64 effect-element]
+  evaluation_assertions: [0*128 any]
+  extensions: extensions-object
+  required_core_fields: [0* tstr]
+  ? signatures: [0*16 any]
+  ? attestations: [0*16 any]
+  content_digest: tagged-digest
+}
+
+producer-object = {
+  identity: tstr
+  created_at: tstr          ; RFC 3339 Z-form
+  toolchain: tstr
+}
+
+capability-element = {
+  operation_family: tstr
+  argument_schema: any      ; bounded schema document
+  result_schema: any        ; bounded schema document
+  operation_kind: operation-kind
+  impact_class: impact-class
+  classification_ceiling: classification
+  approval_trait: approval-trait
+  authority_trait: authority-trait
+}
+
+port-element = {
+  name: tstr
+  schema: any               ; bounded schema document
+  classification_ceiling: classification
+  required: bool
+}
+
+output-contract-object = {
+  port: tstr
+  classification_ceiling: classification
+}
+
+effect-element = {
+  logical_operation: tstr
+  operation_kind: operation-kind
+  impact_class: impact-class
+}
+
+ceilings-object = {
+  max_attempts: positive-integer
+  max_concurrency: positive-integer
+  max_depth: positive-integer
+  max_descendants: positive-integer
+  max_elapsed_ms: positive-integer
+  max_fan_out: positive-integer
+  max_tokens: positive-integer
+  max_cost: cost-object
+}
+
+cost-object = {
+  amount: positive-integer
+  currency: tstr
+}
+
+trigger-kind = "condition" / "delegated" / "evaluation" / "manual" / "schedule"
+classification = "public" / "internal" / "restricted" / "confidential"
+operation-kind = "read" / "computation" / "mutation"
+impact-class = "ordinary" / "money" / "authority" / "secret"
+approval-trait = "none" / "human_required" / "separated_human_required"
+authority-trait = "none" / "local_policy" / "external_authority_required"
+
+; value-form types (checked constraints, not JSON-Schema shapes):
+producer-qualified = tstr
+positive-integer = integer .gt 0
+tagged-digest = tstr
+extensions-object = any

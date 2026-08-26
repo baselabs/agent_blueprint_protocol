@@ -35,6 +35,12 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     spec/README.md
     spec/LICENSE
     spec/NOTICE
+    spec/grammar/blueprint.cddl
+    spec/grammar/deployment.cddl
+    spec/grammar/taskenvelope.cddl
+    spec/grammar/derived/blueprint.schema.json
+    spec/grammar/derived/deployment.schema.json
+    spec/grammar/derived/taskenvelope.schema.json
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
@@ -86,6 +92,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     spec/README.md
     spec/LICENSE
     spec/NOTICE
+    spec/grammar
     .formatter.exs
     mix.exs
     README.md
@@ -115,6 +122,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     "dialyzer",
     "docs --warnings-as-errors",
     "spec.extraction",
+    "grammar.derivation",
     "release.candidate"
   ]
 

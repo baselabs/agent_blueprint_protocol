@@ -1,0 +1,340 @@
+{
+  "$defs": {
+    "approval-trait": {
+      "enum": [
+        "human_required",
+        "none",
+        "separated_human_required"
+      ]
+    },
+    "authority-trait": {
+      "enum": [
+        "external_authority_required",
+        "local_policy",
+        "none"
+      ]
+    },
+    "blueprint": {
+      "additionalProperties": false,
+      "properties": {
+        "attestations": {
+          "items": {},
+          "maxItems": 16,
+          "minItems": 0,
+          "type": "array"
+        },
+        "blueprint_id": {
+          "$ref": "#/$defs/producer-qualified"
+        },
+        "capability_requirements": {
+          "items": {
+            "$ref": "#/$defs/capability-element"
+          },
+          "maxItems": 64,
+          "minItems": 0,
+          "type": "array"
+        },
+        "ceilings": {
+          "$ref": "#/$defs/ceilings-object"
+        },
+        "classification_ceiling": {
+          "$ref": "#/$defs/classification"
+        },
+        "content_digest": {
+          "$ref": "#/$defs/tagged-digest"
+        },
+        "effect_intents": {
+          "items": {
+            "$ref": "#/$defs/effect-element"
+          },
+          "maxItems": 64,
+          "minItems": 0,
+          "type": "array"
+        },
+        "evaluation_assertions": {
+          "items": {},
+          "maxItems": 128,
+          "minItems": 0,
+          "type": "array"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions-object"
+        },
+        "input_ports": {
+          "items": {
+            "$ref": "#/$defs/port-element"
+          },
+          "maxItems": 64,
+          "minItems": 0,
+          "type": "array"
+        },
+        "output_contract": {
+          "$ref": "#/$defs/output-contract-object"
+        },
+        "output_ports": {
+          "items": {
+            "$ref": "#/$defs/port-element"
+          },
+          "maxItems": 64,
+          "minItems": 0,
+          "type": "array"
+        },
+        "producer": {
+          "$ref": "#/$defs/producer-object"
+        },
+        "protocol_revision": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "release_number": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "required_core_fields": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "type": "array"
+        },
+        "signatures": {
+          "items": {},
+          "maxItems": 16,
+          "minItems": 0,
+          "type": "array"
+        },
+        "triggers": {
+          "items": {
+            "$ref": "#/$defs/trigger-kind"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "blueprint_id",
+        "capability_requirements",
+        "ceilings",
+        "classification_ceiling",
+        "content_digest",
+        "effect_intents",
+        "evaluation_assertions",
+        "extensions",
+        "input_ports",
+        "output_contract",
+        "output_ports",
+        "producer",
+        "protocol_revision",
+        "release_number",
+        "required_core_fields",
+        "triggers"
+      ],
+      "type": "object"
+    },
+    "capability-element": {
+      "properties": {
+        "approval_trait": {
+          "$ref": "#/$defs/approval-trait"
+        },
+        "argument_schema": {},
+        "authority_trait": {
+          "$ref": "#/$defs/authority-trait"
+        },
+        "classification_ceiling": {
+          "$ref": "#/$defs/classification"
+        },
+        "impact_class": {
+          "$ref": "#/$defs/impact-class"
+        },
+        "operation_family": {
+          "type": "string"
+        },
+        "operation_kind": {
+          "$ref": "#/$defs/operation-kind"
+        },
+        "result_schema": {}
+      },
+      "required": [
+        "approval_trait",
+        "argument_schema",
+        "authority_trait",
+        "classification_ceiling",
+        "impact_class",
+        "operation_family",
+        "operation_kind",
+        "result_schema"
+      ],
+      "type": "object"
+    },
+    "ceilings-object": {
+      "properties": {
+        "max_attempts": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_concurrency": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_cost": {
+          "$ref": "#/$defs/cost-object"
+        },
+        "max_depth": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_descendants": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_elapsed_ms": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_fan_out": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "max_tokens": {
+          "$ref": "#/$defs/positive-integer"
+        }
+      },
+      "required": [
+        "max_attempts",
+        "max_concurrency",
+        "max_cost",
+        "max_depth",
+        "max_descendants",
+        "max_elapsed_ms",
+        "max_fan_out",
+        "max_tokens"
+      ],
+      "type": "object"
+    },
+    "classification": {
+      "enum": [
+        "confidential",
+        "internal",
+        "public",
+        "restricted"
+      ]
+    },
+    "cost-object": {
+      "properties": {
+        "amount": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ],
+      "type": "object"
+    },
+    "effect-element": {
+      "properties": {
+        "impact_class": {
+          "$ref": "#/$defs/impact-class"
+        },
+        "logical_operation": {
+          "type": "string"
+        },
+        "operation_kind": {
+          "$ref": "#/$defs/operation-kind"
+        }
+      },
+      "required": [
+        "impact_class",
+        "logical_operation",
+        "operation_kind"
+      ],
+      "type": "object"
+    },
+    "extensions-object": {},
+    "impact-class": {
+      "enum": [
+        "authority",
+        "money",
+        "ordinary",
+        "secret"
+      ]
+    },
+    "operation-kind": {
+      "enum": [
+        "computation",
+        "mutation",
+        "read"
+      ]
+    },
+    "output-contract-object": {
+      "properties": {
+        "classification_ceiling": {
+          "$ref": "#/$defs/classification"
+        },
+        "port": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "classification_ceiling",
+        "port"
+      ],
+      "type": "object"
+    },
+    "port-element": {
+      "properties": {
+        "classification_ceiling": {
+          "$ref": "#/$defs/classification"
+        },
+        "name": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "schema": {}
+      },
+      "required": [
+        "classification_ceiling",
+        "name",
+        "required",
+        "schema"
+      ],
+      "type": "object"
+    },
+    "positive-integer": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "producer-object": {
+      "properties": {
+        "created_at": {
+          "type": "string"
+        },
+        "identity": {
+          "type": "string"
+        },
+        "toolchain": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_at",
+        "identity",
+        "toolchain"
+      ],
+      "type": "object"
+    },
+    "producer-qualified": {
+      "type": "string"
+    },
+    "tagged-digest": {
+      "type": "string"
+    },
+    "trigger-kind": {
+      "enum": [
+        "condition",
+        "delegated",
+        "evaluation",
+        "manual",
+        "schedule"
+      ]
+    }
+  },
+  "$ref": "#/$defs/blueprint"
+}

@@ -84,6 +84,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "spec/README.md",
         "spec/LICENSE",
         "spec/NOTICE",
+        "spec/grammar",
         ".formatter.exs",
         "mix.exs",
         "README.md",
@@ -148,6 +149,9 @@ defmodule AgentBlueprintProtocol.MixProject do
       "spec.extraction": [
         "run --no-start scripts/check_spec_extraction.exs"
       ],
+      "grammar.derivation": [
+        "run --no-start scripts/check_grammar_derivation.exs"
+      ],
       quality: [
         "hex.audit",
         "deps.unlock --check-unused",
@@ -162,6 +166,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "dialyzer",
         "docs --warnings-as-errors",
         "spec.extraction",
+        "grammar.derivation",
         "release.candidate"
       ]
     ]

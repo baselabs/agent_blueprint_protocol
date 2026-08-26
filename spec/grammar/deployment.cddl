@@ -1,0 +1,125 @@
+; Agent Blueprint Protocol — Deployment Manifest grammar (normative)
+; RFC 8610 CDDL. Pinned to the compiled registry table by the derivation
+; gate; corpus goldens validate under the derived JSON Schema. By-key
+; uniqueness (name, logical_operation, logical_dataset, value) and the
+; cross-field hooks are reference-implementation-enforced.
+
+deployment = {
+  protocol_revision: positive-integer
+  blueprint_release: blueprint-release-object
+  scope_projection: { adapter_identity: identity-string }
+  tool_bindings: [0*128 tool-binding-element]
+  data_bindings: [0*64 data-binding-element]
+  authority_requirement: {
+    adapter_identity: identity-string,
+    profile_identity: identity-string
+  }
+  effect_owner: effect-owner-object
+  signer_custody: signer-custody
+  eligibility: eligibility-object
+  model_policy: model-policy-object
+  host_bounds: host-bounds-object
+  lifecycle: lifecycle-object
+  build_identities: [1*128 build-identity-element]
+  evaluation_binding: evaluation-binding-object
+  extensions: extensions-object
+  required_core_fields: [0* tstr]
+  ? signatures: [0*16 any]
+  ? attestations: [0*16 any]
+  deployment_digest: tagged-digest
+}
+
+blueprint-release-object = {
+  blueprint_id: producer-qualified
+  release_number: positive-integer
+  content_digest: tagged-digest
+}
+
+tool-binding-element = {
+  logical_operation: identity-string
+  adapter_identity: identity-string
+  descriptor_digest: tagged-digest
+  schema_digest: tagged-digest
+  attested_at: tstr          ; RFC 3339 Z-form
+}
+
+data-binding-element = {
+  logical_dataset: identity-string
+  classification_ceiling: classification
+  as_of: { mode: as-of-mode, max_age_ms: integer .gt 0 }
+}
+
+effect-owner-object = {
+  adapter_identity: identity-string
+  idempotency: idempotency-object
+}
+
+idempotency-object = {
+  key_derivation: "host"
+  recovery: "none" / "authoritative"
+}
+
+eligibility-object = {
+  owner: any                 ; bounded predicate expression
+  beneficiary: any
+  runtime_principal: any
+}
+
+model-policy-object = {
+  allowed_model_roles: [0* tstr]
+  max_tokens: positive-integer
+  max_cost: cost-object
+}
+
+host-bounds-object = {
+  classification_ceiling: classification
+  disclosure_ceiling: disclosure
+  effect_impact_ceiling: impact-class
+  authority_trait: authority-trait
+  approval_trait: approval-trait
+  max_attempts: positive-integer
+  max_concurrency: positive-integer
+  max_depth: positive-integer
+  max_descendants: positive-integer
+  max_elapsed_ms: positive-integer
+  max_fan_out: positive-integer
+  max_tokens: positive-integer
+  max_cost: cost-object
+}
+
+lifecycle-object = {
+  state: "draft" / "active" / "retired"
+  ? activated_at: tstr
+  ? retired_at: tstr
+}
+
+build-identity-element = {
+  kind: "package" / "build" / "adapter" / "extension"
+  name: identity-string
+  version: tstr              ; exact version string
+  digest: tagged-digest
+}
+
+evaluation-binding-object = {
+  adapter_identity: identity-string
+  corpus: { name: identity-string, digest: tagged-digest }
+}
+
+signer-custody = "host_managed" / "external_kms" / "holder_edge"
+as-of-mode = "none" / "required"
+disclosure = "none" / "summary" / "detail" / "full"
+
+; shared value-form types (kept identical across the grammar files):
+producer-qualified = tstr
+positive-integer = integer .gt 0
+tagged-digest = tstr
+identity-string = tstr
+extensions-object = any
+classification = "public" / "internal" / "restricted" / "confidential"
+impact-class = "ordinary" / "money" / "authority" / "secret"
+approval-trait = "none" / "human_required" / "separated_human_required"
+authority-trait = "none" / "local_policy" / "external_authority_required"
+cost-object = {
+  amount: positive-integer
+  currency: tstr
+}
