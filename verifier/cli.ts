@@ -13,7 +13,7 @@ import { load } from "./corpus.ts";
 import { toBytes } from "./report.ts";
 import { run } from "./runner.ts";
 
-const USAGE = "usage: node conformance/verifier/cli.ts --corpus <dir>";
+const USAGE = "usage: node verifier/cli.ts --corpus <dir>";
 const BYTE_CAP = 5_000_000;
 
 function main(argv: string[]): number {

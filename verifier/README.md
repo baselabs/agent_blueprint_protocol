@@ -26,7 +26,7 @@ node verifier/self_checks.ts                     # RFC 8785 Appendix B, window m
 ## Distribution
 
 A per-release tarball (`verifier-<version>.tar.gz`) is attached to
-each git release tag and contains exactly this tree plus the release's
-conformance corpus — a standalone, archive-shaped verification kit for
-third-party implementors. npm distribution is deferred until a
-TypeScript consumer needs dependency-manager distribution.
+each git release tag: this tree plus the release's conformance corpus,
+flattened to the tarball root — from the extracted tarball, run
+`node cli.ts --corpus conformance`. npm distribution is deferred until
+a TypeScript consumer needs dependency-manager distribution.

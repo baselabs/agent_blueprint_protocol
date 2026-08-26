@@ -14,22 +14,35 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
 
   def run(write?) do
     version = Mix.Project.config()[:version]
-    tar = "verifier-#{version}.tar.gz"
+    name = "verifier-#{version}.tar.gz"
 
+    # The verify path builds in a scratch and never touches the
+    # canonical artifact (a --write-produced tarball must survive mix
+    # quality runs); the write path builds at the repo root.
+    dir =
+      if write? do
+        "."
+      else
+        d = Path.join(System.tmp_dir!(), "abp-release-asset-build-#{asset_rand()}")
+        File.mkdir_p!(d)
+        d
+      end
+
+    tar = Path.join(dir, name)
     build_asset(tar)
     findings = smoke_findings(tar)
 
+    if not write?, do: File.rm_rf!(dir)
+
     if findings != [] do
-      File.rm(tar)
       raise "release asset: FAILED\n\n#{Enum.join(findings, "\n")}"
     end
 
     if write? do
       IO.puts(
-        "release asset: ok (#{tar} built; standalone run over the archive corpus byte-identical)"
+        "release asset: ok (#{name} built; standalone run over the archive corpus byte-identical)"
       )
     else
-      File.rm(tar)
       IO.puts("release asset: ok (standalone run over the archive corpus byte-identical)")
     end
   end

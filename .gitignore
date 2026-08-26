@@ -35,3 +35,7 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 agent_blueprint_protocol-*.tar
 agent_blueprint_protocol_conformance
+
+# Per-release verifier kit assets are attached to git release tags,
+# not committed to the tree (built by `mix release.asset --write`).
+verifier-*.tar.gz
