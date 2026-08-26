@@ -942,7 +942,7 @@ deployment_cases = [
   }
 ]
 
-# ---- negotiation.negotiate (7) ----
+# ---- shared negotiation fixtures ----
 base_artifact = %{
   "protocol_revision" => 1,
   "content_digest" => "sha-256:x",
@@ -995,7 +995,10 @@ estate_contract_schema = %{
       "type" => "object",
       "additionalProperties" => false,
       "properties" => %{
-        "name" => %{"type" => "string", "minLength" => 1},
+        # maxLength bounds the one free-form string in the body: validated
+        # critical bodies skip the portability value-shape heuristics, so the
+        # schema itself is the bound on that unscanned surface.
+        "name" => %{"type" => "string", "minLength" => 1, "maxLength" => 128},
         "version" => %{"type" => "integer", "minimum" => 1}
       },
       "required" => ["name", "version"]
@@ -1205,6 +1208,8 @@ estate_artifact = fn condition ->
   })
 end
 
+# ---- negotiation.negotiate (12) ----
+
 negotiation_cases = [
   %{
     "id" => "negotiation-valid",
@@ -1366,7 +1371,7 @@ negotiation_cases = [
   }
 ]
 
-# ---- extension.resolve (6) ----
+# ---- extension.resolve (7) ----
 extension_cases = [
   %{
     "id" => "extension-resolve-valid",

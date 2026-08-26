@@ -93,7 +93,8 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
       document =
         case entry.namespace do
           "com.example/federation" -> ExtensionRegistry.federation_schema()
-          _other -> estate_contract_schema_document()
+          "com.example.platform/estate-contract" -> estate_contract_schema_document()
+          other -> flunk("pinned namespace #{other} has no document binding in this test")
         end
 
       {:ok, parsed} = Schema.parse(document, Schema.dialect())
@@ -216,7 +217,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
       # state move) reds this pin; the developer updates it together with the corpus
       # index's registry_digest.
       assert Digest.to_tagged(ExtensionRegistry.digest()) ==
-               "sha-256:6sKyVlqYeL7DfUOr0bfeNzneASJoih6yYfmA_C0Qadw"
+               "sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs"
     end
 
     test "is the domain-separated JCS digest over the projected entries" do

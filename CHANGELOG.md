@@ -18,7 +18,7 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   `materialization_count_within`; composites `and`/`or` n-ary, `not` unary),
   hand-tiered as uniform-depth strict tiers because the bounded dialect denies
   `$ref` cycles — portable condition depth is three composite tiers
-  (metered complexity 415/512). See `docs/adr/product-extension-registration.md`.
+  (metered complexity 417/512; the single free-form string — `definition.name` — is bounded to 128 bytes by the schema itself, the bound on the authored channel's unscanned surface). See `docs/adr/product-extension-registration.md`.
 - The schema document ships as corpus data
   (`priv/conformance/schemas/estate-contract.schema.json`); `lib/` records only
   the digest pin, and a test binds the pin to the SHIPPED document (the corpus
@@ -30,8 +30,8 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   retention cell; two new applicability classes (`extension_schema_unavailable`,
   `extension_deprecated_retained`); the floor is now 16 surfaces × 31 classes /
   90 required cells. Corpus digest
-  `sha-256:Lhpk9CraZbpGoNs5EhUi9inVlZIn4-7mxs9hQ7K5a_c`; registry digest
-  `sha-256:6sKyVlqYeL7DfUOr0bfeNzneASJoih6yYfmA_C0Qadw`.
+  `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
+  `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`.
 - `docs/adr/producer-surface.md` records the producer-surface disposition: the
   documented per-artifact constructors ARE the intended producer surface for
   hosts; the facade stays a verification facade.
@@ -46,6 +46,13 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Fixed
 
+- Cross-vendor review fix pass: the schema document bounds
+  `definition.name` with `maxLength: 128` (the free-form string in a body
+  that skips the portability value-shape heuristics — the schema is the
+  bound on that surface); the registry's closed-schema lens test now fails
+  loudly for any future pinned namespace without its own document binding;
+  stale 0.1.x release-line claims and the generator's section counts were
+  reconciled to 0.2.0.
 - The second-language verifier's schema `items` evaluation had its schema and
   instance arguments swapped, so no cross-language case had ever actually
   validated array items (object-shaped items passed vacuously; scalar items

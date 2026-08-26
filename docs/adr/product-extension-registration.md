@@ -55,7 +55,7 @@ host schema riding the `:authored_extensions` validated channel.
    `oneOf[leaf, tier_1, tier_2, tier_3]`, and every variant carries
    `type: "object"` (without it a bare string auto-passes `properties`/`required`
    and slides through on `const` alone). Exactly-one holds per shape class; the
-   metered complexity is 415 of the 512 ceiling. Consequences recorded as
+   metered complexity is 417 of the 512 ceiling. Consequences recorded as
    intended divergences from the host algebra: portable depth is THREE composite
    tiers (the host allows 16 — deeper conditions stay host-side); depth-skipping
    args (`and[leaf, and[leaf]]`) are unrepresentable — the renderer normalizes

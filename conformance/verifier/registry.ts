@@ -92,7 +92,7 @@ function entries(): RegistryEntry[] {
       owner: "ExamplePlatform",
       criticality: "critical",
       state: "active",
-      schema_digest: "sha-256:_qRt8AhIyCZ9yWN1L-ODiESW-37YXZWaMAEZH7cszvg",
+      schema_digest: "sha-256:s_ToZWwxrhhd4vVxAyUh2Q6Gddston4tBSLHTLvCQAw",
       a2a_uri: "https://example.com/extensions/platform-estate-contract",
       promoted_at_revision: null,
     },

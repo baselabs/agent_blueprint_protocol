@@ -67,7 +67,7 @@ independent TypeScript verifier.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated locally: 903 tests
+and conformance corpus are implemented and gated locally: 899 tests
 (59 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, a 94-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
@@ -80,9 +80,9 @@ red receipts quote the very internal tokens the publish guard bans from
 the archive), and `mix release.candidate` re-derives its completeness
 from the live project on every run.
 
-The 0.1.x line is the first public release line. The package is pre-1.0:
-shipped contracts may change within 0.x under pre-1.0 conventions, and
-every contract change lands with a red-capable test.
+The 0.x series is the public pre-1.0 line: shipped contracts may
+change within 0.x under pre-1.0 conventions, and every contract change
+lands with a red-capable test.
 
 ## Intended properties
 
