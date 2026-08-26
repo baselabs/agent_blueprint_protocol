@@ -33,3 +33,24 @@ part of the mechanical allowlist; a lookalike in any other location is rejected.
 Wire revisions remain digest-covered data. No module, function, path, config key,
 queue, event, database object, or internal compatibility branch may derive its
 name from a release, task, or implementation sequence.
+
+
+## Amendment — the version-axis inventory (2026-08-26)
+
+The release identity chain added version-bearing fields beyond Hex
+semver; this amendment records the complete permitted axis inventory
+(the gauge for "no second versioning axis"):
+
+1. **Hex package semver** (`mix.exs` `@version`) — the release line.
+2. **Git release tags** (`v<x.y.z>`) — the source state of a release.
+3. **Release-metadata fields** (`priv/release-metadata.json`):
+   `package_version`, `spec_digest`, `corpus_digest`,
+   `registry_digest`, `index_sha256_base64url` — the certified
+   identity chain, asserted from live state by the release-candidate
+   check.
+4. **The digests themselves** — the machine identity of specification,
+   corpus, and registry; versioned by digest, never by name.
+
+No other durable identity carries a version token; the
+identifier-naming gate's enforcement is unchanged. Document sequence
+numbers remain banned (slug-only ADR filenames).

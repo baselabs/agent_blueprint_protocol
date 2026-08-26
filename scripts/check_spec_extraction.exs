@@ -35,6 +35,10 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
     "spec/grammar/derived/deployment.schema.json",
     "spec/grammar/derived/taskenvelope.schema.json",
     "spec/registry/registry.json",
+    "spec/IPR.md",
+    "spec/FOUNDATION-TRANSITION.md",
+    "spec/registry/OPERATIONS.md",
+    "spec/errata.md",
     "priv/conformance/index.json"
   ]
 

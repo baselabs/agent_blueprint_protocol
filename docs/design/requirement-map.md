@@ -1031,6 +1031,22 @@ the threat model cites corpus classes that do not exist (untraceable security cl
 Result: 0/1 passed
 ```
 
+### case: "no shipped document outside the release docs carries a stale concrete version claim"
+
+Currency arm over the governance documents: README/SECURITY/CHANGELOG
+carry version claims gated by their own arms; every other shipped
+markdown may state only the current version or no concrete version at
+all (a three-part number standing alone — §-prefixed section
+references and longer dotted sequences are not version claims).
+
+```red
+$ # plant: "Works with agent_blueprint_protocol 0.1.0 and later." appended to CONTRIBUTING
+$ mix test test/architecture/documentation_currency_test.exs
+1) test no shipped document outside the release docs carries a stale concrete version claim
+shipped documents carry stale concrete version claims (only 0.3.0 may appear): [{"CONTRIBUTING.md", "0.1.0"}]
+Result: 1/2 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript

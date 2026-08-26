@@ -546,6 +546,13 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "currency-governance-stale-claim",
+      path: "CONTRIBUTING.md",
+      from: "## The verification battery\n",
+      to: "## The verification battery\n\nWorks with agent_blueprint_protocol 0.1.0 and later.\n",
+      command: ~w(mix test test/architecture/documentation_currency_test.exs)
+    },
+    %{
       name: "registry-twin-edit",
       path: "lib/agent_blueprint_protocol/extension_registry.ex",
       from: "owner: \"ExampleCommerce\",\n        criticality: :critical",
@@ -627,6 +634,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     ".formatter.exs",
     "README.md",
     "CHANGELOG.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
     "LICENSE",
     "NOTICE",
     "SECURITY.md",

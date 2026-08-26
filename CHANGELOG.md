@@ -2,6 +2,53 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.3.0] — 2026-08-26
+
+### Added — the specification corpus (normative hardening + governance)
+
+The normative specification is a specification in the standards sense:
+
+- RFC 2119/8174 conformance language throughout (BCP 14 boilerplate,
+  MUST/MUST NOT/SHOULD/SHOULD NOT/MAY used where load-bearing), a
+  terminology section, and a normative Conformance clause (corpus
+  pass + byte-identical report agreement + release identity pinning;
+  partial conformance is not conformance).
+- Member grammar for all three artifacts (18 Blueprint Core, 19
+  Deployment Manifest, 23 Federation TaskEnvelope members) with
+  cardinalities, types, constraints, and the pinned failure
+  precedence; the full 74-code error semantics table (raised when /
+  subject / host action).
+- Security considerations with a corpus-traceable threat model; privacy
+  considerations as the data-minimization profile with honest limits;
+  the positioning boundary (AI Catalog owns discovery + identity +
+  attestation; this protocol owns the portable contract layer).
+- Machine-readable grammar: CDDL (RFC 8610) normative under
+  spec/grammar/ with JSON Schema derived (never hand-edited) — bound
+  to the compiled tables and the corpus goldens by the
+  grammar-derivation gate.
+- Registry data governance: spec/registry/registry.json as the
+  governance-canonical source, bound to both compiled twins and the
+  corpus index by the registry-equality gate (all four carriers
+  verified at sha-256:FG2f38K0…).
+- Governance pack: spec-scoped IPR (Apache-2.0 + DCO, no CLA,
+  donation-ready), FOUNDATION-TRANSITION inventory, registry
+  operations process, errata policy; root CONTRIBUTING (the
+  verification battery published) and CODE_OF_CONDUCT. Steward: the
+  unincorporated BaseLabs org, Russ Palermo as named maintainer.
+- The release identity chain: priv/release-metadata.json pins the
+  specification digest, package version, corpus and registry digests,
+  and the corpus index hash — asserted from live state on every run.
+- Specification extraction is a tested proof (spec/ + the conformance
+  corpus extract self-contained; the CI job runs the literal
+  repository-filter extraction).
+
+Every new gate carries a recorded red proof in the requirement map and
+is replanted by the release-candidate reprove (74 plants).
+
+The conformance corpus is unchanged at 94 cases, digest
+`sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`.
+
 ## [0.2.1] — 2026-08-25
 
 ### Fixed — public documentation credibility
