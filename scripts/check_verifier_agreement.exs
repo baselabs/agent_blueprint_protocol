@@ -27,7 +27,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
   @root Path.expand("..", __DIR__)
   @corpus "priv/conformance"
-  @verifier "conformance/verifier"
+  @verifier "verifier"
 
   def run do
     node = find_node!()
@@ -97,7 +97,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     # The verifier is REPO-side (never shipped in the archive): the script
     # always runs from @root; only the corpus directory moves.
     {out, status} =
-      System.cmd(node, [Path.join(@root, "conformance/verifier/cli.ts"), "--corpus", corpus_dir],
+      System.cmd(node, [Path.join(@root, "verifier/cli.ts"), "--corpus", corpus_dir],
         cd: @root,
         stderr_to_stdout: true
       )

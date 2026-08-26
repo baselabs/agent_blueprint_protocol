@@ -166,7 +166,7 @@ defmodule AgentBlueprintProtocol.RegistryEqualityGate do
   # the verifier's own registry module under Node (local, offline).
   defp typescript_digest do
     script =
-      "import { registryDigest } from './conformance/verifier/registry.ts'; " <>
+      "import { registryDigest } from './verifier/registry.ts'; " <>
         "console.log(registryDigest());"
 
     case System.cmd("node", ["--input-type=module", "-e", script],

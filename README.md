@@ -135,7 +135,7 @@ does not verify.
 
 ### Second-language verifier
 
-`conformance/verifier/` is a repo-side TypeScript implementation (Node ≥ 24,
+`verifier/` is a first-class repo-side TypeScript implementation (Node ≥ 24,
 `node:` builtins only, zero npm runtime deps — never shipped in the Hex
 archive) that independently recomputes every corpus verdict and integrity
 check: its own bounded JSON scanner with duplicate rejection and the
@@ -146,8 +146,8 @@ with small-order key rejection, and the negotiation, bounds-algebra,
 compatibility, and federation semantics. Run it:
 
 ```bash
-node conformance/verifier/cli.ts --corpus priv/conformance  # exit 0/1/2, report bytes on stdout
-node conformance/verifier/self_checks.ts                    # RFC 8785 Appendix B, window matrix,
+node verifier/cli.ts --corpus priv/conformance  # exit 0/1/2, report bytes on stdout
+node verifier/self_checks.ts                    # RFC 8785 Appendix B, window matrix,
                                                             # Ed25519 keys, stored JOSE vectors
 mix verifier.agreement                                     # byte-agrees the TS report with the
                                                             # escript's (repo AND built archive),

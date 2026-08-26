@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
   @moduledoc """
   Repo-side citation gate: `lib/`, `test/`, `scripts/`, and the TypeScript
-  verifier tree (`conformance/verifier/`) stay free of internal tracker
+  verifier tree (`verifier/`) stay free of internal tracker
   citations — numerals, slug forms, planning shorthand, internal
   review-process vocabulary, and internal tool names — so the public
   repository inherits no remediation debt. The shipped Hex archive is
@@ -24,7 +24,7 @@ defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
   # The repo-side TypeScript verifier tree ships in the public repository;
   # it is scanned for the same vocabulary (`.ts` files only — the JSON
   # testdata beside it is data, not prose).
-  @ts_roots ["conformance/verifier"]
+  @ts_roots ["verifier"]
   @exempt [
     "test/architecture/publish_guard_test.exs",
     "test/architecture/internal_citation_gate_test.exs"

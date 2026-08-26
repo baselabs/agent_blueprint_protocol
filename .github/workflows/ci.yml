@@ -104,3 +104,5 @@ jobs:
 
       - name: Run complete quality gate
         run: mix quality
+        # includes release.asset: the standalone verifier kit must run
+        # green over the shipped archive's corpus on every push

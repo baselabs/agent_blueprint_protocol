@@ -589,7 +589,7 @@ by name. The loader is pure over `%{path => binary}` and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
 and applicability totality; the report refuses a vacuous green.
 
-A repo-side second-language verifier (`conformance/verifier/`,
+A repo-side second-language verifier (`verifier/`,
 TypeScript on Node ≥ 24, `node:` builtins only, never in the Hex
 archive) independently recomputes every corpus verdict and integrity
 check with its own scanner, canonicalizer, and `node:crypto` Ed25519

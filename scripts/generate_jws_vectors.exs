@@ -1,4 +1,4 @@
-# Generates conformance/verifier/testdata/jose-vectors.json — the stored
+# Generates verifier/testdata/jose-vectors.json — the stored
 # Stored detached-JWS vectors the TS verifier's standard-JOSE cross-check consumes
 # ("the TS side verifies the stored JWS vectors with
 # node:crypto's JWS-conformant path").

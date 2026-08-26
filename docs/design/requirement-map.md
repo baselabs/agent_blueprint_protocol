@@ -391,6 +391,32 @@ the governance json's format member is "tampered"
 EXIT=1
 ```
 
+### alias: release.asset
+
+The release-asset gate: the standalone verifier kit (verifier/ + the
+conformance corpus, the per-release tarball attached to each git tag)
+runs against BOTH its own corpus and the SHIPPED hex archive's corpus
+— exit 0 and a report byte-identical to the escript's over the same
+archive bytes, on every run; the CI job carries the same gate.
+
+```red
+$ # plant: the asset's CLI contract broken (usage rejected)
+$ mix release.asset
+release asset: FAILED
+the asset's standalone run over its own corpus exited 2 (0 required)
+the asset's run over the SHIPPED archive corpus exited 2 (0 required)
+EXIT=1
+```
+
+```red
+$ # plant: the verifier's emitted report member renamed (byte drift)
+$ mix release.asset
+release asset: FAILED
+the asset's report over its own corpus diverges from the escript's
+the asset's report over the SHIPPED archive corpus is not byte-identical to the escript's
+EXIT=1
+```
+
 ## The architecture lane
 
 Every test case under `test/architecture/`, with its plant and failing

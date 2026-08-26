@@ -162,6 +162,9 @@ defmodule AgentBlueprintProtocol.MixProject do
       "registry.equality": [
         "run --no-start scripts/check_registry_equality.exs"
       ],
+      "release.asset": [
+        "run --no-start scripts/check_release_asset.exs"
+      ],
       quality: [
         "hex.audit",
         "deps.unlock --check-unused",
@@ -178,6 +181,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "spec.extraction",
         "grammar.derivation",
         "registry.equality",
+        "release.asset",
         "release.candidate"
       ]
     ]

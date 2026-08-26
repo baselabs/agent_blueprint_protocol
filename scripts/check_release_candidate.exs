@@ -546,6 +546,13 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "release-asset-report-drift",
+      path: "verifier/report.ts",
+      from: "      [\"exit_status\", int(report.exitStatus)],",
+      to: "      [\"exit_status_drifted\", int(report.exitStatus)],",
+      command: ~w(mix release.asset)
+    },
+    %{
       name: "currency-governance-stale-claim",
       path: "CONTRIBUTING.md",
       from: "## The verification battery\n",
@@ -647,6 +654,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "mix.lock",
     "priv",
     "scripts",
+    "verifier",
     "spec",
     "test"
   ]

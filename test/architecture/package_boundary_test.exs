@@ -138,6 +138,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     "spec.extraction",
     "grammar.derivation",
     "registry.equality",
+    "release.asset",
     "release.candidate"
   ]
 
