@@ -935,8 +935,8 @@ Result: 1/2 passed
 
 ### case: "every threat-model corpus citation resolves to a live corpus class"
 
-Threat-traceability gate: the Security/Privacy threat model cites only
-conformance classes the corpus actually exercises — an untraceable
+Threat-traceability gate: the Security section's threat table cites
+only conformance classes the corpus exercises as counted red cases — an untraceable
 security claim (a class the corpus does not carry) reds, and a threat
 model with no citations reds as vacuous.
 

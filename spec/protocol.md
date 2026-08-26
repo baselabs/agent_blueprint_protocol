@@ -654,7 +654,7 @@ corpus does not carry.
 
 | Threat | Vector | Corpus class | Mitigation |
 |---|---|---|---|
-| Artifact tamper | bytes edited after signing | `tamper_meaningful_byte` `digest_mismatch` | content digests over exact received bytes; `:digest_mismatch` before any semantic read |
+| Artifact tamper | bytes edited after signing | `tamper_meaningful_byte` `digest_mismatch` | content digests over exact received bytes; `:digest_mismatch` denies (checked after structural validation, before signatures and binding) |
 | Canonicality laundering | non-canonical spellings of the same value | `invalid_duplicate` | MUST-already-be-canonical interchange bytes; `:non_canonical_bytes` |
 | Signature substitution | a signature lifted onto another artifact/purpose | `signature_invalid` | purpose-pinned signed attributes; digest covers revision + identity members |
 | Protocol downgrade | an older/newer revision forced on a consumer | `revision_above_max` `revision_below_min` | explicit revision SETs, both directions deny `:protocol_revision_unsupported` |
@@ -683,7 +683,9 @@ database primary keys, or backend engine identifiers — enforced
 structurally at any depth (member-name and value-shape denylists,
 name-spelling-normalized) and exercised per class by the corpus
 (`forbidden_portable_value`). The honest limits are part of the
-contract: quarantined extension bodies are typed as unscanned
+contract: identifier-shaped values with the UUID grammar are exempt
+by shape, so the guard is structural, not semantic — a tenant
+identifier encoded as a UUID is not caught by the value-shape arm; quarantined extension bodies are typed as unscanned
 (`extension_unknown_optional_roundtrip` carries the round-trip
 obligation), and portability claims attach only to schema-validated
 content — a producer MUST NOT present a portability pass as a privacy

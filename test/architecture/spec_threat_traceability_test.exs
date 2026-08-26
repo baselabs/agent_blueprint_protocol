@@ -39,7 +39,7 @@ defmodule AgentBlueprintProtocol.Architecture.SpecThreatTraceabilityTest do
 
     assert cited != [], "the threat model cites no corpus classes (vacuous)"
 
-    untraceable = cited -- corpus_classes()
+    untraceable = Enum.uniq(cited) -- corpus_classes()
 
     assert untraceable == [],
            "the threat model cites corpus classes that do not exist " <>
@@ -57,7 +57,9 @@ defmodule AgentBlueprintProtocol.Architecture.SpecThreatTraceabilityTest do
     |> File.read!()
     |> Jason.decode!()
     |> Map.fetch!("applicability")
-    |> Enum.flat_map(fn {_surface, classes} -> Map.keys(classes) end)
+    |> Enum.flat_map(fn {_surface, classes} ->
+      Enum.filter(Map.keys(classes), fn class -> is_map(classes[class]) == false end)
+    end)
     |> Enum.uniq()
   end
 end
