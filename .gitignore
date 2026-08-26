@@ -39,3 +39,6 @@ agent_blueprint_protocol_conformance
 # Per-release verifier kit assets are attached to git release tags,
 # not committed to the tree (built by `mix release.asset --write`).
 verifier-*.tar.gz
+
+# Suite-run census artifact (documentation-currency gate input)
+.test_census

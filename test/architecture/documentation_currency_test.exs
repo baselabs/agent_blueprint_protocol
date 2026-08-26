@@ -184,8 +184,11 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   end
 
   # README's "N tests" claim states the ExUnit total (test macros plus
-  # property macros); support files carry no macros.
+  # property macros); the suite-registered count (.test_census, written
+  # at suite end) is tied to this census by the release-candidate
+  # check, which runs AFTER the test step of the battery.
   defp live_test_count, do: macro_census("test") + macro_census("property")
+
   defp live_property_count, do: macro_census("property")
 
   # The census counts test/property macros across the test tree (support

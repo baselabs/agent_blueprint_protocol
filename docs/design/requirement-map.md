@@ -270,6 +270,22 @@ release candidate: docs/protocol.md exists — the normative document is spec/pr
 EXIT=1
 ```
 
+```red
+$ # plant: a generated test block (one macro, three runtime tests) — the census tie-out
+$ mix release.candidate
+release candidate: FAILED
+census: the source macro census (914) and the suite-registered count (913) disagree — a generated test block shifts the real total; reconcile
+EXIT=1
+```
+
+```red
+$ # plant: README test-count claim drifted
+$ mix release.candidate
+release candidate: FAILED
+census: README claims ["912"] tests — the registered count is 913
+EXIT=1
+```
+
 ### alias: spec.extraction
 
 The specification-extraction check: spec/ + priv/conformance extract as a

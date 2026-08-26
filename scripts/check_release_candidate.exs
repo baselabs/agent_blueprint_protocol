@@ -653,6 +653,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
 
   @reprove_copy_paths [
     ".formatter.exs",
+    ".test_census",
     "README.md",
     "CHANGELOG.md",
     "CODE_OF_CONDUCT.md",
@@ -661,7 +662,6 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "NOTICE",
     "SECURITY.md",
     "usage-rules.md",
-    "conformance",
     "documentation",
     "examples",
     "docs",
@@ -686,7 +686,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       map_completeness_findings(map_text) ++
         protocol_presence_findings() ++
         protocol_coupling_findings() ++
-        identity_chain_findings()
+        identity_chain_findings() ++ census_findings()
 
     if findings != [] do
       raise """
@@ -1149,6 +1149,80 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   # file is never trusted (a tampered, stale, or unexpected field reds).
   # This chain is what certifies that the specification and its evidence
   # co-version.
+
+  # The suite census tie-out: the README test-count claim, the source
+  # macro census, and the suite-registered count (.test_census, written
+  # by the test step that precedes this check in the quality battery)
+  # must all agree — a generated test block (runtime tests from one
+  # macro) shifts the registered count away from the macro census and
+  # reds here, loudly.
+  @census_path ".test_census"
+  @readme_census_path "README.md"
+
+  defp census_findings do
+    readme = File.read!(@readme_census_path)
+
+    claims =
+      ~r/\b(\d+) tests\b/
+      |> Regex.scan(readme)
+      |> Enum.map(fn [_, n] -> n end)
+      |> Enum.uniq()
+
+    census =
+      "test/**/*_test.exs"
+      |> Path.wildcard()
+      |> Enum.map(fn path -> macro_count(path, "test") + macro_count(path, "property") end)
+      |> Enum.sum()
+      |> to_string()
+
+    recorded =
+      case File.read(@census_path) do
+        {:ok, count} -> String.trim(count)
+        _ -> ""
+      end
+
+    findings = []
+
+    findings =
+      if recorded == "" do
+        [
+          "census: #{@census_path} is missing — run the quality battery " <>
+            "before the release-candidate check"
+        ] ++ findings
+      else
+        findings
+      end
+
+    findings =
+      if recorded != "" and recorded != census do
+        [
+          "census: the source macro census (#{census}) and the " <>
+            "suite-registered count (#{recorded}) disagree — a generated " <>
+            "test block shifts the real total; reconcile"
+        ] ++ findings
+      else
+        findings
+      end
+
+    findings =
+      if claims != [] and claims != [census] do
+        [
+          "census: README claims #{inspect(claims)} tests — the registered " <>
+            "count is #{census}"
+        ] ++ findings
+      else
+        findings
+      end
+
+    findings
+  end
+
+  defp macro_count(path, kind) do
+    case File.read(path) do
+      {:ok, source} -> source |> then(&Regex.scan(~r/^\s*#{kind} "/m, &1)) |> length()
+      _ -> 0
+    end
+  end
 
   defp identity_chain_findings do
     expected = AgentBlueprintProtocol.ReleaseIdentity.expected_metadata()
