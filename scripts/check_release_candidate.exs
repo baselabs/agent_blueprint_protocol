@@ -546,6 +546,13 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "examples-gallery-drift",
+      path: "examples/echo-blueprint.json",
+      from: "\"max_attempts\":3",
+      to: "\"max_attempts\":4",
+      command: ~w(mix test test/architecture/examples_gallery_test.exs)
+    },
+    %{
       name: "mirror-guide-claim-drift",
       path: "documentation/host-integration.md",
       from: "profile.depth # => 32",
@@ -656,6 +663,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "usage-rules.md",
     "conformance",
     "documentation",
+    "examples",
     "docs",
     "lib",
     "mix.exs",

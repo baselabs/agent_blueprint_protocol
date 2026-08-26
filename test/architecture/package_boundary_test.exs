@@ -61,6 +61,10 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     documentation/upgrading.md
     documentation/what-a-blueprint-is.md
     documentation/what-a-deployment-is.md
+    documentation/quickstart.md
+    documentation/examples.md
+    examples/echo-blueprint.json
+    examples/echo-deployment.json
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
@@ -121,6 +125,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     CONTRIBUTING.md
     CODE_OF_CONDUCT.md
     documentation
+    examples
     .formatter.exs
     mix.exs
     README.md

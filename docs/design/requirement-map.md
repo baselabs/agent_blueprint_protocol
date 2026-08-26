@@ -1105,6 +1105,36 @@ documentation/producer.md (block 0): line failed (raised %UndefinedFunctionError
 Result: 0/1 passed
 ```
 
+### case: "every example artifact is a byte-exact corpus case"
+
+Examples-gallery gate: the example artifacts under examples/ are
+byte-exact conformance corpus cases (what you read is what the corpus
+executes), and the gallery carries at least one blueprint +
+deployment pair. A drifted example reds; an empty gallery reds as
+vacuous.
+
+```red
+$ # plant: an example artifact edited away from its corpus case
+$ mix test test/architecture/examples_gallery_test.exs
+1) test every example artifact is a byte-exact corpus case
+examples/echo-blueprint.json is not a byte-exact conformance corpus case
+Result: 1/2 passed
+```
+
+### case: "the gallery documents at least one blueprint + deployment pair"
+
+The gallery's shape floor: at least one blueprint example and at least
+one deployment example — a gallery of one artifact kind cannot show
+the binding relationship the protocol exists for.
+
+```red
+$ # plant: the deployment example removed (gallery shape arm)
+$ mix test test/architecture/examples_gallery_test.exs
+1) test the gallery documents at least one blueprint + deployment pair
+no deployment example in the gallery
+Result: 1/2 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript

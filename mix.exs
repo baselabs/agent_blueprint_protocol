@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "0.3.0"
+  @version "0.4.0"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -93,6 +93,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "CONTRIBUTING.md",
         "CODE_OF_CONDUCT.md",
         "documentation",
+        "examples",
         ".formatter.exs",
         "mix.exs",
         "README.md",
@@ -120,6 +121,8 @@ defmodule AgentBlueprintProtocol.MixProject do
         "README.md",
         "CHANGELOG.md",
         "documentation/getting-started.md",
+        "documentation/quickstart.md",
+        "documentation/examples.md",
         "documentation/what-a-blueprint-is.md",
         "documentation/what-a-deployment-is.md",
         "documentation/extension-author.md",

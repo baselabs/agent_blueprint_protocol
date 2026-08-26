@@ -2,6 +2,30 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.4.0] — 2026-08-26
+
+### Added — examples gallery + minutes-long quickstart
+
+- `examples/`: complete, corpus-verified artifact pairs — byte-exact
+  conformance corpus cases (the gallery gate proves it against the
+  corpus on every build; a drifted example reds). The echo pair
+  (blueprint + deployment) is annotated member-by-member in the
+  examples guide.
+- The quickstart (`documentation/quickstart.md`): from `mix deps.get`
+  to a green verification in `iex` — no heavyweight gates; its
+  result-claiming lines are mirror-tested like every guide example.
+- The documentation corpus: 13 adopter guides (getting started, the
+  artifacts, extension authoring, host integration, producing,
+  portability, the full 74-code error guide, federation, registry,
+  upgrading, FAQ, operations), every file an ex_doc extra, every
+  result-claiming example executed against the real package by the
+  mirror gate; README as a decision document (when to use, when NOT
+  to use).
+
+The conformance corpus is unchanged at 94 cases, digest
+`sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`.
+
 ## [0.3.0] — 2026-08-26
 
 ### Added — the specification corpus (normative hardening + governance)
