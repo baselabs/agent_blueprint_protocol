@@ -28,6 +28,8 @@
 # A missing or vacuous entry, any specification drift, or a broken
 # identity-chain link is a hard failure.
 
+Code.require_file("release_identity.exs", __DIR__)
+
 defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   # Citation payloads are runtime-concatenated so this script's own source
   # stays citation-clean (the repo-side citation gate scans scripts/);
@@ -36,8 +38,6 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
 
   @map_path "docs/design/requirement-map.md"
   @protocol_path "spec/protocol.md"
-  @metadata_path "priv/release-metadata.json"
-  @metadata_format "agent-blueprint-protocol-release-metadata"
 
   # A red fence must contain a command line and at least one line that can
   # only come from a failing run. Markers are output-shaped (ExUnit
@@ -525,7 +525,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix test test/architecture/document_citation_gate_test.exs)
     },
     %{
-      name: "identity-chain-corpus-link-tamper",
+      name: "identity-chain-format-tamper",
       path: "priv/release-metadata.json",
       from: "\"format\":\"agent-blueprint-protocol-release-metadata\"",
       to: "\"format\":\"tampered-release-metadata\"",
@@ -1041,53 +1041,17 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   # specification digest, package version, corpus/registry digests, the
   # corpus index hash, the verifier runtime floor, and the
   # archive-authorization stance. Every field is re-derived from live
-  # state and compared — the file is never trusted (a tampered, stale,
-  # or unexpected field reds). This chain is what certifies that the
-  # specification and its evidence co-version.
-
-  @doc """
-  The specification digest: SHA-256 over the framed, path-sorted files
-  of the working-tree spec/ directory (per file: u64 path length, path,
-  u64 byte length, bytes), tagged `sha-256:<unpadded base64url>`.
-  """
-  @spec spec_digest() :: String.t()
-  def spec_digest do
-    framed =
-      "spec/**/*"
-      |> Path.wildcard()
-      |> Enum.reject(&File.dir?/1)
-      |> Enum.sort()
-      |> Enum.map_join(fn path ->
-        bytes = File.read!(path)
-        <<byte_size(path)::unsigned-64>> <> path <> <<byte_size(bytes)::unsigned-64>> <> bytes
-      end)
-
-    "sha-256:" <> Base.url_encode64(:crypto.hash(:sha256, framed), padding: false)
-  end
-
-  @doc "The full release-metadata map, derived from live state."
-  @spec expected_metadata() :: %{optional(String.t()) => term()}
-  def expected_metadata do
-    index = read!("priv/conformance/index.json")
-
-    %{
-      "format" => @metadata_format,
-      "package" => Mix.Project.config()[:app] |> to_string(),
-      "package_version" => Mix.Project.config()[:version],
-      "spec_digest" => spec_digest(),
-      "corpus_digest" => extract_json_string(index, "corpus_digest"),
-      "registry_digest" => extract_json_string(index, "registry_digest"),
-      "index_sha256_base64url" => Base.encode64(:crypto.hash(:sha256, index), padding: false),
-      "verifier_runtime" => "node>=24",
-      "archive_is_publication_authorization" => false
-    }
-  end
+  # state by the shared ReleaseIdentity derivations and compared — the
+  # file is never trusted (a tampered, stale, or unexpected field reds).
+  # This chain is what certifies that the specification and its evidence
+  # co-version.
 
   defp identity_chain_findings do
-    expected = expected_metadata()
+    expected = AgentBlueprintProtocol.ReleaseIdentity.expected_metadata()
+    metadata_path = AgentBlueprintProtocol.ReleaseIdentity.metadata_path()
 
-    if File.exists?(@metadata_path) do
-      actual = Jason.decode!(read!(@metadata_path))
+    if File.exists?(metadata_path) do
+      actual = Jason.decode!(read!(metadata_path))
 
       mismatched =
         for field <- Enum.sort(Map.keys(expected)),
@@ -1098,12 +1062,12 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
 
       unexpected =
         for field <- Enum.sort(Map.keys(actual) -- Map.keys(expected)) do
-          "identity chain: unexpected field #{inspect(field)} in #{@metadata_path}"
+          "identity chain: unexpected field #{inspect(field)} in #{metadata_path}"
         end
 
       mismatched ++ unexpected
     else
-      ["identity chain: #{@metadata_path} is missing"]
+      ["identity chain: #{metadata_path} is missing"]
     end
   end
 
@@ -1121,11 +1085,9 @@ end
 # and for eyeballing the reprove inventory. NEVER a green claim: the exit
 # code is a distinct 3, so a wrapping gate cannot mistake a listing for a
 # passed check (fail-closed, matching ABP_RC_REPROVE=off's named-skip rule).
-#
-# ABP_RC_NO_RUN=1 loads the module WITHOUT running anything — the library
-# mode other scripts (the release-metadata generator) require this file
-# for its derivations; they set the flag, and the derivation functions
-# stay under the same fail-closed check that runs them.
+# There is deliberately NO load-without-running mode: the shared
+# derivations live in release_identity.exs, so every other entry into
+# this file runs the check.
 if System.get_env("ABP_RC_LIST_PLANTS") == "1" do
   Enum.each(AgentBlueprintProtocol.ReleaseCandidateCheck.plants(), fn plant ->
     IO.puts(Jason.encode!(plant))
@@ -1133,7 +1095,5 @@ if System.get_env("ABP_RC_LIST_PLANTS") == "1" do
 
   System.halt(3)
 else
-  if System.get_env("ABP_RC_NO_RUN") != "1" do
-    AgentBlueprintProtocol.ReleaseCandidateCheck.run()
-  end
+  AgentBlueprintProtocol.ReleaseCandidateCheck.run()
 end

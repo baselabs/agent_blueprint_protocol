@@ -18,7 +18,13 @@
 # byte equality), the harness raised `seeded red did not diverge` — the
 # raise path is live. Restored; the shipped entry fires.
 
+Code.require_file("release_identity.exs", __DIR__)
+
 defmodule AgentBlueprintProtocol.VerifierAgreementGate do
+  # The single-source runtime floor (shared with the release identity
+  # chain via release_identity.exs).
+  @node_floor AgentBlueprintProtocol.ReleaseIdentity.verifier_major_floor()
+
   @root Path.expand("..", __DIR__)
   @corpus "priv/conformance"
   @verifier "conformance/verifier"
@@ -258,10 +264,11 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   defp major!("v" <> rest), do: rest |> String.split(".") |> hd() |> String.to_integer()
   defp major!(other), do: other |> String.split(".") |> hd() |> String.to_integer()
 
-  defp assert_node_version!(major, _path) when major >= 24, do: :ok
+  defp assert_node_version!(major, _path) when major >= @node_floor, do: :ok
 
   defp assert_node_version!(major, path),
-    do: raise("node #{major} at #{path} is below the >= 24 requirement (got v#{major})")
+    do:
+      raise("node #{major} at #{path} is below the >= #{@node_floor} requirement (got v#{major})")
 end
 
 AgentBlueprintProtocol.VerifierAgreementGate.run()

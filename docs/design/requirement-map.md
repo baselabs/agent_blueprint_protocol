@@ -250,21 +250,24 @@ archive-authorization stance; the file is never trusted:
 $ # plant: one identity-chain link tampered (the format field)
 $ mix release.candidate
 release candidate: FAILED
-identity chain: format is "tampered-release-metadata" — the live value is "agent-blueprint-protocol-release-metadata"EXIT=1
+identity chain: format is "tampered-release-metadata" — the live value is "agent-blueprint-protocol-release-metadata"
+EXIT=1
 ```
 
 ```red
 $ # plant: a specification file edited without regenerating the metadata
 $ mix release.candidate
 release candidate: FAILED
-identity chain: spec_digest is "sha-256:SystAAJPBzc8Uhbaoih3PT9-1cEwdyiW1V0Fu12aChY" — the live value is "sha-256:6xyHdg2qFDEJMRUVQnnw9UEWWHoHR_XG26O2Tq9Pgmk"EXIT=1
+identity chain: spec_digest is "sha-256:SystAAJPBzc8Uhbaoih3PT9-1cEwdyiW1V0Fu12aChY" — the live value is "sha-256:6xyHdg2qFDEJMRUVQnnw9UEWWHoHR_XG26O2Tq9Pgmk"
+EXIT=1
 ```
 
 ```red
 $ # plant: a second copy of the normative document at docs/protocol.md
 $ mix release.candidate
 release candidate: FAILED
-release candidate: docs/protocol.md exists — the normative document is spec/protocol.md; a second copy redsEXIT=1
+release candidate: docs/protocol.md exists — the normative document is spec/protocol.md; a second copy reds
+EXIT=1
 ```
 
 ### alias: spec.extraction
@@ -283,14 +286,26 @@ appear in the specification's markdown.
 $ # plant: a repository-relative citation in spec/README.md
 $ mix spec.extraction
 spec extraction: FAILED
-dangling reference: spec/README.md links ../docs/design/requirement-map.md, which is absent from the extracted treeEXIT=1
+dangling reference: spec/README.md links ../docs/design/requirement-map.md, which is absent from the extracted tree
+EXIT=1
 ```
 
 ```red
 $ # organic red during the founding: a path literal left in the moved document
 $ mix spec.extraction
 spec extraction: FAILED
-self-containment: spec/protocol.md carries the path literal "docs/" — a repository-relative reference that dangles post-extractionEXIT=1
+self-containment: spec/protocol.md carries the path literal "docs/" — a repository-relative reference that dangles post-extraction
+EXIT=1
+```
+
+```red
+$ # plant: titled, angle-bracket, and reference-definition link forms (each must resolve too)
+$ mix spec.extraction
+spec extraction: FAILED
+dangling reference: spec/README.md links missing-titled.md, which is absent from the extracted tree
+dangling reference: spec/README.md links missing angled.md, which is absent from the extracted tree
+dangling reference: spec/README.md links missing-ref.md, which is absent from the extracted tree
+EXIT=1
 ```
 
 ## The architecture lane

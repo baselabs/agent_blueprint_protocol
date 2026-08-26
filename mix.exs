@@ -82,6 +82,8 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/two-consumer-amendment.md",
         "spec/protocol.md",
         "spec/README.md",
+        "spec/LICENSE",
+        "spec/NOTICE",
         ".formatter.exs",
         "mix.exs",
         "README.md",

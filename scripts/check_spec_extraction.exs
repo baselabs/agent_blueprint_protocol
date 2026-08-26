@@ -112,13 +112,18 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
 
   defp containment_findings(tree) do
     for file <- markdown_files(tree),
-        content = File.read!(Path.join(tree, file)),
+        content = File.read!(Path.join(tree, file)) |> strip_external_urls(),
         pattern <- ["../", "docs/"],
         String.contains?(content, pattern) do
       "self-containment: #{file} carries the path literal #{inspect(pattern)} — " <>
         "a repository-relative reference that dangles post-extraction"
     end
   end
+
+  # Schemed URLs are external by the link rule; the path-literal scan
+  # runs over content with them removed, so an external URL containing
+  # "docs/" cannot false-red the containment check.
+  defp strip_external_urls(content), do: String.replace(content, ~r/[a-z]+:\/\/\S+/, "")
 
   defp markdown_files(tree) do
     tree
@@ -128,11 +133,29 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
     |> Enum.sort()
   end
 
+  # Markdown link destinations in every shipped-relevant form: inline
+  # `[x](target)`, `[x](target "title")`, `[x](<target file>)`, and
+  # reference definitions (`[x]: target`). Schemed URLs and anchors are
+  # filtered by the caller.
   defp link_targets(source) do
-    ~r/\]\(\s*([^)\s]+)\s*\)/
-    |> Regex.scan(source)
-    |> Enum.map(fn [_, target] -> target end)
+    inline =
+      ~r/\]\(\s*(?:<([^>]*)>|([^)\s>]+))(?:\s+"[^"]*")?\s*\)/
+      |> Regex.scan(source)
+      |> Enum.map(&angle_or_bare(Enum.at(&1, 1), Enum.at(&1, 2)))
+
+    references =
+      ~r/^\s{0,3}\[[^\]]+\]:\s*(?:<([^>]*)>|(\S+))/m
+      |> Regex.scan(source)
+      |> Enum.map(&angle_or_bare(Enum.at(&1, 1), Enum.at(&1, 2)))
+
+    (inline ++ references) |> Enum.reject(&(&1 in [nil, ""]))
   end
+
+  # Unmatched alternation groups come back absent (nil) or empty — both
+  # fall through to the other arm.
+  defp angle_or_bare(nil, bare), do: bare
+  defp angle_or_bare("", bare), do: bare
+  defp angle_or_bare(angle, _bare), do: angle
 
   # A target is checked when it is relative to the containing document
   # (markdown link semantics); schemed URLs and pure anchors are external.

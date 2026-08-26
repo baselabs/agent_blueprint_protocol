@@ -33,6 +33,8 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     priv/release-metadata.json
     spec/protocol.md
     spec/README.md
+    spec/LICENSE
+    spec/NOTICE
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
@@ -82,6 +84,8 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/two-consumer-amendment.md
     spec/protocol.md
     spec/README.md
+    spec/LICENSE
+    spec/NOTICE
     .formatter.exs
     mix.exs
     README.md

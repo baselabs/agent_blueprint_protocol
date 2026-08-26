@@ -85,11 +85,29 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
     |> Enum.map(fn [_, token] -> token end)
   end
 
+  # Markdown link destinations in every shipped-relevant form: inline
+  # `[x](target)`, `[x](target "title")`, `[x](<target file>)`, and
+  # reference definitions (`[x]: target`). Schemed URLs and anchors are
+  # filtered by repo_path.
   defp link_targets(source) do
-    ~r/\]\(\s*([^)\s]+)\s*\)/
-    |> Regex.scan(source)
-    |> Enum.map(fn [_, target] -> target end)
+    inline =
+      ~r/\]\(\s*(?:<([^>]*)>|([^)\s>]+))(?:\s+"[^"]*")?\s*\)/
+      |> Regex.scan(source)
+      |> Enum.map(&angle_or_bare(Enum.at(&1, 1), Enum.at(&1, 2)))
+
+    references =
+      ~r/^\s{0,3}\[[^\]]+\]:\s*(?:<([^>]*)>|(\S+))/m
+      |> Regex.scan(source)
+      |> Enum.map(&angle_or_bare(Enum.at(&1, 1), Enum.at(&1, 2)))
+
+    (inline ++ references) |> Enum.reject(&(&1 in [nil, ""]))
   end
+
+  # Unmatched alternation groups come back absent (nil) or empty — both
+  # fall through to the other arm.
+  defp angle_or_bare(nil, bare), do: bare
+  defp angle_or_bare("", bare), do: bare
+  defp angle_or_bare(angle, _bare), do: angle
 
   # A target resolves to a repo file when it is relative to the CONTAINING
   # document's directory (markdown link semantics; GitHub blob/tree URLs
