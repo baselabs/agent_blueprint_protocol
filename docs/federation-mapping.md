@@ -159,7 +159,7 @@ validation work or crash later digest encodes with non-UTF-8 bytes.
 ARTIFACT-side critical-extension body a Blueprint declares (the
 digest-pinned issuer/subject/audience trio in the compiled-in extension
 registry, validated at negotiation) and the WIRE-side TaskEnvelope
-extension body (the 19-member JCS object under the carrier key, validated
+extension body (the 23-member JCS object under the carrier key, validated
 by the Federation field table, which never passes through negotiation).
 The artifact-side schema is a frozen-digest contract for a different
 surface; widening it to cover the envelope would re-pin a shipped digest

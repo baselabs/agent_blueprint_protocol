@@ -128,6 +128,69 @@ JSON example in this specification is a corpus case):
 {"blueprint_id":"example.demo/echo","capability_requirements":[{"approval_trait":"none","argument_schema":{"type":"object"},"authority_trait":"none","classification_ceiling":"internal","impact_class":"ordinary","operation_family":"example.demo.read_shape","operation_kind":"read","result_schema":{"type":"object"}}],"ceilings":{"max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},"classification_ceiling":"internal","content_digest":"sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8","effect_intents":[{"impact_class":"ordinary","logical_operation":"record_summary","operation_kind":"mutation"}],"evaluation_assertions":[{"kind":"output_schema","port":"result","schema":{"type":"object"}}],"extensions":{"critical":{},"optional":{}},"input_ports":[{"classification_ceiling":"internal","name":"request","required":true,"schema":{"type":"object"}}],"output_contract":{"classification_ceiling":"internal","port":"result"},"output_ports":[{"classification_ceiling":"internal","name":"result","required":true,"schema":{"type":"object"}}],"producer":{"created_at":"2026-08-20T00:00:00Z","identity":"example.demo","toolchain":"example.demo.toolchain"},"protocol_revision":1,"release_number":1,"required_core_fields":[],"triggers":["manual"]}
 ```
 
+### Member grammar — Blueprint Core (18 members)
+
+Cardinality `1` members are required; `0..1` members are optional.
+The failure precedence is the pinned closed-world order: unknown
+member → missing required → type → constraint → cardinality →
+nested → cross-field hooks. Every sub-member listed inside an
+object/array type is required unless marked `(opt)`. The
+machine-readable grammar artifacts are pinned to these tables by
+their own derivation gate.
+
+| Member | Card. | Type | Constraints |
+|---|---|---|---|
+| `blueprint_id` | 1 | string | — |
+| `capability_requirements` | 1 | array<object{ operation_family:string; argument_schema:custom; result_schema:custom; operation_kind:enum(computation\|mutation\|read); impact_class:enum(authority\|money\|ordinary\|secret); classification_ceiling:enum(confidential\|internal\|public\|restricted); approval_trait:enum(human_required\|none\|separated_human_required); authority_trait:enum(external_authority_required\|local_policy\|none) }> | max 64, unique by operation_family |
+| `ceilings` | 1 | object{ max_attempts:integer; max_concurrency:integer; max_depth:integer; max_descendants:integer; max_elapsed_ms:integer; max_fan_out:integer; max_tokens:integer; max_cost:object{ amount:integer; currency:string } } | — |
+| `classification_ceiling` | 1 | enum(confidential\|internal\|public\|restricted) | — |
+| `effect_intents` | 1 | array<object{ logical_operation:string; operation_kind:enum(computation\|mutation\|read); impact_class:enum(authority\|money\|ordinary\|secret) }> | max 64, unique by logical_operation |
+| `evaluation_assertions` | 1 | array<custom> | max 128 |
+| `extensions` | 1 | custom | — |
+| `input_ports` | 1 | array<object{ name:string; schema:custom; classification_ceiling:enum(confidential\|internal\|public\|restricted); required:boolean }> | max 64, unique by name |
+| `output_contract` | 1 | object{ port:string; classification_ceiling:enum(confidential\|internal\|public\|restricted) } | — |
+| `output_ports` | 1 | array<object{ name:string; schema:custom; classification_ceiling:enum(confidential\|internal\|public\|restricted); required:boolean }> | max 64, unique by name |
+| `producer` | 1 | object{ identity:string; created_at:string; toolchain:string } | — |
+| `protocol_revision` | 1 | integer | — |
+| `release_number` | 1 | integer | — |
+| `required_core_fields` | 1 | array<string> | unique by value |
+| `triggers` | 1 | array<enum(condition\|delegated\|evaluation\|manual\|schedule)> | min 1, unique by value |
+| `signatures` | 0..1 | array<custom> | max 16 |
+| `attestations` | 0..1 | array<any> | max 16 |
+| `content_digest` | 1 | string | — |
+
+### Member grammar — Deployment Manifest (19 members)
+
+Cardinality `1` members are required; `0..1` members are optional.
+The failure precedence is the pinned closed-world order: unknown
+member → missing required → type → constraint → cardinality →
+nested → cross-field hooks. Every sub-member listed inside an
+object/array type is required unless marked `(opt)`. The
+machine-readable grammar artifacts are pinned to these tables by
+their own derivation gate.
+
+| Member | Card. | Type | Constraints |
+|---|---|---|---|
+| `authority_requirement` | 1 | object{ adapter_identity:string; profile_identity:string } | — |
+| `blueprint_release` | 1 | object{ blueprint_id:string; release_number:integer; content_digest:string } | — |
+| `build_identities` | 1 | array<object{ kind:enum(adapter\|build\|extension\|package); name:string; version:string; digest:string }> | max 128, min 1, unique by name |
+| `data_bindings` | 1 | array<object{ logical_dataset:string; classification_ceiling:enum(confidential\|internal\|public\|restricted); as_of:object{ mode:enum(none\|required); max_age_ms:custom } }> | max 64, unique by logical_dataset |
+| `effect_owner` | 1 | object{ adapter_identity:string; idempotency:object{ key_derivation:enum(host); recovery:enum(authoritative\|none) } } | — |
+| `eligibility` | 1 | object{ owner:custom; beneficiary:custom; runtime_principal:custom } | — |
+| `evaluation_binding` | 1 | object{ adapter_identity:string; corpus:object{ name:string; digest:string } } | — |
+| `extensions` | 1 | custom | — |
+| `host_bounds` | 1 | object{ approval_trait:enum(human_required\|none\|separated_human_required); authority_trait:enum(external_authority_required\|local_policy\|none); classification_ceiling:enum(confidential\|internal\|public\|restricted); disclosure_ceiling:enum(detail\|full\|none\|summary); effect_impact_ceiling:enum(authority\|money\|ordinary\|secret); max_attempts:integer; max_concurrency:integer; max_cost:object{ amount:integer; currency:string }; max_depth:integer; max_descendants:integer; max_elapsed_ms:integer; max_fan_out:integer; max_tokens:integer } | — |
+| `lifecycle` | 1 | object{ state:enum(active\|draft\|retired); activated_at (opt):string; retired_at (opt):string } | — |
+| `model_policy` | 1 | object{ allowed_model_roles:array<string>; max_tokens:integer; max_cost:object{ amount:integer; currency:string } } | — |
+| `protocol_revision` | 1 | integer | — |
+| `required_core_fields` | 1 | array<string> | unique by value |
+| `scope_projection` | 1 | object{ adapter_identity:string } | — |
+| `signer_custody` | 1 | enum(external_kms\|holder_edge\|host_managed) | — |
+| `tool_bindings` | 1 | array<object{ logical_operation:string; adapter_identity:string; descriptor_digest:string; schema_digest:string; attested_at:string }> | max 128, unique by logical_operation |
+| `signatures` | 0..1 | array<custom> | max 16 |
+| `attestations` | 0..1 | array<any> | max 16 |
+| `deployment_digest` | 1 | string | — |
+
 ## 3. Bytes
 
 - **Encoding:** interchange bytes MUST be UTF-8 JSON within the decoder
@@ -346,46 +409,126 @@ signing carries a protobuf field-presence pre-normalization on top of
 JCS (documented in the mapping so adapters do not inherit silent
 verification failure). Correlation grants nothing.
 
+### Member grammar — Federation TaskEnvelope (23 members)
+
+The envelope is a closed world: one wire member per logical field,
+cardinality 1 each, carried as the extension body under the
+`com.example/federation` namespace on both transports. Members marked
+nullable MAY be `null`; the receipt-bearing members feed the Terminal
+Commitment's seven-component digest. The per-member machine grammar is
+pinned with the CDDL artifacts.
+
+| Member | Wire form |
+|---|---|
+| `task_identity` | task identity (string) |
+| `idempotency_identity` | idempotency key reference (string) |
+| `parent_execution_reference` | parent execution reference (nullable string) |
+| `initiating_subject` | initiating subject identity (nullable string) |
+| `blueprint_digest` | exact Blueprint content digest (tagged) |
+| `deployment_digest` | exact Deployment content digest (tagged) |
+| `input_commitment` | input commitment digest (tagged) |
+| `result_schema` | string |
+| `result_classification_ceiling` | ordinal classification ceiling (enum) |
+| `time_policy` | bounded time policy (object) |
+| `resource_policy` | bounded resource policy (object) |
+| `recovery_handle` | recovery handle (nullable string) |
+| `issuer` | issuer identity (string) |
+| `subject` | subject identity (string) |
+| `audience` | audience identity (string) |
+| `identity_mapping_evidence` | identity-mapping evidence (object; correlation only) |
+| `checkpoint_request` | typed checkpoint request (string) |
+| `checkpoint_status` | checkpoint status (enum) |
+| `checkpoint_commitment` | checkpoint decision commitment (tagged digest) |
+| `terminal_state` | terminal state (enum; string-checked) |
+| `evidence_receipt` | signed evidence receipt (detached JWS envelope) |
+| `compatibility_reference` | exact compatibility reference (string) |
+| `authority_proof_references` | authority-proof references (array of strings) |
+
 ## 12. Error vocabulary
 
 A closed typed set — `%Error{code, subject, detail}`. An
 implementation MUST NOT emit an undeclared code, and every code it
 declares MUST be reachable (enforced two-directionally by a build
 gate).
-The 74 codes of this release:
+The 74 codes of this release, with semantics (when the code is
+raised, the subject it names, and the host action it demands):
 
-`base64url_invalid · base64url_padded · invalid_syntax ·
-invalid_encoding · invalid_number · number_not_double_expressible ·
-duplicate_member · trailing_bytes · unknown_bound ·
-non_canonical_bytes · integer_magnitude · unknown_member ·
-missing_required_field · invalid_type · invalid_constraint ·
-invalid_cardinality · digest_algorithm_unsupported ·
-digest_encoding_invalid · digest_mismatch · signature_algorithm_unsupported
-· signature_key_unsupported · signature_malformed ·
-signature_not_verified · attestation_malformed · schema_dialect_unknown
-· schema_keyword_not_allowed · schema_keyword_value_invalid ·
-schema_complexity_exceeded · schema_ref_unresolvable · schema_ref_cycle
-· schema_invalid_shape · predicate_op_unknown ·
-predicate_path_unresolved · predicate_nodes_exceeded ·
-extension_duplicate · extension_namespace_invalid ·
-protocol_revision_unsupported · required_core_field_unsupported ·
-required_core_field_not_digest_covered · extension_unknown_critical ·
-extension_criticality_conflict · extension_retired ·
-extension_schema_unavailable · extension_schema_digest_mismatch ·
-extension_payload_forbidden · bound_unknown · missing_ceiling ·
-bound_source_missing · bound_unit_mismatch · bound_value_invalid ·
-protected_bound_clamp_denied · deployment_digest_mismatch ·
-binding_incomplete · no_authoritative_recovery ·
-binding_attestation_stale · binding_descriptor_mismatch ·
-lifecycle_state_invalid · compatibility_identity_inexact ·
-compatibility_entry_missing · compatibility_duplicate_entry ·
-forbidden_portable_value · federation_state_unmappable ·
-federation_mapping_conflict · nonportable_content · audience_mismatch
-· federation_terminal_conflict · corpus_index_invalid ·
-corpus_hash_mismatch · corpus_file_set_mismatch ·
-corpus_case_id_duplicate · corpus_count_mismatch ·
-corpus_applicability_incomplete · corpus_empty · corpus_case_invalid`
-
+| Code | Raised when | Subject | Host action |
+|---|---|---|---|
+| `attestation_malformed` | an attestation envelope fails its structural parse | attestations | reject the artifact |
+| `audience_mismatch` | a federation receipt's issuer/subject/audience does not match the receiving context | federation envelope | reject the receipt |
+| `base64url_invalid` | a base64url lexeme carries a non-alphabet character | offending member | reject the artifact |
+| `base64url_padded` | a base64url value arrives padded | offending member | reject the artifact |
+| `binding_attestation_stale` | a tool-binding attestation is older than the pinned freshness window | tool_bindings | reject the import as stale |
+| `binding_descriptor_mismatch` | a bound tool's descriptor digest differs from the observed descriptor | tool_bindings | halt the binding (rug-pull guard) |
+| `binding_incomplete` | the binding check set is incomplete where completeness is required | bind surface | treat the import as unverified on that surface |
+| `bound_source_missing` | an intersection input names a bound source that is absent | bounds sources | reject the intersection call |
+| `bound_unit_mismatch` | two bounds meet with incompatible units | bounds | reject the intersection call |
+| `bound_unknown` | an unknown bound name appears | bounds | reject the artifact |
+| `bound_value_invalid` | a bound value fails its shape or range check | bounds | reject the artifact |
+| `compatibility_duplicate_entry` | build_identities carries a duplicate identity | build_identities | reject the manifest |
+| `compatibility_entry_missing` | verification names an identity with no manifest entry | build_identities | deny compatibility |
+| `compatibility_identity_inexact` | a build identity is a range or fuzzy form | build_identities | reject the manifest |
+| `corpus_applicability_incomplete` | the corpus applicability floor has uncovered cells | corpus index | operator: fix the corpus; never a wire condition |
+| `corpus_case_id_duplicate` | two corpus cases share an id | corpus | operator: fix the corpus |
+| `corpus_case_invalid` | a corpus case fails its own schema | corpus | operator: fix the corpus |
+| `corpus_count_mismatch` | the index case total disagrees with the case set | corpus index | operator: regenerate the index |
+| `corpus_empty` | the corpus carries no cases | corpus | operator: fix the corpus |
+| `corpus_file_set_mismatch` | the corpus file set differs from the index (both directions) | corpus | operator: fix the corpus |
+| `corpus_hash_mismatch` | a corpus file's hash differs from the index entry | corpus | operator: fix the corpus |
+| `corpus_index_invalid` | the corpus index fails its structural parse | corpus index | operator: regenerate the index |
+| `deployment_digest_mismatch` | the declared deployment digest differs from the computed digest | deployment_digest | reject the manifest (tamper) |
+| `digest_algorithm_unsupported` | an unknown digest algorithm tag | digest member | reject the artifact |
+| `digest_encoding_invalid` | a malformed digest body | digest member | reject the artifact |
+| `digest_mismatch` | a content digest differs from the computed digest | content_digest | reject the artifact (tamper) |
+| `duplicate_member` | a duplicate JSON member name (I-JSON) | bytes | reject the artifact |
+| `extension_criticality_conflict` | declared criticality conflicts with the registry | extensions | reject the artifact |
+| `extension_duplicate` | one namespace appears twice in extensions | extensions | reject the artifact |
+| `extension_namespace_invalid` | a namespace fails the reverse-DNS-plus-path form | extensions | reject the artifact |
+| `extension_payload_forbidden` | a payload appears where the registry forbids one | extensions | reject the artifact |
+| `extension_retired` | a retired namespace is declared | extensions | reject the artifact |
+| `extension_schema_digest_mismatch` | a critical body's validating schema digest differs from the registry pin | extensions | reject the artifact |
+| `extension_schema_unavailable` | no host schema is supplied for a digest-pinned critical body | extensions | reject the artifact |
+| `extension_unknown_critical` | an unregistered or reserved namespace is declared critical | extensions | reject the artifact |
+| `federation_mapping_conflict` | a state has no consistent mapping on the target transport | federation codec | reject the crossing |
+| `federation_state_unmappable` | a state is unmappable (e.g. A2A UNSPECIFIED) | federation codec | reject the crossing |
+| `federation_terminal_conflict` | two receipts for one task identity diverge in any commitment component | federation envelope | reject the later receipt |
+| `forbidden_portable_value` | a value shape trips the portability denylist | offending member | reject the artifact |
+| `integer_magnitude` | an integer above the parse window | offending lexeme | reject the artifact |
+| `invalid_cardinality` | an array violates min/max items | offending member | reject the artifact |
+| `invalid_constraint` | a member fails its check constraint | offending member | reject the artifact |
+| `invalid_encoding` | a member fails its encoding form | offending member | reject the artifact |
+| `invalid_number` | a number lexeme is malformed | bytes | reject the artifact |
+| `invalid_syntax` | the JSON text is syntactically invalid | bytes | reject the artifact |
+| `invalid_type` | a member's JSON type disagrees with the schema | offending member | reject the artifact |
+| `lifecycle_state_invalid` | a deployment lifecycle state is unknown | lifecycle | reject the manifest |
+| `missing_ceiling` | an operational bound is absent (never infinity) | ceilings | reject the artifact |
+| `missing_required_field` | a required member is absent | the member | reject the artifact |
+| `no_authoritative_recovery` | effect_owner idempotency names none where authority requires recovery | effect_owner | reject the import |
+| `non_canonical_bytes` | interchange bytes are not already canonical | bytes | reject before any semantic read |
+| `nonportable_content` | an authority-shaped claim rides portable content | offending member | reject the artifact |
+| `number_not_double_expressible` | an above-window integer is not exactly double-expressible | offending lexeme | reject the artifact |
+| `predicate_nodes_exceeded` | a predicate AST exceeds the node ceiling | predicate | reject the artifact |
+| `predicate_op_unknown` | a predicate names an unknown operator | predicate | reject the artifact |
+| `predicate_path_unresolved` | a predicate path resolves against no declared port | predicate | reject the artifact |
+| `protected_bound_clamp_denied` | a protected bound narrows without the acknowledge opt-in | bounds | reject, or opt in and record evidence |
+| `protocol_revision_unsupported` | the revision is outside the declared set (both directions) | protocol_revision | reject the artifact |
+| `required_core_field_not_digest_covered` | a required core field names an evidence-only member | required_core_fields | reject the artifact |
+| `required_core_field_unsupported` | a required core field names no known core member | required_core_fields | reject the artifact |
+| `schema_complexity_exceeded` | a schema exceeds the complexity meter | schema document | reject the artifact |
+| `schema_dialect_unknown` | a schema names an unknown dialect | schema document | reject the artifact |
+| `schema_invalid_shape` | a schema is structurally malformed | schema document | reject the artifact |
+| `schema_keyword_not_allowed` | a schema uses a keyword outside the bounded dialect | schema document | reject the artifact |
+| `schema_keyword_value_invalid` | a schema keyword carries an invalid value | schema document | reject the artifact |
+| `schema_ref_cycle` | a schema $ref cycle | schema document | reject the artifact |
+| `schema_ref_unresolvable` | a schema $ref resolves nowhere | schema document | reject the artifact |
+| `signature_algorithm_unsupported` | an unknown signature algorithm | signatures | verified: false entry; treat unverified |
+| `signature_key_unsupported` | no supplied key matches, or a small-order key | signatures | verified: false entry; treat unverified |
+| `signature_malformed` | a signature envelope fails its parse | signatures | verified: false entry; treat unverified |
+| `signature_not_verified` | the cryptographic verification fails | signatures | verified: false entry; treat unverified |
+| `trailing_bytes` | bytes follow the JSON value | bytes | reject the artifact |
+| `unknown_bound` | a bounds member name is unknown | bounds | reject the artifact |
+| `unknown_member` | a member is outside the closed world | the member | reject the artifact |
 Plus the parameterized ceiling family `{:ceiling, key}` over the eight
 decoder limit names. No authorization vocabulary exists in any
 identifier — no `:unauthorized` in either polarity (source-scanned

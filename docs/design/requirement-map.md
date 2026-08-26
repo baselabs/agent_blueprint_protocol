@@ -888,6 +888,35 @@ $ mix test test/architecture/spec_conformance_language_test.exs
 Result: 1/2 passed
 ```
 
+### case: "the grammar tables match the compiled member tables in both directions"
+
+Grammar-coupling gate: the specification's three member-grammar tables
+(18 Blueprint Core, 19 Deployment Manifest, 23 Federation TaskEnvelope)
+cross-read against the compiled registries in both directions — a
+member renamed or dropped on either side reds.
+
+```red
+$ # plant: a spec grammar row renamed (blueprint_id → blueprint_identity)
+$ mix test test/architecture/spec_member_grammar_test.exs
+1) test the grammar tables match the compiled member tables in both directions
+  Blueprint Core: missing members: ["blueprint_id"] invented members: ["blueprint_identity"]
+Result: 1/2 passed
+```
+
+### case: "the error semantics table covers exactly the closed error vocabulary"
+
+The 74-row error semantics table (code | raised when | subject | host
+action) covers exactly `Error.codes/0` in both directions — a missing
+code or an invented one reds.
+
+```red
+$ # plant: the unknown_member row dropped from the table
+$ mix test test/architecture/spec_member_grammar_test.exs
+1) test the error semantics table covers exactly the closed error vocabulary
+the error semantics table drifted from Error.codes/0 — missing: ["unknown_member"] invented: []
+Result: 1/2 passed
+```
+
 ### case: "no code file carries an internal tracker citation"
 
 Repo-side citation gate (lib/ + test/ + scripts/ + the TypeScript

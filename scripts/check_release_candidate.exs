@@ -546,10 +546,24 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix spec.extraction)
     },
     %{
+      name: "spec-grammar-member-rename",
+      path: "spec/protocol.md",
+      from: "| `blueprint_id` | 1 |",
+      to: "| `blueprint_identity` | 1 |",
+      command: ~w(mix test test/architecture/spec_member_grammar_test.exs)
+    },
+    %{
+      name: "spec-error-row-drop",
+      path: "spec/protocol.md",
+      from: "| `unknown_member` | a member is outside the closed world |",
+      to: "",
+      command: ~w(mix test test/architecture/spec_member_grammar_test.exs)
+    },
+    %{
       name: "spec-language-keyword-strip",
       path: "spec/protocol.md",
-      from: "a host MAY opt into",
-      to: "a host may opt into",
+      from: "caller SHOULD NOT read an Evidence record",
+      to: "caller should not read an Evidence record",
       command: ~w(mix test test/architecture/spec_conformance_language_test.exs)
     },
     %{
