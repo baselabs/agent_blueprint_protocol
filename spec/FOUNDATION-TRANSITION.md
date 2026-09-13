@@ -11,7 +11,7 @@ transfer. This document is an inventory, not an offer.
   governance-canonical registry document, this governance pack, and
   the license copies. Extractable by a tested git filter (the
   extraction is a build-gated proof in the reference repository).
-- **The conformance corpus** (`priv/conformance/`): 94 digest-bound
+- **The conformance corpus** (`priv/conformance/`): 96 digest-bound
   cases with the applicability floor, golden artifacts, and vectors.
 - **The reference implementation and the verifier** (Apache-2.0): the
   Elixir package and the second-language TypeScript verifier.

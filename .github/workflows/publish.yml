@@ -4,8 +4,13 @@ name: Publish
 # tagged tree FIRST (a tag is not a green claim by itself); publishing
 # happens only from a green battery. npm publishing from CI carries OIDC
 # provenance — a local `npm publish` cannot produce it, which is exactly
-# why publishing lives here. Fail-closed: a missing secret fails the
-# workflow; nothing publishes partially. Order is fixed: npm kit first
+# why publishing lives here. Publishing posture: with NPM_TOKEN and
+# HEX_API_KEY present every step publishes; with either absent the run
+# SKIPS publishing loudly after the battery (never a partial publish,
+# never a red run that merely means unconfigured). A MID-FLIGHT failure
+# (a step reds after another published) stops the chain — re-running
+# reds on the already-published step; that is deliberate: partial
+# states are resolved by hand, never papered over. Order is fixed: npm kit first
 # (it embeds the corpus), then Hex, then the GitHub release with the
 # standalone verifier kit attached, then a post-publish verification that
 # installs the PUBLISHED npm package from the registry and re-runs the
@@ -96,7 +101,7 @@ jobs:
             --generate-notes
 
       - name: Post-publish verification (registry install vs the tag)
-        if: env.PUBLISH_ENABLED == 'true'
+        if: always() && env.PUBLISH_ENABLED == 'true'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir /tmp/postpublish

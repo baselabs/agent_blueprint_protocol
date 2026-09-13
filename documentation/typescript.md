@@ -17,7 +17,7 @@ every protocol surface — and prints the single-line report. Green is
 what you verified is an exact, identified byte set, not a vibe:
 
 ```json
-{"agreed":94,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":94}
+{"agreed":96,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":96}
 ```
 
 ## Verify any corpus
@@ -50,8 +50,9 @@ Exit 0 is a verified artifact (evidence, never authority); exit 1 is a
 typed denial; exit 2 is a usage or readability failure. This mode is a
 kit-side convenience — the Elixir escript deliberately keeps its
 own CLI corpus-only — and its verdicts are gated: the release
-agreement check replays every decode-surface corpus case through
-`--artifact` and requires each case's own expected verdict.
+agreement check replays every text-only decode-surface corpus case
+through `--artifact` and requires each case's own expected verdict
+(companion-input cases stay with the full corpus run).
 
 ## As a dependency
 

@@ -4,7 +4,7 @@ defmodule AgentBlueprintProtocol.Architecture.SpecConformanceLanguageTest do
   BCP 14 conformance-language boilerplate and actually uses its
   keywords (uppercase, word-bounded), and every fenced `json` example
   in the specification is bound to a live conformance corpus case: the
-  fence's info string names `corpus:<case-id>`, the id exists in the
+  fence's info string names `json-corpus:<case-id>`, the id exists in the
   shipped corpus, and the fence's bytes equal that case's input text —
   a specification example can never drift from the corpus that
   enforces it.

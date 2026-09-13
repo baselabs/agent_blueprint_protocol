@@ -215,6 +215,19 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     "federation.decode" => "federation"
   }
 
+  # Multi-input decode cases deliberately OUTSIDE the single-artifact
+  # sweep (companion inputs a one-file mode does not claim). A new
+  # exclusion MUST be named here or the breadth guard reds — coverage
+  # cannot erode silently.
+  @sweep_excluded_cases [
+    "blueprint-decode-maximum-plus-one",
+    "deployment-decode-maximum-plus-one",
+    "deployment-decode-binding-stale",
+    "deployment-decode-digest-mismatch",
+    "federation-decode-a2a-state-valid",
+    "federation-decode-a2a-state-invalid"
+  ]
+
   defp kit_checks!(node, escript_bytes) do
     unless File.exists?(@kit_bin) do
       raise "npm kit not built — run `npm install && npm run build` before the agreement gate"
@@ -230,12 +243,25 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       """
     end
 
+    {explicit_out, explicit_status} =
+      System.cmd(node, [@kit_bin, "--corpus", Path.join(@root, @corpus)], stderr_to_stdout: true)
+
+    unless explicit_status == 0 and explicit_out == escript_bytes do
+      raise """
+      kit/escript drift over an EXPLICIT --corpus run (wrapper forwarding):
+        escript: #{escript_bytes}
+        kit:     #{explicit_out}
+      """
+    end
+
     sweep_dir =
       Path.join(System.tmp_dir!(), "abp-artifact-sweep-#{System.unique_integer([:positive])}")
 
     File.mkdir_p!(sweep_dir)
 
     try do
+      assert_sweep_breadth!()
+
       failures = artifact_sweep_failures(node, sweep_dir, nil)
 
       if failures != [],
@@ -248,6 +274,43 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     end
 
     :ok
+  end
+
+  # Breadth guard: every text-bearing decode-surface case is either
+  # swept (text-only input) or EXPLICITLY allowlisted as multi-input.
+  # A case that gains an input key drops out of the sweep and reds here
+  # until it is deliberately allowlisted — silent erosion is impossible.
+  defp assert_sweep_breadth! do
+    {swept, excluded} = sweep_partition()
+
+    unlisted = excluded -- @sweep_excluded_cases
+
+    if unlisted != [] do
+      raise "decode cases excluded from the artifact sweep without allowlisting: " <>
+              inspect(unlisted)
+    end
+
+    floor = 18
+
+    if length(swept) < floor do
+      raise "artifact sweep shrank to #{length(swept)} cases (floor #{floor})"
+    end
+  end
+
+  defp sweep_partition do
+    cases =
+      for path <- Path.wildcard(Path.join(@root, "priv/conformance/cases/*.json")) |> Enum.sort(),
+          %{"cases" => entries} = path |> File.read!() |> Jason.decode!(),
+          entry <- entries,
+          @artifact_surfaces[entry["surface"]] != nil,
+          text = entry["input"]["text"],
+          text != nil do
+        {entry["id"], Map.keys(entry["input"]) == ["text"]}
+      end
+
+    swept = for {id, true} <- cases, do: id
+    excluded = for {id, false} <- cases, do: id
+    {swept, excluded}
   end
 
   # The sweep's own seed lives in invert_first_expectation/2: with
