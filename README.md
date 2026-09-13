@@ -34,7 +34,7 @@ end
 The package has **zero production dependencies**, no application callback, and
 no supervision tree.
 
-## Installation (TypeScript — no Elixir required)
+## Installation (TypeScript)
 
 The verifier ships as an installable npm kit,
 `@rjpalermo/agent-blueprint-protocol`: the compiled verifier, its

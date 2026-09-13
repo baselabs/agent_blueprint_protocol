@@ -1,4 +1,4 @@
-# The TypeScript quickstart — verify without Elixir
+# The TypeScript quickstart
 
 The verifier ships as an installable npm kit,
 `@rjpalermo/agent-blueprint-protocol`: the compiled verifier, its
@@ -47,12 +47,11 @@ $ npx @rjpalermo/agent-blueprint-protocol --artifact echo-blueprint.json
 ```
 
 Exit 0 is a verified artifact (evidence, never authority); exit 1 is a
-typed denial; exit 2 is a usage or readability failure. This mode is a
-kit-side convenience — the Elixir escript deliberately keeps its
-own CLI corpus-only — and its verdicts are gated: the release
-agreement check replays every text-only decode-surface corpus case
-through `--artifact` and requires each case's own expected verdict
-(companion-input cases stay with the full corpus run).
+typed denial; exit 2 is a usage or readability failure. The mode's
+verdicts are gated: the release agreement check replays every
+text-only decode-surface corpus case through `--artifact` and requires
+each case's own expected verdict (companion-input cases stay with the
+full corpus run).
 
 ## As a dependency
 
@@ -67,10 +66,9 @@ signatures, negotiation, bounds algebra, federation) are importable.
 The Elixir reference implementation and this kit byte-agree on every
 corpus verdict — that agreement is a release gate, not a claim.
 
-## What verification means here
+## What verification means
 
-Exactly what it means in Elixir: a typed fact about bytes and
-structure. Nothing is authorized, nothing executes, no key material is
-held. See [what a blueprint is](what-a-blueprint-is.md), the [error
+A typed fact about bytes and structure. Nothing is authorized, nothing
+executes, no key material is held. See [what a blueprint is](what-a-blueprint-is.md), the [error
 guide](errors.md), and — for how this kit's identity relates to
 discovery-side trust manifests — the [ARD mapping](../docs/ard-mapping.md).
