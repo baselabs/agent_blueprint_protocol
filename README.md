@@ -34,6 +34,21 @@ end
 The package has **zero production dependencies**, no application callback, and
 no supervision tree.
 
+## Installation (TypeScript — no Elixir required)
+
+The verifier ships as an installable npm kit,
+`@rjpalermo/agent-blueprint-protocol`: the compiled verifier, its
+declarations, and the conformance corpus embedded byte-identically to
+the release-certified copy. Zero runtime dependencies; Node 24+.
+
+```bash
+npx @rjpalermo/agent-blueprint-protocol                        # verify the embedded corpus
+npx @rjpalermo/agent-blueprint-protocol --artifact <file.json> # verify one artifact
+```
+
+See the [TypeScript quickstart](documentation/typescript.md) and the
+[examples gallery](documentation/examples.md).
+
 ## When to use — and when NOT
 
 **Use this protocol when** you need a portable, verifiable contract for
