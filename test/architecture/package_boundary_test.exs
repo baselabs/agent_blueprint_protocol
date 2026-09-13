@@ -21,6 +21,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     SECURITY.md
     hex_metadata.config
     docs/federation-mapping.md
+    docs/ard-mapping.md
     docs/adr/compiled-registry.md
     docs/adr/deny-default-clamps.md
     docs/adr/detached-jws-envelope.md
@@ -50,6 +51,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     CODE_OF_CONDUCT.md
     SUPPORT.md
     documentation/errors.md
+    documentation/evidence-commitments.md
     documentation/extension-author.md
     documentation/faq.md
     documentation/federation.md
@@ -63,6 +65,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     documentation/what-a-blueprint-is.md
     documentation/what-a-deployment-is.md
     documentation/quickstart.md
+    documentation/typescript.md
     documentation/examples.md
     examples/echo-blueprint.json
     examples/echo-deployment.json
@@ -105,6 +108,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     priv/conformance
     priv/release-metadata.json
     docs/federation-mapping.md
+    docs/ard-mapping.md
     docs/adr/compiled-registry.md
     docs/adr/deny-default-clamps.md
     docs/adr/detached-jws-envelope.md
