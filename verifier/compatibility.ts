@@ -11,11 +11,15 @@ import * as digest from "./digest.ts";
 import { keyfind } from "./registry_engine.ts";
 import type { Value } from "./value.ts";
 
+// Observed identities are UNTRUSTED input (the runner builds them straight
+// from corpus values — a non-string field carries the raw Value).
+// validatedObserved re-checks every field through unknown, so these field
+// types document the intended shape, not a pre-validated one.
 export interface ObservedIdentity {
-  kind: string | null;
-  name: string | null;
-  version: string | null;
-  digest: string | null;
+  kind: string | null | Value;
+  name: string | null | Value;
+  version: string | null | Value;
+  digest: string | null | Value;
 }
 
 export interface Observed {

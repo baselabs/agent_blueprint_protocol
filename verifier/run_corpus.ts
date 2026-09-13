@@ -47,7 +47,8 @@ for (const file of results) {
       agreed++;
       process.stdout.write(`ok       ${result.caseId}\n`);
     } else {
-      const detail = explain(result.caseId, file.path);
+      // CaseResult[] carries no path (run() groups by file); explain ignores it.
+      const detail = explain(result.caseId, (file as { path?: string }).path);
       disagreements.push({ id: result.caseId, detail });
       process.stdout.write(`DISAGREE ${result.caseId}\n`);
     }
@@ -55,12 +56,17 @@ for (const file of results) {
 }
 
 // Re-execute each disagreement to surface expected vs got.
-function explain(caseId: string, _path: string): string {
-  const all = loaded.v.cases.flatMap((f) => f.cases);
+// loaded.ok was checked above (process.exit on failure) — the casts mirror it.
+function explain(caseId: string, _path: string | undefined): string {
+  const all = (loaded as { ok: true; v: corpus.LoadedCorpus }).v.cases.flatMap((f) => f.cases);
   const caseObj = all.find((c) => c.id === caseId);
   if (caseObj === undefined) return "case not found";
   const expectedCode = corpus.memberString(caseObj.expected, "code");
-  const executed = runner.execute(caseObj, loaded.v.data, loaded.v.raws);
+  const executed = runner.execute(
+    caseObj,
+    (loaded as { ok: true; v: corpus.LoadedCorpus }).v.data,
+    (loaded as { ok: true; v: corpus.LoadedCorpus }).v.raws,
+  );
   const got =
     executed.actual.ok
       ? "valid: " + JSON.stringify(executed.actual.v)

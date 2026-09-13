@@ -1,6 +1,7 @@
 # ADR: no version tokens in identifiers
 
-Status: accepted (2026-08-20; contract-identity amendment 2026-08-24).
+Status: accepted (2026-08-20; contract-identity amendment 2026-08-24;
+version-axis inventory amendment 2026-08-26; npm-axis amendment 2026-09-13).
 
 ## Context
 
@@ -54,3 +55,18 @@ semver; this amendment records the complete permitted axis inventory
 No other durable identity carries a version token; the
 identifier-naming gate's enforcement is unchanged. Document sequence
 numbers remain banned (slug-only ADR filenames).
+
+
+## Amendment — the npm distribution axis (2026-09-13)
+
+The npm kit `@rjpalermo/agent-blueprint-protocol` (the verifier's
+compiled distribution) carries its own package semver. That is a FIFTH
+permitted version axis under one binding: the kit version MUST equal
+the Hex package version at every release (a single release line, two
+registries). Enforced mechanically by the version-sync gate in the
+agreement script: `package.json` `version` == `mix.exs` `@version`,
+seeded-red on a one-side bump. Dist-tags exist only as npm registry
+plumbing (`latest`); they name no durable identity. The kit's machine
+identity remains the embedded corpus digest, asserted equal to the
+release-certified digest — versioned by digest, never by name, like
+every other axis in this inventory.

@@ -134,6 +134,13 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      # The agreement gate proves the npm kit against the escript, so the
+      # kit (gitignored dist/) must be built from this same tree first.
+      - name: Build the npm kit
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
       - name: Run complete quality gate
         run: mix quality
         # includes release.asset: the standalone verifier kit must run

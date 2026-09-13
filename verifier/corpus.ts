@@ -408,7 +408,8 @@ interface LoadedFiles {
 
 function orderedFiles(index: Value): { path: string; cases: number; sha: string }[] {
   const files = member(index, "files")!;
-  return files.v
+  // The index "files" member is an array by the structure gate upstream.
+  return (files as { t: "arr"; v: Value[] }).v
     .map((entry) => ({
       path: memberString(entry, "path")!,
       cases: memberNumber(entry, "cases")!,
@@ -528,7 +529,8 @@ function verifyCounts(index: Value, cases: { path: string; cases: CaseObj[] }[])
   const perFile = new Map(cases.map((file) => [file.path, file.cases.length]));
   const files = member(index, "files")!;
   let total = 0;
-  for (const entry of files.v) {
+  // The index "files" member is an array by the structure gate upstream.
+  for (const entry of (files as { t: "arr"; v: Value[] }).v) {
     const path = memberString(entry, "path")!;
     const declaredCases = memberNumber(entry, "cases")!;
     if (path.startsWith("cases/")) {

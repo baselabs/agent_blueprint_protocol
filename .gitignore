@@ -42,3 +42,10 @@ verifier-*.tar.gz
 
 # Suite-run census artifact (documentation-currency gate input)
 .test_census
+
+# npm kit build state (the installable verifier is built by `npm run
+# build` from verifier/ + priv/conformance; nothing generated ships in
+# git — the Hex package ships neither)
+node_modules/
+dist/
+package-lock.json

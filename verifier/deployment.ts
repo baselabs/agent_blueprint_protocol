@@ -189,7 +189,7 @@ function hostBoundsMembers(): Spec[] {
     field("effect_impact_ceiling", { enum: enumSet(IMPACT_CLASSES) }),
     field("disclosure_ceiling", { enum: enumSet(DISCLOSURE_STEPS) }),
   ];
-  return [...numeric, cost, ...protectedBounds].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return [...numeric, cost, ...protectedBounds].sort((a, b) => (a.name! < b.name! ? -1 : a.name! > b.name! ? 1 : 0));
 }
 
 function lifecycleMembers(): Spec[] {
@@ -283,7 +283,7 @@ export function table(): Spec[] {
 // ---- decode -------------------------------------------------------------------------
 
 export function decode(
-  bytes: Buffer | string,
+  bytes: Buffer | string | symbol,
   bounds?: Bounds | Record<string, unknown>,
 ): { ok: true; v: Deployment } | { ok: false; e: string } {
   if (typeof bytes !== "string" && !Buffer.isBuffer(bytes)) return { ok: false, e: "invalid_type" };

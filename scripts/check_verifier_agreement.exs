@@ -32,6 +32,8 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   def run do
     node = find_node!()
 
+    version_sync!()
+
     escript_bytes = run_escript!()
     ts_bytes = run_ts!(node, Path.join(@root, @corpus))
 
@@ -66,6 +68,8 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
     unless self_status == 0, do: raise("self-checks failed:\n#{self_out}")
     IO.puts(String.trim_trailing(self_out))
+
+    kit_checks!(node, escript_bytes)
 
     seeded_reds(node, escript_bytes)
     IO.puts("verifier agreement gate: ok")
@@ -125,6 +129,196 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
     unless status == 0, do: raise("hex archive build failed:\n#{out}")
     Path.join(unpack_dir, "priv/conformance")
+  end
+
+  # ---- version sync (npm axis) --------------------------------------------------------
+  #
+  # The npm kit @rjpalermo/agent-blueprint-protocol carries its own semver
+  # (the fifth permitted version axis, bound == the Hex release line by the
+  # no-versioning-rule amendment). Drift between package.json and mix.exs
+  # fails here BEFORE any agreement work. Self-proving red: a one-side bump
+  # must redden this check (mutate, expect raise, restore, expect green).
+
+  @package_json Path.expand("../package.json", __DIR__)
+
+  defp version_sync! do
+    version_sync_compare!()
+    seeded_version_red!()
+  end
+
+  defp version_sync_compare! do
+    expected = Mix.Project.config()[:version]
+    actual = package_json_version()
+
+    unless actual == expected do
+      raise "version drift: npm package.json #{inspect(actual)} != protocol #{inspect(expected)} " <>
+              "(one release line, two registries — bump both together)"
+    end
+
+    :ok
+  end
+
+  defp package_json_version do
+    case Regex.run(~r/"version"\s*:\s*"([^"]+)"/, File.read!(@package_json)) do
+      [_, version] -> version
+      _ -> raise "package.json carries no readable version member"
+    end
+  end
+
+  defp seeded_version_red! do
+    original = File.read!(@package_json)
+
+    bumped =
+      String.replace(original, ~r/"version"\s*:\s*"[^"]+"/, "\"version\": \"999.0.0\"",
+        global: false
+      )
+
+    if bumped == original, do: raise("version-sync seed: the version member was not mutable")
+
+    File.write!(@package_json, bumped)
+
+    raised =
+      try do
+        version_sync_compare!()
+        false
+      rescue
+        RuntimeError -> true
+      after
+        File.write!(@package_json, original)
+      end
+
+    unless raised do
+      raise "version-sync seed did not diverge: the equality check is vacuous"
+    end
+
+    # Restored state must be green again (the seed never leaves drift).
+    version_sync_compare!()
+    :ok
+  end
+
+  # ---- kit checks (the installable verifier) -------------------------------------------
+  #
+  # The npm kit is BUILD STATE (gitignored dist/) built from this same tree;
+  # a missing build is a hard error naming the build command, never a skip.
+  # Two claims are proven here: (1) the kit, running its EMBEDDED corpus
+  # through its own bin, produces the exact escript report bytes — the
+  # installed-package agreement; (2) the kit-only --artifact mode reproduces
+  # every decode-surface corpus case's own verdict (valid -> valid + kind;
+  # invalid -> invalid with the case's kind's typed code) — the single-
+  # artifact sweep. The sweep carries its own seed: one inverted expectation
+  # must produce a failure (a vacuous sweep cannot pass).
+
+  @kit_bin Path.expand("../dist/kit/cli.mjs", __DIR__)
+  @artifact_surfaces %{
+    "blueprint.decode" => "blueprint",
+    "deployment.decode" => "deployment",
+    "federation.decode" => "federation"
+  }
+
+  defp kit_checks!(node, escript_bytes) do
+    unless File.exists?(@kit_bin) do
+      raise "npm kit not built — run `npm install && npm run build` before the agreement gate"
+    end
+
+    {kit_out, kit_status} = System.cmd(node, [@kit_bin], stderr_to_stdout: true)
+
+    unless kit_status == 0 and kit_out == escript_bytes do
+      raise """
+      kit/escript drift over the embedded corpus:
+        escript: #{escript_bytes}
+        kit:     #{kit_out}
+      """
+    end
+
+    sweep_dir =
+      Path.join(System.tmp_dir!(), "abp-artifact-sweep-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(sweep_dir)
+
+    try do
+      failures = artifact_sweep_failures(node, sweep_dir, nil)
+
+      if failures != [],
+        do: raise("single-artifact sweep failures:\n" <> Enum.join(failures, "\n"))
+
+      inverted = artifact_sweep_failures(node, sweep_dir, :invert_first)
+      if inverted == [], do: raise("single-artifact sweep seed did not diverge (vacuous sweep)")
+    after
+      File.rm_rf!(sweep_dir)
+    end
+
+    :ok
+  end
+
+  # The sweep's own seed lives in invert_first_expectation/2: with
+  # :invert_first the FIRST case's expectation flips and the checker must
+  # report that case as a failure — a sweep that cannot fail cannot pass.
+  defp invert_first_expectation(cases, :invert_first) do
+    cases
+    |> Enum.with_index()
+    |> Enum.map(fn
+      {{id, kind, text, expected}, 0} ->
+        flipped =
+          if expected["verdict"] == "valid",
+            do: Map.merge(expected, %{"verdict" => "invalid"}),
+            else: Map.put(expected, "code", "seeded_inverted_code")
+
+        {id, kind, text, flipped}
+
+      {case_, _index} ->
+        case_
+    end)
+  end
+
+  defp invert_first_expectation(cases, _), do: cases
+
+  defp artifact_sweep_failures(node, dir, override) do
+    cases =
+      for path <- Path.wildcard(Path.join(@root, "priv/conformance/cases/*.json")) |> Enum.sort(),
+          %{"cases" => entries} = path |> File.read!() |> Jason.decode!(),
+          entry <- entries,
+          kind = @artifact_surfaces[entry["surface"]],
+          kind != nil,
+          # Text-ONLY inputs: a case carrying extra input members (a parse
+          # ceiling override, a companion artifact for the binding stage)
+          # exercises multi-input semantics the single-file mode does not
+          # claim — those cases stay covered by the corpus run itself.
+          Map.keys(entry["input"]) == ["text"],
+          text = entry["input"]["text"] do
+        {entry["id"], kind, text, entry["expected"]}
+      end
+      |> invert_first_expectation(override)
+
+    Enum.flat_map(cases, fn {id, kind, text, expected} ->
+      file = Path.join(dir, id <> ".json")
+      File.write!(file, text)
+
+      {out, status} = System.cmd(node, [@kit_bin, "--artifact", file], stderr_to_stdout: true)
+
+      report =
+        case Jason.decode(out) do
+          {:ok, %{} = report} -> report
+          _ -> %{}
+        end
+
+      case expected["verdict"] do
+        "valid" ->
+          if status == 0 and report["verdict"] == "valid" and report["kind"] == kind do
+            []
+          else
+            ["#{id}: expected valid #{kind}, got exit #{status} #{inspect(report)}"]
+          end
+
+        "invalid" ->
+          if status == 1 and report["verdict"] == "invalid" and report[kind] == expected["code"] do
+            []
+          else
+            [
+              "#{id}: expected invalid #{kind} code #{inspect(expected["code"])}, got exit #{status} #{inspect(report)}"
+            ]
+          end
+      end
+    end)
   end
 
   # ---- seeded reds ------------------------------------------------------------------

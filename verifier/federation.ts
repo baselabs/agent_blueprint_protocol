@@ -279,7 +279,7 @@ function hookTerminal(members: Map<string, Value>): VResult {
 // ---- decode -------------------------------------------------------------------------
 
 export function decode(
-  bytes: Buffer | string,
+  bytes: Buffer | string | symbol,
   bounds?: Bounds | Record<string, unknown>,
 ): { ok: true; v: Envelope } | { ok: false; e: string } {
   if (typeof bytes !== "string" && !Buffer.isBuffer(bytes)) {

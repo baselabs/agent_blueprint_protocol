@@ -663,6 +663,22 @@ relies on. The facade stays a verification facade: it delegates and
 never implements, and no facade-level producer functions grow (the
 accepted producer-surface decision record).
 
+### The blueprint card (informative — a derived projection)
+
+A "blueprint card" is a DERIVED, non-normative projection of a
+Blueprint for discovery and display contexts: a small member set
+(typically the identity, producer, classification ceiling, a capability
+summary, and the content digest) extracted from VERIFIED artifact
+bytes. Three rules govern it. The full artifact remains the only
+source of truth — a card asserts nothing the artifact does not, and
+carries the content digest precisely so any reader can bind the
+summary back to the exact verified bytes. A card is never a conforming
+implementation surface: partial conformance is not conformance (the
+conformance clause), and nothing in this protocol verifies a card as a
+standalone artifact. Consumers either re-derive a card from bytes they
+verified themselves or treat one they received as unverified display
+data — the same posture as any other pre-verification summary.
+
 ## 17. Security considerations (normative)
 
 The threat model is not invented for this section: every threat below is

@@ -171,31 +171,64 @@ The `mutation survived: <name>` raise is the gate's red form — proven live
 in the script header's calibration receipt (a command-inverted entry
 raised on 2026-08-23; restored).
 
+### alias: kit.build
+
+Builds the npm kit (gitignored `dist/`) from this same tree: `npm
+install` (two devDependencies, zero runtime deps) then `tsc -p
+tsconfig.json` (strict, declarations, `rewriteRelativeImportExtensions`)
+plus the kit staging script (byte-identical embedded corpus, bin
+wrapper). The kit is BUILD STATE — the agreement gate hard-errors with
+the build command if `dist/kit/cli.mjs` is missing, never skips.
+
+```red
+$ # plant: a verifier type error reintroduced (tsc runs strict under the build)
+$ mix kit.build
+verifier/b64url.ts(39,7): error TS2322: Type 'string' is not assignable to type 'number'.
+** (exit) 2
+```
+
+The missing-build form (organic, 2026-09-13): `** (RuntimeError) npm
+kit not built — run \`npm install && npm run build\` before the
+agreement gate`.
+
 ### alias: verifier.agreement
 
 Self-proving by construction (`scripts/check_verifier_agreement.exs`):
-byte-compares the escript and TypeScript verifier reports over the repo
-corpus AND the built Hex archive's corpus, runs the TS self-check battery,
-then runs three seeded reds — scratch-copy mutations of the verifier, each
-directional and asserted to have caused the expected divergence; a seed
-that fails to diverge raises (vacuous-seed guard, calibration-receipted
-2026-08-23).
+the npm version-sync check (package.json == mix.exs, one-side-bump
+seed), byte-compares the escript and TypeScript verifier reports over
+the repo corpus AND the built Hex archive's corpus, runs the TS
+self-check battery, proves the BUILT KIT agrees with the escript over
+its embedded corpus (byte-equal through the kit bin), sweeps every
+text-only decode-surface corpus case through the kit's `--artifact`
+mode requiring each case's own verdict (with an inverted-expectation
+seed), then runs three seeded reds — scratch-copy mutations of the
+verifier, each directional and asserted to have caused the expected
+divergence; a seed that fails to diverge raises (vacuous-seed guard,
+calibration-receipted 2026-08-23).
 
 ```red
 $ mix verifier.agreement
+version drift: npm package.json "999.0.0" != protocol "0.5.0"   # one-side bump seed
 agreement: repo corpus byte-identical
 agreement: archive corpus byte-identical
 self-checks ok (112)
+** (RuntimeError) kit/escript drift over the embedded corpus:      # organic red 2026-09-13: a
+  escript: {"agreed":94,…}                                        # stale dist build (compiled
+  kit:     {"agreed":93,…}                                        # before the --artifact edit)
+** (RuntimeError) single-artifact sweep failures:                  # organic red 2026-09-13: cases
+blueprint-decode-valid: expected valid blueprint, got exit 2 %{}   # with companion inputs must
+                                                                  # stay outside a single-file mode
+** (RuntimeError) single-artifact sweep seed did not diverge (vacuous sweep)
 seeded red fired: verdict-comparison-inverted
 seeded red fired: calibration-report-format-drift
 seeded red fired: window-check-deleted
 verifier agreement gate: ok
-report byte drift (repo corpus)   # the raise form — any byte divergence
-seeded red did not diverge        # the vacuous-seed guard
 ```
 
-Red forms: `report byte drift (repo corpus|built archive)` on any byte
-divergence, and `seeded red did not diverge` on a vacuous seed.
+Red forms: `version drift` on package/version divergence, `report byte
+drift (repo corpus|built archive)`, `kit/escript drift over the
+embedded corpus`, `single-artifact sweep failures`, `single-artifact
+sweep seed did not diverge`, and `seeded red did not diverge`.
 
 ### alias: dialyzer
 

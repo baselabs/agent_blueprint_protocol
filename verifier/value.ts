@@ -47,16 +47,16 @@ export function sameValue(a: Value, b: Value): boolean {
     case "int":
     case "float":
     case "str":
-      return a.v === b.v;
+      return a.v === (b as typeof a).v;
     case "arr":
       return (
-        a.v.length === b.v.length && a.v.every((x, i) => sameValue(x, b.v[i]!))
+        a.v.length === (b as typeof a).v.length && a.v.every((x, i) => sameValue(x, (b as typeof a).v[i]!))
       );
     case "obj":
       return (
-        a.v.length === b.v.length &&
+        a.v.length === (b as typeof a).v.length &&
         a.v.every((pair, i) => {
-          const other = b.v[i]!;
+          const other = (b as typeof a).v[i]!;
           return pair[0] === other[0] && sameValue(pair[1]!, other[1]!);
         })
       );

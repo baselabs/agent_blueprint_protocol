@@ -222,7 +222,7 @@ export function table(): Spec[] {
 // ---- decode ---------------------------------------------------------------------
 
 export function decode(
-  bytes: Buffer | string,
+  bytes: Buffer | string | symbol,
   bounds?: Bounds | Record<string, unknown>,
 ): { ok: true; v: Blueprint } | { ok: false; e: string } {
   if (typeof bytes !== "string" && !Buffer.isBuffer(bytes)) return { ok: false, e: "invalid_type" };

@@ -10,13 +10,22 @@
 import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "./corpus.ts";
+import { encode } from "./canonical.ts";
 import { toBytes } from "./report.ts";
 import { run } from "./runner.ts";
+import { decode as decodeBlueprint } from "./blueprint.ts";
+import { decode as decodeDeployment } from "./deployment.ts";
+import { decode as decodeEnvelope } from "./federation.ts";
+import { obj, str } from "./value.ts";
 
-const USAGE = "usage: node verifier/cli.ts --corpus <dir>";
+const USAGE = "usage: node verifier/cli.ts --corpus <dir> | --artifact <file>";
 const BYTE_CAP = 5_000_000;
 
 function main(argv: string[]): number {
+  if (argv.length === 2 && argv[0] === "--artifact" && argv[1] !== "" && typeof argv[1] === "string") {
+    return verifyArtifact(argv[1]!);
+  }
+
   if (!(argv.length === 2 && argv[0] === "--corpus" && argv[1] !== "" && typeof argv[1] === "string")) {
     process.stderr.write(USAGE + "\n");
     return 2;
@@ -48,6 +57,57 @@ function main(argv: string[]): number {
   process.stdout.write(bytes);
   const agreed = results.flat().filter((r) => r.agree).length;
   return agreed === results.flat().length && agreed > 0 ? 0 : 1;
+}
+
+// Single-artifact mode — a kit-side convenience the escript deliberately
+// does NOT mirror (its CLI contract stays --corpus-only, so a vacuous run
+// stays impossible there). One artifact file, verified against all three
+// artifact kinds; valid iff any kind decodes. A valid report names the
+// kind; an invalid report names each kind's typed denial code, so the
+// file's own shape is legible from the report alone. The agreement
+// script replays every decode-surface corpus case through this mode and
+// requires the case's own expected verdict (the mode's gate).
+function verifyArtifact(path: string): number {
+  let bytes: Buffer;
+
+  try {
+    const info = statSync(path);
+    if (!info.isFile()) throw new Error("not a regular file");
+    if (info.size > BYTE_CAP) throw new Error("over byte ceiling");
+    bytes = readFileSync(path);
+  } catch {
+    process.stderr.write(
+      "artifact unreadable: missing, not a regular file, or over the byte ceiling\n",
+    );
+    return 2;
+  }
+
+  const blueprint = decodeBlueprint(bytes);
+  const deployment = decodeDeployment(bytes);
+  const envelope = decodeEnvelope(bytes);
+
+  const kind = blueprint.ok ? "blueprint" : deployment.ok ? "deployment" : envelope.ok ? "federation" : null;
+
+  const members: [string, ReturnType<typeof str>][] = [
+    ["format", str("agent-blueprint-protocol-artifact-report")],
+    ["verdict", str(kind === null ? "invalid" : "valid")],
+  ];
+
+  if (kind === null) {
+    members.push(
+      ["blueprint", str(blueprint.ok ? "valid" : blueprint.e)],
+      ["deployment", str(deployment.ok ? "valid" : deployment.e)],
+      ["federation", str(envelope.ok ? "valid" : envelope.e)],
+    );
+  } else {
+    members.push(["kind", str(kind)]);
+  }
+
+  const encoded = encode(obj(members));
+  if (!encoded.ok) throw new Error("artifact report must encode");
+
+  process.stdout.write(encoded.v);
+  return kind === null ? 1 : 0;
 }
 
 // Reads EVERY file under the corpus directory — dotfiles included — so the

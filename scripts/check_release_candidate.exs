@@ -60,7 +60,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "declared but unemitted",
     "not seen",
     "carve-out is read-only",
-    "Break"
+    "Break",
+    "error TS"
   ]
 
   @reprove_plants [

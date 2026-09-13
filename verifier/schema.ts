@@ -112,6 +112,10 @@ export function equal(a: Value, b: Value): boolean {
         const other = b.v.find(([n]) => n === name);
         return other !== undefined && equal(value, other[1]);
       });
+    // int/float cannot reach the switch (the numeric cross-compare above
+    // already returned); the default only completes the switch for the compiler.
+    default:
+      return false;
   }
 }
 
@@ -523,7 +527,8 @@ function evaluate(
     if (cached !== undefined) return cached;
   }
 
-  const result = evalKeywords(schema, instance, loc, memo, pointers);
+  // parse()'s shape gate admits only obj/bool schemas; bool returned above.
+  const result = evalKeywords(schema as { t: "obj"; v: [string, Value][] }, instance, loc, memo, pointers);
   if (!byLoc) memo.set(schema, new Map());
   memo.get(schema)!.set(locKey, result);
   return result;
@@ -578,7 +583,8 @@ function evalKeyword(
     case "minimum":
     case "maximum": {
       if (instance.t !== "int" && instance.t !== "float") return ok(undefined);
-      const limit = value.v;
+      // A numeric limit per keyword validation; junk compares false either way.
+      const limit = (value as { v: number }).v;
       const pass = keyword === "minimum" ? instance.v >= limit : instance.v <= limit;
       return pass ? ok(undefined) : err("invalid_constraint");
     }
@@ -721,7 +727,8 @@ function countPasses(
 
 function typeNames(value: Value): string[] {
   if (value.t === "str") return [value.v];
-  return value.v.map((x) => (x as { t: "str"; v: string }).v);
+  // A "type" keyword value is str or arr of str per keyword validation.
+  return (value as { t: "arr"; v: Value[] }).v.map((x) => (x as { t: "str"; v: string }).v);
 }
 
 function typeMatches(name: string, instance: Value): boolean {
@@ -753,5 +760,6 @@ function countCodepoints(s: string): number {
 }
 
 function zeroFraction(value: Value): number {
-  return value.t === "int" ? value.v : Math.trunc(value.v);
+  // Length/limit keyword values are numeric per keyword validation.
+  return value.t === "int" ? value.v : Math.trunc((value as { v: number }).v);
 }

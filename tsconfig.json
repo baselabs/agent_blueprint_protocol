@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2023",
+    "lib": ["es2023"],
+    "types": ["node"],
+    "declaration": true,
+    "strict": true,
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "dist/verifier",
+    "rootDir": "verifier"
+  },
+  "include": ["verifier/**/*.ts"]
+}

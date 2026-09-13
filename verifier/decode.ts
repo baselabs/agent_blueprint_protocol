@@ -31,13 +31,14 @@ export class CodeFail extends Error {
 export class SyntaxFail extends Error {}
 
 export function decode(
-  input: Buffer | string,
-  bounds?: Bounds,
+  input: Buffer | string | number | symbol,
+  bounds?: Bounds | Record<string, unknown>,
 ): { ok: true; v: Value } | { ok: false; e: string } {
   if (typeof input !== "string" && !Buffer.isBuffer(input)) return err("invalid_type");
 
   const bytes = typeof input === "string" ? Buffer.from(input, "utf8") : input;
-  const profile = bounds ?? maximum();
+  // The profile is read field-wise (bytes/items/…) whatever the caller passed.
+  const profile = (bounds ?? maximum()) as Bounds;
 
   if (bytes.length > profile.bytes) return err("ceiling:bytes");
 
@@ -90,7 +91,7 @@ class Scanner {
     return this.sink(value);
   }
 
-  private parseValue(): Value {
+  private parseValue(): Value | RawNumber {
     if (this.eof()) throw new SyntaxFail();
     const c = this.peek();
     if (c === 0x7b) return this.parseObject();

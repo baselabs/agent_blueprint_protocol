@@ -71,6 +71,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "priv/conformance",
         "priv/release-metadata.json",
         "docs/federation-mapping.md",
+        "docs/ard-mapping.md",
         "docs/adr/compiled-registry.md",
         "docs/adr/deny-default-clamps.md",
         "docs/adr/detached-jws-envelope.md",
@@ -122,6 +123,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "Getting started": [
           "documentation/getting-started.md",
           "documentation/quickstart.md",
+          "documentation/typescript.md",
           "documentation/examples.md"
         ],
         Concepts: [
@@ -138,6 +140,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         ],
         Reference: [
           "documentation/errors.md",
+          "documentation/evidence-commitments.md",
           "documentation/registry.md",
           "documentation/upgrading.md",
           "documentation/faq.md",
@@ -146,7 +149,8 @@ defmodule AgentBlueprintProtocol.MixProject do
         ],
         Specification: [
           "spec/protocol.md",
-          "docs/federation-mapping.md"
+          "docs/federation-mapping.md",
+          "docs/ard-mapping.md"
         ],
         "Design records": [
           "docs/adr/compiled-registry.md",
@@ -189,6 +193,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "documentation/operations.md",
         "spec/protocol.md",
         "docs/federation-mapping.md",
+        "docs/ard-mapping.md",
         "docs/adr/compiled-registry.md",
         "docs/adr/deny-default-clamps.md",
         "docs/adr/detached-jws-envelope.md",
@@ -219,6 +224,10 @@ defmodule AgentBlueprintProtocol.MixProject do
       "verifier.agreement": [
         "run --no-start scripts/check_verifier_agreement.exs"
       ],
+      "kit.build": [
+        "cmd npm install --no-audit --no-fund --loglevel=error",
+        "cmd npm run build"
+      ],
       "release.candidate": [
         "run --no-start scripts/check_release_candidate.exs"
       ],
@@ -244,6 +253,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "test --cover --seed 42",
         "conformance.verify",
         "conformance.mutations",
+        "kit.build",
         "verifier.agreement",
         "dialyzer",
         "docs --warnings-as-errors",

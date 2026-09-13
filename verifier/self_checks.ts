@@ -333,7 +333,9 @@ function flipSignatureByte(entry: Value): Value {
     signature.slice(0, 10) + (signature[10] === "A" ? "B" : "A") + signature.slice(11);
   return {
     t: "obj",
-    v: entry.v.map(([k, v]) => (k === "signature" ? [k, { t: "str" as const, v: flipped }] : [k, v])),
+    // flipSignatureByte walks signature entries (objects) only.
+    v: (entry as { t: "obj"; v: [string, Value][] }).v.map(([k, v]) =>
+      k === "signature" ? [k, { t: "str" as const, v: flipped }] : [k, v]),
   };
 }
 

@@ -30,9 +30,10 @@ const SHORT_ESCAPES: Record<number, string> = {
 
 export function encode(
   value: Value,
-  bounds?: Bounds,
+  bounds?: Bounds | Record<string, unknown>,
 ): { ok: true; v: string } | { ok: false; e: string } {
-  const profile = bounds ?? maximum();
+  // The profile is read field-wise (bytes) whatever the caller passed.
+  const profile = (bounds ?? maximum()) as Bounds;
   const parts: string[] = [];
   const walked = walk(value, parts);
   if (!walked.ok) return walked;

@@ -25,9 +25,12 @@ export type Kind =
 export type Check = (value: Value) => { ok: true } | { ok: false; e: string };
 export type RootHook = (members: Map<string, Value>) => { ok: true } | { ok: false; e: string };
 
+// name/required apply to table members (validate() reads them); array-element
+// specs ({array: …} kinds) carry only kind/check — the walk reads those via
+// elementOk(), never name/required — so both stay optional.
 export interface Spec {
-  name: string;
-  required: boolean;
+  name?: string;
+  required?: boolean;
   kind: Kind;
   check?: Check;
   rootHook?: RootHook;
@@ -64,14 +67,15 @@ export function validate(table: Spec[], value: Value): VResult {
 
   const present = new Set(members.map(([name]) => name));
   for (const spec of table) {
-    if (spec.required && !present.has(spec.name)) return { ok: false, e: "missing_required_field" };
+    // Table specs always come from field() (named); the ! mirrors that invariant.
+    if (spec.required && !present.has(spec.name!)) return { ok: false, e: "missing_required_field" };
   }
 
   // Every table stage shares one walk: find the first spec (in table order)
   // whose present value fails.
-  const stageFailure = (judge: (spec: Spec, value: Value) => VResult | null): VResult => {
+  const stageFailure = (judge: (spec: Spec, value: Value) => { ok: false; e: string } | null): VResult => {
     for (const spec of table) {
-      const found = keyfind(members, spec.name);
+      const found = keyfind(members, spec.name!);
       if (found === null) continue;
       const failure = judge(spec, found);
       if (failure !== null) return { ok: false, e: failure.e };
@@ -94,7 +98,7 @@ export function validate(table: Spec[], value: Value): VResult {
   const memberMap = new Map(members);
   for (const spec of table) {
     if (spec.rootHook === undefined) continue;
-    if (!memberMap.has(spec.name)) continue;
+    if (!memberMap.has(spec.name!)) continue;
     const result = spec.rootHook(memberMap);
     if (!result.ok) return result;
   }
@@ -104,7 +108,7 @@ export function validate(table: Spec[], value: Value): VResult {
 
 // ---- stages --------------------------------------------------------------------------
 
-function specConstraint(spec: Spec, value: Value): VResult | null {
+function specConstraint(spec: Spec, value: Value): { ok: false; e: string } | null {
   if (typeof spec.kind === "object" && "enum" in spec.kind) {
     if (value.t === "str") return spec.kind.enum.has(value.v) ? null : { ok: false, e: "invalid_constraint" };
   }
@@ -115,7 +119,7 @@ function specConstraint(spec: Spec, value: Value): VResult | null {
   return null;
 }
 
-function arrayCardinality(spec: Spec, value: Value): VResult | null {
+function arrayCardinality(spec: Spec, value: Value): { ok: false; e: string } | null {
   if (value.t !== "arr") return null;
   if (spec.minItems !== undefined && value.v.length < spec.minItems) {
     return { ok: false, e: "invalid_cardinality" };
@@ -143,7 +147,7 @@ function duplicateKeys(uniqueBy: string | ":value" | undefined, items: Value[]):
   return keys.some((key, i) => keys.slice(0, i).some((other) => termEqual(key, other)));
 }
 
-function passNil(result: VResult): VResult | null {
+function passNil(result: VResult): { ok: false; e: string } | null {
   return result.ok ? null : result;
 }
 

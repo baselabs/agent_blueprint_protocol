@@ -26,7 +26,7 @@ export interface PublicKey {
 
 type VerifyResult = { ok: true; v: "verified" } | { ok: false; e: string };
 
-function malformed(): VerifyResult {
+function malformed(): { ok: false; e: string } {
   return { ok: false, e: "signature_malformed" };
 }
 
@@ -58,7 +58,7 @@ interface Parts {
   keyId: string;
 }
 
-function parseParts(entry: Value): { ok: true; v: Parts } | VerifyResult {
+function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: string } {
   if (entry.t !== "obj") return malformed();
   const names = entry.v.map(([k]) => k).sort();
   if (

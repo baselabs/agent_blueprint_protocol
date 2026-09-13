@@ -1,0 +1,41 @@
+{
+  "name": "@rjpalermo/agent-blueprint-protocol",
+  "version": "0.5.0",
+  "description": "Installable verifier for the Agent Blueprint Protocol: canonical-bytes, digest, signature, bounds, and conformance-corpus verification. Non-authorizing — evidence, never a decision.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baselabs/agent_blueprint_protocol.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "agent-blueprint-protocol": "dist/kit/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build_kit.mjs",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "typescript": "^7.0.2"
+  },
+  "keywords": [
+    "agent",
+    "protocol",
+    "verifier",
+    "conformance",
+    "interoperability",
+    "mcp",
+    "a2a"
+  ]
+}

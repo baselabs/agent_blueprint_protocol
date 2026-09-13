@@ -234,7 +234,7 @@ function dispatch(
         if (domain === null || !(DIGEST_DOMAINS as readonly string[]).includes(domain)) {
           return { ok: false, e: "invalid_type" };
         }
-        const verified = digest.verifyContent(domain as digest.Domain, bytes.v, declared);
+        const verified = digest.verifyContent(domain as digest.Domain, bytes.v as Buffer, declared);
         if (!verified.ok) return verified;
         return { ok: true, v: { verified: true } };
       }
@@ -606,7 +606,7 @@ function buildObserved(input: Value): { ok: true; v: compatibility.Observed } | 
   if (observed === null || observed.t !== "obj") return { ok: false, e: "invalid_type" };
   const identities = member(observed, "identities");
   if (identities === null || identities.t !== "arr") return { ok: false, e: "invalid_type" };
-  const out: { kind: unknown; name: unknown; version: unknown; digest: unknown }[] = [];
+  const out: compatibility.ObservedIdentity[] = [];
   // A malformed identity element denies typed at the RUNNER (the twin's
   // prior_receipts pattern) — never reaches Compatibility, never crashes.
   for (const entry of identities.v) {
@@ -641,7 +641,7 @@ function buildContext(input: Value): { ok: true; v: federation.Context } | { ok:
   const issuerKeySetsRaw = member(ctx, "issuer_key_sets");
   let issuerKeySets: Record<string, signature.PublicKey[]> | null = null;
   if (issuerKeySetsRaw !== null && issuerKeySetsRaw.t === "obj") {
-    issuerKeySets = Object.create(null);
+    issuerKeySets = Object.create(null) as Record<string, signature.PublicKey[]>;
     for (const [issuer, keyList] of issuerKeySetsRaw.v) {
       if (keyList.t !== "arr") return { ok: false, e: "invalid_type" };
       const built = buildKeys({ t: "obj", v: [["keys", keyList]] } as Value);
