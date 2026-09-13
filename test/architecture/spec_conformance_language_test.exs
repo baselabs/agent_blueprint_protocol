@@ -79,7 +79,7 @@ defmodule AgentBlueprintProtocol.Architecture.SpecConformanceLanguageTest do
   # exist in the shipped corpus; the fence bytes MUST equal the case's
   # input text.
   defp binding_offences(info, body, inputs) do
-    case Regex.run(~r/^ corpus:([^\s]+)$/, info) do
+    case Regex.run(~r/^-corpus:([^\s]+)$/, info) do
       nil ->
         ["no corpus case tag (expected `corpus:<case-id>` in the fence info)"]
 
