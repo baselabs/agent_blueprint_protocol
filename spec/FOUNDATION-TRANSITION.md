@@ -62,6 +62,7 @@ the durable, shipped record; nothing on it is dropped.
 | Federation completion (native wire fields revisit) | MCP Tasks finalizes (ext-tasks first tagged release) |
 | Attestation-kind registry activation | a second attestation consumer exists |
 | Subset profiles (decode+verify only) — the card projection and single-artifact verify shipped 0.6.0; the NORMATIVE subset profile remains open | an adopter needs the formal profile |
+| Deterministic fixture signing keypair (corpus regeneration is byte-stable; today each regeneration re-signs the golden vectors with a fresh random key, churning the certified digest for zero semantic change — observed 2026-09-13) | the next corpus-touching change |
 | 1.0 semver/stability contract | the 0.x line has external consumers and settled dust |
 
 Each trigger is checkable; none is a date. When one fires, the work
