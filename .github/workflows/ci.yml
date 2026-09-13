@@ -10,6 +10,13 @@ on:
 permissions:
   contents: read
 
+# Both BEAM jobs consume the privacy-scan secret and the fork-skip mode;
+# fork pull requests receive no repository secrets, so the privacy test
+# skips loudly in exactly that case and enforces everywhere else.
+env:
+  ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
+  ABP_PRIVACY_SCAN: ${{ github.event.pull_request.head.repo.fork == true && 'fork-skip' || 'enforce' }}
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -79,9 +86,6 @@ jobs:
   compatibility:
     name: Previous supported toolchain (tests + corpus)
     runs-on: ubuntu-24.04
-    env:
-      ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
-      ABP_PRIVACY_SCAN: ${{ github.event.pull_request.head.repo.fork == true && 'fork-skip' || 'enforce' }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -109,12 +113,6 @@ jobs:
   quality:
     name: Complete quality and package boundary
     runs-on: ubuntu-24.04
-    env:
-      ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
-      # Fork pull requests receive no repository secrets; the privacy-scan
-      # test skips loudly in exactly that case and enforces everywhere else
-      # (pushes, maintainer and dependabot pull requests, local runs).
-      ABP_PRIVACY_SCAN: ${{ github.event.pull_request.head.repo.fork == true && 'fork-skip' || 'enforce' }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

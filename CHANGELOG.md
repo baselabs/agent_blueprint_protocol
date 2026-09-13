@@ -60,7 +60,7 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   every push and pull request — the broadened-target receipt the
   README's support claim now rests on.
 
-The test suite is 916 tests (59 properties) at 100% coverage. The
+The test suite is 917 tests (59 properties) at 100% coverage. The
 conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification

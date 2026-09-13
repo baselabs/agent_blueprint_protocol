@@ -29,8 +29,8 @@ iex -S mix
 ## 2. Verify a real artifact
 
 Fetch the shipped example — a byte-exact conformance-corpus case — and
-verify it. Requires Elixir 1.20+ (OTP 29); the package has no other
-requirements.
+verify it. The package requires Elixir 1.20+ and nothing else; it is
+built and tested against OTP 29.
 
 ```bash
 mkdir -p examples

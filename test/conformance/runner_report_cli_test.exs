@@ -1697,6 +1697,37 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
       assert run_out =~ "\"agreement\":true"
       assert run_status == 0
     end
+
+    test "macOS Finder artifacts in the corpus directory are invisible to the walk" do
+      # .DS_Store / ._* are machine-local droppings with no corpus meaning;
+      # the directory walk must skip them rather than red the file-set
+      # equality (a previewed folder must not break verification).
+      root = File.cwd!()
+      escript = Path.join(root, "agent_blueprint_protocol_conformance")
+
+      scratch =
+        Path.join(System.tmp_dir!(), "abp-macos-walk-#{System.unique_integer([:positive])}")
+
+      {build_out, build_status} =
+        System.cmd("mix", ["escript.build"], cd: root, stderr_to_stdout: true)
+
+      assert build_status == 0, "escript build failed:\n#{build_out}"
+
+      on_exit(fn ->
+        File.rm_rf!(scratch)
+        File.rm(escript)
+      end)
+
+      File.cp_r!("priv/conformance", scratch)
+      File.write!(Path.join(scratch, ".DS_Store"), "junk")
+      File.write!(Path.join(Path.join(scratch, "cases"), "._decode.json"), "junk")
+
+      {run_out, run_status} =
+        System.cmd(escript, ["--corpus", scratch], cd: root, stderr_to_stdout: true)
+
+      assert run_out =~ "\"agreement\":true"
+      assert run_status == 0
+    end
   end
 
   defp write_corpus(dir, map) do

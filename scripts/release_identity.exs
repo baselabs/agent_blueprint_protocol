@@ -12,10 +12,11 @@ defmodule AgentBlueprintProtocol.ReleaseIdentity do
   Release-identity derivations, shared by the release-candidate check
   and the release-metadata generator so the two can never drift.
 
-  The specification digest covers EVERY file under spec/ (dotfiles
-  included — everything the repository-filter extraction carries),
-  framed per file: u64 path length, path, u64 byte length, bytes,
-  concatenated in path-sorted order; total SHA-256, tagged
+  The specification digest covers EVERY file under spec/ EXCEPT the
+  macOS Finder artifacts (`.DS_Store`, `._*` — machine-local droppings
+  with no release meaning, invisible to git), framed per file: u64
+  path length, path, u64 byte length, bytes, concatenated in
+  path-sorted order; total SHA-256, tagged
   `sha-256:<unpadded base64url>` — the same encoding as every other
   digest the package ships.
   """

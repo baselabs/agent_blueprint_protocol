@@ -1554,6 +1554,22 @@ report byte drift (repo corpus)   # the raise form — any byte divergence
 seeded red did not diverge        # the vacuous-seed guard
 ```
 
+The CLI directory walk skips macOS Finder artifacts (`.DS_Store`,
+`._*`) — machine-local droppings with no corpus meaning; without the
+exclusion, a previewed corpus folder red the file-set equality on every
+macOS machine (the organic finding behind the 0.5.0 fix). The same
+helper form guards the release-identity spec walk and both
+release-asset walks (digest continuity across 0.4.1 → 0.5.0 proves
+their behavior is unchanged on clean trees).
+
+```red
+$ # plant: drop the artifact exclusion from the CLI corpus walk
+$ mix test test/conformance/runner_report_cli_test.exs:1701
+1) test the CLI: --corpus required, exit-status contract macOS Finder artifacts in the corpus directory are invisible to the walk
+code:  assert run_out =~ "\"agreement\":true"
+Result: 0/1 passed, 49 excluded
+```
+
 ## Archive-content decision of record
 
 The design spec's package-boundary line once read "package.files GAINS
