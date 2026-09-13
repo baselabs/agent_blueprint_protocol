@@ -76,8 +76,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     release_docs = ["README.md", "SECURITY.md", "CHANGELOG.md"]
 
     offenders =
-      for file <- Mix.Project.config()[:package][:files],
-          String.ends_with?(file, ".md"),
+      for file <- shipped_markdown(),
           file not in release_docs,
           content = File.read!(file),
           claim <- version_claims(content),
@@ -89,6 +88,22 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert offenders == [],
            "shipped documents carry stale concrete version claims " <>
              "(only #{version} may appear): #{inspect(offenders)}"
+  end
+
+  # Package entries include bare directories ("documentation", "examples");
+  # a flat ends_with?(".md") filter over the entries list silently skipped
+  # every file inside them, which is how the guides' install pins drifted.
+  defp shipped_markdown do
+    Mix.Project.config()[:package][:files]
+    |> Enum.flat_map(fn entry ->
+      cond do
+        String.ends_with?(entry, ".md") -> [entry]
+        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.md"))
+        true -> []
+      end
+    end)
+    |> Enum.uniq()
+    |> Enum.sort()
   end
 
   # A version claim is a three-part number standing ALONE (not a

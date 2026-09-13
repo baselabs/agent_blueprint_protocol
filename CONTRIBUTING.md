@@ -28,7 +28,36 @@ Prerequisites: Elixir 1.20.x on OTP 29.x and Node >= 24 (the verifier
 agreement step invokes the TypeScript verifier). One test — the
 public-surface privacy history scan — reads a local HMAC key
 (`ABP_PUBLIC_PRIVACY_HMAC_KEY`) that maintainers provision; CI holds it
-as a secret.
+as a secret. On fork pull requests, where GitHub passes no secrets, that
+test skips loudly (a `[privacy-scan] SKIPPED` banner names exactly what
+did not run); every other context enforces it.
+
+## How to propose a change
+
+- **Bugs and divergences from the specification** — open a bug-report
+  issue first if the expected behavior is unclear; otherwise a PR with
+  the failing case added to the relevant gate or corpus lane.
+- **Specification changes** — open a Discussion or issue describing the
+  member/semantics change BEFORE the PR: core member additions require a
+  protocol revision increment, corpus cases, and grammar regeneration, so
+  the shape should be agreed while it is still cheap to change.
+- **Extension registrations** — file a registry-request issue; the
+  process and its rules live in `spec/registry/OPERATIONS.md`.
+- **Documentation** — PRs welcome; every result-claiming guide example is
+  mirror-tested, so examples that do not run will red the build (that is
+  the point).
+
+New to the codebase? The guides listed in `mix.exs` `groups_for_extras`
+are the map; `docs/design/requirement-map.md` is the inventory of every
+gate and its recorded red proof. The public roadmap is the deferred-work
+registry in `spec/FOUNDATION-TRANSITION.md` — every deferred item names
+the trigger that reopens it.
+
+Review expectations: the battery runs on every PR; the maintainer reviews
+against the specification and the requirement map. A green CI on a fork
+PR does not include the privacy history scan (it cannot — GitHub passes
+no secrets to forks); that gate runs on merge into `main` and on
+maintainer branches.
 
 ## What every gate owes
 

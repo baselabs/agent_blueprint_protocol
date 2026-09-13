@@ -76,11 +76,45 @@ jobs:
       - name: Verify the extracted tree renders self-contained
         run: elixir scripts/check_spec_extraction.exs --tree /tmp/spec-extraction-clone
 
+  compatibility:
+    name: Previous supported toolchain (tests + corpus)
+    runs-on: ubuntu-24.04
+    env:
+      ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
+      ABP_PRIVACY_SCAN: ${{ github.event.pull_request.head.repo.fork == true && 'fork-skip' || 'enforce' }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # The previous Elixir/OTP pair inside the supported "~> 1.20" line:
+      # broadened-target receipt (the README claims only what CI has run).
+      # Tests and the conformance corpus only; the full quality battery
+      # stays on the primary pin.
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.20.1"
+          otp-version: "29.0.2"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Run tests and the conformance corpus
+        run: |
+          mix test
+          mix conformance.verify
+
   quality:
     name: Complete quality and package boundary
     runs-on: ubuntu-24.04
     env:
       ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
+      # Fork pull requests receive no repository secrets; the privacy-scan
+      # test skips loudly in exactly that case and enforces everywhere else
+      # (pushes, maintainer and dependabot pull requests, local runs).
+      ABP_PRIVACY_SCAN: ${{ github.event.pull_request.head.repo.fork == true && 'fork-skip' || 'enforce' }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

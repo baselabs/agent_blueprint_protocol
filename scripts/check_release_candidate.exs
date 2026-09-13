@@ -658,6 +658,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "CHANGELOG.md",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
+    "SUPPORT.md",
     "LICENSE",
     "NOTICE",
     "SECURITY.md",

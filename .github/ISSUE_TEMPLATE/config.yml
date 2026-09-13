@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and discussion
+    url: https://github.com/baselabs/agent_blueprint_protocol/discussions
+    about: Usage questions, design questions, and proposal discussion belong in Discussions.
+  - name: Security reports
+    url: https://github.com/baselabs/agent_blueprint_protocol/security/advisories/new
+    about: Report vulnerabilities through private vulnerability reporting, never a public issue.

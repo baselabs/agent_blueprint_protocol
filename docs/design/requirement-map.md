@@ -815,6 +815,49 @@ code: assert scan_repo(repo, test_hmacs, @test_key) == {1, false, true, false, f
 Result: 3/4 passed
 ```
 
+### case: "a fork run without the secret skips loudly instead of failing"
+
+Fork pull requests receive no GitHub secrets, so the enforcing scan
+cannot run there. CI sets `ABP_PRIVACY_SCAN=fork-skip` for exactly
+`github.event.pull_request.head.repo.fork`; the skip must be LOUD (a
+greppable banner naming what did not run), never a silent pass.
+
+```red
+$ # plant: banner wording drops "NOT executed"
+$ mix test test/architecture/public_surface_privacy_test.exs:54
+1) test a fork run without the secret skips loudly instead of failing
+code:  assert banner =~ "NOT executed"
+Result: 0/1 passed, 6 excluded
+```
+
+### case: "an unknown scan-mode value fails closed like an enforcing run"
+
+The relaxation is exact-match on "fork-skip" and nothing else; a typo or
+an unexpected value must behave exactly like an enforcing run (raise
+without a key), never become a skip.
+
+```red
+$ # plant: any non-enforce mode value counts as skip
+$ mix test test/architecture/public_surface_privacy_test.exs:62
+1) test an unknown scan-mode value fails closed like an enforcing run
+code: with_env([{"ABP_PRIVACY_SCAN", "banana"}, {"ABP_PUBLIC_PRIVACY_HMAC_KEY", nil}], fn ->
+Result: 0/1 passed, 6 excluded
+```
+
+### case: "a fork run whose secret is present still enforces the scan"
+
+Fork mode is not a skip switch: when the key IS available the scan runs
+(same-repo PRs and dependabot runs hold the secret and must never
+skip).
+
+```red
+$ # plant: fork mode skips regardless of key presence
+$ mix test test/architecture/public_surface_privacy_test.exs:70
+1) test a fork run whose secret is present still enforces the scan
+code:  assert {:enforce, _key} = privacy_scan_decision()
+Result: 0/1 passed, 6 excluded
+```
+
 ### case: "README and SECURITY.md name the current released version"
 
 Documentation-currency gate: the README install requirement pins the
@@ -1079,7 +1122,19 @@ Currency arm over the governance documents: README/SECURITY/CHANGELOG
 carry version claims gated by their own arms; every other shipped
 markdown may state only the current version or no concrete version at
 all (a three-part number standing alone — §-prefixed section
-references and longer dotted sequences are not version claims).
+references and longer dotted sequences are not version claims). The
+shipped-file enumeration globs DIRECTORY package entries — the
+original `ends_with?(".md")` filter over the entries list silently
+skipped every guide inside `"documentation"`, which is how the
+onboarding pins drifted past the gate.
+
+```red
+$ # organic red: guide pins drifted through the directory blind spot (enumeration fixed to glob directories)
+$ mix test test/architecture/documentation_currency_test.exs
+1) test no shipped document outside the release docs carries a stale concrete version claim
+shipped documents carry stale concrete version claims (only 0.4.1 may appear): [{"documentation/getting-started.md", "0.3.0"}, {"documentation/quickstart.md", "0.4.0"}]
+Result: 2/3 passed
+```
 
 ```red
 $ # plant: "Works with agent_blueprint_protocol 0.1.0 and later." appended to CONTRIBUTING

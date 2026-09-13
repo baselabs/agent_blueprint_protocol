@@ -33,3 +33,43 @@ A host embeds reconcile into its import path: artifacts arrive from
 wherever, reconcile produces the Evidence record, and the HOST decides
 — admit to quarantine, admit to staging, reject. The protocol's
 verdicts are inputs to that decision, never the decision.
+
+## A worked import (the shipped echo pair)
+
+Every input is host-supplied: your bound set, your support posture,
+your keys, your clamp posture, your observations. Under the DEFAULT
+`:deny` clamp posture this pair denies typed — the host bounds narrow
+the protected `disclosure_ceiling`, and protected narrowings deny
+unless the host opts in:
+
+```elixir
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!("examples/echo-blueprint.json"))
+{:ok, deployment} = AgentBlueprintProtocol.decode_deployment(File.read!("examples/echo-deployment.json"))
+host_bounds = AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment) |> elem(1)
+support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
+observations = %AgentBlueprintProtocol.Deployment.Observations{now: ~U[2026-08-21T00:00:00Z], max_attestation_age_ms: 86_400_000, observed: %{}}
+inputs = %AgentBlueprintProtocol.Reconcile.Inputs{host_bounds: host_bounds, support: support, keys: [], protected_clamp: :deny, observations: observations}
+{:error, error} = AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
+error.code # => :protected_bound_clamp_denied
+```
+
+The acknowledge posture records the narrowing as clamp evidence
+instead of denying — and the green result still names exactly what was
+NOT verified:
+
+```elixir
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!("examples/echo-blueprint.json"))
+{:ok, deployment} = AgentBlueprintProtocol.decode_deployment(File.read!("examples/echo-deployment.json"))
+host_bounds = AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment) |> elem(1)
+support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
+observations = %AgentBlueprintProtocol.Deployment.Observations{now: ~U[2026-08-21T00:00:00Z], max_attestation_age_ms: 86_400_000, observed: %{}}
+inputs = %AgentBlueprintProtocol.Reconcile.Inputs{host_bounds: host_bounds, support: support, keys: [], protected_clamp: :acknowledge, observations: observations}
+{:ok, evidence} = AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
+length(evidence.not_verified) # => 7
+```
+
+Those seven are the point: tenancy, live policy, authority, effect
+ownership, execution, billing, evaluation truth — the surfaces this
+protocol structurally cannot establish, named in every result. Your
+admission decision consumes `evidence.checks`, `evidence.clamps`, and
+`evidence.not_verified`; nothing in the record makes it for you.

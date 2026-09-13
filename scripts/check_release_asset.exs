@@ -47,15 +47,22 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
     end
   end
 
+  # macOS Finder droppings are never artifact content; a stray .DS_Store
+  # would shift digests and red file-set equality on any Mac.
+  defp macos_artifact?(path) do
+    name = Path.basename(path)
+    name == ".DS_Store" or String.starts_with?(name, "._")
+  end
+
   defp build_asset(tar) do
     files =
       Path.wildcard("verifier/**/*", match_dot: true)
-      |> Enum.reject(&File.dir?/1)
+      |> Enum.reject(fn path -> macos_artifact?(path) or File.dir?(path) end)
       |> Enum.map(&{String.replace_prefix(&1, "verifier/", ""), File.read!(&1)})
 
     corpus =
       Path.wildcard("priv/conformance/**/*", match_dot: true)
-      |> Enum.reject(&File.dir?/1)
+      |> Enum.reject(fn path -> macos_artifact?(path) or File.dir?(path) end)
       |> Enum.map(
         &{String.replace_prefix(&1, "priv/conformance/", "conformance/"), File.read!(&1)}
       )

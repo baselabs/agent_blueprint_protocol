@@ -14,7 +14,7 @@ Add the dependency:
 ```elixir
 defp deps do
   [
-    {:agent_blueprint_protocol, "~> 0.4.0"}
+    {:agent_blueprint_protocol, "~> 0.5.0"}
   ]
 end
 ```
@@ -26,9 +26,36 @@ mix deps.get
 iex -S mix
 ```
 
-## 2. Verify
+## 2. Verify a real artifact
 
-In `iex`, verify the canonical bytes of a value round-trip:
+Fetch the shipped example — a byte-exact conformance-corpus case — and
+verify it. Requires Elixir 1.20+ (OTP 29); the package has no other
+requirements.
+
+```bash
+mkdir -p examples
+curl -fsSL -o examples/echo-blueprint.json \
+  https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/main/examples/echo-blueprint.json
+```
+
+In `iex`:
+
+```elixir
+bytes = File.read!("examples/echo-blueprint.json")
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
+{:ok, same} = AgentBlueprintProtocol.canonical_bytes(blueprint)
+same == bytes # => true
+```
+
+That green `true` is the full pipeline: canonical bytes verified, all 18
+members validated against the registry, the portability scan passed, the
+content digest matched — and the decode round-trips byte-exactly, because
+the bytes ARE the artifact's identity. A typed fact — never authority.
+
+## 3. See a typed denial
+
+The closed world denies unknowns before any digest work — with a value
+that is NOT a Blueprint at all:
 
 ```elixir
 {:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode({:object, [{"a", {:integer, 1}}]})
@@ -36,11 +63,8 @@ AgentBlueprintProtocol.Json.decode(bytes) # => {:ok, {:object, [{"a", {:integer,
 AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, :unknown_member}
 ```
 
-## 3. See a typed denial
-
-The last line above: `a` is not a Blueprint member — the closed world
-denies `:unknown_member` before any digest work. Typed errors, never
-repairs.
+`a` is not a Blueprint member — the denial is typed, and there is never a
+silent repair.
 
 ## 4. The corpus (what the package proves about itself)
 

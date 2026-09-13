@@ -9,7 +9,7 @@ dependencies.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.3.0"}
+    {:agent_blueprint_protocol, "~> 0.5.0"}
   ]
 end
 ```
@@ -20,9 +20,19 @@ A Blueprint travels as canonical JSON bytes; decoding is fail-closed —
 a typed fact or a typed denial, never a silent repair.
 
 ```elixir
+bytes = File.read!("examples/echo-blueprint.json")
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
+{:ok, same} = AgentBlueprintProtocol.canonical_bytes(blueprint)
+same == bytes # => true
+```
+
+And the denial side — a value that is not a Blueprint at all:
+
+```elixir
 {:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode({:object, [{"a", {:integer, 1}}]})
 
 AgentBlueprintProtocol.Json.decode(bytes) # => {:ok, {:object, [{"a", {:integer, 1}}]}}
+
 AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, :unknown_member}
 ```
 

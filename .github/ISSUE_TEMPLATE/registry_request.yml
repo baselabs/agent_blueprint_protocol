@@ -1,0 +1,56 @@
+name: Registry request
+description: Register or change an extension namespace per spec/registry/OPERATIONS.md.
+labels: ["registry"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Registry requests follow the process in
+        [`spec/registry/OPERATIONS.md`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/spec/registry/OPERATIONS.md).
+        A namespace must be producer-qualified (reverse-DNS under an identity
+        you own), carry a criticality declaration, and — for critical
+        extensions with schemas — a pinned schema digest.
+  - type: input
+    id: namespace
+    attributes:
+      label: Requested namespace
+      placeholder: "com.yourdomain/your-extension"
+    validations:
+      required: true
+  - type: dropdown
+    id: criticality
+    attributes:
+      label: Criticality
+      options:
+        - optional
+        - critical
+    validations:
+      required: true
+  - type: textarea
+    id: owner
+    attributes:
+      label: Owning identity
+      description: The public identity that owns the reverse-DNS domain, and how it is verified.
+    validations:
+      required: true
+  - type: textarea
+    id: semantics
+    attributes:
+      label: Member semantics
+      description: The extension's members, their types, and the deny behavior an older consumer must show.
+    validations:
+      required: true
+  - type: textarea
+    id: schema
+    attributes:
+      label: Schema (critical extensions)
+      description: The closed-dialect JSON Schema and its digest, per the OPERATIONS pinning rule.
+    validations:
+      required: false
+  - type: textarea
+    id: consumers
+    attributes:
+      label: Known consumers
+      description: Independently verified consumers of this namespace, if any (required for promotion to critical on a shared core).
+    validations:
+      required: false

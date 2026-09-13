@@ -54,6 +54,22 @@ The minimal valid pair: `echo-blueprint.json` + `echo-deployment.json`.
   `evaluation_binding` (the evaluation corpus by digest),
   `extensions`, `required_core_fields`, `deployment_digest`.
 
+## federation (task envelope)
+
+`federation-envelope.json` — the 23-member federation TaskEnvelope, the
+cross-transport task artifact that rides A2A task metadata and MCP
+`_meta` as the registered `com.example/federation` critical extension
+(the field-by-field A2A/MCP mapping lives in the federation-mapping
+document). Like the echo pair, it is a byte-exact corpus case: what you
+read is what the corpus executes. Verify it the same way:
+
+```elixir
+bytes = File.read!("examples/federation-envelope.json")
+{:ok, envelope} = AgentBlueprintProtocol.decode_federation_envelope(bytes)
+{:ok, same} = AgentBlueprintProtocol.canonical_bytes(envelope)
+same == bytes # => true
+```
+
 ## Verify the pair
 
 The examples ARE corpus cases — digests and all — which is what makes

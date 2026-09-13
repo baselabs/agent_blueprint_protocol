@@ -26,10 +26,57 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     {"GIT_CONFIG_KEY_0", "advice.graftFileDeprecated"},
     {"GIT_CONFIG_VALUE_0", "false"}
   ]
-  test "tracked files and reachable history contain no consumer-specific topology" do
-    result = scan_repo(".", @forbidden_hmacs, production_key!())
+  # Fork pull requests receive no repository secrets, so the enforcing scan
+  # cannot run there. The ONLY relaxation is an exact "fork-skip" mode set
+  # by CI for github.event.pull_request.head.repo.fork; every other mode
+  # value (including typos) stays enforcing and fails closed without a key.
+  @fork_skip_mode "fork-skip"
 
-    assert result == {0, false, false, false, false, false}
+  @fork_skip_banner """
+  [privacy-scan] SKIPPED: fork pull request without access to the privacy secret.
+  The full-history consumer-topology scan was NOT executed on this run.
+  The enforcing scan runs on every push, on maintainer pull requests, and on
+  any run whose secret IS present; merging requires one of those contexts.
+  """
+
+  test "tracked files and reachable history contain no consumer-specific topology" do
+    case privacy_scan_decision() do
+      {:enforce, key} ->
+        result = scan_repo(".", @forbidden_hmacs, key)
+
+        assert result == {0, false, false, false, false, false}
+
+      {:skip, banner} ->
+        IO.puts(banner)
+    end
+  end
+
+  test "a fork run without the secret skips loudly instead of failing" do
+    with_env([{"ABP_PRIVACY_SCAN", @fork_skip_mode}, {"ABP_PUBLIC_PRIVACY_HMAC_KEY", nil}], fn ->
+      assert {:skip, banner} = privacy_scan_decision()
+      assert banner =~ "SKIPPED"
+      assert banner =~ "NOT executed"
+    end)
+  end
+
+  test "an unknown scan-mode value fails closed like an enforcing run" do
+    with_env([{"ABP_PRIVACY_SCAN", "banana"}, {"ABP_PUBLIC_PRIVACY_HMAC_KEY", nil}], fn ->
+      assert_raise RuntimeError, ~r/privacy key is required/, fn ->
+        privacy_scan_decision()
+      end
+    end)
+  end
+
+  test "a fork run whose secret is present still enforces the scan" do
+    with_env(
+      [
+        {"ABP_PRIVACY_SCAN", @fork_skip_mode},
+        {"ABP_PUBLIC_PRIVACY_HMAC_KEY", String.duplicate("k", 32)}
+      ],
+      fn ->
+        assert {:enforce, _key} = privacy_scan_decision()
+      end
+    )
   end
 
   test "candidate normalization is red-capable without publishing protected terms" do
@@ -316,6 +363,43 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     [@test_canary, String.replace(@test_canary, " ", "")]
     |> Enum.map(&fingerprint(&1, @test_key))
     |> MapSet.new()
+  end
+
+  defp privacy_scan_decision do
+    if fork_skip_mode?() and not valid_key?() do
+      {:skip, @fork_skip_banner}
+    else
+      {:enforce, production_key!()}
+    end
+  end
+
+  defp fork_skip_mode? do
+    System.get_env("ABP_PRIVACY_SCAN") == @fork_skip_mode
+  end
+
+  defp valid_key? do
+    case System.get_env("ABP_PUBLIC_PRIVACY_HMAC_KEY") do
+      nil -> false
+      key -> byte_size(String.trim(key)) >= 32
+    end
+  end
+
+  defp with_env(pairs, fun) do
+    originals = Enum.map(pairs, fn {key, _} -> {key, System.get_env(key)} end)
+
+    Enum.each(pairs, fn
+      {key, nil} -> System.delete_env(key)
+      {key, value} -> System.put_env(key, value)
+    end)
+
+    try do
+      fun.()
+    after
+      Enum.each(originals, fn
+        {key, nil} -> System.delete_env(key)
+        {key, value} -> System.put_env(key, value)
+      end)
+    end
   end
 
   defp production_key! do

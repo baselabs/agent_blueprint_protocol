@@ -1,0 +1,50 @@
+name: Bug report
+description: The package or verifier behaves contrary to the normative specification.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A bug is a divergence from `spec/protocol.md`, the shipped conformance
+        corpus, or the documented API. Include the exact artifact bytes or a
+        corpus-style reproduction whenever possible.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: The command run, the result, and the result you expected per the specification.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal artifact bytes or code. If the artifact is sensitive, derive a redaction that still reproduces.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: "0.4.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Elixir package
+        - TypeScript verifier
+        - Conformance corpus
+        - Specification document
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Elixir/OTP or Node version, OS.
+    validations:
+      required: false

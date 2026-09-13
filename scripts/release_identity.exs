@@ -28,12 +28,19 @@ defmodule AgentBlueprintProtocol.ReleaseIdentity do
   def metadata_format, do: @metadata_format
   def verifier_major_floor, do: @verifier_major_floor
 
+  # macOS Finder droppings are never artifact content; a stray .DS_Store
+  # would shift digests and red file-set equality on any Mac.
+  defp macos_artifact?(path) do
+    name = Path.basename(path)
+    name == ".DS_Store" or String.starts_with?(name, "._")
+  end
+
   @spec spec_digest() :: String.t()
   def spec_digest do
     framed =
       "spec/**/*"
       |> Path.wildcard(match_dot: true)
-      |> Enum.reject(&File.dir?/1)
+      |> Enum.reject(fn path -> macos_artifact?(path) or File.dir?(path) end)
       |> Enum.sort()
       |> Enum.map_join(fn path ->
         bytes = File.read!(path)

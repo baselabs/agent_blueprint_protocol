@@ -2,6 +2,70 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.5.0] — 2026-09-12
+
+### Fixed — the credibility floor
+
+- Dependency pull requests can go green again. The public-surface
+  privacy history scan hard-requires the maintainer HMAC key, which
+  GitHub never delivers to dependabot or fork runs — every dependency
+  PR was structurally red. The gate now has exactly one relaxation:
+  CI marks true fork pull requests `ABP_PRIVACY_SCAN=fork-skip`, where
+  the scan skips LOUDLY (a greppable `[privacy-scan] SKIPPED` banner
+  naming what did not run); every other mode value — including typos —
+  fails closed exactly as before, and a fork run whose secret IS
+  present still enforces. All three arms are red-proven in the
+  requirement map; the dependabot green run is recorded as a green
+  observation.
+- The documentation-currency gate's shipped-file enumeration now globs
+  DIRECTORY package entries: the original filter silently skipped
+  every guide inside `"documentation"`, and the onboarding install
+  pins had drifted into a line SECURITY.md marks unsupported (the
+  organic red is recorded in the requirement map).
+- macOS Finder artifacts (`.DS_Store`, `._*`) are excluded from the
+  four digest/file-set walks (specification identity, both release
+  asset walks, the corpus directory walk): a stray `.DS_Store` inside
+  `spec/` shifted the specification digest and red the
+  release-candidate check on any Mac that had previewed the folder.
+
+### Added — the adoption surface
+
+- Community intake: bug-report and registry-request issue templates
+  (the registry template follows `spec/registry/OPERATIONS.md`),
+  GitHub Discussions, SUPPORT.md, and a how-to-propose-changes path in
+  CONTRIBUTING with the deferred-work registry surfaced as the public
+  roadmap.
+- Onboarding reaches a green verification: the quickstart and getting-
+  started guides now decode the shipped echo example to `{:ok, _}` and
+  round-trip its canonical bytes byte-exactly (mirror-tested), state
+  the minimum Elixir version, and keep the typed-denial teaching
+  moment after the green path.
+- The worked host integration: a full `reconcile/3` over the shipped
+  echo pair under the default `:deny` clamp posture (the typed
+  protected-clamp denial) and under `:acknowledge` (a green Evidence
+  record whose `not_verified` names the seven host-owned surfaces) —
+  mirror-tested line by line.
+- The producer signing recipe: the detached-JWS Ed25519 envelope built
+  with `:crypto` over the RFC 7797 preimage and verified end-to-end
+  against the shipped verifier — mirror-tested. The package itself
+  remains verify-only.
+- `examples/federation-envelope.json`: the 23-member federation
+  TaskEnvelope as a byte-exact conformance corpus case, documented in
+  the examples guide.
+- The hexdocs sidebar groups the guides (getting started, concepts,
+  guides by role, reference, specification, design records,
+  governance).
+- A CI compatibility job: the previous supported Elixir/OTP pair
+  (1.20.1 / 29.0.2) runs the test suite and the conformance corpus on
+  every push and pull request — the broadened-target receipt the
+  README's support claim now rests on.
+
+The test suite is 916 tests (59 properties) at 100% coverage. The
+conformance corpus is unchanged at 94 cases, digest
+`sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
+digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
+
 ## [0.4.1] — 2026-08-26
 
 ### Fixed — verification posture hardening

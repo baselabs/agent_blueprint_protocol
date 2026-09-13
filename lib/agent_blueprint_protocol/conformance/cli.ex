@@ -67,12 +67,20 @@ defmodule AgentBlueprintProtocol.Conformance.Cli do
   # directory cannot exhaust memory or crash past the exit-code contract
   # (Bounds' byte ceiling is the single resource regime, applied here at
   # the byte source rather than only at decode).
+
+  # macOS Finder droppings are never artifact content; a stray .DS_Store
+  # would shift digests and red file-set equality on any Mac.
+  defp macos_artifact?(path) do
+    name = Path.basename(path)
+    name == ".DS_Store" or String.starts_with?(name, "._")
+  end
+
   defp read_corpus(dir) do
     files =
       dir
       |> Path.join("**/*")
       |> Path.wildcard(match_dot: true)
-      |> Enum.reject(&File.dir?/1)
+      |> Enum.reject(fn path -> macos_artifact?(path) or File.dir?(path) end)
 
     cap = AgentBlueprintProtocol.Bounds.maximum().bytes
 

@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "0.4.1"
+  @version "0.5.0"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -92,6 +92,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "spec/errata.md",
         "CONTRIBUTING.md",
         "CODE_OF_CONDUCT.md",
+        "SUPPORT.md",
         "documentation",
         "examples",
         ".formatter.exs",
@@ -117,6 +118,57 @@ defmodule AgentBlueprintProtocol.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
+      groups_for_extras: [
+        "Getting started": [
+          "documentation/getting-started.md",
+          "documentation/quickstart.md",
+          "documentation/examples.md"
+        ],
+        Concepts: [
+          "documentation/what-a-blueprint-is.md",
+          "documentation/what-a-deployment-is.md",
+          "documentation/portability.md",
+          "documentation/federation.md"
+        ],
+        "Guides by role": [
+          "documentation/producer.md",
+          "documentation/extension-author.md",
+          "documentation/host-integration.md",
+          "documentation/operations.md"
+        ],
+        Reference: [
+          "documentation/errors.md",
+          "documentation/registry.md",
+          "documentation/upgrading.md",
+          "documentation/faq.md",
+          "README.md",
+          "CHANGELOG.md"
+        ],
+        Specification: [
+          "spec/protocol.md",
+          "docs/federation-mapping.md"
+        ],
+        "Design records": [
+          "docs/adr/compiled-registry.md",
+          "docs/adr/deny-default-clamps.md",
+          "docs/adr/detached-jws-envelope.md",
+          "docs/adr/federation-lanes.md",
+          "docs/adr/no-versioning-rule.md",
+          "docs/adr/non-authorizing-boundary.md",
+          "docs/adr/producer-surface.md",
+          "docs/adr/product-extension-registration.md",
+          "docs/adr/two-consumer-amendment.md"
+        ],
+        Governance: [
+          "CONTRIBUTING.md",
+          "SECURITY.md",
+          "CODE_OF_CONDUCT.md",
+          "SUPPORT.md",
+          "usage-rules.md",
+          "LICENSE",
+          "NOTICE"
+        ]
+      ],
       extras: [
         "README.md",
         "CHANGELOG.md",
