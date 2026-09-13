@@ -54,6 +54,41 @@ The minimal valid pair: `echo-blueprint.json` + `echo-deployment.json`.
   `evaluation_binding` (the evaluation corpus by digest),
   `extensions`, `required_core_fields`, `deployment_digest`.
 
+## signed (producer-signed blueprint)
+
+`signed-blueprint.json` — the echo blueprint carrying its `signatures`
+member: a detached-JWS Ed25519 envelope (RFC 7797 unencoded payload,
+`kid` bound to the signed `key_id`, `purpose` "blueprint") over the
+SAME `content_digest` as the unsigned golden — evidence members are
+digest-excluded, so signing never changes the digest it covers.
+Decode admits the member through the closed world; cryptographic
+verification is the signature surface and reconcile's signature stage
+(see the [producer signing recipe](producer.md) — it mirror-verifies
+an envelope of exactly this shape).
+
+```elixir
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!("examples/signed-blueprint.json"))
+{:ok, same} = AgentBlueprintProtocol.canonical_bytes(blueprint)
+same == File.read!("examples/signed-blueprint.json") # => true
+```
+
+## extension (registered optional namespace)
+
+`extension-blueprint.json` — the echo blueprint carrying one
+REGISTERED optional extension,
+`com.example.commerce/classification-labels`, with a plain labeled
+body. No pinned schema applies (the registry entry carries none), so
+the body passes the generic value-shape heuristics; a supporting host
+RETAINS the namespace at negotiation, and a host without it
+quarantines the body byte-exactly without executing it — the
+extension state machine in practice.
+
+```elixir
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!("examples/extension-blueprint.json"))
+{:ok, same} = AgentBlueprintProtocol.canonical_bytes(blueprint)
+same == File.read!("examples/extension-blueprint.json") # => true
+```
+
 ## federation (task envelope)
 
 `federation-envelope.json` — the 23-member federation TaskEnvelope, the

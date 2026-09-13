@@ -56,12 +56,12 @@ the durable, shipped record; nothing on it is dropped.
 | Third implementation (Rust or Go) | an external conforming implementation merges |
 | Registry codegen from the canonical json | a third implementation, or an unported registry change surviving a cycle |
 | CDDL validator automation | a maintained RFC 8610 validator passes the derivation gate |
-| npm kit distribution | a TypeScript consumer needs dependency-manager distribution |
+| npm kit distribution — DELIVERED 0.6.0 (`@rjpalermo/agent-blueprint-protocol`; the agreement gate proves the kit against the escript every build) | retired — reopened only if distribution requirements change |
 | Registry public registrants (real product identities) | the portfolio products go public |
 | Benchmark program | the first host-integration performance question |
 | Federation completion (native wire fields revisit) | MCP Tasks finalizes (ext-tasks first tagged release) |
 | Attestation-kind registry activation | a second attestation consumer exists |
-| Subset profiles (decode+verify only) | an adopter needs them |
+| Subset profiles (decode+verify only) — the card projection and single-artifact verify shipped 0.6.0; the NORMATIVE subset profile remains open | an adopter needs the formal profile |
 | 1.0 semver/stability contract | the 0.x line has external consumers and settled dust |
 
 Each trigger is checkable; none is a date. When one fires, the work

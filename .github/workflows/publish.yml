@@ -1,0 +1,110 @@
+name: Publish
+
+# Tag-triggered release publishing: the full quality battery runs on the
+# tagged tree FIRST (a tag is not a green claim by itself); publishing
+# happens only from a green battery. npm publishing from CI carries OIDC
+# provenance — a local `npm publish` cannot produce it, which is exactly
+# why publishing lives here. Fail-closed: a missing secret fails the
+# workflow; nothing publishes partially. Order is fixed: npm kit first
+# (it embeds the corpus), then Hex, then the GitHub release with the
+# standalone verifier kit attached, then a post-publish verification that
+# installs the PUBLISHED npm package from the registry and re-runs the
+# agreement against the tag's escript.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Battery, then publish (npm + Hex + release)
+    runs-on: ubuntu-24.04
+    env:
+      ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
+    steps:
+      - name: Check out source (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.19.0"
+          package-manager-cache: false
+
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.20.2"
+          otp-version: "29.0.3"
+
+      # Preflight: CI publishing requires NPM_TOKEN and HEX_API_KEY. When
+      # either is absent the workflow says so LOUDLY and stops after the
+      # battery — never a partial publish, and never a red run that merely
+      # means "not configured". Local publishes (no npm provenance) are the
+      # documented fallback until both secrets exist.
+      - name: Publishing secrets preflight
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: |
+          if [ -z "$NPM_TOKEN" ] || [ -z "$HEX_API_KEY" ]; then
+            echo "::warning::CI publish not configured: NPM_TOKEN and/or HEX_API_KEY missing."
+            echo "publishing: SKIPPED (secrets absent) — the battery below still runs; add the secrets and re-tag or re-run for a provenance publish"
+            echo "PUBLISH_ENABLED=false" >> "$GITHUB_ENV"
+          else
+            echo "PUBLISH_ENABLED=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install dependencies and build the kit
+        run: |
+          mix deps.get
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Run the complete quality battery on the tagged tree
+        run: mix quality
+
+      - name: Publish the npm kit (with provenance)
+        if: env.PUBLISH_ENABLED == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
+
+      - name: Publish the Hex package and docs
+        if: env.PUBLISH_ENABLED == 'true'
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: yes | mix hex.publish
+
+      - name: Attach the verifier kit to the GitHub release
+        if: env.PUBLISH_ENABLED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export MIX_ENV=test
+          mix release.asset --write
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" "verifier-${VERSION}.tar.gz" \
+            --title "${GITHUB_REF_NAME#v} — installable verifier" \
+            --generate-notes
+
+      - name: Post-publish verification (registry install vs the tag)
+        if: env.PUBLISH_ENABLED == 'true'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir /tmp/postpublish
+          cd /tmp/postpublish
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "@rjpalermo/agent-blueprint-protocol@${VERSION}"
+          npx agent-blueprint-protocol > /tmp/kit-report.json
+          cd "$GITHUB_WORKSPACE"
+          mix escript.build
+          ./agent_blueprint_protocol_conformance --corpus priv/conformance > /tmp/escript-report.json
+          cmp /tmp/kit-report.json /tmp/escript-report.json

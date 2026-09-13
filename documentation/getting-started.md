@@ -9,7 +9,7 @@ dependencies.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.5.0"}
+    {:agent_blueprint_protocol, "~> 0.6.0"}
   ]
 end
 ```
@@ -38,7 +38,7 @@ AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, :unknown_member}
 
 ## Run the shipped conformance corpus
 
-The package ships a 94-case conformance corpus; run it to see the
+The package ships a 96-case conformance corpus; run it to see the
 protocol's whole behavior surface:
 
 ```bash

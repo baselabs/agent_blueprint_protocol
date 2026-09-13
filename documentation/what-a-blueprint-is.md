@@ -35,3 +35,24 @@ read), then structure, then the declared digest.
 `signatures` (detached, verify-only JWS envelopes) and `attestations`
 — both excluded from the digest input; both evidence, never
 authority.
+
+## The blueprint card (a derived projection)
+
+For discovery and display contexts a small "card" can be derived from
+a verified blueprint — the identity and the digest, nothing more. The
+card is NOT an artifact: it asserts nothing the blueprint does not,
+carries the digest precisely so any reader can bind the summary back
+to the exact verified bytes, and is never conforming on its own
+(partial conformance is not conformance). Derive from bytes you
+verified, or treat a received card as unverified display data:
+
+```elixir
+bytes = File.read!("examples/echo-blueprint.json")
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
+digest = AgentBlueprintProtocol.Blueprint.content_digest(blueprint)
+{:ok, {:object, members}} = AgentBlueprintProtocol.Json.decode(bytes)
+{"blueprint_id", {:string, id}} = List.keyfind(members, "blueprint_id", 0)
+card = %{"blueprint_id" => id, "content_digest" => AgentBlueprintProtocol.Digest.to_tagged(digest)}
+card["blueprint_id"] # => "example.demo/echo"
+card["content_digest"] # => "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8"
+```

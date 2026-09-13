@@ -2,6 +2,59 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.6.0] — 2026-09-14
+
+### Added — the installable verifier (npm kit)
+
+- `@rjpalermo/agent-blueprint-protocol` on npm: the verifier compiled
+  to `.js` + `.d.ts` (strict, declarations, zero runtime dependencies,
+  Node >= 24), the conformance corpus embedded byte-identically to the
+  release-certified copy, and a single bin — `npx` verifies out of the
+  box. The verifier itself typechecks clean for the first time (66
+  type-level fixes, byte-frozen against the strip-types baseline).
+- `--artifact <file>` single-artifact mode (kit-only by design; the
+  escript stays corpus-only): verifies one JSON file against all three
+  artifact kinds; a valid report names the kind, a denial names each
+  kind's typed code.
+- The agreement gate proves the KIT, not just the tree: npm
+  version-sync with a one-side-bump seed, kit-vs-escript byte equality
+  over the embedded corpus, and a single-artifact sweep replaying
+  every text-only decode-surface corpus case with an
+  inverted-expectation seed. `kit.build` is a quality-alias step; CI
+  builds the kit before the battery.
+- The TypeScript quickstart (`documentation/typescript.md`); the ARD
+  mapping (`docs/ard-mapping.md` — sources pinned at exact commits,
+  trust-manifest DNA shared, the capability layer instrument-verified
+  absent); the EU AI Act evidence anchor
+  (`documentation/evidence-commitments.md`); the blueprint-card
+  section in the specification (derived, non-normative, never
+  conforming on its own) with a mirror-tested derivation in the
+  concept guide; the no-versioning-rule npm-axis amendment (the npm
+  semver is the fifth permitted version axis, bound equal to the Hex
+  line).
+- Two new examples, both byte-exact corpus cases:
+  `examples/signed-blueprint.json` (a producer-signed envelope over
+  the golden digest — signing never changes the digest it covers) and
+  `examples/extension-blueprint.json` (a registered optional
+  namespace retained by a supporting host, quarantined byte-exactly
+  by one without it).
+
+### Changed
+
+- The conformance corpus grows 94 → 96 cases (the two valid signed
+  and extension-bearing decode cases); every shipped count and digest
+  claim re-tied.
+- The privacy history-scan budget grows with the repository (480s →
+  960s; the scan is O(tracked files × commits) and clipped its old
+  ceiling under full-suite load — a timeout there is a flake, never a
+  privacy finding).
+
+The test suite is 917 tests (59 properties) at 100% coverage. The
+conformance corpus is 96 cases, digest
+`sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry digest
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
+digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
+
 ## [0.5.0] — 2026-09-12
 
 ### Fixed — the credibility floor

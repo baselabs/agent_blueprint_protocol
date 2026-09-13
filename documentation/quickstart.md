@@ -14,7 +14,7 @@ Add the dependency:
 ```elixir
 defp deps do
   [
-    {:agent_blueprint_protocol, "~> 0.5.0"}
+    {:agent_blueprint_protocol, "~> 0.6.0"}
   ]
 end
 ```
@@ -68,7 +68,7 @@ silent repair.
 
 ## 4. The corpus (what the package proves about itself)
 
-The package you installed ships a 94-case conformance corpus, and its
+The package you installed ships a 96-case conformance corpus, and its
 release was gated on that corpus passing plus a mutation gate (the
 corpus must catch seven named implementation breaks) and byte-agreement
 with an independent TypeScript verifier. You consume an already

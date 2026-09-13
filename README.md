@@ -26,7 +26,7 @@ and evidence retention.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.5.0"}
+    {:agent_blueprint_protocol, "~> 0.6.0"}
   ]
 end
 ```
@@ -78,7 +78,7 @@ Semantics:
   (canonical, digest, negotiation, structure, portability, signatures, bind,
   bounds), reject-or-annotate, never repair, under host-supplied inputs.
 
-Tooling: `mix conformance.verify` executes the shipped 94-case corpus;
+Tooling: `mix conformance.verify` executes the shipped 96-case corpus;
 `mix conformance.mutations` re-proves the corpus catches named implementation
 breaks; `mix verifier.agreement` byte-agrees the Elixir runner with the
 independent TypeScript verifier.
@@ -88,7 +88,7 @@ independent TypeScript verifier.
 The protocol API, schemas, canonicalization profile, extension registry,
 and conformance corpus are implemented and gated: 917 tests
 (59 properties) at 100% coverage, zero Dialyzer errors, `--strict`
-Credo clean, a 94-case conformance corpus with a mutation gate, and a
+Credo clean, a 96-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
 The normative specification, [`spec/protocol.md`](spec/protocol.md),
 ships in the Hex archive. The full gate battery and every gate's
@@ -132,7 +132,7 @@ coupling). Every gate carries a recorded red proof — see the requirement map a
 
 ### Conformance corpus
 
-The package ships a portable conformance corpus (`priv/conformance/`) — 94
+The package ships a portable conformance corpus (`priv/conformance/`) — 96
 cases covering every required cell of the 16-surface × 31-class applicability
 floor, full-registry golden artifacts, RFC 8785 number vectors, and
 deterministic Ed25519 fixtures. Run it:

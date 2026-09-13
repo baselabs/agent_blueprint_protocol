@@ -1,6 +1,6 @@
 {
   "name": "@rjpalermo/agent-blueprint-protocol",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Installable verifier for the Agent Blueprint Protocol: canonical-bytes, digest, signature, bounds, and conformance-corpus verification. Non-authorizing — evidence, never a decision.",
   "license": "Apache-2.0",
   "repository": {

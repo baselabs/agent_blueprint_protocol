@@ -701,7 +701,47 @@ schema_cases = [
   }
 ]
 
-# ---- blueprint.decode (8) ----
+# ---- blueprint.decode (10) ----
+# The signed variant: the evidence-member signatures array carries an
+# honestly-signed envelope over the SAME content_digest (evidence members
+# are digest-excluded, so the digest — and this case's expected digest —
+# match the unsigned golden). Crypto verification is the signature surface
+# and reconcile stage; decode proves the closed world admits the member.
+signed_bp_value =
+  BlueprintFixture.fixture_value(
+    extra_members: [
+      {"signatures",
+       {:array,
+        [
+          BlueprintFixture.signature_entry(
+            attrs:
+              BlueprintFixture.signature_attrs(
+                digest:
+                  CorpusGen.member_string(BlueprintFixture.fixture_value([]), "content_digest")
+              )
+          )
+        ]}}
+    ]
+  )
+
+signed_blueprint = CorpusGen.json_text!(signed_bp_value)
+
+# The extension-bearing variant: one REGISTERED optional namespace with a
+# plain labeled body (no pinned schema — the body passes the generic
+# value-shape heuristics; negotiation retains it on a supporting host).
+extension_bp_value =
+  BlueprintFixture.fixture_value(
+    extensions:
+      BlueprintFixture.extensions(
+        optional: %{
+          "com.example.commerce/classification-labels" =>
+            {:object, [{"labels", {:array, [{:string, "pci"}]}}]}
+        }
+      )
+  )
+
+extension_blueprint = CorpusGen.json_text!(extension_bp_value)
+
 pem = "-----" <> "BEGIN PRIVATE KEY-----\nMIIEvQ\n-----" <> "END PRIVATE KEY-----"
 bp_forbidden_value = BlueprintFixture.fixture_value(toolchain: pem) |> CorpusGen.json_text!()
 
@@ -714,6 +754,26 @@ blueprint_cases = [
     "expected" => %{
       "verdict" => "valid",
       "digest" => CorpusGen.member_string(BlueprintFixture.fixture_value([]), "content_digest")
+    }
+  },
+  %{
+    "id" => "blueprint-decode-signed-valid",
+    "surface" => "blueprint.decode",
+    "class" => "valid",
+    "input" => %{"text" => signed_blueprint},
+    "expected" => %{
+      "verdict" => "valid",
+      "digest" => CorpusGen.member_string(BlueprintFixture.fixture_value([]), "content_digest")
+    }
+  },
+  %{
+    "id" => "blueprint-decode-extension-valid",
+    "surface" => "blueprint.decode",
+    "class" => "valid",
+    "input" => %{"text" => extension_blueprint},
+    "expected" => %{
+      "verdict" => "valid",
+      "digest" => CorpusGen.member_string(extension_bp_value, "content_digest")
     }
   },
   %{

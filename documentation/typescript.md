@@ -11,7 +11,7 @@ copy), and a single bin. Node 24 or newer; zero runtime dependencies.
 npx @rjpalermo/agent-blueprint-protocol
 ```
 
-With no arguments the kit runs its EMBEDDED corpus — 94 cases over
+With no arguments the kit runs its EMBEDDED corpus — 96 cases over
 every protocol surface — and prints the single-line report. Green is
 `"agreement":true` and exit 0; the report names the corpus digest, so
 what you verified is an exact, identified byte set, not a vibe:

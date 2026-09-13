@@ -70,6 +70,8 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     examples/echo-blueprint.json
     examples/echo-deployment.json
     examples/federation-envelope.json
+    examples/signed-blueprint.json
+    examples/extension-blueprint.json
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
