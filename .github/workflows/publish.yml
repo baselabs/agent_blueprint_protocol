@@ -2,15 +2,25 @@ name: Publish
 
 # Tag-triggered release publishing: the full quality battery runs on the
 # tagged tree FIRST (a tag is not a green claim by itself); publishing
-# happens only from a green battery. npm publishing from CI carries OIDC
-# provenance — a local `npm publish` cannot produce it, which is exactly
-# why publishing lives here. Publishing posture: with NPM_TOKEN and
-# HEX_API_KEY present every step publishes; with either absent the run
-# SKIPS publishing loudly after the battery (never a partial publish,
-# never a red run that merely means unconfigured). A MID-FLIGHT failure
-# (a step reds after another published) stops the chain — re-running
-# reds on the already-published step; that is deliberate: partial
-# states are resolved by hand, never papered over. Order is fixed: npm kit first
+# happens only from a green battery.
+#
+# npm publishing uses TRUSTED PUBLISHING (GitHub OIDC): no npm token of
+# any kind — the registry trusts this exact repository + workflow file,
+# authenticates the run's OIDC identity, and generates the provenance
+# attestation automatically. Configure once on npmjs.com (package
+# Settings -> Trusted publishing, GitHub Actions: baselabs /
+# agent_blueprint_protocol / publish.yml). Recommended hardening once
+# configured: package Settings -> Publishing access -> require 2FA and
+# disallow tokens — trusted publishing keeps working; bearer tokens
+# cannot publish at all. (Direct publish via granular tokens is removed
+# registry-wide January 2027; the token path is not coming back.)
+#
+# Hex still publishes with HEX_API_KEY; with it absent the run SKIPS
+# publishing loudly after the battery (never a partial publish, never a
+# red run that merely means unconfigured). A MID-FLIGHT failure (a step
+# reds after another published) stops the chain — re-running reds on
+# the already-published step; that is deliberate: partial states are
+# resolved by hand, never papered over. Order is fixed: npm kit first
 # (it embeds the corpus), then Hex, then the GitHub release with the
 # standalone verifier kit attached, then a post-publish verification that
 # installs the PUBLISHED npm package from the registry and re-runs the
@@ -49,19 +59,21 @@ jobs:
           elixir-version: "1.20.2"
           otp-version: "29.0.3"
 
-      # Preflight: CI publishing requires NPM_TOKEN and HEX_API_KEY. When
-      # either is absent the workflow says so LOUDLY and stops after the
-      # battery — never a partial publish, and never a red run that merely
-      # means "not configured". Local publishes (no npm provenance) are the
-      # documented fallback until both secrets exist.
-      - name: Publishing secrets preflight
+      # Preflight: publishing needs HEX_API_KEY (npm needs NO token —
+      # trusted publishing authenticates via this run's OIDC identity).
+      # With the key absent the workflow says so LOUDLY and skips
+      # publishing after the battery — never a partial publish, never a
+      # red run that merely means "not configured". npm-side trust is not
+      # probeable from the repo: if the Trusted Publisher is not yet
+      # configured, npm publish itself fails with the registry's own
+      # explicit untrusted-publisher error.
+      - name: Publishing preflight
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: |
-          if [ -z "$NPM_TOKEN" ] || [ -z "$HEX_API_KEY" ]; then
-            echo "::warning::CI publish not configured: NPM_TOKEN and/or HEX_API_KEY missing."
-            echo "publishing: SKIPPED (secrets absent) — the battery below still runs; add the secrets and re-tag or re-run for a provenance publish"
+          if [ -z "$HEX_API_KEY" ]; then
+            echo "::warning::CI publish not configured: HEX_API_KEY missing."
+            echo "publishing: SKIPPED (secret absent) — the battery below still runs"
             echo "PUBLISH_ENABLED=false" >> "$GITHUB_ENV"
           else
             echo "PUBLISH_ENABLED=true" >> "$GITHUB_ENV"
@@ -76,10 +88,11 @@ jobs:
       - name: Run the complete quality battery on the tagged tree
         run: mix quality
 
-      - name: Publish the npm kit (with provenance)
+      # Trusted publishing: no NODE_AUTH_TOKEN — npm exchanges this run's
+      # GitHub OIDC identity (id-token: write above) for a short-lived
+      # publish token; provenance is generated automatically.
+      - name: Publish the npm kit (trusted publishing, provenance)
         if: env.PUBLISH_ENABLED == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public --provenance
 
       - name: Publish the Hex package and docs
