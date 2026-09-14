@@ -1,14 +1,14 @@
 # The TypeScript quickstart
 
 The verifier ships as an installable npm kit,
-`@rjpalermo/agent-blueprint-protocol`: the compiled verifier, its
+`@agent-blueprint-protocol/verifier`: the compiled verifier, its
 embedded conformance corpus (byte-identical to the release-certified
 copy), and a single bin. Node 24 or newer; zero runtime dependencies.
 
 ## Verify the kit (one command)
 
 ```bash
-npx @rjpalermo/agent-blueprint-protocol
+npx @agent-blueprint-protocol/verifier
 ```
 
 With no arguments the kit runs its EMBEDDED corpus — 96 cases over
@@ -30,7 +30,7 @@ corpora are typed failures, exit 2; a tampered corpus cannot verify
 green).
 
 ```bash
-npx @rjpalermo/agent-blueprint-protocol --corpus ./conformance
+npx @agent-blueprint-protocol/verifier --corpus ./conformance
 ```
 
 ## Verify one artifact file
@@ -42,7 +42,7 @@ each kind's typed code, so the file's shape is legible from the report
 alone:
 
 ```bash
-$ npx @rjpalermo/agent-blueprint-protocol --artifact echo-blueprint.json
+$ npx @agent-blueprint-protocol/verifier --artifact echo-blueprint.json
 {"format":"agent-blueprint-protocol-artifact-report","kind":"blueprint","verdict":"valid"}
 ```
 
@@ -56,7 +56,7 @@ full corpus run).
 ## As a dependency
 
 ```bash
-npm install @rjpalermo/agent-blueprint-protocol
+npm install @agent-blueprint-protocol/verifier
 ```
 
 The package exports the compiled verifier modules under

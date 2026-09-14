@@ -1,4 +1,4 @@
-// Kit assembly for @rjpalermo/agent-blueprint-protocol.
+// Kit assembly for @agent-blueprint-protocol/verifier.
 //
 //   node scripts/build_kit.mjs        (after `tsc -p tsconfig.json`)
 //
@@ -20,7 +20,7 @@ cpSync(join(root, "priv/conformance"), join(root, "dist/corpus"), { recursive: t
 mkdirSync(join(root, "dist/kit"), { recursive: true });
 
 const kitCli = `#!/usr/bin/env node
-// Kit bin for @rjpalermo/agent-blueprint-protocol. Forwards to the
+// Kit bin for @agent-blueprint-protocol/verifier. Forwards to the
 // compiled verifier CLI. With no --corpus argument, the EMBEDDED
 // corpus is used (the exact bytes the release gates verified); pass
 // --corpus <dir> to verify any other corpus. Exit codes are the

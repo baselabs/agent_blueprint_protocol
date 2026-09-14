@@ -26,7 +26,7 @@ and evidence retention.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.6.0"}
+    {:agent_blueprint_protocol, "~> 0.7.0"}
   ]
 end
 ```
@@ -37,13 +37,13 @@ no supervision tree.
 ## Installation (TypeScript)
 
 The verifier ships as an installable npm kit,
-`@rjpalermo/agent-blueprint-protocol`: the compiled verifier, its
+`@agent-blueprint-protocol/verifier`: the compiled verifier, its
 declarations, and the conformance corpus embedded byte-identically to
 the release-certified copy. Zero runtime dependencies; Node 24+.
 
 ```bash
-npx @rjpalermo/agent-blueprint-protocol                        # verify the embedded corpus
-npx @rjpalermo/agent-blueprint-protocol --artifact <file.json> # verify one artifact
+npx @agent-blueprint-protocol/verifier                        # verify the embedded corpus
+npx @agent-blueprint-protocol/verifier --artifact <file.json> # verify one artifact
 ```
 
 See the [TypeScript quickstart](documentation/typescript.md) and the

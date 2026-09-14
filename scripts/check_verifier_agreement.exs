@@ -133,7 +133,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
   # ---- version sync (npm axis) --------------------------------------------------------
   #
-  # The npm kit @rjpalermo/agent-blueprint-protocol carries its own semver
+  # The npm kit @agent-blueprint-protocol/verifier carries its own semver
   # (the fifth permitted version axis, bound == the Hex release line by the
   # no-versioning-rule amendment). Drift between package.json and mix.exs
   # fails here BEFORE any agreement work. Self-proving red: a one-side bump

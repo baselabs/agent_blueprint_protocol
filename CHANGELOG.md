@@ -2,6 +2,37 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.7.0] — 2026-09-14
+
+### Changed — the npm kit moves to `@agent-blueprint-protocol/verifier`
+
+- Portfolio naming consistency with the bounded-authority kit: the
+  verifier publishes under a project-named npm organization with a
+  role-named package. The 0.6.0 package
+  (`@rjpalermo/agent-blueprint-protocol`) is deprecated with a forward
+  pointer. Version numbering continues the protocol's single release
+  line (the version-sync gate binds npm semver == the Hex line).
+- The bin gains a `verifier` alias alongside `agent-blueprint-protocol`
+  — `npx @agent-blueprint-protocol/verifier` and
+  `npx agent-blueprint-protocol` both work after install.
+- The publish workflow is fully idempotent: registry-published
+  versions skip loudly instead of erroring (re-runs, and releases
+  bootstrapped by a local first publish — required for a brand-new
+  package, since a trusted publisher cannot be configured before the
+  package exists), and the GitHub release step creates only when
+  absent.
+- The no-versioning-rule npm-axis amendment records the rename and its
+  history; every shipped mention of the old name is updated (the
+  changelog's historical entries keep it, as records).
+
+The conformance corpus, registry, and test-suite counts are unchanged
+from 0.6.0; the specification digest moves with the deferred-work
+registry row naming the kit. The test suite is 917 tests (59
+properties) at 100% coverage. Corpus: 96 cases, digest
+`sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
+digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
+
 ## [0.6.0] — 2026-09-14
 
 ### Added — the installable verifier (npm kit)

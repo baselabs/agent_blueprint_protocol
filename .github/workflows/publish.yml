@@ -15,16 +15,16 @@ name: Publish
 # cannot publish at all. (Direct publish via granular tokens is removed
 # registry-wide January 2027; the token path is not coming back.)
 #
-# Hex still publishes with HEX_API_KEY; with it absent the run SKIPS
-# publishing loudly after the battery (never a partial publish, never a
-# red run that merely means unconfigured). A MID-FLIGHT failure (a step
-# reds after another published) stops the chain — re-running reds on
-# the already-published step; that is deliberate: partial states are
-# resolved by hand, never papered over. Order is fixed: npm kit first
-# (it embeds the corpus), then Hex, then the GitHub release with the
-# standalone verifier kit attached, then a post-publish verification that
-# installs the PUBLISHED npm package from the registry and re-runs the
-# agreement against the tag's escript.
+# Every publish step is IDEMPOTENT: if the version already exists in the
+# target registry (a re-run, or a release bootstrapped by a local
+# publish — required for a package's very first version, since a trusted
+# publisher cannot be configured before the package exists), the step
+# skips loudly instead of erroring. Partial states are still resolved by
+# hand: a step that reds mid-flight stops the chain. Order is fixed: npm
+# kit first (it embeds the corpus), then Hex, then the GitHub release
+# with the standalone verifier kit attached, then a post-publish
+# verification that installs the PUBLISHED npm package from the registry
+# and re-runs the agreement against the tag's escript.
 
 on:
   push:
@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
+      NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
     steps:
       - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,26 +60,6 @@ jobs:
           elixir-version: "1.20.2"
           otp-version: "29.0.3"
 
-      # Preflight: publishing needs HEX_API_KEY (npm needs NO token —
-      # trusted publishing authenticates via this run's OIDC identity).
-      # With the key absent the workflow says so LOUDLY and skips
-      # publishing after the battery — never a partial publish, never a
-      # red run that merely means "not configured". npm-side trust is not
-      # probeable from the repo: if the Trusted Publisher is not yet
-      # configured, npm publish itself fails with the registry's own
-      # explicit untrusted-publisher error.
-      - name: Publishing preflight
-        env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-        run: |
-          if [ -z "$HEX_API_KEY" ]; then
-            echo "::warning::CI publish not configured: HEX_API_KEY missing."
-            echo "publishing: SKIPPED (secret absent) — the battery below still runs"
-            echo "PUBLISH_ENABLED=false" >> "$GITHUB_ENV"
-          else
-            echo "PUBLISH_ENABLED=true" >> "$GITHUB_ENV"
-          fi
-
       - name: Install dependencies and build the kit
         run: |
           mix deps.get
@@ -88,40 +69,56 @@ jobs:
       - name: Run the complete quality battery on the tagged tree
         run: mix quality
 
-      # Trusted publishing: no NODE_AUTH_TOKEN — npm exchanges this run's
-      # GitHub OIDC identity (id-token: write above) for a short-lived
-      # publish token; provenance is generated automatically.
       - name: Publish the npm kit (trusted publishing, provenance)
-        if: env.PUBLISH_ENABLED == 'true'
-        run: npm publish --access public --provenance
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+            echo "npm: ${NPM_PACKAGE}@${VERSION} already published — skipping (idempotent re-run or local bootstrap)"
+          else
+            npm publish --access public --provenance
+          fi
 
       - name: Publish the Hex package and docs
-        if: env.PUBLISH_ENABLED == 'true'
+        if: always()
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-        run: yes | mix hex.publish
+        run: |
+          if [ -z "$HEX_API_KEY" ]; then
+            echo "::warning::Hex publish skipped: HEX_API_KEY absent"
+            exit 0
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          if curl -s "https://hex.pm/api/packages/agent_blueprint_protocol/releases" | grep -q "\"${VERSION}\""; then
+            echo "hex: ${VERSION} already published — skipping (idempotent re-run or local bootstrap)"
+          else
+            yes | mix hex.publish
+          fi
 
       - name: Attach the verifier kit to the GitHub release
-        if: env.PUBLISH_ENABLED == 'true'
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           export MIX_ENV=test
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists — leaving it as-is (idempotent)"
+            exit 0
+          fi
           mix release.asset --write
           VERSION="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" "verifier-${VERSION}.tar.gz" \
-            --title "${GITHUB_REF_NAME#v} — installable verifier" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "${VERSION} — installable verifier" \
             --generate-notes
 
       - name: Post-publish verification (registry install vs the tag)
-        if: always() && env.PUBLISH_ENABLED == 'true'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir /tmp/postpublish
           cd /tmp/postpublish
           npm init -y > /dev/null
-          npm install --no-audit --no-fund "@rjpalermo/agent-blueprint-protocol@${VERSION}"
-          npx agent-blueprint-protocol > /tmp/kit-report.json
+          npm install --no-audit --no-fund "${NPM_PACKAGE}@${VERSION}"
+          npx verifier > /tmp/kit-report.json
           cd "$GITHUB_WORKSPACE"
           mix escript.build
           ./agent_blueprint_protocol_conformance --corpus priv/conformance > /tmp/escript-report.json

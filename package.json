@@ -1,7 +1,7 @@
 {
-  "name": "@rjpalermo/agent-blueprint-protocol",
-  "version": "0.6.0",
-  "description": "Installable verifier for the Agent Blueprint Protocol: canonical-bytes, digest, signature, bounds, and conformance-corpus verification. Non-authorizing — evidence, never a decision.",
+  "name": "@agent-blueprint-protocol/verifier",
+  "version": "0.7.0",
+  "description": "Installable verifier for the Agent Blueprint Protocol: canonical-bytes, digest, signature, bounds, and conformance-corpus verification. Non-authorizing \u2014 evidence, never a decision.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -12,7 +12,8 @@
     "node": ">=24"
   },
   "bin": {
-    "agent-blueprint-protocol": "dist/kit/cli.mjs"
+    "agent-blueprint-protocol": "dist/kit/cli.mjs",
+    "verifier": "dist/kit/cli.mjs"
   },
   "files": [
     "dist",

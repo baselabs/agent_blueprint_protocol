@@ -4,7 +4,8 @@
 
 | Version | Supported |
 | --- | --- |
-| 0.6.x | yes |
+| 0.7.x | yes |
+| 0.6.x | no — upgrade to the current line |
 | 0.5.x | no — upgrade to the current line |
 | 0.4.x | no — upgrade to the current line |
 | 0.3.x | no — upgrade to the current line |

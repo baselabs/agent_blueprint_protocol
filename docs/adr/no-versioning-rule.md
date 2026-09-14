@@ -59,8 +59,10 @@ numbers remain banned (slug-only ADR filenames).
 
 ## Amendment — the npm distribution axis (2026-09-13)
 
-The npm kit `@rjpalermo/agent-blueprint-protocol` (the verifier's
-compiled distribution) carries its own package semver. That is a FIFTH
+The npm kit (the verifier's compiled distribution — published as
+`@agent-blueprint-protocol/verifier`, portfolio-naming consistency;
+born under the maintainer's personal scope and deprecated forward with
+the rename) carries its own package semver. That is a FIFTH
 permitted version axis under one binding: the kit version MUST equal
 the Hex package version at every release (a single release line, two
 registries). Enforced mechanically by the version-sync gate in the
