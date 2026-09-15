@@ -49,3 +49,4 @@ verifier-*.tar.gz
 node_modules/
 dist/
 package-lock.json
+/.forge/
