@@ -26,10 +26,11 @@ by their own module suites; per-case red proofs are not owed for them.
 The alias as shipped (read live from `mix.exs`; the release-candidate
 check re-derives this list, so a step added without a map entry reds):
 
-`hex.audit → deps.unlock --check-unused → deps.audit →
+`hex.audit → deps.unlock --check-unused → deps.audit → deps.currency →
 format --check-formatted → compile --warnings-as-errors → credo --strict →
 test --cover --seed 42 → conformance.verify → conformance.mutations →
-verifier.agreement → dialyzer → docs --warnings-as-errors →
+kit.build → verifier.agreement → dialyzer → docs --warnings-as-errors →
+spec.extraction → grammar.derivation → registry.equality → release.asset →
 release.candidate`
 
 > Reconciliation of record: the design spec listed the alias as gaining
@@ -79,6 +80,20 @@ Version: 3.0.3
 URL: https://github.com/advisories/GHSA-j3gg-r6gp-95q2
 Title: XSS in HEEx class attributes
 Severity: moderate
+EXIT=1
+```
+
+### alias: deps.currency
+
+Proves: every dependency resolves at its latest release — resolvable
+drift is a build failure, and a currency state that cannot be verified
+(a registry lookup failed over to the local cache, or no result table
+rendered) never passes.
+
+```red
+$ # plant: mix.lock dialyxir entry reverted to an older release, mix deps.get
+$ mix deps.currency
+deps currency: violation: dependency currency drift (resolvable — run mix deps.update): dialyxir
 EXIT=1
 ```
 

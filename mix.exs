@@ -222,6 +222,9 @@ defmodule AgentBlueprintProtocol.MixProject do
   defp aliases do
     [
       audit: ["hex.audit", "deps.unlock --check-unused", "deps.audit"],
+      "deps.currency": [
+        "run --no-start scripts/check_deps_currency.exs"
+      ],
       "conformance.verify": [
         "escript.build",
         "cmd ./agent_blueprint_protocol_conformance --corpus priv/conformance"
@@ -255,6 +258,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "hex.audit",
         "deps.unlock --check-unused",
         "deps.audit",
+        "deps.currency",
         "format --check-formatted",
         "compile --warnings-as-errors",
         "credo --strict",
