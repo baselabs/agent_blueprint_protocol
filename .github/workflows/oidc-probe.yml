@@ -1,0 +1,20 @@
+name: OIDC probe
+
+# Temporary diagnostic (read-only): reports what the job token actually
+# carries when a workflow requests id-token: write. Removed after use.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report granted permissions and OIDC request env presence
+        run: |
+          echo "id-token request url present: $([ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] && echo yes || echo no)"
+          echo "id-token request token present: $([ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] && echo yes || echo no)"
