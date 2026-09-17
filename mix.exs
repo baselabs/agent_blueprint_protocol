@@ -8,7 +8,13 @@ defmodule AgentBlueprintProtocol.MixProject do
     [
       app: :agent_blueprint_protocol,
       version: @version,
-      elixir: "~> 1.20",
+      # The Elixir requirement is a supported RANGE, not a pin: it admits the
+      # supported line (1.19 and 1.20 today), and Mix refuses anything outside
+      # the range at compile. Lockstep rule: this range, the supported-OTP
+      # set in config/config.exs, .tool-versions, and the CI Elixir/OTP
+      # lanes move together in one commit — a lane outside the set, or a
+      # supported OTP major with no lane, is a defect.
+      elixir: "~> 1.19",
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
       escript: escript(),

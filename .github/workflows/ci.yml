@@ -65,10 +65,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-filter-repo
 
+      # The dev pin (mirrors .tool-versions).
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.2"
+          elixir-version: "1.20.3"
           otp-version: "29.0.3"
 
       # The submission-time extraction, tested: the two governed paths are
@@ -84,23 +85,38 @@ jobs:
         run: elixir scripts/check_spec_extraction.exs --tree /tmp/spec-extraction-clone
 
   compatibility:
-    name: Previous supported toolchain (tests + corpus)
+    name: Supported toolchain — ${{ matrix.lane }}
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The enforced support matrix (docs/adr/supported-otp-set.md):
+          # Elixir 1.19 on OTP 28, and Elixir 1.20 on every supported OTP
+          # major. OTP 29 is exercised by the quality job on the dev pin;
+          # every supported major has a lane, and no lane sits outside
+          # config/config.exs's supported set. Tests and the conformance
+          # corpus only; the full quality battery stays on the dev pin.
+          - lane: "Elixir 1.19 / OTP 28"
+            elixir: "1.19.6-otp-28"
+            otp: "28.5"
+          - lane: "Elixir 1.20 / OTP 28"
+            elixir: "1.20.4-otp-28"
+            otp: "28.5"
+          - lane: "Elixir 1.20 / OTP 27"
+            elixir: "1.20.4-otp-27"
+            otp: "27.3.4.17"
     steps:
-      - name: Check out source
+      - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      # The previous Elixir/OTP pair inside the supported "~> 1.20" line:
-      # broadened-target receipt (the README claims only what CI has run).
-      # Tests and the conformance corpus only; the full quality battery
-      # stays on the primary pin.
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.1"
-          otp-version: "29.0.2"
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
 
       - name: Install dependencies
         run: mix deps.get
@@ -125,10 +141,11 @@ jobs:
           node-version: "24.19.0"
           package-manager-cache: false
 
+      # The dev pin (mirrors .tool-versions): Elixir 1.20.x on OTP 29.x.
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.2"
+          elixir-version: "1.20.3"
           otp-version: "29.0.3"
 
       - name: Install dependencies
