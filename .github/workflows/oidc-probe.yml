@@ -16,8 +16,19 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Decode the npm-audience OIDC token claims
+        env:
+          ID_URL: ${{ format('{0}&audience=npm', env.ACTIONS_ID_TOKEN_REQUEST_URL) }}
         run: |
-          url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm"
-          token="$(curl -sLS -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')"
-          payload="$(printf '%s' "$token" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null)"
-          printf '%s' "$payload" | python3 -m json.tool
+          set -x
+          echo "url host: $(printf '%s' "$ID_URL" | cut -d/ -f3)"
+          resp="$(curl -sS --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$ID_URL")"
+          printf '%s' "$resp" | head -c 120; echo
+          printf '%s' "$resp" | python3 -c '
+          import json, sys, base64
+          token = json.load(sys.stdin)["value"]
+          payload = token.split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+          for key in sorted(claims):
+              print(f"{key}: {claims[key]}")
+          '
