@@ -1,10 +1,10 @@
 name: OIDC probe
 
 # Temporary diagnostic (read-only): attempts an npm publish from THIS
-# workflow so npm's debug log reveals the registry's actual OIDC exchange
-# response. It cannot succeed — the trusted-publisher registration names
-# publish.yml, not this file — which is exactly the controlled mismatch
-# being measured. Removed after use.
+# workflow so npm's verbose trace reveals the registry's actual OIDC
+# exchange response. It cannot succeed — the trusted-publisher
+# registration names publish.yml, not this file — which is exactly the
+# controlled mismatch being measured. Removed after use.
 
 on:
   workflow_dispatch:
@@ -29,10 +29,6 @@ jobs:
       - name: Attempt publish and print the registry's exchange response
         run: |
           npm install --no-audit --no-fund --loglevel=error
-          npm publish --access public --provenance --loglevel=silly > /tmp/publish.log 2>&1
-          status=$?
-          echo "publish exit: $status (failure expected — this file is not the registered publisher)"
-          echo "::group::registry exchange lines from the debug log"
-          grep -iE "oidc|trusted|publisher|webauthn|auth|401|403" "$HOME"/.npm/_logs/*debug-0.log | tail -30 || true
-          echo "::endgroup::"
-          exit 0
+          npm publish --access public --provenance --loglevel=silly > /tmp/publish.log 2>&1 || true
+          echo "publish failed as designed; registry exchange lines follow:"
+          grep -iE "oidc|trusted|publisher|webauthn|token|auth|401|403|exchange" /tmp/publish.log "$HOME"/.npm/_logs/*debug-0.log 2>/dev/null | grep -v "Authorization" | tail -40
