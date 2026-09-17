@@ -37,8 +37,14 @@ permissions:
 
 jobs:
   publish:
-    name: Battery, then publish (npm + Hex + release)
+    name: Battery, then publish (npm stage + Hex + release)
     runs-on: ubuntu-24.04
+    # Matches the npmjs.com trusted-publisher entry for the kit: the entry
+    # requires the "GH TP for ABP" GitHub environment and permits STAGING
+    # only. CI stages the version with npm's staged publishing; a
+    # maintainer approves it (2FA) on npmjs.com before it goes live —
+    # by design, the OIDC identity can stage but never approve.
+    environment: GH TP for ABP
     env:
       ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
       NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
@@ -75,7 +81,7 @@ jobs:
           if npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
             echo "npm: ${NPM_PACKAGE}@${VERSION} already published — skipping (idempotent re-run or local bootstrap)"
           else
-            npm publish --access public --provenance
+            npm publish --access public --provenance --staged
           fi
 
       - name: Publish the Hex package and docs
@@ -117,6 +123,13 @@ jobs:
       - name: Post-publish verification (registry install vs the tag)
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          if ! npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+            echo "[staged-publish] ${NPM_PACKAGE}@${VERSION} is STAGED and not yet live."
+            echo "A maintainer approves it (2FA) under the package's Staged Packages"
+            echo "settings on npmjs.com; the install-vs-tag byte verification runs"
+            echo "after approval. This is the designed flow — nothing verified here yet."
+            exit 0
+          fi
           mkdir /tmp/postpublish
           cd /tmp/postpublish
           npm init -y > /dev/null
