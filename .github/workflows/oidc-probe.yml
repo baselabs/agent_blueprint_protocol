@@ -16,13 +16,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Decode the npm-audience OIDC token claims
-        env:
-          ID_URL: ${{ format('{0}&audience=npm', env.ACTIONS_ID_TOKEN_REQUEST_URL) }}
         run: |
           set -x
-          echo "url host: $(printf '%s' "$ID_URL" | cut -d/ -f3)"
-          resp="$(curl -sS --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$ID_URL")"
-          printf '%s' "$resp" | head -c 120; echo
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          resp="$(curl -sS --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm")"
           printf '%s' "$resp" | python3 -c '
           import json, sys, base64
           token = json.load(sys.stdin)["value"]
