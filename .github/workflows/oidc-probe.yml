@@ -1,7 +1,8 @@
 name: OIDC probe
 
-# Temporary diagnostic (read-only): reports what the job token actually
-# carries when a workflow requests id-token: write. Removed after use.
+# Temporary diagnostic (read-only): decodes the OIDC token claims the job
+# can mint for the npm audience, so they can be compared field-by-field
+# against the npmjs.com trusted-publisher registration. Removed after use.
 
 on:
   workflow_dispatch:
@@ -14,7 +15,9 @@ jobs:
   probe:
     runs-on: ubuntu-24.04
     steps:
-      - name: Report granted permissions and OIDC request env presence
+      - name: Decode the npm-audience OIDC token claims
         run: |
-          echo "id-token request url present: $([ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] && echo yes || echo no)"
-          echo "id-token request token present: $([ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] && echo yes || echo no)"
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm"
+          token="$(curl -sLS -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')"
+          payload="$(printf '%s' "$token" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null)"
+          printf '%s' "$payload" | python3 -m json.tool
