@@ -75,13 +75,18 @@ jobs:
       - name: Run the complete quality battery on the tagged tree
         run: mix quality
 
-      - name: Publish the npm kit (trusted publishing, provenance)
+      - name: Publish the npm kit (staged trusted publishing, provenance)
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           if npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
             echo "npm: ${NPM_PACKAGE}@${VERSION} already published — skipping (idempotent re-run or local bootstrap)"
           else
-            npm publish --access public --provenance --staged
+            # npm stage publish ships with npm 11.19; the Node-bundled npm
+            # is older and knows no staging, which turns every attempt into
+            # a forbidden direct publish (403, action not permitted).
+            npm install -g npm@11.19.1 >/dev/null
+            npm --version
+            npm stage publish --access public --provenance
           fi
 
       - name: Publish the Hex package and docs
