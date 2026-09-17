@@ -88,7 +88,10 @@ jobs:
             exit 0
           fi
           VERSION="${GITHUB_REF_NAME#v}"
-          if curl -s "https://hex.pm/api/packages/agent_blueprint_protocol/releases" | grep -q "\"${VERSION}\""; then
+          # The releases LIST lives on the package object (the /releases
+          # suffix 404s with an HTML page, which grep never matches — the
+          # old guard only ever passed by luck when nothing was published).
+          if curl -sf "https://hex.pm/api/packages/agent_blueprint_protocol" | grep -q "\"version\":\"${VERSION}\""; then
             echo "hex: ${VERSION} already published — skipping (idempotent re-run or local bootstrap)"
           else
             yes | mix hex.publish
