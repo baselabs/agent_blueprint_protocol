@@ -2,6 +2,50 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.7.1] — 2026-09-16
+
+### Changed — the toolchain enforces itself (hygiene release)
+
+- The declared Elixir requirement is a supported range (`~> 1.19`: the
+  1.19 and 1.20 lines are admitted, and Mix refuses anything outside
+  the range at compile), and `config/config.exs` refuses any Erlang/OTP
+  major outside the supported set (27/28/29) before anything compiles.
+  The set was probed from the official precompiled build lists, not
+  assumed; the decision record ships as
+  `docs/adr/supported-otp-set.md`. The assert governs development and
+  CI only — the Hex archive does not ship `config/`, so package
+  consumers see no new requirement.
+- CI exercises every lane of the supported matrix: Elixir 1.19 on
+  OTP 28, and Elixir 1.20 on OTP 27, 28, and 29 (the dev pin, mirrored
+  in the new `.tool-versions`). The four toolchain declarations — the
+  Elixir range, the supported-OTP set, the dev pin, and the CI lanes —
+  move together in one commit.
+- A dependency-currency gate (`mix deps.currency`; decision record at
+  `docs/adr/dependency-currency-gate.md`) reds the battery on any
+  resolvable drift and never passes an unverified registry state.
+  dialyxir rides at its latest resolvable release.
+- Clones are byte-identical on every platform: `.gitattributes`
+  disables line-ending conversion regardless of a machine's autocrlf
+  settings (Git for Windows defaults to rewriting LF to CRLF, which
+  would shift the byte-frozen digests). The repository tree was probed
+  for Windows checkout obstacles (reserved device names, forbidden
+  characters, case collisions, symlinks, path length): none found.
+- Development documentation re-trued to the enforced-range story
+  (README, CONTRIBUTING, quickstart). No Livebooks ship in this
+  repository (probed — no notebook files and no `Mix.install`
+  anywhere), so no notebook cells were in scope. The npm kit version
+  moves with the Hex line under the version-sync gate; no kit behavior
+  changed.
+
+For consumers nothing reachable changed: the library surface, the
+conformance corpus, the registry, and the specification are
+byte-identical to 0.7.0, and the Elixir floor widened (1.20 to 1.19),
+never narrowed. The test suite is 917 tests (59 properties) at 100%
+coverage. Corpus: 96 cases, digest
+`sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
+digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
+
 ## [0.7.0] — 2026-09-14
 
 ### Changed — the npm kit moves to `@agent-blueprint-protocol/verifier`
