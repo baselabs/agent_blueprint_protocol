@@ -655,6 +655,10 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   @reprove_copy_paths [
     ".formatter.exs",
     ".test_census",
+    # The scratch must resolve its own toolchain the way the repo does
+    # (asdf shims read .tool-versions from the working directory up);
+    # without it, node resolves only via whatever else sits on PATH.
+    ".tool-versions",
     "README.md",
     "CHANGELOG.md",
     "CODE_OF_CONDUCT.md",

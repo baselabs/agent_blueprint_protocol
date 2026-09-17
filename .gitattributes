@@ -1,0 +1,6 @@
+# Byte-exact clones on every platform: no line-ending conversion anywhere,
+# regardless of a machine's core.autocrlf/core.eol settings. Git for Windows
+# defaults autocrlf=true, which would rewrite the repository's LF text files
+# to CRLF in the working tree and shift every byte-frozen digest (release
+# identity, corpus, kit equality). `-text` disables conversion for all paths.
+* -text
