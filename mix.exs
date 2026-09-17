@@ -79,6 +79,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/federation-mapping.md",
         "docs/ard-mapping.md",
         "docs/adr/compiled-registry.md",
+        "docs/adr/dependency-currency-gate.md",
         "docs/adr/deny-default-clamps.md",
         "docs/adr/detached-jws-envelope.md",
         "docs/adr/federation-lanes.md",
@@ -86,6 +87,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/non-authorizing-boundary.md",
         "docs/adr/producer-surface.md",
         "docs/adr/product-extension-registration.md",
+        "docs/adr/supported-otp-set.md",
         "docs/adr/two-consumer-amendment.md",
         "spec/protocol.md",
         "spec/README.md",
@@ -160,6 +162,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         ],
         "Design records": [
           "docs/adr/compiled-registry.md",
+          "docs/adr/dependency-currency-gate.md",
           "docs/adr/deny-default-clamps.md",
           "docs/adr/detached-jws-envelope.md",
           "docs/adr/federation-lanes.md",
@@ -167,6 +170,7 @@ defmodule AgentBlueprintProtocol.MixProject do
           "docs/adr/non-authorizing-boundary.md",
           "docs/adr/producer-surface.md",
           "docs/adr/product-extension-registration.md",
+          "docs/adr/supported-otp-set.md",
           "docs/adr/two-consumer-amendment.md"
         ],
         Governance: [
@@ -203,6 +207,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/federation-mapping.md",
         "docs/ard-mapping.md",
         "docs/adr/compiled-registry.md",
+        "docs/adr/dependency-currency-gate.md",
         "docs/adr/deny-default-clamps.md",
         "docs/adr/detached-jws-envelope.md",
         "docs/adr/federation-lanes.md",
@@ -210,6 +215,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/non-authorizing-boundary.md",
         "docs/adr/producer-surface.md",
         "docs/adr/product-extension-registration.md",
+        "docs/adr/supported-otp-set.md",
         "docs/adr/two-consumer-amendment.md",
         "LICENSE",
         "NOTICE",

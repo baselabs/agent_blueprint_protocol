@@ -128,9 +128,16 @@ lands with a red-capable test.
 
 ## Development
 
-Built and tested against Elixir 1.20.x on OTP 29.x — the single Elixir/OTP
-target exercised in CI. Broader target support is not claimed until its own
-CI receipts exist.
+The toolchain enforces itself: the declared Elixir range in `mix.exs`
+(`~> 1.19` — Mix refuses anything outside it at compile) and the
+supported-OTP set in `config/config.exs` (27/28/29 — the build refuses
+any other OTP major before anything compiles; see the
+[supported-OTP-set decision record](docs/adr/supported-otp-set.md)). CI
+exercises every lane of that matrix: Elixir 1.19 on OTP 28, and Elixir
+1.20 on OTP 27, 28, and 29 (the dev pin, mirrored in `.tool-versions`);
+the full battery runs on the dev lane and tests plus the conformance
+corpus on every lane. The four declarations — Elixir range, supported-OTP
+set, dev pin, and CI lanes — move together in one commit.
 
 ```bash
 mix deps.get

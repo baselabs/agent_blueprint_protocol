@@ -14,19 +14,25 @@ mix deps.get
 mix quality
 ```
 
-`mix quality` runs, in order: dependency audits, formatting,
-warnings-as-errors compilation, strict Credo, the test suite with the
-100% coverage threshold, the conformance corpus and its mutation gate,
-the second-language verifier agreement gate (Node >= 24 required),
-Dialyzer, docs with warnings-as-errors, the specification-extraction
-check, the grammar-derivation gate, the registry-equality gate, and
-the release-candidate check (requirement-map completeness, the
+`mix quality` runs, in order: dependency audits (retirement, security
+advisories, and latest-release currency), formatting, warnings-as-errors
+compilation, strict Credo, the test suite with the 100% coverage
+threshold, the conformance corpus and its mutation gate, the
+second-language verifier agreement gate (Node >= 24 required), Dialyzer,
+docs with warnings-as-errors, the specification-extraction check, the
+grammar-derivation gate, the registry-equality gate, and the
+release-candidate check (requirement-map completeness, the
 specification's coupling to the implementation, the release identity
 chain, and the reprove pass that replants every recorded red).
 
-Prerequisites: Elixir 1.20.x on OTP 29.x and Node >= 24 (the verifier
-agreement step invokes the TypeScript verifier). One test — the
-public-surface privacy history scan — reads a local HMAC key
+Prerequisites: Elixir on the enforced `~> 1.19` range (1.19 or 1.20) on
+a supported OTP major — 27, 28, or 29, refused before anything compiles
+by `config/config.exs` (see `docs/adr/supported-otp-set.md`) — and
+Node >= 24 (the verifier agreement step invokes the TypeScript
+verifier). The dev toolchain pin lives in `.tool-versions`; the four
+toolchain declarations (Elixir range, supported-OTP set, dev pin, CI
+lanes) move together in one commit. One test — the public-surface
+privacy history scan — reads a local HMAC key
 (`ABP_PUBLIC_PRIVACY_HMAC_KEY`) that maintainers provision; CI holds it
 as a secret. On fork pull requests, where GitHub passes no secrets, that
 test skips loudly (a `[privacy-scan] SKIPPED` banner names exactly what
