@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABP — the Agent Blueprint Protocol</title>
+<meta name="description" content="A portable, non-authorizing contract for what an agent is and what it may do: signed Blueprint Cores and Deployment Manifests, bounds that only narrow, typed facts — never authorization decisions. Elixir reference + npm verifier kit.">
+<link rel="stylesheet" href="./styles.css?v=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%230f172a'/%3E%3Ctext x='24' y='32' font-family='Arial,sans-serif' font-size='19' font-weight='800' text-anchor='middle' fill='%23fbbf24'%3E[ABP]%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-doc"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h5"/><path d="M10 16h5"/></g>
+    <g id="i-lock"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/></g>
+    <g id="i-check"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></g>
+    <g id="i-x"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6"/><path d="M15 9l-6 6"/></g>
+    <g id="i-terminal"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M7.5 10l2.6 2-2.6 2"/><path d="M12.5 14h4"/></g>
+    <g id="i-seal"><path d="M6 21h12"/><path d="M8 21v-2c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2"/><path d="M12 3a3.2 3.2 0 0 1 3.2 3.2c0 2.2-3.2 3.3-3.2 5.8 0-2.5-3.2-3.6-3.2-5.8A3.2 3.2 0 0 1 12 3z"/></g>
+    <g id="i-person"><circle cx="12" cy="8" r="3.3"/><path d="M5.2 20.5a6.8 6.8 0 0 1 13.6 0"/></g>
+    <g id="i-shield"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M8.8 12l2.2 2.2 4.2-4.2"/></g>
+    <g id="i-wire"><path d="M4 12c2.5-4.5 5.5-4.5 8 0s5.5 4.5 8 0"/></g>
+  </defs>
+</svg>
+
+<header class="familynav">
+  <nav>
+    <span class="brand"><span class="wordmark"><i>[</i>ABP<i>]</i></span></span>
+    <span class="fam">
+      <a href="https://baselabs.github.io/charter_agreement_protocol/" title="The Charter Agreement Protocol — agreements as evidence">CAP</a>
+      <a href="https://baselabs.github.io/bounded_authority_protocol/" title="The Bounded Authority Protocol — per-request capability">BAP</a>
+      <a href="#" class="here" title="You are here">ABP</a>
+    </span>
+    <a class="gh" href="https://github.com/baselabs/agent_blueprint_protocol">GitHub&nbsp;↗</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <p class="kicker"><span class="wordmark hero-mark"><i>[</i>ABP<i>]</i></span> Agent Blueprint Protocol</p>
+    <h1>Your agent ships as a prompt.<br>Ship it as a <em>contract</em>.</h1>
+    <p class="lede">“What IS this agent, and what may it do?” deserves better than a README and your
+    trust. ABP is a portable, non-authorizing contract for describing an agent capability and
+    binding one immutable release to an execution environment: a signed <strong>Blueprint
+    Core</strong> (identity, ports, bounds, evidence commitments), a <strong>Deployment
+    Manifest</strong> pinned to one release digest, and typed verification that returns
+    <strong>facts or denials — never an authorization decision</strong>. A blueprint rides in A2A
+    task metadata and MCP <code style="background:none;border:none;color:#cbd5e1">_meta</code>, beside the transport you already run.</p>
+    <div class="hero-actions">
+      <a class="btn primary" href="#try"><svg class="ic"><use href="#i-terminal"/></svg> Try the verifier — one command</a>
+      <a class="btn ghost" href="#artifacts">The two artifacts</a>
+    </div>
+    <div class="flow" aria-label="The agent stack">
+      <div class="actor issuer"><svg class="ic"><use href="#i-doc"/></svg><span>Blueprint</span><small>what the agent is</small></div>
+      <div class="artifact"><svg class="ic"><use href="#i-wire"/></svg><span>release digest</span></div>
+      <div class="actor holder"><svg class="ic"><use href="#i-seal"/></svg><span>Deployment</span><small>one environment</small></div>
+      <div class="artifact"><svg class="ic"><use href="#i-shield"/></svg><span>reconcile</span></div>
+      <div class="actor verifier"><svg class="ic"><use href="#i-person"/></svg><span>Host</span><small>decides — always</small></div>
+    </div>
+    <ul class="badges">
+      <li>hex 0.7.1 · zero deps</li><li>npm verifier kit · Node 24+</li><li>917 tests · 96-case corpus</li><li>two-language byte agreement</li>
+    </ul>
+  </div>
+</section>
+
+<main>
+<section id="artifacts" class="wrap">
+  <div class="sec-head"><h2>The two artifacts</h2>
+  <p>Language-neutral, byte-canonical, independently verifiable — bytes you can hand to anyone.</p></div>
+  <table class="signers">
+    <thead><tr><th>Artifact</th><th>Carries</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Blueprint Core</strong></td><td>stable identity, typed ports, logical capability requirements, <strong>bounds that can only narrow</strong>, evidence commitments, registered extensions</td></tr>
+      <tr><td><strong>Deployment Manifest</strong></td><td>environment-local tool, principal, data, authority, effect, evaluation, and exact-build bindings — pinned to <strong>one Blueprint release digest</strong></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="proves" class="wrap">
+  <div class="why-head">
+    <h2>What it proves — and refuses to</h2>
+    <p>The refusal is the product: protocol validity <strong>never grants authority</strong>.</p>
+  </div>
+  <div class="pn-grid">
+    <article class="pn-card does">
+      <h3><svg class="ic"><use href="#i-check"/></svg> Use ABP when</h3>
+      <ul>
+        <li>you need a portable, verifiable contract for what an agent is and what it may do</li>
+        <li>bounds must only narrow — pointwise intersections of blueprint, deployment, and host policy, with evidence</li>
+        <li>evidence commitments must survive independent verification</li>
+        <li>a conformance corpus must prove the whole surface, not just the happy path</li>
+      </ul>
+    </article>
+    <article class="pn-card doesnt">
+      <h3><svg class="ic"><use href="#i-x"/></svg> It never grants</h3>
+      <ul>
+        <li>identity, tenancy, or live policy</li>
+        <li>effect ownership or execution</li>
+        <li>billing, or evaluation truth</li>
+        <li>any authorization decision at all — if you need permissions granted, you need a policy engine; a blueprint carries its requirements to one</li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<section id="why" class="wrap why">
+  <div class="why-head">
+    <h2>The discipline</h2>
+  </div>
+  <div class="grid3">
+    <article class="whycard">
+      <h3>Facts or denials. Never decisions.</h3>
+      <p class="pain">“Verified” tooling that whispers “authorized — go” has quietly made your
+      call for you.</p>
+      <p class="answer"><svg class="ic"><use href="#i-check"/></svg> Every result is a <strong>typed fact or a typed denial</strong>. The consuming host
+      decides — identity, policy, effects — always.</p>
+    </article>
+    <article class="whycard">
+      <h3>Bounds only narrow.</h3>
+      <p class="pain">Capability contracts that widen on compose are marketing, not bounds.</p>
+      <p class="answer"><svg class="ic"><use href="#i-check"/></svg> The bounds algebra intersects blueprint, deployment, and host policy to the
+      <strong>pointwise narrowest</strong> — protected narrowings deny or clamp-with-evidence,
+      <strong>never silently</strong>.</p>
+    </article>
+    <article class="whycard">
+      <h3>Reject or annotate. Never repair.</h3>
+      <p class="pain">Import pipelines that “fix up” artifacts on the way in forge evidence.</p>
+      <p class="answer"><svg class="ic"><use href="#i-check"/></svg> One <strong>eight-stage reconcile</strong> — canonical bytes, digest, negotiation,
+      structure, portability, signatures, bind, bounds — under host-supplied inputs, with a
+      <strong>96-case corpus and a mutation gate</strong> proving it catches named breaks.</p>
+    </article>
+  </div>
+</section>
+
+<section id="try" class="wrap">
+  <div class="sec-head"><h2>Try it</h2>
+  <p>The verifier ships as an npm kit with the conformance corpus embedded byte-identically to
+  the release-certified copy — zero runtime dependencies.</p></div>
+  <div class="tryit">
+    <pre class="code">npx @agent-blueprint-protocol/verifier
+# verify the embedded 96-case corpus</pre>
+    <pre class="code">npx @agent-blueprint-protocol/verifier \
+    --artifact blueprint.json
+# verify one artifact</pre>
+  </div>
+  <div class="install-row">
+    <pre class="code slim">mix deps.get   # {:agent_blueprint_protocol, "~> 0.7.1"} — zero production deps, no app callback</pre>
+  </div>
+</section>
+
+<section id="family" class="wrap">
+  <div class="why-head">
+    <h2>The family stack</h2>
+    <p>Three protocols, one story: what the agent is (ABP), what was agreed (CAP), what a single
+    request may do (BAP) — CAP charter revisions bind ABP blueprint releases by digest.</p>
+  </div>
+  <div class="fammap">
+    <article class="famcard here">
+      <h3><svg class="ic"><use href="#i-doc"/></svg> Agent Blueprint <small>· this repository</small></h3>
+      <p>The portable agent contract: Blueprint Core + Deployment Manifest, the bounds algebra,
+      the federation envelope, and the corpus.</p>
+      <div class="links"><a href="https://github.com/baselabs/agent_blueprint_protocol">repository</a><a href="https://hex.pm/packages/agent_blueprint_protocol">hex.pm</a><a href="https://github.com/baselabs/agent_blueprint_protocol/blob/main/documentation/getting-started.md">getting started</a></div>
+    </article>
+    <article class="famcard">
+      <h3><svg class="ic"><use href="#i-seal"/></svg> Charter Agreement <small>· CAP</small></h3>
+      <p>Agreements as byte-exact evidence — and every CAP revision carries
+      <code>abp_bindings</code>: the blueprint release digests the terms govern.</p>
+      <div class="links"><a href="https://baselabs.github.io/charter_agreement_protocol/">the hub</a><a href="https://baselabs.github.io/charter_agreement_signer_typescript/">charter workshop</a></div>
+    </article>
+    <article class="famcard">
+      <h3><svg class="ic"><use href="#i-shield"/></svg> Bounded Authority <small>· BAP</small></h3>
+      <p>Per-request capability: issuer-signed grants, holder proofs, independent verification —
+      the “what may this call do” layer over OAuth.</p>
+      <div class="links"><a href="https://baselabs.github.io/bounded_authority_protocol/">the hub</a><a href="https://baselabs.github.io/bounded_authority_signer_typescript/">envelope playground</a></div>
+    </article>
+    <article class="famcard">
+      <h3><svg class="ic"><use href="#i-terminal"/></svg> The docs library</h3>
+      <p>Getting started, the examples gallery, host integration, federation, evidence
+      commitments, portability, operations, FAQ — and the normative spec ships in the Hex archive.</p>
+      <div class="links"><a href="https://github.com/baselabs/agent_blueprint_protocol/tree/main/documentation">documentation</a><a href="https://github.com/baselabs/agent_blueprint_protocol/blob/main/spec/protocol.md">the spec</a><a href="https://github.com/baselabs/agent_blueprint_protocol/blob/main/documentation/faq.md">FAQ</a></div>
+    </article>
+  </div>
+</section>
+</main>
+
+<footer class="familynav footer">
+  <nav>
+    <span class="brand"><span class="wordmark"><i>[</i>ABP<i>]</i></span></span>
+    <span class="fam">
+      <a href="https://baselabs.github.io/charter_agreement_protocol/">CAP</a>
+      <a href="https://baselabs.github.io/bounded_authority_protocol/">BAP</a>
+      <a href="https://github.com/baselabs/agent_blueprint_protocol">ABP</a>
+    </span>
+    <span class="fine">Apache-2.0 · an open protocol by baselabs</span>
+  </nav>
+</footer>
+</body>
+</html>
