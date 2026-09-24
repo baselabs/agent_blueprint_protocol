@@ -28,12 +28,14 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/detached-jws-envelope.md
     docs/adr/federation-lanes.md
     docs/adr/no-versioning-rule.md
+    docs/adr/release-identity-semantics.md
     docs/adr/non-authorizing-boundary.md
     docs/adr/producer-surface.md
     docs/adr/product-extension-registration.md
     docs/adr/supported-otp-set.md
     docs/adr/two-consumer-amendment.md
     priv/release-metadata.json
+    priv/release-history.json
     spec/protocol.md
     spec/README.md
     spec/LICENSE
@@ -111,6 +113,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     lib
     priv/conformance
     priv/release-metadata.json
+    priv/release-history.json
     docs/federation-mapping.md
     docs/ard-mapping.md
     docs/adr/compiled-registry.md
@@ -119,6 +122,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/detached-jws-envelope.md
     docs/adr/federation-lanes.md
     docs/adr/no-versioning-rule.md
+    docs/adr/release-identity-semantics.md
     docs/adr/non-authorizing-boundary.md
     docs/adr/producer-surface.md
     docs/adr/product-extension-registration.md
@@ -165,6 +169,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     "conformance.verify",
     "conformance.mutations",
     "verifier.agreement",
+    "compatibility.replay",
     "dialyzer",
     "docs --warnings-as-errors",
     "spec.extraction",

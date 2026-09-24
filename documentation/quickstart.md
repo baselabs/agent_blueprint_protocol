@@ -14,7 +14,7 @@ Add the dependency:
 ```elixir
 defp deps do
   [
-    {:agent_blueprint_protocol, "~> 0.7.1"}
+    {:agent_blueprint_protocol, "~> 0.8.0"}
   ]
 end
 ```

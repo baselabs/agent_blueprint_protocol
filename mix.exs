@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "0.7.1"
+  @version "0.8.0"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -76,6 +76,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "lib",
         "priv/conformance",
         "priv/release-metadata.json",
+        "priv/release-history.json",
         "docs/federation-mapping.md",
         "docs/ard-mapping.md",
         "docs/adr/compiled-registry.md",
@@ -84,6 +85,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/detached-jws-envelope.md",
         "docs/adr/federation-lanes.md",
         "docs/adr/no-versioning-rule.md",
+        "docs/adr/release-identity-semantics.md",
         "docs/adr/non-authorizing-boundary.md",
         "docs/adr/producer-surface.md",
         "docs/adr/product-extension-registration.md",
@@ -167,6 +169,7 @@ defmodule AgentBlueprintProtocol.MixProject do
           "docs/adr/detached-jws-envelope.md",
           "docs/adr/federation-lanes.md",
           "docs/adr/no-versioning-rule.md",
+          "docs/adr/release-identity-semantics.md",
           "docs/adr/non-authorizing-boundary.md",
           "docs/adr/producer-surface.md",
           "docs/adr/product-extension-registration.md",
@@ -212,6 +215,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/detached-jws-envelope.md",
         "docs/adr/federation-lanes.md",
         "docs/adr/no-versioning-rule.md",
+        "docs/adr/release-identity-semantics.md",
         "docs/adr/non-authorizing-boundary.md",
         "docs/adr/producer-surface.md",
         "docs/adr/product-extension-registration.md",
@@ -240,6 +244,9 @@ defmodule AgentBlueprintProtocol.MixProject do
       ],
       "verifier.agreement": [
         "run --no-start scripts/check_verifier_agreement.exs"
+      ],
+      "compatibility.replay": [
+        "run --no-start scripts/check_compatibility_replay.exs"
       ],
       "kit.build": [
         "cmd npm install --no-audit --no-fund --loglevel=error",
@@ -273,6 +280,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "conformance.mutations",
         "kit.build",
         "verifier.agreement",
+        "compatibility.replay",
         "dialyzer",
         "docs --warnings-as-errors",
         "spec.extraction",

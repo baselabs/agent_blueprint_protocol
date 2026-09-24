@@ -9,13 +9,18 @@
 // required, no default, no vacuous run); the WRAPPER supplies the
 // embedded corpus as the default so `npx` verifies out of the box.
 
-import { cpSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
 cpSync(join(root, "priv/conformance"), join(root, "dist/corpus"), { recursive: true });
+
+// The release-identity manifest rides the kit byte-identically (npm
+// consumers hold the same contract as the Hex package); the agreement
+// gate asserts kit-embedded manifest == priv/release-metadata.json.
+copyFileSync(join(root, "priv/release-metadata.json"), join(root, "dist/release-metadata.json"));
 
 mkdirSync(join(root, "dist/kit"), { recursive: true });
 
@@ -36,8 +41,9 @@ const embedded = join(here, "..", "corpus");
 
 const args = process.argv.slice(2);
 const hasCorpus = args.includes("--corpus");
+const hasPriorCorpus = args.includes("--prior-corpus");
 const hasArtifact = args.includes("--artifact");
-if (!hasCorpus && !hasArtifact) {
+if (!hasCorpus && !hasPriorCorpus && !hasArtifact) {
   args.push("--corpus", embedded);
 }
 
@@ -48,4 +54,4 @@ process.exit(result.status ?? 3);
 const binPath = join(root, "dist/kit/cli.mjs");
 writeFileSync(binPath, kitCli, { mode: 0o755 });
 
-console.log("kit: staged dist/corpus (embedded, byte-identical) and dist/kit/cli.mjs");
+console.log("kit: staged dist/corpus, dist/release-metadata.json (embedded, byte-identical), and dist/kit/cli.mjs");

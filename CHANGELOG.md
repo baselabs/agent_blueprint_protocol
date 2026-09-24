@@ -2,6 +2,79 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.8.0] — 2026-09-24
+
+### Added — the release-identity consumer contract
+
+- `priv/release-metadata.json` is now a versioned public contract
+  (`manifest_version: 2`; additive-only within a version). New fields:
+  the manifest version, `verification_semantics_version` (the
+  semantics/census split — unchanged at 1), the `digest_identity` label
+  (RFC 8785 JCS + SHA-256 + domain separation + unpadded base64url —
+  unchanged across every release), `protocol_revisions_supported`, the
+  certified compatibility matrix `prior_census_verdicts` (the prior
+  census `sha-256:sg6Fo7…` is certified `equivalent` by replay), and
+  the verifier-kit identity derived from `package.json`. The npm kit
+  embeds the manifest byte-identically (agreement-gated).
+- `priv/release-history.json`: the append-only retroactive mapping —
+  one row per manifest-era release, every PRIOR release's row verified
+  against derived state (the corpus digest recomputed from the loaded
+  census bytes, the registry digest from the census index, the
+  specification digest recomputed over the tag's tree); the current
+  release's row is asserted against the live manifest and gains its
+  tag verification at the next release. Semantics version 1 spans the
+  whole manifest era through this release: the prior census replays
+  case-perfect (observed under the preceding package on 2026-09-23;
+  this release's gate re-establishes it mechanically on every run), so
+  exact-pinned consumers upgrading between any of these releases keep
+  historical replays green when they bind the semantics identity. The record also shows the specification
+  digest moved at 0.4.0 and 0.4.1 — movement the changelog prose of
+  those releases never stated.
+- `mix compatibility.replay` (quality battery): certifies the
+  compatibility claims and the history from live repository state —
+  every manifest-era census loads through the new prior-census loader
+  mode and replays under the current Runner (each PRIOR census also
+  through the TS verifier, byte-compared; the current census's TS
+  agreement is the verifier.agreement gate's duty); an
+  `equivalent` claim with any disagreement reds, a registry-explained
+  divergence class is gated by the registry diff, an unclaimed census,
+  stale claim, or tampered history row reds, and a tag-less checkout
+  refuses (a named override exists and is never a green claim).
+  Self-proving seeded reds fire every run: four claim flips (including
+  a self-contradictory `not_equivalent` claim), a tampered census file,
+  a tampered history row, and both tag-absent refusal arms. The prior-census loader mode
+  (`Corpus.load_prior_census/1`, mirrored in the TS verifier's
+  `--prior-corpus`) suspends exactly the two current-state couplings —
+  the compiled registry digest and the compiled applicability floor —
+  because a released census was certified against the registry and
+  floor of its release; the ordinary loader's couplings are unchanged
+  and correct for conformance runs.
+- The Evolution clause gains the normative semantics/census law and the
+  immutability policy (released identities are never edited in place;
+  corrections are new releases); the upgrading guide gains the
+  exact-pinned consumer partition — replay identity versus provenance
+  metadata — and the fail-closed enumeration guidance; the decision
+  record `docs/adr/release-identity-semantics.md` ships with the
+  `no-versioning-rule` axis amendment (precedence: the wire revision,
+  the semantics version, and the release identity are independent
+  axes). Answering an inbound consumer request for input
+  (bounded_authority, 2026-09-23) in full.
+- `docs/consumer-evidence.md` (repository-level, deliberately NOT
+  shipped): the unverified third-party consumer-rehearsal lane, its
+  first entry reserved for the bounded_authority rehearsal.
+
+The correction the record now states plainly: the 0.6.0 corpus change
+was not purely additive at the byte level — the golden vectors' fixture
+signature rotated on unchanged covered bytes (`content_digest`
+identical), verdict-neutral and replay-proven, but the 0.6.0 entry's
+"grows 94 → 96" prose under-recorded it.
+
+The test suite is 924 tests (59 properties) at 100% coverage. Corpus:
+96 cases, digest
+`sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
+digest `sha-256:pH_krjjC7Rjgc2eFZ0Zo5rMht6GU0wDmTwIdgEK3gVQ`.
+
 ## [0.7.1] — 2026-09-16
 
 ### Changed — the toolchain enforces itself (hygiene release)

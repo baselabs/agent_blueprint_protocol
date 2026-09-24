@@ -213,7 +213,10 @@ the npm version-sync check (package.json == mix.exs, one-side-bump
 seed), byte-compares the escript and TypeScript verifier reports over
 the repo corpus AND the built Hex archive's corpus, runs the TS
 self-check battery, proves the BUILT KIT agrees with the escript over
-its embedded corpus (byte-equal through the kit bin), sweeps every
+its embedded corpus (byte-equal through the kit bin), asserts the kit's
+EMBEDDED release-identity manifest is byte-identical to
+priv/release-metadata.json (seeded red on a divergent copy; 0.8.0),
+sweeps every
 text-only decode-surface corpus case through the kit's `--artifact`
 mode requiring each case's own verdict (with an inverted-expectation
 seed), then runs three seeded reds — scratch-copy mutations of the
@@ -244,6 +247,54 @@ Red forms: `version drift` on package/version divergence, `report byte
 drift (repo corpus|built archive)`, `kit/escript drift over the
 embedded corpus`, `single-artifact sweep failures`, `single-artifact
 sweep seed did not diverge`, and `seeded red did not diverge`.
+
+### alias: compatibility.replay
+
+Self-proving by construction (`scripts/check_compatibility_replay.exs`):
+every manifest-era release tag's census (deduped by corpus digest) loads
+through the prior-census loader mode — the census's OWN index integrity,
+with the two current-state couplings (compiled registry digest,
+compiled applicability floor) suspended, because a released census was
+certified against the registry and floor of ITS release — and replays
+under the current Runner through BOTH runtimes (the TS side via
+`--prior-corpus`, byte-compared). Claim-vs-evidence runs both checkable
+directions: `equivalent` with any disagreement reds;
+`diverged_by_registry_census` demands registry-diff-explained
+divergences; unclaimed censuses, stale claims, unknown verdict words,
+and history rows that disagree with their tag's actual tree red. The
+current release's row is asserted against the live manifest (its tag
+exists only after release; it gains tag verification at the next
+release). A tag-less checkout refuses loudly (the named
+override is never a green claim). Seven seeded reds fire every run —
+four claim flips (including a self-contradictory `not_equivalent`
+claim), a tampered census file, a tampered history row (asserting the
+SPECIFIC derivation finding, so the append-only prefix arm cannot
+carry the seed alone), and both tag-absent refusal arms; the divergence
+classifier's three outcomes are proven on synthetic inputs (the
+vacuity guard for the arm no real registry divergence exercises yet —
+its first end-to-end proof lands with the first real registry change).
+The ONE direction no gate can prove, stated here: a `not_equivalent`
+claim is authored intent, never inverse-checked (a claim whose census
+records no semantics break anywhere still reds as self-contradictory).
+
+```red
+$ # organic red 2026-09-24 (re-captured after the repair pass): the 0.7.1
+$ # history row's spec_digest tampered; restored after capture.
+$ mix compatibility.replay
+** (RuntimeError) compatibility replay: FAILED
+
+history: 0.7.1 spec_digest records "sha-256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", derived state carries "sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs"
+EXIT=1
+# Green-run tail (separate run, spliced for the vacuity evidence — with
+# the tamper in place the gate raises before the seeds print):
+seeded red fired: unclaimed census
+seeded red fired: diverged claim on a clean census
+seeded red fired: equivalent claim with a disagreement
+seeded red fired: not_equivalent claim with no recorded semantics break
+seeded red fired: tampered census file
+seeded red fired: tampered history row
+seeded red fired: tag-absent refusal (git failure + empty tag set)
+```
 
 ### alias: dialyzer
 
@@ -286,6 +337,19 @@ reprove caught: spec-coverage-undocumented-fn  # are replanted in scratch copies
 reprove caught: map-entry-removal              # EVERY run — a plant that stays
 reprove caught: protocol-doc-dropped-from-package
 reprove survived: <name>   # the raise form — a vacuous plant (calibration-proven)
+```
+
+The release history (priv/release-history.json, 0.8.0) is asserted
+statically here — exact format member, row shape, unique versions, and
+the CURRENT version's row equal to the live manifest (append-only; the
+tag-tree verification of historical rows belongs to
+`compatibility.replay`):
+
+```red
+$ # organic red 2026-09-24: the current row's spec_digest left stale
+$ MIX_ENV=test ABP_RC_REPROVE=off mix run --no-start scripts/check_release_candidate.exs
+release history: spec_digest at 0.8.0 is stale — re-sync the row
+EXIT=1
 ```
 
 The release identity chain (priv/release-metadata.json) is asserted from

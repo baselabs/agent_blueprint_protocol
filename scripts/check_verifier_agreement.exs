@@ -19,18 +19,18 @@
 # raise path is live. Restored; the shipped entry fires.
 
 Code.require_file("release_identity.exs", __DIR__)
+Code.require_file("gate_node.exs", __DIR__)
 
 defmodule AgentBlueprintProtocol.VerifierAgreementGate do
-  # The single-source runtime floor (shared with the release identity
-  # chain via release_identity.exs).
-  @node_floor AgentBlueprintProtocol.ReleaseIdentity.verifier_major_floor()
+  # The node runtime floor lives in the shared GateNode locator
+  # (scripts/gate_node.exs), sourced from release_identity.exs.
 
   @root Path.expand("..", __DIR__)
   @corpus "priv/conformance"
   @verifier "verifier"
 
   def run do
-    node = find_node!()
+    node = AgentBlueprintProtocol.GateNode.find_node!()
 
     version_sync!()
 
@@ -233,6 +233,22 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       raise "npm kit not built — run `npm install && npm run build` before the agreement gate"
     end
 
+    # The kit embeds the release-identity manifest byte-identically (npm
+    # consumers hold the same contract as the Hex package). Seeded red:
+    # a divergent embedded copy must redden this comparison.
+    manifest = File.read!(Path.join(@root, "priv/release-metadata.json"))
+    embedded_manifest_path = Path.expand("../dist/release-metadata.json", __DIR__)
+
+    embedded_manifest =
+      if File.exists?(embedded_manifest_path) do
+        File.read!(embedded_manifest_path)
+      else
+        "MISSING"
+      end
+
+    assert_embedded_manifest!(manifest, embedded_manifest)
+    seed_embedded_manifest_red!(manifest)
+
     {kit_out, kit_status} = System.cmd(node, [@kit_bin], stderr_to_stdout: true)
 
     unless kit_status == 0 and kit_out == escript_bytes do
@@ -273,6 +289,40 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       File.rm_rf!(sweep_dir)
     end
 
+    :ok
+  end
+
+  defp assert_embedded_manifest!(manifest, embedded) do
+    if embedded != manifest do
+      raise """
+      kit/escript manifest drift:
+        package: #{manifest}
+        kit:     #{embedded}
+      """
+    end
+  end
+
+  # The embedded-manifest equality is self-proving WITHOUT touching the
+  # build tree: the gate's own comparator must raise on a divergent
+  # string and pass on the real bytes (a tampered dist/ copy would also
+  # redden the comparison above; mutating build state and restoring it
+  # risks leaving drift behind on a kill).
+  defp seed_embedded_manifest_red!(manifest) do
+    raised =
+      try do
+        assert_embedded_manifest!(
+          manifest,
+          String.replace(manifest, "manifest_version", "tampered")
+        )
+
+        false
+      rescue
+        RuntimeError -> true
+      end
+
+    unless raised, do: raise("embedded-manifest seed did not diverge (vacuous comparison)")
+    assert_embedded_manifest!(manifest, manifest)
+    IO.puts("seeded red fired: kit-embedded manifest")
     :ok
   end
 
@@ -498,34 +548,6 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   end
 
   # ---- environment --------------------------------------------------------------------
-
-  defp find_node! do
-    executable = if(match?({:win32, _}, :os.type()), do: "node.exe", else: "node")
-
-    case System.find_executable(executable) do
-      nil ->
-        raise """
-        node not found: the verifier agreement gate requires Node >= 24.
-        The TS verifier is a hard prerequisite of `mix quality` (recorded,
-        user-visible — install node or remove verifier.agreement from quality
-        deliberately).
-        """
-
-      path ->
-        {version_out, 0} = System.cmd(path, ["--version"], stderr_to_stdout: true)
-        version_out |> String.trim() |> major!() |> assert_node_version!(path)
-        path
-    end
-  end
-
-  defp major!("v" <> rest), do: rest |> String.split(".") |> hd() |> String.to_integer()
-  defp major!(other), do: other |> String.split(".") |> hd() |> String.to_integer()
-
-  defp assert_node_version!(major, _path) when major >= @node_floor, do: :ok
-
-  defp assert_node_version!(major, path),
-    do:
-      raise("node #{major} at #{path} is below the >= #{@node_floor} requirement (got v#{major})")
 end
 
 AgentBlueprintProtocol.VerifierAgreementGate.run()

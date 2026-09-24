@@ -262,6 +262,18 @@ const indexInvalid = () => ({ ok: false as const, e: "corpus_index_invalid" });
 const caseInvalid = () => ({ ok: false as const, e: "corpus_case_invalid" });
 
 export function load(map: Map<string, Buffer>): LoadResult {
+  return loadWithMode(map, false);
+}
+
+// The compatibility-replay mode (the Elixir load_prior_census twin): the
+// two CURRENT-STATE couplings (registry digest, applicability totality
+// against the compiled floor) are suspended; every census-RELATIVE
+// integrity check stays. The compatibility gate owns divergence.
+export function loadPriorCensus(map: Map<string, Buffer>): LoadResult {
+  return loadWithMode(map, true);
+}
+
+function loadWithMode(map: Map<string, Buffer>, priorCensus: boolean): LoadResult {
   const indexBytes = map.get("index.json");
   if (indexBytes === undefined) return indexInvalid();
 
@@ -278,7 +290,7 @@ export function load(map: Map<string, Buffer>): LoadResult {
   const corpusDigestOk = verifyCorpusDigest(index);
   if (!corpusDigestOk.ok) return corpusDigestOk;
 
-  if (memberString(index, "registry_digest") !== registryDigest()) {
+  if (!priorCensus && memberString(index, "registry_digest") !== registryDigest()) {
     return indexInvalid();
   }
 
@@ -305,7 +317,9 @@ export function load(map: Map<string, Buffer>): LoadResult {
   const validity = verifyCaseValidity(loaded.v.cases);
   if (!validity.ok) return validity;
 
-  const applicability = verifyApplicability(index, loaded.v.cases);
+  const applicability = priorCensus
+    ? verifyApplicabilityCensus(index, loaded.v.cases)
+    : verifyApplicability(index, loaded.v.cases);
   if (!applicability.ok) return applicability;
 
   const rawBindings = verifyRawBindings(loaded.v.cases, loaded.v.raws);
@@ -678,6 +692,55 @@ function verifyApplicability(index: Value, cases: { cases: CaseObj[] }[]): LoadR
         return { ok: false, e: "corpus_applicability_incomplete" };
       }
     }
+  }
+
+  return { ok: true };
+}
+
+// Prior-census applicability: the census's own map checked against the
+// census's own cases, both directions (a released census was authored
+// against the floor of its release, not this build's).
+function verifyApplicabilityCensus(index: Value, cases: { cases: CaseObj[] }[]): LoadResult | { ok: true } {
+  const applicabilityError = () => ({ ok: false as const, e: "corpus_applicability_incomplete" });
+  const applicability = member(index, "applicability")!;
+  if (applicability.t !== "obj") return applicabilityError();
+
+  const leavesBySurface = new Map<string, Map<string, Value>>();
+  for (const [surface, leaves] of applicability.v) {
+    if (leaves.t !== "obj") return applicabilityError();
+    leavesBySurface.set(surface, new Map(leaves.v));
+  }
+
+  const observed = new Map<string, number>();
+  for (const file of cases) {
+    for (const caseObj of file.cases) {
+      const key = caseObj.surface + "\u0000" + caseObj.klass;
+      observed.set(key, (observed.get(key) ?? 0) + 1);
+    }
+  }
+
+  for (const [surface, leaves] of leavesBySurface) {
+    for (const [klass, leaf] of leaves) {
+      const observedCount = observed.get(surface + "\u0000" + klass) ?? 0;
+      if (leaf.t === "int") {
+        if (observedCount !== leaf.v) return applicabilityError();
+      } else if (leaf.t === "obj") {
+        const reason = memberString(leaf, "n_a");
+        if (typeof reason !== "string" || reason === "" || observedCount !== 0) {
+          return applicabilityError();
+        }
+      } else {
+        return applicabilityError();
+      }
+    }
+  }
+
+  for (const key of observed.keys()) {
+    const separator = key.indexOf("\u0000");
+    const surface = key.slice(0, separator);
+    const klass = key.slice(separator + 1);
+    const leaves = leavesBySurface.get(surface);
+    if (leaves === undefined || !leaves.has(klass)) return applicabilityError();
   }
 
   return { ok: true };

@@ -9,7 +9,7 @@
 
 import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { load } from "./corpus.ts";
+import { load, loadPriorCensus } from "./corpus.ts";
 import { encode } from "./canonical.ts";
 import { toBytes } from "./report.ts";
 import { run } from "./runner.ts";
@@ -18,7 +18,7 @@ import { decode as decodeDeployment } from "./deployment.ts";
 import { decode as decodeEnvelope } from "./federation.ts";
 import { obj, str } from "./value.ts";
 
-const USAGE = "usage: node verifier/cli.ts --corpus <dir> | --artifact <file>";
+const USAGE = "usage: node verifier/cli.ts --corpus <dir> | --prior-corpus <dir> | --artifact <file>";
 const BYTE_CAP = 5_000_000;
 
 function main(argv: string[]): number {
@@ -26,7 +26,14 @@ function main(argv: string[]): number {
     return verifyArtifact(argv[1]!);
   }
 
-  if (!(argv.length === 2 && argv[0] === "--corpus" && argv[1] !== "" && typeof argv[1] === "string")) {
+  // --prior-corpus: the compatibility-replay entry (a RELEASED census under
+  // a newer verifier — the registry/floor couplings suspended by the
+  // loader's prior-census mode). The report and exit contract are identical
+  // to --corpus; the compatibility gate byte-compares this output against
+  // the Elixir side's in-process report.
+  const prior = argv.length === 2 && argv[0] === "--prior-corpus" && argv[1] !== "" && typeof argv[1] === "string";
+
+  if (!(prior || (argv.length === 2 && argv[0] === "--corpus" && argv[1] !== "" && typeof argv[1] === "string"))) {
     process.stderr.write(USAGE + "\n");
     return 2;
   }
@@ -42,7 +49,7 @@ function main(argv: string[]): number {
     return 2;
   }
 
-  const corpus = load(map);
+  const corpus = prior ? loadPriorCensus(map) : load(map);
   if (!corpus.ok) {
     // Value-free by construction: the code names the corpus's own state.
     // The ":" prefix mirrors the escript's inspect(error.code) formatting.

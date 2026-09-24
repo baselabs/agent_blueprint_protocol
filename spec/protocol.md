@@ -322,6 +322,36 @@ to_value → encode` is a fixed point, property-tested). Lifecycle
 asymmetry: optional→critical promotion requires a revision increment;
 demotion does not. A retired namespace MUST never be reused.
 
+### Verification semantics and census (normative)
+
+Two independent identities govern a verifier release. **Census** is the
+record of what the release certifies: the conformance corpus digest and
+the extension-registry digest. Census growth — added corpus cases,
+added or widened registry entries — MUST NOT alter verdicts for inputs
+certified under a prior census. **Verification semantics** is the
+release's computational meaning for previously-certified inputs:
+canonicalization, digest computation, decode verdicts, bounds
+computation, negotiation outcomes, and signature verification behavior.
+A release that changes verification semantics MUST name it by
+incrementing the release's semantics version (the reference
+implementation carries it in its release manifest), and its release
+history MUST record the break; a release whose semantics version is
+unchanged MUST produce, for every input certified under a prior census
+of the same semantics version, the same verdict that prior release
+produced. A registry change that alters negotiation outcomes for
+previously-certified artifacts — for example a newly registered
+critical namespace flipping `:extension_unknown_critical` denials to
+supported — is a verification-semantics change; registry census growth
+that moves no previously-certified artifact's verdict is not. The two
+axes are independent of `protocol_revision`, which governs what
+artifacts may say; one event may move more than one axis.
+
+Released identities are immutable: a published digest, corpus, registry,
+manifest, or release-history row is never mutated in place; a correction
+is a new release. The evidence boundary: semantics equivalence between
+two releases is certified over the released censuses (per-case verdict
+replay), never over the input space at large.
+
 ## 8. Extension registry
 
 Namespace form: reverse-DNS-plus-path (`com.example.commerce/graph`),
@@ -678,6 +708,34 @@ conformance clause), and nothing in this protocol verifies a card as a
 standalone artifact. Consumers either re-derive a card from bytes they
 verified themselves or treat one they received as unverified display
 data — the same posture as any other pre-verification summary.
+
+### The release-identity manifest (informative — the reference implementation)
+
+The reference implementation ships
+`priv/release-metadata.json` (mirrored byte-identically inside its npm
+kit) as the machine-readable release identity. It is a versioned public
+contract of the REFERENCE IMPLEMENTATION — not a conformance
+requirement: a third-party conformer publishes its own identity
+statement satisfying the conformance clause (§15). Within a
+`manifest_version`, evolution is additive-only — fields are added,
+never removed, retyped, or resemanticized; a breaking shape change bumps
+`manifest_version` and is itself a release. The fields at manifest
+version 2: the format tag, the manifest version, the package name and
+version, the `verification_semantics_version` (§7's axis), the
+`digest_identity` label naming the closed digest scheme (RFC 8785 JCS
+canonical bytes; SHA-256; domain-separated preimages; tagged unpadded
+base64url — unchanged across every release to date), the wire
+`protocol_revisions_supported`, `prior_census_verdicts` (the certified
+compatibility matrix: per prior census digest,
+`equivalent` — per-case verdict agreement, certified by replay; or
+`diverged_by_registry_census` — divergences explained by registry
+growth; or `not_equivalent` — an authored semantics-break claim), the
+specification, corpus, and registry digests, the corpus index hash, the
+verifier runtime floor, the verifier-kit identity (name, registry,
+version), and the archive-authorization stance. The companion
+`priv/release-history.json` carries one append-only row per manifest-era
+release — the retroactive mapping a consumer binds when upgrading
+between pins.
 
 ## 17. Security considerations (normative)
 

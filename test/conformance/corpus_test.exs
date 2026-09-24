@@ -603,4 +603,121 @@ defmodule AgentBlueprintProtocol.Conformance.CorpusTest do
       end
     end
   end
+
+  describe "prior-census mode (compatibility replay)" do
+    # The compatibility gate replays RELEASED censuses under a newer
+    # verifier. A released census was certified against the registry and
+    # floor of ITS release, so the two current-state couplings are
+    # suspended there — and every census-RELATIVE integrity check stays.
+    alias AgentBlueprintProtocol.Digest
+
+    defp foreign_registry_fixture do
+      Builder.update_index(minimal(), fn index ->
+        Map.put(index, "registry_digest", Digest.to_tagged(Digest.of("a prior registry state")))
+      end)
+    end
+
+    defp prior_floor_fixture do
+      surfaces = ["json.decode", "base64url.decode"]
+
+      cases =
+        Builder.minimal_cases()
+        |> Enum.filter(&(&1["surface"] in surfaces))
+
+      applicability = Map.new(surfaces, &prior_floor_surface/1)
+
+      map = Builder.build(cases)
+
+      Builder.update_index(map, fn index ->
+        Map.put(index, "applicability", applicability)
+      end)
+    end
+
+    defp prior_floor_surface(surface) do
+      %{required: required, n_a: reason} = Corpus.floor()[surface]
+
+      leaves =
+        Map.new(Corpus.classes(), fn class ->
+          if class in required, do: {class, 1}, else: {class, %{"n_a" => reason}}
+        end)
+
+      {surface, leaves}
+    end
+
+    test "a census bound to a prior registry state loads with the registry coupling suspended" do
+      map = foreign_registry_fixture()
+
+      deny(map, :corpus_index_invalid, ["index", "registry_digest"])
+      assert {:ok, %Corpus{identity: identity}} = Corpus.load_prior_census(map)
+      assert String.starts_with?(identity, "sha-256:")
+    end
+
+    test "a census authored against a prior floor loads with the totality coupling suspended" do
+      map = prior_floor_fixture()
+
+      deny(map, :corpus_applicability_incomplete, ["index", "applicability"])
+      assert {:ok, %Corpus{}} = Corpus.load_prior_census(map)
+    end
+
+    test "the census's own per-file hashes still red in prior-census mode" do
+      path = "cases/json-decode.json"
+
+      tampered_bytes =
+        foreign_registry_fixture()
+        |> Map.get(path)
+        |> String.replace(~s("id":"minimal-json-decode-valid"), ~s("id":"tampered-case-id"))
+
+      map = Map.put(foreign_registry_fixture(), path, tampered_bytes)
+
+      assert {:error, %Error{code: :corpus_hash_mismatch}} = Corpus.load_prior_census(map)
+    end
+
+    test "a case outside the compiled class set still denies in prior-census mode" do
+      cases = [
+        %{
+          "id" => "shrunk-floor-case",
+          "surface" => "json.decode",
+          "class" => "a_class_the_current_floor_dropped",
+          "input" => %{},
+          "expected" => %{"verdict" => "invalid", "code" => "invalid_type"}
+        }
+      ]
+
+      map = Builder.build(cases)
+
+      assert {:error, %Error{code: :corpus_case_invalid}} = Corpus.load_prior_census(map)
+    end
+
+    test "an n_a cell carrying an observed case reds against the census's own applicability" do
+      # Move one json.decode case into a class its own applicability marks
+      # n_a: the census is self-inconsistent regardless of mode coupling.
+      path = "cases/json-decode.json"
+
+      tampered =
+        foreign_registry_fixture()
+        |> Map.get(path)
+        |> String.replace(~s("class":"valid"), ~s("class":"revision_above_max"))
+        |> then(&Builder.resync_file(foreign_registry_fixture(), path, &1))
+
+      assert {:error, %Error{code: :corpus_applicability_incomplete}} =
+               Corpus.load_prior_census(tampered)
+    end
+
+    test "a case whose cell is absent from the census's applicability reds" do
+      map =
+        prior_floor_fixture()
+        |> Builder.update_index(fn index ->
+          Map.delete(index["applicability"], "base64url.decode")
+          |> then(&Map.put(index, "applicability", &1))
+        end)
+
+      assert {:error, %Error{code: :corpus_applicability_incomplete}} =
+               Corpus.load_prior_census(map)
+    end
+
+    test "a non-map input denies :corpus_index_invalid" do
+      assert {:error, %Error{code: :corpus_index_invalid, subject: ["index"]}} =
+               Corpus.load_prior_census(:not_a_map)
+    end
+  end
 end

@@ -32,6 +32,19 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   corpus to the extension-registry state: extension verdicts depend on WHAT
   is registered, so corpus-registry drift must red, not silently flip cases.
 
+  `load_prior_census/1` is the compatibility-replay mode: it suspends
+  exactly the two CURRENT-STATE couplings (`registry_digest` against the
+  compiled registry; applicability totality against the compiled floor) and
+  keeps every census-RELATIVE integrity check — per-file hashes, file set,
+  counts, ids, case validity, and the census's own applicability-vs-cases
+  consistency. A released census was certified against the registry and
+  floor of ITS release; replaying it under a newer verifier is a
+  compatibility question the caller (the compatibility gate) owns, not a
+  conformance claim — so the loader hands over the verified census and does
+  not decide equivalence. Case surface/class membership in the compiled
+  sets stays enforced: a floor that SHRANK cannot silently replay the cases
+  it deleted.
+
   `.raw` sidecars are hash-bound (per-file SHA in the index + the referring
   case's own reference hash) and carried as opaque binaries — never parsed.
   Corpus loading and integrity are facts about test data — the loader carries no authority.
@@ -209,13 +222,28 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
 
   @doc "Loads and integrity-verifies a `%{path => binary}` corpus map."
   @spec load(%{binary() => binary()}) :: {:ok, t()} | {:error, Error.t()}
-  def load(map) when is_map(map) do
+  def load(map) when is_map(map), do: load_census(map, :conformance)
+  def load(_), do: {:error, %Error{code: :corpus_index_invalid, subject: ["index"]}}
+
+  @doc """
+  Loads a PRIOR release's census for compatibility replay: the same
+  pipeline with the two current-state couplings suspended (see the
+  moduledoc). The census's own integrity chain — including its own
+  `corpus_digest` and per-file hashes — is verified exactly as in `load/1`.
+  """
+  @spec load_prior_census(%{binary() => binary()}) :: {:ok, t()} | {:error, Error.t()}
+  def load_prior_census(map) when is_map(map), do: load_census(map, :prior_census)
+
+  def load_prior_census(_),
+    do: {:error, %Error{code: :corpus_index_invalid, subject: ["index"]}}
+
+  defp load_census(map, mode) when is_map(map) do
     with {:ok, index_bytes} <- fetch_index(map),
          {:ok, index} <- decode_index(index_bytes),
          :ok <- verify_structure(index),
          :ok <- verify_canonical_bytes(index, index_bytes),
          :ok <- verify_corpus_digest(index),
-         :ok <- verify_registry_digest(index),
+         :ok <- maybe_verify_registry_digest(mode, index),
          :ok <- verify_nonempty(index),
          {:ok, files} <- ordered_files(index),
          {:ok, cases, data, raws} <- load_files(files, map),
@@ -224,7 +252,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
          :ok <- verify_counts(index, cases),
          :ok <- verify_case_ids(cases),
          :ok <- verify_case_validity(cases),
-         :ok <- verify_applicability(index, cases),
+         :ok <- verify_applicability(index, cases, mode),
          :ok <- verify_raw_bindings(raws, cases) do
       {:ok,
        %__MODULE__{
@@ -239,7 +267,11 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
     end
   end
 
-  def load(_), do: {:error, %Error{code: :corpus_index_invalid, subject: ["index"]}}
+  # The registry binding is a corpus-PROVENANCE check (a conformance census
+  # certifies against the registry state of its release); the prior-census
+  # mode suspends it and the compatibility gate owns divergence instead.
+  defp maybe_verify_registry_digest(:conformance, index), do: verify_registry_digest(index)
+  defp maybe_verify_registry_digest(:prior_census, _index), do: :ok
 
   # --- index -------------------------------------------------------------------
 
@@ -603,11 +635,40 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
 
   # --- applicability (against the compiled-in floor) ----------------------------------
 
-  defp verify_applicability(%{"applicability" => applicability}, cases) do
+  defp verify_applicability(%{"applicability" => applicability}, cases, :conformance) do
     with :ok <- verify_applicability_shape(applicability),
          :ok <- verify_floor_required(applicability) do
       verify_observed(applicability, observed_counts(cases))
     end
+  end
+
+  # Prior-census mode: the census's applicability map is checked against the
+  # census's OWN cases (both directions) instead of the compiled floor — a
+  # released census was authored against the floor of its release.
+  defp verify_applicability(%{"applicability" => applicability}, cases, :prior_census) do
+    verify_observed_census(applicability, observed_counts(cases))
+  end
+
+  defp verify_observed_census(applicability, observed) do
+    marked_ok? =
+      applicability
+      |> Enum.all?(fn {surface, leaves} ->
+        is_binary(surface) and is_map(leaves) and
+          Enum.all?(leaves, fn {class, mark} ->
+            observed_leaf_ok?(mark, Map.get(observed, {surface, class}, 0))
+          end)
+      end)
+
+    unmarked_ok? =
+      observed
+      |> Enum.all?(fn {{surface, class}, _count} ->
+        case applicability do
+          %{^surface => %{^class => _mark}} -> true
+          _ -> false
+        end
+      end)
+
+    if marked_ok? and unmarked_ok?, do: :ok, else: applicability_error()
   end
 
   defp applicability_error,

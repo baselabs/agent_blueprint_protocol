@@ -659,6 +659,10 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     # (asdf shims read .tool-versions from the working directory up);
     # without it, node resolves only via whatever else sits on PATH.
     ".tool-versions",
+    # The release-identity derivations read the kit's package.json (the
+    # verifier_kit manifest member); a scratch without it cannot run the
+    # identity chain at all.
+    "package.json",
     "README.md",
     "CHANGELOG.md",
     "CODE_OF_CONDUCT.md",
@@ -692,7 +696,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       map_completeness_findings(map_text) ++
         protocol_presence_findings() ++
         protocol_coupling_findings() ++
-        identity_chain_findings() ++ census_findings()
+        identity_chain_findings() ++ release_history_findings() ++ census_findings()
 
     if findings != [] do
       raise """
@@ -1253,6 +1257,80 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     else
       ["identity chain: #{metadata_path} is missing"]
     end
+  end
+
+  # ---- 5. the release history (append-only record) --------------------------
+  #
+  # priv/release-history.json is the RETROACTIVE MAPPING: one row per
+  # manifest-era release, append-only, never edited. The static arms here
+  # (runnable without git, so the tag-less reprove scratch can execute
+  # them): exact format member, row shape, unique versions, and the row for
+  # the CURRENT package_version equals the live manifest identity. The
+  # tag-tree verification of HISTORICAL rows lives in the compatibility
+  # replay gate, which has git.
+
+  @history_path "priv/release-history.json"
+  @history_format "agent-blueprint-protocol-release-history"
+
+  defp release_history_findings do
+    history = Jason.decode!(read!(@history_path))
+    rows = history["rows"] || []
+
+    shape_findings =
+      if history["format"] == @history_format and is_list(rows) and rows != [] do
+        []
+      else
+        ["release history: #{@history_path} must carry the exact format member and rows"]
+      end
+
+    row_shape_findings =
+      rows
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {row, index} ->
+        valid? =
+          is_map(row) and is_binary(row["package_version"]) and row["package_version"] != "" and
+            is_binary(row["corpus_digest"]) and is_binary(row["registry_digest"]) and
+            is_binary(row["spec_digest"]) and
+            is_integer(row["verification_semantics_version"]) and
+            row["verification_semantics_version"] >= 1
+
+        if valid?, do: [], else: ["release history: row #{index} is malformed"]
+      end)
+
+    versions = Enum.map(rows, & &1["package_version"])
+
+    duplicate_findings =
+      if length(Enum.uniq(versions)) == length(versions) do
+        []
+      else
+        ["release history: duplicate package_version rows (append-only, one row per release)"]
+      end
+
+    current = Mix.Project.config()[:version] |> to_string()
+
+    current_row_findings =
+      case Enum.find(rows, &(&1["package_version"] == current)) do
+        nil ->
+          ["release history: no row for the current version #{current} — append it at release"]
+
+        row ->
+          expected = AgentBlueprintProtocol.ReleaseIdentity.expected_metadata()
+
+          [
+            {"corpus_digest", row["corpus_digest"], expected["corpus_digest"]},
+            {"registry_digest", row["registry_digest"], expected["registry_digest"]},
+            {"spec_digest", row["spec_digest"], expected["spec_digest"]},
+            {"verification_semantics_version", row["verification_semantics_version"],
+             AgentBlueprintProtocol.ReleaseIdentity.verification_semantics_version()}
+          ]
+          |> Enum.flat_map(fn {field, recorded, live} ->
+            if recorded == live,
+              do: [],
+              else: ["release history: #{field} at #{current} is stale — re-sync the row"]
+          end)
+      end
+
+    shape_findings ++ row_shape_findings ++ duplicate_findings ++ current_row_findings
   end
 
   defp read!(path) do

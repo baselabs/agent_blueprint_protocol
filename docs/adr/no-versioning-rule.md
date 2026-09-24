@@ -1,7 +1,8 @@
 # ADR: no version tokens in identifiers
 
 Status: accepted (2026-08-20; contract-identity amendment 2026-08-24;
-version-axis inventory amendment 2026-08-26; npm-axis amendment 2026-09-13).
+version-axis inventory amendment 2026-08-26; npm-axis amendment
+2026-09-13; release-identity-contract amendment 2026-09-24).
 
 ## Context
 
@@ -72,3 +73,33 @@ plumbing (`latest`); they name no durable identity. The kit's machine
 identity remains the embedded corpus digest, asserted equal to the
 release-certified digest — versioned by digest, never by name, like
 every other axis in this inventory.
+
+
+## Amendment — the release-identity consumer contract (2026-09-24)
+
+The release-identity consumer contract (0.8.0) extends the axis
+inventory and states the precedence rules:
+
+1. **`manifest_version`** (in `priv/release-metadata.json`) versions the
+   manifest's SHAPE — a public-contract field, additive-only within a
+   version. Every release before this contract is implicitly version 1.
+2. **`verification_semantics_version`** is the semantics/census split's
+   equivalence-class label (see `release-identity-semantics.md`): an
+   integer, never gate-derived, changed only when verdicts for
+   previously-certified inputs change.
+3. **The verifier-kit identity** (`verifier_kit`: name, registry,
+   version) rides the manifest, derived from `package.json` at
+   derivation time; the kit version remains bound == the Hex line under
+   the npm-axis amendment, and the kit embeds the manifest
+   byte-identically.
+4. **`priv/release-history.json`** is a durable version-bearing identity
+   carrier (one append-only row per manifest-era release), like the
+   CHANGELOG's per-release digest lines — a record, never an identifier.
+
+Precedence: `protocol_revision` governs what artifacts may say (the wire
+axis); `verification_semantics_version` governs what the verifier
+concludes about previously-certified inputs (the computation axis); Hex
+semver, git tags, and the manifest version govern the release identity.
+The axes are independent — one event (for example an optional→critical
+registry flip, which requires a revision increment) may move more than
+one at once; none may be derived from another.

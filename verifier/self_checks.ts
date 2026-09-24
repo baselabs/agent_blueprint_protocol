@@ -395,6 +395,193 @@ function flipSignatureByte(entry: Value): Value {
   );
 }
 
+
+// ---- prior-census loader mode (the compatibility-replay anchors) -----------------
+//
+// A synthetic prior-shaped census — corpus-independent, exactly as this
+// battery requires — proving the TS prior-census mode's red arms: the
+// ordinary loader still binds the registry digest; the prior mode
+// suspends exactly that binding (and the compiled-floor totality) while
+// keeping the census's OWN integrity chain. Mirrors the Elixir
+// corpus_test prior-census describe block.
+
+import { load, loadPriorCensus } from "./corpus.ts";
+import * as digest from "./digest.ts";
+import { arr, int, obj, str } from "./value.ts";
+
+function sha256B64Of(bytes: Buffer | string): string {
+  return createHash("sha256").update(bytes).digest("base64url");
+}
+
+interface Fixture {
+  map: Map<string, Buffer>;
+  corpusDigest: string;
+}
+
+// Builds a one-case census bound to a FOREIGN registry digest, with an
+// applicability map covering only its own cells (a prior floor's shape).
+function priorCensusFixture(overrides?: {
+  caseClass?: string;
+  applicability?: Value;
+}): Fixture {
+  const klass = overrides?.caseClass ?? "valid";
+
+  const caseFile = obj([
+    ["format", str("agent-blueprint-protocol-conformance-cases")],
+    [
+      "cases",
+      arr([
+        obj([
+          ["id", str("prior-json-" + klass)],
+          ["surface", str("json.decode")],
+          ["class", str(klass)],
+          ["input", obj([["text", str("{}")]])],
+          [
+            "expected",
+            obj([
+              ["verdict", str("valid")],
+              ["value", str("{}")],
+            ]),
+          ],
+        ]),
+      ]),
+    ],
+  ]);
+
+  const caseBytes = encode(caseFile);
+  if (!caseBytes.ok) throw new Error("fixture: case file must encode");
+  const caseBytesUtf8: string = caseBytes.v;
+
+  const foreignRegistry = "sha-256:" + "A".repeat(43);
+
+  const applicability =
+    overrides?.applicability ??
+    obj([
+      [
+        "json.decode",
+        obj([
+          ["valid", int(1)],
+          ["unknown_member", obj([["n_a", str("not required at this floor")]])],
+        ]),
+      ],
+    ]);
+
+  const baseMembers: [string, Value][] = [
+    ["format", str("agent-blueprint-protocol-conformance-corpus-index")],
+    ["protocol_revision", int(1)],
+    [
+      "files",
+      arr([
+        obj([
+          ["path", str("cases/json-decode.json")],
+          ["sha256_base64url", str(sha256B64Of(caseBytesUtf8))],
+          ["cases", int(1)],
+        ]),
+      ]),
+    ],
+    ["total_cases", int(1)],
+    ["public_key_fingerprints", arr([])],
+    ["applicability", applicability],
+    ["registry_digest", str(foreignRegistry)],
+  ];
+
+  const withoutDigest = encode(obj(baseMembers));
+  if (!withoutDigest.ok) throw new Error("fixture: index must encode");
+
+  const corpusDigest = digest.toTagged(
+    digest.hash("corpus_index", Buffer.from(withoutDigest.v, "utf8")),
+  );
+
+  const indexBytes = encode(obj([...baseMembers, ["corpus_digest", str(corpusDigest)]]));
+  if (!indexBytes.ok) throw new Error("fixture: index must re-encode");
+
+  const map = new Map<string, Buffer>();
+  map.set("index.json", Buffer.from(indexBytes.v, "utf8"));
+  map.set("cases/json-decode.json", Buffer.from(caseBytesUtf8, "utf8"));
+  return { map, corpusDigest };
+}
+
+{
+  const fixture = priorCensusFixture();
+
+  const ordinary = load(fixture.map);
+  check(
+    "prior census: ordinary loader binds the registry digest (red arm)",
+    ordinary.ok ? "ok" : ordinary.e,
+    "corpus_index_invalid",
+  );
+
+  const prior = loadPriorCensus(fixture.map);
+  check("prior census: prior mode loads a foreign-registry census", prior.ok ? "ok" : prior.e, "ok");
+  if (prior.ok) {
+    check("prior census: identity is the recomputed corpus digest", prior.v.identity, fixture.corpusDigest);
+  }
+
+  // Tamper the file's BYTES while keeping it decodable (the id string),
+  // so the per-file hash is the check that fires.
+  const tampered = new Map(fixture.map);
+  tampered.set(
+    "cases/json-decode.json",
+    Buffer.from(
+      fixture.map.get("cases/json-decode.json")!.toString("utf8").replace("prior-json-valid", "tampered-case-id"),
+      "utf8",
+    ),
+  );
+  const hashRed = loadPriorCensus(tampered);
+  check(
+    "prior census: own per-file hashes still red",
+    hashRed.ok ? "ok" : hashRed.e,
+    "corpus_hash_mismatch",
+  );
+
+  const shrunkFloor = priorCensusFixture({ caseClass: "a_class_the_current_floor_dropped" });
+  const classRed = loadPriorCensus(shrunkFloor.map);
+  check(
+    "prior census: a case outside the compiled class set still denies",
+    classRed.ok ? "ok" : classRed.e,
+    "corpus_case_invalid",
+  );
+
+  // The census's OWN applicability, self-inconsistent: the "valid" cell is
+  // marked n_a while the case sits in it.
+  const inconsistent = priorCensusFixture({
+    applicability: obj([
+      [
+        "json.decode",
+        obj([
+          ["valid", obj([["n_a", str("wrongly marked")]])],
+          ["unknown_member", obj([["n_a", str("not required at this floor")]])],
+        ]),
+      ],
+    ]),
+  });
+  const applicabilityRed = loadPriorCensus(inconsistent.map);
+  check(
+    "prior census: an n_a cell carrying a case reds",
+    applicabilityRed.ok ? "ok" : applicabilityRed.e,
+    "corpus_applicability_incomplete",
+  );
+
+  // The other census-relative direction: an observed case whose cell is
+  // absent from the census's own applicability map (a dropped leaf).
+  const unmarked = priorCensusFixture({
+    applicability: obj([
+      [
+        "json.decode",
+        obj([
+          ["unknown_member", obj([["n_a", str("not required at this floor")]])],
+        ]),
+      ],
+    ]),
+  });
+  const unmarkedRed = loadPriorCensus(unmarked.map);
+  check(
+    "prior census: a case whose cell is absent from applicability reds",
+    unmarkedRed.ok ? "ok" : unmarkedRed.e,
+    "corpus_applicability_incomplete",
+  );
+}
+
 // ---- summary --------------------------------------------------------------------
 
 if (failures.length > 0) {
