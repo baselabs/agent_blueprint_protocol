@@ -8,7 +8,7 @@ Agent Blueprint Protocol is a portable, non-authorizing contract for describing
 an agent capability and binding one immutable release to an execution
 environment.
 
-The public package is the reference implementation for two
+The public package is the reference implementation for three
 language-neutral artifacts:
 
 - **Blueprint Core** — stable identity, typed ports, logical capability
@@ -16,6 +16,11 @@ language-neutral artifacts:
 - **Deployment Manifest** — environment-local tool, principal, data,
   authority, effect, evaluation, and exact-build bindings for one Blueprint
   release digest.
+- **Federation TaskEnvelope** — the cross-protocol task record: 23 members
+  carrying task identity, terminal state, and signed terminal commitments
+  over A2A and MCP transports, with receipt-equivocation denial. The
+  blueprint rides IN those transports; the envelope is how a task's
+  verifiable record travels between them.
 
 Protocol validity never grants authority. A consuming host remains responsible
 for identity, tenancy, policy, live authorization, effect ownership, execution,
@@ -205,6 +210,28 @@ mix verifier.agreement                                     # byte-agrees the TS 
 The agreement gate is part of `mix quality`: the two implementations must
 produce byte-identical JCS reports over the same corpus, and node ≥ 24 is a
 hard prerequisite of the gate.
+
+## Documentation
+
+Every guide ships in the package and renders on HexDocs:
+
+- Start here: [getting started](documentation/getting-started.md) ·
+  [quickstart](documentation/quickstart.md) ·
+  [TypeScript quickstart](documentation/typescript.md)
+- Concepts: [what a blueprint is](documentation/what-a-blueprint-is.md) ·
+  [what a deployment is](documentation/what-a-deployment-is.md) ·
+  [portability](documentation/portability.md) ·
+  [federation](documentation/federation.md)
+- By role: [producing artifacts](documentation/producer.md) ·
+  [authoring extensions](documentation/extension-author.md) ·
+  [host integration](documentation/host-integration.md) ·
+  [operations](documentation/operations.md)
+- Reference: [the 74-code error guide](documentation/errors.md) ·
+  [evidence commitments](documentation/evidence-commitments.md) ·
+  [the extension registry](documentation/registry.md) ·
+  [upgrading and stability](documentation/upgrading.md) ·
+  [FAQ](documentation/faq.md) · [examples](documentation/examples.md)
+- The normative contract: [`spec/protocol.md`](spec/protocol.md)
 
 ## Security
 
