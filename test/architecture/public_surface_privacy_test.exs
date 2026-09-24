@@ -4,9 +4,11 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
   # The history scan is O(tracked files × commits) — the budget GROWS
   # with the repository: 150–190s at the 0.2.1 tree, 460s+ at 0.5.x
   # under full-suite load (the 480s ceiling was clipped once, 2026-09-13
-  # — a timeout here is a flake, not a privacy finding). 960s holds
-  # roughly 2× the observed worst case; re-raise on the same evidence.
-  @moduletag timeout: 960_000
+  # — a timeout here is a flake, not a privacy finding). 960s held until
+  # the 0.8.0 tree (886s pass, then a 961s clip on the next run,
+  # 2026-09-24 — the release added commits and files); 1920s restores
+  # roughly 2× the observed worst case. Re-raise on the same evidence.
+  @moduletag timeout: 1_920_000
 
   @forbidden_hmacs MapSet.new([
                      "b588ad7e20b48289a4be8ca875a2fbfc461914717baba46fc18ba63c462205e0",

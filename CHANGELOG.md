@@ -69,6 +69,12 @@ signature rotated on unchanged covered bytes (`content_digest`
 identical), verdict-neutral and replay-proven, but the 0.6.0 entry's
 "grows 94 → 96" prose under-recorded it.
 
+The public-history privacy scan's budget grows with the repository
+(the scan is O(tracked files × commits)); its ceiling moves 960s →
+1920s on the same evidence as every prior raise — a borderline clip on
+this release's tree, a timeout there being a flake, never a privacy
+finding.
+
 The test suite is 924 tests (59 properties) at 100% coverage. Corpus:
 96 cases, digest
 `sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
