@@ -19,6 +19,19 @@ surface is a surface you cannot enforce.
 No. Effective bounds never widen host policy. Narrow, clamp with
 evidence, or deny — the algebra is property-tested.
 
+**How do I upgrade an exact-pinned release without breaking
+historical replays?**
+Bind the replay-identity fields (`manifest_version`,
+`verification_semantics_version`, `protocol_revision`,
+`registry_digest`, the artifact digests, `effective_bounds`) and record
+the provenance fields (`package_version`, package checksum,
+`corpus_digest`, `spec_digest`) as metadata. Upgrades between releases
+that share a semantics version and an unchanged registry census replay
+green; registry movement conflicts by design (it is the fail-closed
+vocabulary detector); a true semantics change conflicts loudly on the
+integer. The full partition and its reasoning:
+[upgrading guide](upgrading.md).
+
 **Why is the registry compiled in?**
 Registry content is a code release: drift between shipped code and a
 shipped registry file would be unrepresentable. The

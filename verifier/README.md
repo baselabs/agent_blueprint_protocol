@@ -18,9 +18,11 @@ codes).
 ## Run
 
 ```bash
-node verifier/cli.ts --corpus priv/conformance   # exit 0/1/2; report bytes on stdout
-node verifier/self_checks.ts                     # RFC 8785 Appendix B, window matrix,
-                                                 # Ed25519 keys, stored JOSE vectors
+node verifier/cli.ts --corpus priv/conformance        # exit 0/1/2; report bytes on stdout
+node verifier/cli.ts --prior-corpus <released-dir>    # compatibility replay of a released census
+node verifier/cli.ts --artifact echo-blueprint.json   # single-artifact mode (kit-only)
+node verifier/self_checks.ts                          # RFC 8785 Appendix B, window matrix,
+                                                      # Ed25519 keys, prior-census anchors
 ```
 
 ## Distribution
@@ -28,5 +30,9 @@ node verifier/self_checks.ts                     # RFC 8785 Appendix B, window m
 A per-release tarball (`verifier-<version>.tar.gz`) is attached to
 each git release tag: this tree plus the release's conformance corpus,
 flattened to the tarball root — from the extracted tarball, run
-`node cli.ts --corpus conformance`. npm distribution is deferred until
-a TypeScript consumer needs dependency-manager distribution.
+`node cli.ts --corpus conformance`. The npm kit
+(`@agent-blueprint-protocol/verifier`) is the installable
+distribution: the compiled verifier, the corpus embedded byte-identical
+to the release-certified copy, and the release-identity manifest
+(`dist/release-metadata.json`, byte-identical to the Hex package's) —
+see `documentation/typescript.md`.

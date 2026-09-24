@@ -33,7 +33,15 @@ Every release pins the specification and its evidence together:
 | package version | the reference-implementation release this specification certifies |
 | corpus digest · registry digest | the conformance corpus and compiled registry this release ships |
 | corpus index hash | SHA-256 of the corpus index bytes |
+| manifest version | the SHAPE version of the release-identity manifest (additive-only within a version) |
+| verification semantics version | the release's computational meaning for previously-certified inputs — the semantics/census split's axis (the specification's Evolution clause) |
+| digest identity | the closed digest scheme (canonical bytes, hash, domain separation, wire form), stable across every release |
+| compatibility matrix | the certified verdict per prior census digest, replay-certified by the reference implementation's gate |
+| verifier kit identity | the npm kit's name and version, bound to the Hex line |
 
 These values are pinned per release in the reference implementation's
 release metadata and asserted from live state by its release-candidate
-check; a disagreement anywhere in the chain blocks the release.
+check; a disagreement anywhere in the chain blocks the release. The
+companion release history (one append-only row per release, the
+manifest era onward) is verified against each release tag's actual
+tree by the compatibility gate.

@@ -73,3 +73,18 @@ ownership, execution, billing, evaluation truth — the surfaces this
 protocol structurally cannot establish, named in every result. Your
 admission decision consumes `evidence.checks`, `evidence.clamps`, and
 `evidence.not_verified`; nothing in the record makes it for you.
+
+## Exact pins and replay identity
+
+If you pin an exact release and persist verification identity across
+imports (replaying a stored binding against a re-verified import), do
+not equality-compare every identity field forever: partition along the
+protocol's published line — replay identity (`manifest_version`,
+`verification_semantics_version`, `protocol_revision`,
+`registry_digest`, the artifact digests, `effective_bounds`) versus
+provenance metadata (`package_version`, package checksum,
+`corpus_digest`, `spec_digest`) — so a census-only release upgrade
+replays your history green while any true semantics change conflicts
+loudly. The partition, the semantics-version contract, and why a
+registry-digest conflict is the fail-closed detector working (not a
+break) live in the [upgrading guide](upgrading.md).

@@ -96,7 +96,10 @@ Semantics:
 Tooling: `mix conformance.verify` executes the shipped 96-case corpus;
 `mix conformance.mutations` re-proves the corpus catches named implementation
 breaks; `mix verifier.agreement` byte-agrees the Elixir runner with the
-independent TypeScript verifier.
+independent TypeScript verifier; `mix compatibility.replay` certifies the
+release's compatibility claims — every prior release's census replays under
+the current verifier in both languages, and the release history verifies
+against its tags' actual trees.
 
 ## Status
 
@@ -109,6 +112,13 @@ The normative specification, [`spec/protocol.md`](spec/protocol.md),
 ships in the Hex archive. The full gate battery and every gate's
 recorded red proof are public in this repository under
 [`docs/design/requirement-map.md`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/docs/design/requirement-map.md).
+
+Since 0.8.0 the release identity is a versioned public contract: the
+manifest (`manifest_version`, additive-only) splits verification
+semantics from census, certifies the compatibility matrix per prior
+census, and the append-only release history maps every release — so
+exact-pinned consumers upgrade pins without breaking historical
+replays ([upgrading guide](documentation/upgrading.md)).
 
 The 0.x series is the public pre-1.0 line: shipped contracts may
 change within 0.x under pre-1.0 conventions, and every contract change

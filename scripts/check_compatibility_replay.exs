@@ -428,10 +428,17 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         "history: release #{manifest["package_version"]} (tag #{tag}) has no row (append-only: add the row)"
       end
 
+    # The append-only invariant covers RELEASED rows: the current
+    # release's row is the live manifest's working claim, re-synced until
+    # its tag exists (and frozen by this same check once a later release
+    # makes it historical).
     prefix =
       case committed_rows() do
         {:ok, committed} ->
-          if Enum.take(rows, length(committed)) == committed,
+          committed_prior = Enum.reject(committed, &(&1["package_version"] == current))
+          working_prior = Enum.reject(rows, &(&1["package_version"] == current))
+
+          if Enum.take(working_prior, length(committed_prior)) == committed_prior,
             do: [],
             else: [
               "history: the committed history is not a prefix of the working tree (append-only violated)"

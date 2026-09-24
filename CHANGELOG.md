@@ -73,7 +73,7 @@ The test suite is 924 tests (59 properties) at 100% coverage. Corpus:
 96 cases, digest
 `sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
-digest `sha-256:pH_krjjC7Rjgc2eFZ0Zo5rMht6GU0wDmTwIdgEK3gVQ`.
+digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
 
 ## [0.7.1] — 2026-09-16
 

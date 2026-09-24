@@ -264,7 +264,8 @@ divergences; unclaimed censuses, stale claims, unknown verdict words,
 and history rows that disagree with their tag's actual tree red. The
 current release's row is asserted against the live manifest (its tag
 exists only after release; it gains tag verification at the next
-release). A tag-less checkout refuses loudly (the named
+release, and the append-only prefix check covers RELEASED rows — the
+current row re-syncs until its tag exists). A tag-less checkout refuses loudly (the named
 override is never a green claim). Seven seeded reds fire every run —
 four claim flips (including a self-contradictory `not_equivalent`
 claim), a tampered census file, a tampered history row (asserting the
