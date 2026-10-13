@@ -10,6 +10,7 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
   use ExUnitProperties
 
   alias AgentBlueprintProtocol.{Base64Url, Canonicalization, Digest, Signature}
+  alias AgentBlueprintProtocol.Ed25519StrictFixture, as: StrictFixture
 
   property "for generated keys and attributes, the envelope verifies" do
     check all(
@@ -39,6 +40,91 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
       assert Signature.verify(flipped, [
                %Signature.PublicKey{key_id: "prop-key", algorithm: :ed25519, key: pub}
              ]) == {:error, :signature_not_verified}
+    end
+  end
+
+  property "for generated keys and messages, the verdict matches the backend's" do
+    check all(
+            seed <- StreamData.binary(length: 32),
+            digest_input <- StreamData.binary(max_length: 64),
+            replacement <-
+              StreamData.one_of([StreamData.constant(:honest), StreamData.binary(length: 64)])
+          ) do
+      {pub, priv} = :crypto.generate_key(:eddsa, :ed25519, seed)
+      honest = signed_entry(priv, "prop-key", "blueprint", digest_input)
+      {:ok, input} = Signature.signing_input(honest)
+
+      sig =
+        if replacement == :honest,
+          do: :crypto.sign(:eddsa, :none, input, [priv, :ed25519]),
+          else: replacement
+
+      backend = :crypto.verify(:eddsa, :none, input, sig, [pub, :ed25519])
+      verdict = Signature.verify(with_signature(honest, sig), prop_keys(pub))
+
+      assert verdict == if(backend, do: {:ok, :verified}, else: {:error, :signature_not_verified})
+      if replacement == :honest, do: assert(verdict == {:ok, :verified})
+    end
+  end
+
+  property "a small-order or non-canonical R is always rejected, whatever S" do
+    check all(
+            seed <- StreamData.binary(length: 32),
+            digest_input <- StreamData.binary(max_length: 64),
+            r <- weak_r(),
+            s_kind <-
+              StreamData.frequency([
+                {3, StreamData.constant(:key_holder)},
+                {1, StreamData.constant(:honest)},
+                {1, StreamData.constant(:random)}
+              ])
+          ) do
+      {pub, priv} = :crypto.generate_key(:eddsa, :ed25519, seed)
+      honest = signed_entry(priv, "prop-key", "blueprint", digest_input)
+      {:ok, input} = Signature.signing_input(honest)
+
+      sig =
+        case s_kind do
+          :key_holder ->
+            StrictFixture.key_holder_signature(seed, r, input)
+
+          :honest ->
+            <<_r::binary-size(32), s::binary-size(32)>> =
+              :crypto.sign(:eddsa, :none, input, [priv, :ed25519])
+
+            r <> s
+
+          :random ->
+            <<s::little-unsigned-256>> = :crypto.hash(:sha256, seed <> digest_input)
+            r <> <<rem(s, StrictFixture.l())::little-unsigned-256>>
+        end
+
+      assert Signature.verify(with_signature(honest, sig), prop_keys(pub)) ==
+               {:error, :signature_not_verified}
+    end
+  end
+
+  property "S >= L is always rejected, even with the honest R" do
+    check all(
+            seed <- StreamData.binary(length: 32),
+            offset <- StreamData.binary(length: 32)
+          ) do
+      {pub, priv} = :crypto.generate_key(:eddsa, :ed25519, seed)
+      honest = signed_entry(priv, "prop-key", "blueprint", "s")
+      {:ok, input} = Signature.signing_input(honest)
+
+      <<r::binary-size(32), _s::binary-size(32)>> =
+        :crypto.sign(:eddsa, :none, input, [priv, :ed25519])
+
+      l = StrictFixture.l()
+      <<o::little-unsigned-256>> = offset
+      s = l + rem(o, Bitwise.bsl(1, 256) - l)
+
+      assert Signature.verify(
+               with_signature(honest, r <> <<s::little-unsigned-256>>),
+               prop_keys(pub)
+             ) ==
+               {:error, :signature_not_verified}
     end
   end
 
@@ -106,6 +192,36 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
        {"signed_attributes", ats},
        {"signature", {:string, Base64Url.encode(sig)}}
      ]}
+  end
+
+  defp prop_keys(pub),
+    do: [%Signature.PublicKey{key_id: "prop-key", algorithm: :ed25519, key: pub}]
+
+  defp with_signature({:object, members}, sig) do
+    {:object,
+     Enum.map(members, fn
+       {"signature", _} -> {"signature", {:string, Base64Url.encode(sig)}}
+       other -> other
+     end)}
+  end
+
+  # The eight small-order encodings, the listed non-canonical encodings,
+  # and every y >= p (p..2^255-1, 19 values) under either sign bit. The
+  # identity is weighted up: with the key-holder S it is the one weak R
+  # the backend alone accepts, so the property must draw it often.
+  defp weak_r do
+    StreamData.frequency([
+      {2, StreamData.constant(StrictFixture.identity())},
+      {3, StreamData.member_of(StrictFixture.small_order_encodings())},
+      {2, StreamData.member_of(StrictFixture.non_canonical_encodings())},
+      {2,
+       StreamData.bind(StreamData.tuple({StreamData.integer(0..18), StreamData.boolean()}), fn
+         {offset, sign} ->
+           y = StrictFixture.p() + offset
+           y = if sign, do: Bitwise.bor(y, Bitwise.bsl(1, 255)), else: y
+           StreamData.constant(<<y::little-unsigned-256>>)
+       end)}
+    ])
   end
 
   defp flip_first_member_byte({:object, members}, bit) do

@@ -381,7 +381,7 @@ defmodule AgentBlueprintProtocol.Signature do
     ed25519_keys =
       Enum.filter(candidates, fn
         %PublicKey{algorithm: :ed25519, key: <<encoding::binary-size(32)>>} ->
-          usable_ed25519_key?(encoding)
+          strict_point?(encoding)
 
         _not_usable_ed25519 ->
           false
@@ -394,6 +394,9 @@ defmodule AgentBlueprintProtocol.Signature do
       ed25519_keys == [] ->
         {:error, :signature_algorithm_unsupported}
 
+      not strict_signature?(parts.signature) ->
+        {:error, :signature_not_verified}
+
       Enum.any?(ed25519_keys, fn key ->
         :crypto.verify(:eddsa, :none, input, parts.signature, [key.key, :ed25519])
       end) ->
@@ -404,23 +407,43 @@ defmodule AgentBlueprintProtocol.Signature do
     end
   end
 
-  # ---- small-order public-key rejection -------------------------------------------
-  # Confirmed live on this OTP: :crypto.verify
-  # ACCEPTS a small-order public key with an all-zero signature — a universal
-  # forgery whenever such a key enters a trust set (a zeroed key is exactly
-  # the "key failed to load" misconfiguration). A supplied key is usable
-  # Ed25519 only if it decodes to a canonical on-curve point of the main
-  # (large) subgroup. The test is the algebraic characterization of the
-  # 8-torsion (as libsodium's ge25519_has_small_order computes it): x = 0,
-  # or y = 0, or y*sqrt(-1) = +/- x. Field constants per RFC 8032 5.1;
-  # the conformance suite recomputes d and sqrt(-1) from the curve
-  # definition and asserts these literals.
+  # ---- strict Ed25519: the point rule and the scalar rule ------------------------
+  # One rule owner for every Ed25519 encoding verify/2 accepts, checked here
+  # before :crypto.verify sees the bytes, so the verdict never rests on the
+  # backend's own leniency.
+  #
+  # The point rule (strict_point?/1) holds for the public key A and for the
+  # signature's R alike: the encoding is canonical (y < p; x = 0 never with
+  # the sign bit set), decodes to an on-curve point, and that point is not
+  # small-order. Confirmed live on this OTP: :crypto.verify ACCEPTS a
+  # small-order public key with an all-zero signature — a universal forgery
+  # whenever such a key enters a trust set (a zeroed key is exactly the "key
+  # failed to load" misconfiguration) — and, under an honest prime-order
+  # key, ACCEPTS R = the identity with S = k*a mod L (the cofactorless
+  # equation holds). Only the key holder can build the latter, so it is not
+  # a third-party forgery, but it is a second, verdict-divergent signature
+  # that strict verifiers deny. The small-order test is the algebraic
+  # characterization of the 8-torsion (as libsodium's
+  # ge25519_has_small_order computes it): x = 0, or y = 0, or
+  # y*sqrt(-1) = +/- x.
+  #
+  # The scalar rule: S < L (RFC 8032 5.1.7 step 1), never left to the
+  # backend's own range check.
+  #
+  # Field and group constants per RFC 8032 5.1; the strict-signature tests
+  # derive p, d, sqrt(-1), and L independently from the curve definition
+  # and exercise these literals through verify/2.
 
+  @ed_l 7_237_005_577_332_262_213_973_186_563_042_994_240_857_116_359_379_907_606_001_950_938_285_454_250_989
   @ed_p 57_896_044_618_658_097_711_785_492_504_343_953_926_634_992_332_820_282_019_728_792_003_956_564_819_949
   @ed_d 37_095_705_934_669_439_343_138_083_508_754_565_189_542_113_879_843_219_016_388_785_533_085_940_283_555
   @ed_sqrt_m1 19_681_161_376_707_505_956_807_079_304_988_542_015_446_066_515_923_890_162_744_021_073_123_829_784_752
 
-  defp usable_ed25519_key?(<<encoding::binary-size(32)>>) do
+  defp strict_signature?(<<r::binary-size(32), s::little-unsigned-256>>) do
+    s < @ed_l and strict_point?(r)
+  end
+
+  defp strict_point?(<<encoding::binary-size(32)>>) do
     <<y_raw::little-unsigned-256>> = encoding
     # RFC 8032 5.1.2: bit 255 carries the sign of x; the low 255 bits are y.
     sign_x = Bitwise.band(y_raw, Bitwise.bsl(1, 255)) != 0

@@ -9,6 +9,7 @@ defmodule AgentBlueprintProtocol.SignatureTest do
   use ExUnit.Case, async: true
 
   alias AgentBlueprintProtocol.{Base64Url, Canonicalization, Digest, Signature}
+  alias AgentBlueprintProtocol.Ed25519StrictFixture, as: StrictFixture
 
   # RFC 8032 §7.1 TEST 1 (read first-hand 2026-08-21).
   @seed Base.decode16!("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
@@ -54,7 +55,10 @@ defmodule AgentBlueprintProtocol.SignatureTest do
 
   defp signed_entry(hdr \\ header(), ats \\ attrs(), signer \\ priv()) do
     sig = :crypto.sign(:eddsa, :none, input_for(hdr, ats), [signer, :ed25519])
+    entry_with_signature(sig, hdr, ats)
+  end
 
+  defp entry_with_signature(sig, hdr \\ header(), ats \\ attrs()) do
     {:object,
      [
        {"protected", hdr},
@@ -288,7 +292,7 @@ defmodule AgentBlueprintProtocol.SignatureTest do
 
       # The identity point (x = 0, y = 1, sign clear) and the order-2 point
       # (x = 0, y = p-1, sign clear): canonical RFC 8032 encodings of
-      # small-order points — root == 0 in usable_ed25519_key?. Found by the
+      # small-order points — root == 0 in strict_point?. Found by the
       # the second-language mirror's torsion battery: the `not sign_x`
       # branch admitted BOTH (the sign-set half was the non-canonical
       # reject, the sign-clear half is the order-1/order-2 forgery class).
@@ -372,6 +376,109 @@ defmodule AgentBlueprintProtocol.SignatureTest do
         |> put_nested("signed_attributes", "content_digest", {:string, honest_digest()})
 
       assert Signature.verify(rebound, keys()) == {:error, :signature_not_verified}
+    end
+  end
+
+  describe "verify/2 strict Ed25519 signature rule (R canonical, not small-order; S < L)" do
+    # The rule is enforced before :crypto.verify is called, so the verdict
+    # never depends on the backend's own leniency. Each rejection case
+    # asserts the verdict AND that the backend was never consulted; the
+    # honest case proves the call counter sees a real backend call.
+
+    test "an honest signature verifies with exactly one backend call" do
+      assert StrictFixture.backend_verify_calls(fn ->
+               Signature.verify(signed_entry(), keys())
+             end) == {{:ok, :verified}, 1}
+    end
+
+    test "R = identity with S = k*a under the holder's own key is never verified" do
+      input = input_for(header(), attrs())
+      forged = StrictFixture.key_holder_signature(@seed, StrictFixture.identity(), input)
+
+      # Non-vacuity: the cofactorless equation holds, so the backend alone
+      # accepts this signature (a backend that tightens later reds here,
+      # which is a fact worth knowing, never a reason to drop the rule).
+      assert :crypto.verify(:eddsa, :none, input, forged, [pub(), :ed25519])
+
+      assert StrictFixture.backend_verify_calls(fn ->
+               Signature.verify(entry_with_signature(forged), keys())
+             end) == {{:error, :signature_not_verified}, 0}
+    end
+
+    test "each of the eight small-order encodings as R is never verified" do
+      encodings = StrictFixture.small_order_encodings()
+      input = input_for(header(), attrs())
+
+      assert length(Enum.uniq(encodings)) == 8
+
+      for r <- encodings do
+        assert StrictFixture.small_order?(r), "fixture encoding is not small-order: #{inspect(r)}"
+        forged = StrictFixture.key_holder_signature(@seed, r, input)
+
+        outcome =
+          StrictFixture.backend_verify_calls(fn ->
+            Signature.verify(entry_with_signature(forged), keys())
+          end)
+
+        assert outcome == {{:error, :signature_not_verified}, 0},
+               "small-order R must deny before any backend call; got " <>
+                 "{verdict, backend_calls} = #{inspect(outcome)} for #{Base.encode16(r)}"
+      end
+    end
+
+    test "non-canonical R encodings (y >= p; x = 0 with the sign bit set) are never verified" do
+      input = input_for(header(), attrs())
+
+      for r <- StrictFixture.non_canonical_encodings() do
+        forged = StrictFixture.key_holder_signature(@seed, r, input)
+
+        outcome =
+          StrictFixture.backend_verify_calls(fn ->
+            Signature.verify(entry_with_signature(forged), keys())
+          end)
+
+        assert outcome == {{:error, :signature_not_verified}, 0},
+               "non-canonical R must deny before any backend call; got " <>
+                 "{verdict, backend_calls} = #{inspect(outcome)} for #{Base.encode16(r)}"
+      end
+    end
+
+    test "S = L, S = L + 1, and the honest S + L are never verified" do
+      input = input_for(header(), attrs())
+      honest = :crypto.sign(:eddsa, :none, input, [priv(), :ed25519])
+      <<r::binary-size(32), s::little-unsigned-256>> = honest
+      l = StrictFixture.l()
+
+      for bad_s <- [l, l + 1, s + l] do
+        forged = r <> <<bad_s::little-unsigned-256>>
+
+        outcome =
+          StrictFixture.backend_verify_calls(fn ->
+            Signature.verify(entry_with_signature(forged), keys())
+          end)
+
+        assert outcome == {{:error, :signature_not_verified}, 0},
+               "S >= L must deny before any backend call; got " <>
+                 "{verdict, backend_calls} = #{inspect(outcome)} for S - L = #{bad_s - l}"
+      end
+    end
+
+    test "the key facts keep precedence over the signature rule" do
+      forged =
+        StrictFixture.key_holder_signature(
+          @seed,
+          StrictFixture.identity(),
+          input_for(header(), attrs())
+        )
+
+      stranger = [%Signature.PublicKey{key_id: "other", algorithm: :ed25519, key: pub()}]
+      wrong_alg = [%Signature.PublicKey{key_id: "test-key", algorithm: :ed448, key: pub()}]
+
+      assert Signature.verify(entry_with_signature(forged), stranger) ==
+               {:error, :signature_key_unsupported}
+
+      assert Signature.verify(entry_with_signature(forged), wrong_alg) ==
+               {:error, :signature_algorithm_unsupported}
     end
   end
 
