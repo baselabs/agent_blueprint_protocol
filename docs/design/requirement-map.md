@@ -1146,6 +1146,34 @@ pages.yml deploys on a branch push; it must deploy only on a release tag
 Result: 2/3 passed (when the file held three cases)
 ```
 
+### case: "every literal workflow toolchain pin equals the .tool-versions dev pin"
+
+Toolchain lockstep: `.tool-versions` owns the Elixir, Erlang/OTP, and
+Node versions; every literal `elixir-version`, `otp-version`, and
+`node-version` in every workflow (CI, doc gates, publish) must equal
+it. Matrix lanes are exempt.
+
+```red
+$ # organic red: publish.yml still pinned Elixir 1.20.2 against the 1.20.3 dev pin
+$ mix test test/architecture/toolchain_lockstep_test.exs
+1) test every literal workflow toolchain pin equals the .tool-versions dev pin
+workflow toolchain pins drift from .tool-versions: [{".github/workflows/publish.yml", "elixir-version", "1.20.2", "1.20.3"}]
+Result: 1/2 passed
+```
+
+### case: "mix.exs admits the pinned Elixir and config/config.exs supports the pinned OTP major"
+
+The dev pin must sit inside the declared Elixir range and the
+supported-OTP set, and the Elixir build's OTP must match the Erlang pin.
+
+```red
+$ # plant: the supported set read without "29"
+$ mix test test/architecture/toolchain_lockstep_test.exs
+1) test mix.exs admits the pinned Elixir and config/config.exs supports the pinned OTP major
+OTP 29 not in "27", "28"
+Result: 1/2 passed
+```
+
 ### case: "README count claims match the live test tree and corpus index"
 
 Every numeric claim in README — test totals, property totals, corpus
