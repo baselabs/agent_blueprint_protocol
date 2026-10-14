@@ -28,7 +28,8 @@ is the machine-readable form. Highlights:
 Two blueprints with identical digest-covered members and identical
 canonical bytes are the same blueprint. `decode_blueprint/2` verifies
 canonicality first (non-canonical bytes deny before any semantic
-read), then structure, then the declared digest.
+read), then structure, then the portability scan, then the declared
+digest.
 
 ## Optional members
 

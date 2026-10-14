@@ -13,7 +13,6 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
   the run to the exact corpus loaded via its recomputed identity — two runs
   over two different corpora can never produce identical report bytes.
   The report states what the corpus agreed; it is not a decision.
-  The report states what the corpus agreed; it is not a decision.
   """
 
   alias AgentBlueprintProtocol.{Canonicalization, Conformance.Corpus}

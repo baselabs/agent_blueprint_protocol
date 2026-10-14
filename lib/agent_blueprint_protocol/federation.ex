@@ -33,7 +33,6 @@ defmodule AgentBlueprintProtocol.Federation do
   ("the only failure shape"; the older decode
   surfaces' bare atoms are the recorded migration).
   Federation receipts are evidence records — verification never authorizes anything.
-  Federation receipts are evidence records — verification never authorizes anything.
   """
 
   alias AgentBlueprintProtocol.{
@@ -72,7 +71,6 @@ defmodule AgentBlueprintProtocol.Federation do
     supplies the window, the package never invents a clock). Checked
     after conflict detection — integrity and consistency outrank
     receiver policy.
-    Verification context is caller-supplied data that carries no authority.
     Verification context is caller-supplied data that carries no authority.
     """
 
@@ -157,7 +155,6 @@ defmodule AgentBlueprintProtocol.Federation do
     (bijective with an envelope wire member), the A2A location, the MCP
     Tasks location, and the verdict (`:native` | `:partial` |
     `:extension`) re-derived against the pinned live sources.
-    A mapping row is published data that carries no authority.
     A mapping row is published data that carries no authority.
     """
 

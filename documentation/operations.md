@@ -6,9 +6,11 @@
 mix quality
 ```
 
-Dependency audits, format, warnings-as-errors compile, strict Credo,
-tests at 100% coverage, the corpus and its mutation gate, the
-second-language agreement gate (Node >= 24), Dialyzer, docs, the
+Dependency audits and dependency currency, format, warnings-as-errors
+compile, strict Credo, tests at 100% coverage, the corpus and its
+mutation gate, the npm kit build, the TypeScript guide's import example,
+the second-language agreement gate
+(Node >= 24), the compatibility replay, Dialyzer, docs, the
 specification-extraction check, the grammar-derivation gate, the
 registry-equality gate, the release-asset gate, and the
 release-candidate check (requirement-map completeness, specification
@@ -18,8 +20,9 @@ recorded red).
 ## Reading a corpus report
 
 One line, JCS-canonical: `{"agreed":N,"agreement":true,…}`. Exit 0
-agreement, 1 disagreement (report still prints), 2 usage/integrity.
-The report refuses a vacuous green.
+agreement, 1 disagreement (report still prints), 2 usage/integrity,
+3 an internal invariant failure. The report refuses a vacuous green.
+The full format is in the repository's `verifier/RUNNER.md`.
 
 ## When a gate reds
 

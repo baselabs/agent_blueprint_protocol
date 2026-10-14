@@ -18,7 +18,6 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   extension region walk over minimal artifact values — that walk is where
   every extension-class code is emitted on the live substrate.
   The runner executes corpus cases and reports outcomes; it never authorizes anything.
-  The runner executes corpus cases and reports outcomes; it never authorizes anything.
   """
 
   alias AgentBlueprintProtocol.{

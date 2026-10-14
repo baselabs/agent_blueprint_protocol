@@ -336,9 +336,9 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "publish-guard-text-reference",
       path: "SECURITY.md",
-      from: "reporting for `baselabs/agent_blueprint_protocol`. Do not open a public issue\n",
+      from: "Do not open a public issue containing an exploit, credential, private key,\n",
       to:
-        "reporting for `baselabs/agent_blueprint_protocol`. Do not open a public issue\nTracker ticket #{@citation_probe} notes.\n",
+        "Do not open a public issue containing an exploit, credential, private key,\nTracker ticket #{@citation_probe} notes.\n",
       command: ~w(mix test test/architecture/publish_guard_test.exs)
     },
     %{

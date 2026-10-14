@@ -24,7 +24,7 @@ disruption.
 Report conduct issues to the maintainer (the steward's IPR statement
 names the current maintainer). Reports are handled confidentially.
 Confirmed violations lead to warnings, temporary bans, or permanent
-exclusion from the project's channels, at the maintainer's judgement,
+exclusion from the project's channels, at the maintainer's judgment,
 with the severity proportionate to the offense.
 
 ## Scope

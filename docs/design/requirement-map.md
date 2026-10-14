@@ -206,6 +206,22 @@ The missing-build form (organic, 2026-09-13): `** (RuntimeError) npm
 kit not built — run \`npm install && npm run build\` before the
 agreement gate`.
 
+### alias: typescript.guide
+
+The TypeScript guide's import example (`documentation/typescript.md`)
+runs as written against the built kit: copied into a scratch directory
+beside the echo example, with `node_modules` linking the package name to
+this tree, its output must equal the value its trailing comment claims,
+and the same program over an edited example must print something else
+(the vacuous-sample guard). A missing kit build raises, never skips. It
+reads a documentation path, so the doc-gates workflow runs it too.
+
+```red
+$ # plant: the example's claimed output changed to digest_mismatch
+$ mix typescript.guide
+** (RuntimeError) documentation/typescript.md import example drift: it claims digest_mismatch, it ran {"valid", 0}
+```
+
 ### alias: verifier.agreement
 
 Self-proving by construction (`scripts/check_verifier_agreement.exs`):
@@ -975,10 +991,21 @@ Result: 0/1 passed, 6 excluded
 
 Documentation-currency gate: the README install requirement pins the
 exact current version (every hex requirement string in README is an
-install pin and must name it), and SECURITY.md's supported-version
+install pin and must name it; every npm kit command that names a
+version, `@agent-blueprint-protocol/verifier@x.y.z`, must name it too),
+and SECURITY.md's supported-version
 table opens with the current `major.minor` line marked supported (a
 stale first row — wrong line, or the right line marked no — reds). The
 version is read live from `mix.exs`, never frozen.
+
+```red
+$ # plant: the README's first npx command pinned to the previous release
+$ mix test test/architecture/documentation_currency_test.exs
+1) test README and SECURITY.md name the current released version
+README npm kit commands pin ["0.8.0"] — the current version is 0.8.1
+code: assert stale_npm == [],
+Result: 4/5 passed
+```
 
 ```red
 $ # organic red: README pin left at the 0.1 line while the project is at 0.2.1
@@ -1000,7 +1027,8 @@ Result: 2/3 passed
 ### case: "the CHANGELOG entry for the current version carries the corpus identity"
 
 The changelog's FIRST version heading must be the current release (a
-stale top entry reds), and that entry must carry the live corpus digest
+stale top entry reds; an `## [Unreleased]` section above it is not a
+version heading), and that entry must carry the live corpus digest
 and the case total from `priv/conformance/index.json` — every release
 names the conformance identity it ships.
 
@@ -1226,7 +1254,19 @@ Every markdown link target without a scheme must resolve, relative to
 the directory of the document containing it (markdown link semantics),
 to a file in the repository, as must every GitHub blob/tree URL into
 this repository (those are root-relative); other URLs and pure anchors
-are external and unchecked.
+are external and unchecked. The scanned set expands directory package
+entries (`documentation`) and includes Livebooks; it once filtered the
+entries list by extension and skipped every guide.
+
+```red
+$ # plant: a link to a missing Livebook appended to documentation/faq.md
+$ mix test test/architecture/document_citation_gate_test.exs
+1) test shipped markdown links resolve to real files
+a shipped document links to a file that does not exist:
+  documentation/faq.md: ../docs/livebooks/missing.livemd resolves to no file in this repository
+code: assert offenders == [],
+Result: 1/2 passed
+```
 
 ```red
 $ # plant: "See [the internals note](docs/internals-note.md) and internals §12" appended to README
@@ -1391,7 +1431,16 @@ references and longer dotted sequences are not version claims). The
 shipped-file enumeration globs DIRECTORY package entries — the
 original `ends_with?(".md")` filter over the entries list silently
 skipped every guide inside `"documentation"`, which is how the
-onboarding pins drifted past the gate.
+onboarding pins drifted past the gate. Livebooks (`.livemd`) are
+shipped documents and are scanned the same way.
+
+```red
+$ # organic red: the walkthrough Livebook named a build version and an RFC section as bare x.y.z numbers
+$ mix test test/architecture/documentation_currency_test.exs
+1) test no shipped document outside the release docs carries a stale concrete version claim
+shipped documents carry stale concrete version claims (only 0.8.1 may appear): [{"docs/livebooks/abp-walkthrough.livemd", "3.2.0"}, {"docs/livebooks/abp-walkthrough.livemd", "5.1.5"}]
+code: assert offenders == [],
+```
 
 ```red
 $ # organic red: guide pins drifted through the directory blind spot (enumeration fixed to glob directories)
@@ -1419,7 +1468,7 @@ Result: 3/4 passed
 ### case: "every result-claiming guide example mirrors the real package"
 
 Mirror-test gate: every result-claiming elixir block in the
-documentation corpus executes line-by-line against the real package
+documentation corpus (the guides and the README) executes line-by-line against the real package
 with the claimed value compared to the evaluated one — a guide example
 that would not run (wrong API shape, wrong return form, fabricated
 output) reds; a corpus with no result-claiming examples reds as
@@ -1430,6 +1479,14 @@ $ # plant: a guide claim drifted (profile.depth claimed 31)
 $ mix test test/architecture/documentation_mirror_test.exs
 1) test every result-claiming guide example mirrors the real package
 documentation/host-integration.md (block 0): profile.depth evaluated to 32, guide claims 31
+Result: 0/1 passed
+```
+
+```red
+$ # plant: the README's first-verification claim drifted to :digest_mismatch
+$ mix test test/architecture/documentation_mirror_test.exs
+1) test every result-claiming guide example mirrors the real package
+README.md (block 1): AgentBlueprintProtocol.decode_blueprint(other) evaluated to {:error, :unknown_member}, guide claims {:error, :digest_mismatch}
 Result: 0/1 passed
 ```
 

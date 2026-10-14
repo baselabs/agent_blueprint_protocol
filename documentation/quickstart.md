@@ -47,9 +47,9 @@ bytes = File.read!("examples/echo-blueprint.json")
 same == bytes # => true
 ```
 
-That green `true` is the full pipeline: canonical bytes verified, all 18
-members validated against the registry, the portability scan passed, the
-content digest matched — and the decode round-trips byte-exactly, because
+That green `true` is the full pipeline: canonical bytes verified, the
+example's 16 members validated against the 18-member Blueprint table,
+the portability scan passed, the content digest matched — and the decode round-trips byte-exactly, because
 the bytes ARE the artifact's identity. A typed fact — never authority.
 
 ## 3. See a typed denial
@@ -78,3 +78,10 @@ you want to re-run the evidence yourself.
 
 That is the whole verification surface: canonical bytes, typed
 denials, a digest-bound corpus — and no authority granted anywhere.
+
+## 5. Next
+
+The [Livebook walkthrough](../docs/livebooks/abp-walkthrough.livemd)
+composes and signs a Blueprint of your own, negotiates its extensions,
+binds a Deployment Manifest, reconciles the pair, and runs the attacks
+that fail closed.

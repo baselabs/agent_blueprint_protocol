@@ -1,0 +1,662 @@
+<!--
+livebook:{"persist_outputs":true}
+-->
+
+# Agent Blueprint Protocol walkthrough
+
+```elixir
+Mix.install([
+  {:agent_blueprint_protocol, "~> 0.8.1"}
+])
+```
+
+## What this notebook covers
+
+This notebook runs the whole loop against the published Hex package: compose a Blueprint,
+verify its bytes, sign it, verify the signature, negotiate its extensions, bind it to a
+Deployment Manifest, reconcile the pair, and run the shipped conformance corpus. Then it
+attacks the result: a tampered signature, the wrong key, a small-order key, edited and
+re-spelled bytes, and the strict Ed25519 rule on a signature's R and S.
+
+The keys are Ed25519 key pairs generated in section 3 with `:crypto`. Nothing is read from
+disk except the conformance corpus that ships inside the package. The package never signs and
+never accepts a private key: the notebook signs with `:crypto`, and the package only verifies.
+
+Every result is evidence, never an authorization decision. Run the cells top to bottom.
+Rerunning mints fresh keys and different signatures; every printed result below stays the
+same, because no cell prints key or signature bytes.
+
+## 1. Compose a Blueprint
+
+A Blueprint is canonical JSON. Here it describes a library agent that reads catalog records
+and publishes a shelf summary. The package's value algebra is tagged (`{:object, members}`,
+`{:string, s}`, …), so the cell writes a plain map, encodes it with Elixir's `JSON`, and
+decodes it into that algebra.
+
+`content_digest` covers every member except the evidence members (`content_digest`,
+`signatures`, `attestations`), so the cell composes with a placeholder digest, computes the
+real one, and swaps it in. `Canonicalization.encode/1` then produces the wire bytes.
+
+```elixir
+alias AgentBlueprintProtocol.{Blueprint, Canonicalization, Digest, Json}
+
+library_map = %{
+  "blueprint_id" => "example.library/shelf-summary",
+  "protocol_revision" => 1,
+  "release_number" => 1,
+  "producer" => %{
+    "identity" => "example.library",
+    "created_at" => "2026-10-01T09:00:00Z",
+    "toolchain" => "example.library.toolchain"
+  },
+  "capability_requirements" => [
+    %{
+      "operation_family" => "example.library.read_catalog",
+      "operation_kind" => "read",
+      "impact_class" => "ordinary",
+      "classification_ceiling" => "internal",
+      "approval_trait" => "none",
+      "authority_trait" => "none",
+      "argument_schema" => %{"type" => "object"},
+      "result_schema" => %{"type" => "object"}
+    }
+  ],
+  "effect_intents" => [
+    %{
+      "logical_operation" => "publish_summary",
+      "operation_kind" => "mutation",
+      "impact_class" => "ordinary"
+    }
+  ],
+  "ceilings" => %{
+    "max_attempts" => 3,
+    "max_concurrency" => 2,
+    "max_cost" => %{"amount" => 200, "currency" => "EUR"},
+    "max_depth" => 4,
+    "max_descendants" => 16,
+    "max_elapsed_ms" => 30_000,
+    "max_fan_out" => 2,
+    "max_tokens" => 20_000
+  },
+  "classification_ceiling" => "internal",
+  "input_ports" => [
+    %{
+      "name" => "shelf",
+      "required" => true,
+      "classification_ceiling" => "internal",
+      "schema" => %{"type" => "object"}
+    }
+  ],
+  "output_ports" => [
+    %{
+      "name" => "summary",
+      "required" => true,
+      "classification_ceiling" => "internal",
+      "schema" => %{"type" => "object"}
+    }
+  ],
+  "output_contract" => %{"port" => "summary", "classification_ceiling" => "internal"},
+  "evaluation_assertions" => [
+    %{"kind" => "output_schema", "port" => "summary", "schema" => %{"type" => "object"}}
+  ],
+  "triggers" => ["manual", "schedule"],
+  "extensions" => %{"critical" => %{}, "optional" => %{}},
+  "required_core_fields" => [],
+  "content_digest" => "sha-256:" <> String.duplicate("A", 43)
+}
+
+# Swap a member into a tagged object, keeping every other member.
+put_member = fn {:object, members}, name, value ->
+  {:object, List.keystore(members, name, 0, {name, value})}
+end
+
+# Compose: map -> tagged value -> structural check -> real digest -> canonical bytes.
+compose = fn map ->
+  {:ok, draft_value} = map |> JSON.encode!() |> Json.decode()
+  {:ok, draft} = Blueprint.from_value(draft_value)
+  tagged = draft |> Blueprint.content_digest() |> Digest.to_tagged()
+  {:ok, bytes} = draft_value |> put_member.("content_digest", {:string, tagged}) |> Canonicalization.encode()
+  {bytes, tagged}
+end
+
+{library_bytes, library_digest} = compose.(library_map)
+
+%{content_digest: library_digest, canonical_byte_size: byte_size(library_bytes)}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  canonical_byte_size: 1395,
+  content_digest: "sha-256:b6eDtmqmJ_Da-9KkC8LwmC4EukZPTQS3URlqH6aYX0M"
+}
+```
+
+## 2. Decode the bytes and read them back
+
+`decode_blueprint/2` is the fail-closed reader: canonical bytes first, then the closed member
+world, the portability scan, and the content-digest comparison. Re-encoding a decoded
+Blueprint gives back the exact bytes, because the bytes are the artifact's identity.
+
+```elixir
+{:ok, library} = AgentBlueprintProtocol.decode_blueprint(library_bytes)
+{:ok, same_bytes} = AgentBlueprintProtocol.canonical_bytes(library)
+
+%{
+  round_trip_exact?: same_bytes == library_bytes,
+  recomputed_digest: library |> Blueprint.content_digest() |> Digest.to_tagged()
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  recomputed_digest: "sha-256:b6eDtmqmJ_Da-9KkC8LwmC4EukZPTQS3URlqH6aYX0M",
+  round_trip_exact?: true
+}
+```
+
+## 3. Sign the Blueprint
+
+Signing happens in your producer toolchain, not in this package. The signature is a detached
+JWS (RFC 7515 with the RFC 7797 unencoded payload) over
+`BASE64URL(JCS(protected_header)) || "." || JCS(signed_attributes)`. The signed attributes
+carry the content digest and the purpose, so the signature cannot be moved onto another
+artifact. `kid` must equal the signed `key_id`.
+
+The envelope rides in the optional `signatures` member, which the digest does not cover:
+adding it leaves `content_digest` unchanged.
+
+```elixir
+alias AgentBlueprintProtocol.{Base64Url, Signature}
+alias AgentBlueprintProtocol.Signature.PublicKey
+
+{producer_public, producer_private} = :crypto.generate_key(:eddsa, :ed25519)
+{other_public, _other_private} = :crypto.generate_key(:eddsa, :ed25519)
+
+protected =
+  {:object,
+   [
+     {"alg", {:string, "EdDSA"}},
+     {"b64", {:boolean, false}},
+     {"crit", {:array, [{:string, "b64"}]}},
+     {"kid", {:string, "library-producer-1"}}
+   ]}
+
+signed_attributes =
+  {:object,
+   [
+     {"algorithm", {:string, "Ed25519"}},
+     {"content_digest", {:string, library_digest}},
+     {"created_at", {:string, "2026-10-01T09:05:00Z"}},
+     {"key_id", {:string, "library-producer-1"}},
+     {"purpose", {:string, "blueprint"}}
+   ]}
+
+{:ok, protected_json} = Canonicalization.encode(protected)
+{:ok, attributes_json} = Canonicalization.encode(signed_attributes)
+signing_input = Base64Url.encode(protected_json) <> "." <> attributes_json
+
+envelope_with = fn signature_bytes ->
+  {:object,
+   [
+     {"protected", protected},
+     {"signed_attributes", signed_attributes},
+     {"signature", {:string, Base64Url.encode(signature_bytes)}}
+   ]}
+end
+
+signature = :crypto.sign(:eddsa, :none, signing_input, [producer_private, :ed25519])
+envelope = envelope_with.(signature)
+
+{:ok, ^signing_input} = Signature.signing_input(envelope)
+
+producer_key = %PublicKey{key_id: "library-producer-1", algorithm: :ed25519, key: producer_public}
+
+{:ok, signed_bytes} =
+  library
+  |> Blueprint.to_value()
+  |> put_member.("signatures", {:array, [envelope]})
+  |> Canonicalization.encode()
+
+{:ok, signed_library} = AgentBlueprintProtocol.decode_blueprint(signed_bytes)
+
+%{
+  verify: Signature.verify(envelope, [producer_key]),
+  signed_digest_unchanged?:
+    Digest.to_tagged(Blueprint.content_digest(signed_library)) == library_digest
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{signed_digest_unchanged?: true, verify: {:ok, :verified}}
+```
+
+## 4. Negotiate, and handle extensions
+
+Negotiation is the evolution gate a host runs before reading the artifact's meaning. The host
+states its posture in `Negotiation.Support`: the protocol revisions it supports, as an exact
+set. Extensions follow a fixed state machine against the compiled extension registry:
+
+* an optional namespace nobody registered is quarantined: kept byte-exactly, never executed;
+* a registered optional namespace is retained (a deprecated one also gets a notice);
+* an unknown critical namespace denies the whole artifact.
+
+This cell composes a second Blueprint, a weather-forecast digest, with two optional extensions,
+then the same Blueprint with an unregistered critical extension.
+
+```elixir
+alias AgentBlueprintProtocol.Negotiation.Support
+
+support = %Support{revisions: MapSet.new([1])}
+
+weather_map =
+  library_map
+  |> Map.merge(%{
+    "blueprint_id" => "example.weather/forecast-digest",
+    "producer" => %{
+      "identity" => "example.weather",
+      "created_at" => "2026-10-02T06:00:00Z",
+      "toolchain" => "example.weather.toolchain"
+    },
+    "extensions" => %{
+      "critical" => %{},
+      "optional" => %{
+        "com.example.platform/estate" => %{"region" => "north"},
+        "org.example.weather/units" => %{"temperature" => "celsius"}
+      }
+    }
+  })
+
+{weather_bytes, _weather_digest} = compose.(weather_map)
+{:ok, weather} = AgentBlueprintProtocol.decode_blueprint(weather_bytes)
+{:ok, outcome} = AgentBlueprintProtocol.negotiate(weather, support)
+
+critical_map =
+  put_in(weather_map, ["extensions", "critical"], %{
+    "org.example.weather/alerting" => %{"channel" => "bulletin"}
+  })
+
+{critical_bytes, _} = compose.(critical_map)
+{:ok, critical_weather} = AgentBlueprintProtocol.decode_blueprint(critical_bytes)
+
+%{
+  library: AgentBlueprintProtocol.negotiate(library, support),
+  weather: Map.from_struct(outcome),
+  unknown_critical: AgentBlueprintProtocol.negotiate(critical_weather, support),
+  revision_unsupported:
+    AgentBlueprintProtocol.negotiate(library, %Support{revisions: MapSet.new([2])})
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  library: {:ok,
+   %AgentBlueprintProtocol.Negotiation.Outcome{
+     protocol_revision: 1,
+     required_core_fields: [],
+     critical_extensions: [],
+     optional_retained: [],
+     quarantined_extensions: [],
+     notices: []
+   }},
+  revision_unsupported: {:error, :protocol_revision_unsupported},
+  unknown_critical: {:error, :extension_unknown_critical},
+  weather: %{
+    critical_extensions: [],
+    notices: [:extension_deprecated, :extension_unknown_optional_retained],
+    optional_retained: ["com.example.platform/estate"],
+    protocol_revision: 1,
+    quarantined_extensions: ["org.example.weather/units"],
+    required_core_fields: []
+  }
+}
+```
+
+## 5. Bind a Deployment Manifest and reconcile the pair
+
+A Deployment Manifest binds one Blueprint release digest to one environment: the adapters that
+serve each operation, the datasets, the authority profile, the effect owner, the host's own
+bounds, and exact build identities. Every value here is a logical name or a digest, never a
+live endpoint or credential.
+
+`reconcile/3` is the one call per import. It runs eight stages in a fixed order (canonical,
+digest, negotiation, structure, portability, signatures, bind, bounds) and returns an
+`%Evidence{}`. The host bounds below are narrower than the Blueprint's ceilings. Narrowing an
+operational bound (attempts, cost, elapsed time) is recorded as clamp evidence. Narrowing a
+protected bound (here `disclosure_ceiling`) denies under the default `:deny` posture; the
+`:acknowledge` posture records it as clamp evidence instead. The signature stage verifies the
+Blueprint's signature against the keys the host supplies, so the same import without the
+producer's key is refused. A successful result still names, in `not_verified`, the seven
+surfaces the host owns.
+
+```elixir
+alias AgentBlueprintProtocol.{BoundsAlgebra, Deployment, Reconcile}
+
+# Digests of documents the host holds: in a real deployment, the bytes of each tool
+# descriptor, schema, build, and evaluation corpus.
+pin = fn document -> document |> Digest.of() |> Digest.to_tagged() end
+descriptor = pin.("example.library tool descriptor")
+schema_pin = pin.("example.library tool schema")
+
+deployment_map = %{
+  "protocol_revision" => 1,
+  "blueprint_release" => %{
+    "blueprint_id" => "example.library/shelf-summary",
+    "release_number" => 1,
+    "content_digest" => library_digest
+  },
+  "scope_projection" => %{"adapter_identity" => "example.library.adapters.scope"},
+  "tool_bindings" => [
+    %{
+      "logical_operation" => "example.library.read_catalog",
+      "adapter_identity" => "example.library.adapters.catalog",
+      "descriptor_digest" => descriptor,
+      "schema_digest" => schema_pin,
+      "attested_at" => "2026-10-01T08:00:00Z"
+    },
+    %{
+      "logical_operation" => "publish_summary",
+      "adapter_identity" => "example.library.adapters.notices",
+      "descriptor_digest" => descriptor,
+      "schema_digest" => schema_pin,
+      "attested_at" => "2026-10-01T08:00:00Z"
+    }
+  ],
+  "data_bindings" => [
+    %{
+      "logical_dataset" => "branch_catalog",
+      "classification_ceiling" => "internal",
+      "as_of" => %{"mode" => "required", "max_age_ms" => 86_400_000}
+    }
+  ],
+  "authority_requirement" => %{
+    "adapter_identity" => "example.library.adapters.authority",
+    "profile_identity" => "example.library.profiles.read-mostly"
+  },
+  "effect_owner" => %{
+    "adapter_identity" => "example.library.adapters.notices",
+    "idempotency" => %{"key_derivation" => "host", "recovery" => "authoritative"}
+  },
+  "signer_custody" => "host_managed",
+  "eligibility" => %{
+    "owner" => %{
+      "kind" => "owner_band",
+      "band" => "operator",
+      "policy" => "example.library.policies/staff"
+    },
+    "runtime_principal" => %{
+      "kind" => "runtime_band",
+      "band" => "operator",
+      "policy" => "example.library.policies/staff"
+    },
+    "beneficiary" => %{
+      "kind" => "beneficiary_band",
+      "band" => "operator",
+      "policy" => "example.library.policies/staff"
+    }
+  },
+  "model_policy" => %{
+    "allowed_model_roles" => ["summarizer"],
+    "max_tokens" => 10_000,
+    "max_cost" => %{"amount" => 100, "currency" => "EUR"}
+  },
+  "host_bounds" => %{
+    "approval_trait" => "none",
+    "authority_trait" => "none",
+    "classification_ceiling" => "internal",
+    "disclosure_ceiling" => "summary",
+    "effect_impact_ceiling" => "ordinary",
+    "max_attempts" => 2,
+    "max_concurrency" => 2,
+    "max_cost" => %{"amount" => 150, "currency" => "EUR"},
+    "max_depth" => 4,
+    "max_descendants" => 16,
+    "max_elapsed_ms" => 20_000,
+    "max_fan_out" => 2,
+    "max_tokens" => 20_000
+  },
+  "lifecycle" => %{"state" => "active", "activated_at" => "2026-10-01T08:30:00Z"},
+  "build_identities" => [
+    %{
+      "kind" => "adapter",
+      "name" => "example.library.adapters.catalog",
+      "version" => "4.2",
+      "digest" => pin.("example.library catalog adapter build 4.2")
+    }
+  ],
+  "evaluation_binding" => %{
+    "adapter_identity" => "example.library.adapters.evaluations",
+    "corpus" => %{
+      "name" => "example.library.corpora/shelf-summary",
+      "digest" => pin.("example.library shelf-summary evaluation corpus")
+    }
+  },
+  "extensions" => %{"critical" => %{}, "optional" => %{}},
+  "required_core_fields" => [],
+  "deployment_digest" => "sha-256:" <> String.duplicate("A", 43)
+}
+
+{:ok, deployment_draft_value} = deployment_map |> JSON.encode!() |> Json.decode()
+{:ok, deployment_draft} = Deployment.from_value(deployment_draft_value)
+deployment_tagged = deployment_draft |> Deployment.content_digest() |> Digest.to_tagged()
+
+{:ok, deployment_bytes} =
+  deployment_draft_value
+  |> put_member.("deployment_digest", {:string, deployment_tagged})
+  |> Canonicalization.encode()
+
+{:ok, deployment} = AgentBlueprintProtocol.decode_deployment(deployment_bytes)
+{:ok, host_bounds} = BoundsAlgebra.from_deployment(deployment)
+
+inputs = %Reconcile.Inputs{
+  host_bounds: host_bounds,
+  support: support,
+  keys: [producer_key],
+  protected_clamp: :deny,
+  observations: %Deployment.Observations{
+    now: ~U[2026-10-01T12:00:00Z],
+    max_attestation_age_ms: 86_400_000,
+    observed: %{}
+  }
+}
+
+acknowledged = %{inputs | protected_clamp: :acknowledge}
+
+{:error, denied} = AgentBlueprintProtocol.reconcile(signed_library, deployment, inputs)
+{:error, keyless} = AgentBlueprintProtocol.reconcile(signed_library, deployment, %{acknowledged | keys: []})
+{:ok, evidence} = AgentBlueprintProtocol.reconcile(signed_library, deployment, acknowledged)
+
+%{
+  binds?: Deployment.binds?(deployment, signed_library),
+  deny_posture: denied.code,
+  without_the_producer_key: keyless.code,
+  acknowledged_clamps: Enum.map(evidence.clamps, &{&1.field, &1.requested, &1.effective}),
+  signature_checks: for(%{surface: :signatures, subject: [side], detail: detail} <- evidence.checks, do: {side, detail}),
+  not_verified: evidence.not_verified
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  acknowledged_clamps: [
+    {:disclosure_ceiling, :full, :summary},
+    {:max_attempts, 3, 2},
+    {:max_cost, %{amount: 200, currency: "EUR"}, %{amount: 150, currency: "EUR"}},
+    {:max_elapsed_ms, 30000, 20000}
+  ],
+  binds?: true,
+  deny_posture: :protected_bound_clamp_denied,
+  not_verified: [:tenancy, :live_policy, :authority, :effect_ownership, :execution, :billing,
+   :evaluation_truth],
+  signature_checks: [
+    {"blueprint", "1 signature(s) verified"},
+    {"deployment", "no signatures present"}
+  ],
+  without_the_producer_key: :signature_key_unsupported
+}
+```
+
+## 6. Run the shipped conformance corpus
+
+The package ships its conformance corpus under `priv/conformance`. The loader checks the corpus
+integrity first (exact file set, per-file hashes, case count), the runner executes every case,
+and the report states the agreement. An independent TypeScript verifier must produce the same
+report bytes over the same corpus before a release ships.
+
+```elixir
+alias AgentBlueprintProtocol.Conformance.{Corpus, Report, Runner}
+
+corpus_dir = Path.join(:code.priv_dir(:agent_blueprint_protocol), "conformance")
+
+corpus_files =
+  corpus_dir
+  |> Path.join("**/*")
+  |> Path.wildcard(match_dot: true)
+  |> Enum.reject(&File.dir?/1)
+  |> Map.new(fn path -> {Path.relative_to(path, corpus_dir), File.read!(path)} end)
+
+{:ok, corpus} = Corpus.load(corpus_files)
+report = Report.build(corpus, Runner.run(corpus))
+
+Map.take(report, [:agreement, :agreed, :disagreed, :total])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{agreed: 129, agreement: true, disagreed: 0, total: 129}
+```
+
+## 7. Attacks on the signature and the bytes fail closed
+
+Each attack below gets a typed denial; none is repaired.
+
+* A tampered signature: one bit flipped.
+* The wrong key under the right `key_id`.
+* A small-order public key (all zero bytes) with an all-zero signature. `:crypto` alone
+  accepts that pair for any message; the package refuses the key before calling it.
+* An edited member that keeps the old `content_digest`.
+* The same Blueprint re-spelled with whitespace: the value is identical, the bytes are not
+  canonical.
+* The valid envelope presented with a key under a different `key_id`.
+
+```elixir
+flip_bit = fn <<first, rest::binary>> -> <<Bitwise.bxor(first, 1), rest::binary>> end
+
+small_order_key = %PublicKey{
+  key_id: "library-producer-1",
+  algorithm: :ed25519,
+  key: <<0::256>>
+}
+
+# Canonical bytes again, but release_number edited while content_digest keeps its old value.
+{:ok, edited_bytes} =
+  library
+  |> Blueprint.to_value()
+  |> put_member.("release_number", {:integer, 2})
+  |> Canonicalization.encode()
+
+respelled_bytes = String.replace(library_bytes, ~s(":), ~s(": ), global: false)
+
+%{
+  backend_accepts_small_order_forgery:
+    :crypto.verify(:eddsa, :none, signing_input, <<0::512>>, [<<0::256>>, :ed25519]),
+  rejections: %{
+    tampered_signature: Signature.verify(envelope_with.(flip_bit.(signature)), [producer_key]),
+    wrong_key:
+      Signature.verify(envelope, [%PublicKey{producer_key | key: other_public}]),
+    small_order_key: Signature.verify(envelope_with.(<<0::512>>), [small_order_key]),
+    edited_member: AgentBlueprintProtocol.decode_blueprint(edited_bytes),
+    respelled_bytes: AgentBlueprintProtocol.decode_blueprint(respelled_bytes),
+    unknown_key_id:
+      Signature.verify(envelope, [%PublicKey{producer_key | key_id: "library-producer-2"}])
+  }
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  backend_accepts_small_order_forgery: true,
+  rejections: %{
+    edited_member: {:error, :digest_mismatch},
+    respelled_bytes: {:error, :non_canonical_bytes},
+    small_order_key: {:error, :signature_algorithm_unsupported},
+    tampered_signature: {:error, :signature_not_verified},
+    unknown_key_id: {:error, :signature_key_unsupported},
+    wrong_key: {:error, :signature_not_verified}
+  }
+}
+```
+
+## 8. The strict Ed25519 rule on R and S
+
+Since 0.8.1 the package holds a signature's R to the same point rule as the public key
+(canonical encoding, on the curve, not small-order) and requires S below the group order L,
+before `:crypto` sees the bytes.
+
+Two signatures over the same input show why. The key holder can build one whose R is the
+identity point: with S = k·a mod L (k is the RFC 8032 challenge hash, a the secret scalar), the
+cofactorless verification equation holds, so `:crypto.verify/5` accepts it. The second adds L
+to an honest S; `:crypto` already rejects that one, and the package rejects it before calling
+`:crypto`. Both deny with `:signature_not_verified`, while the honest signature still verifies.
+
+```elixir
+l = 2 ** 252 + 27_742_317_777_372_353_535_851_937_790_883_648_493
+
+# RFC 8032 §5.1.5: the secret scalar a is the clamped first half of SHA-512(seed).
+<<scalar_bytes::binary-size(32), _prefix::binary>> = :crypto.hash(:sha512, producer_private)
+<<a::little-size(256)>> = scalar_bytes
+a = a |> Bitwise.band(Bitwise.bsl(1, 254) - 8) |> Bitwise.bor(Bitwise.bsl(1, 254))
+
+# The identity point encodes as y = 1 with the sign bit clear.
+identity_r = <<1, 0::248>>
+<<k::little-size(512)>> = :crypto.hash(:sha512, identity_r <> producer_public <> signing_input)
+identity_signature = identity_r <> <<rem(rem(k, l) * a, l)::little-size(256)>>
+
+<<honest_r::binary-size(32), honest_s::little-size(256)>> = signature
+s_plus_l_signature = honest_r <> <<honest_s + l::little-size(256)>>
+
+backend = fn bytes -> :crypto.verify(:eddsa, :none, signing_input, bytes, [producer_public, :ed25519]) end
+package = fn bytes -> Signature.verify(envelope_with.(bytes), [producer_key]) end
+
+%{
+  honest: %{backend: backend.(signature), package: package.(signature)},
+  identity_r: %{backend: backend.(identity_signature), package: package.(identity_signature)},
+  s_plus_l: %{backend: backend.(s_plus_l_signature), package: package.(s_plus_l_signature)}
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  honest: %{backend: true, package: {:ok, :verified}},
+  identity_r: %{backend: true, package: {:error, :signature_not_verified}},
+  s_plus_l: %{backend: false, package: {:error, :signature_not_verified}}
+}
+```
+
+## What you just saw
+
+* The bytes are the identity: decode verifies canonical form and the content digest, and the
+  round trip is byte-exact.
+* Signing stays in the producer's toolchain; the package verifies against keys the host
+  supplies, and refuses keys and signatures that Ed25519's equation alone would accept.
+* Negotiation quarantines what it does not know when that is safe and denies when it is not.
+* Reconcile returns evidence and names what it did not check. Identity, tenancy, live policy,
+  effect ownership, execution, billing, and evaluation truth stay with your host.
+
+Next: the [host-integration guide](../../documentation/host-integration.md), the
+[error guide](../../documentation/errors.md), and the normative
+[specification](../../spec/protocol.md).

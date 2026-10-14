@@ -18,6 +18,22 @@ evaluation, and exact builds.
 
 ## The binding check is deny-ordered
 
-`Deployment.verify_binding/3` runs a pinned order: identity, staleness
-(attestation freshness), descriptor-digest equality. Any divergence is
-a typed denial — the host never receives a repaired manifest.
+`Deployment.verify_binding/3` runs six checks in a pinned order, and
+the first failure is the denial:
+
+1. the bound release digest equals the Blueprint's recomputed content
+   digest (`:deployment_digest_mismatch`);
+2. the bound `blueprint_id` and `release_number` are the Blueprint's
+   (`:binding_incomplete`);
+3. every tool binding names an operation family or effect intent the
+   Blueprint declares (`:binding_incomplete`);
+4. a mutation is never bound under `recovery: "none"`
+   (`:no_authoritative_recovery`);
+5. no attestation is older than the host's maximum age or dated in the
+   future (`:binding_attestation_stale`; runs only when the host
+   supplies `now`);
+6. each observed descriptor digest equals the attested one
+   (`:binding_descriptor_mismatch`; runs only on the host's
+   observations).
+
+The host never receives a repaired manifest.

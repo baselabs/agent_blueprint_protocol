@@ -23,7 +23,6 @@ defmodule AgentBlueprintProtocol.Digest do
   `:digest_encoding_invalid`, uniformly. SHA-256 conformance (FIPS 180-4
   known-answer vectors) is pinned in the conformance suite.
   A digest is an identity fact about bytes; it never authorizes anything.
-  A digest is an identity fact about bytes; it never authorizes anything.
   """
 
   alias AgentBlueprintProtocol.Base64Url

@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
   @moduledoc """
   Mirror-test gate: every result-claiming example in the documentation
-  corpus is executed against the real package, line by line, in order,
+  corpus (the guides under `documentation/` and the README) is executed against the real package, line by line, in order,
   with the claimed value compared to the evaluated one — a guide
   example that would not run (wrong API shape, wrong return form,
   fabricated output) reds. A non-running example is worse than none.
@@ -27,8 +27,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
            "guide examples that do not mirror the package:\n" <> Enum.join(offenders, "\n")
   end
 
+  # The README's first-verification example is a guide example too.
   defp guide_examples do
-    for file <- Path.wildcard(Path.join(@guides_dir, "*.md")) |> Enum.sort(),
+    for file <- ["README.md" | Path.wildcard(Path.join(@guides_dir, "*.md")) |> Enum.sort()],
         {index, body} <- extract_blocks(File.read!(file)) do
       {file, index, body}
     end

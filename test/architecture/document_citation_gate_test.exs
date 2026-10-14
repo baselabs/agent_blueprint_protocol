@@ -61,10 +61,20 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   end
 
   # The scanned set is exactly the markdown the package ships — a document
-  # outside the archive may cite repo-only documents freely.
+  # outside the archive may cite repo-only documents freely. Directory
+  # entries ("documentation") are expanded: filtering the entries list by
+  # extension alone skipped every guide inside them. Livebooks (.livemd)
+  # are shipped documents with the same link semantics.
   defp shipped_markdown do
     Mix.Project.config()[:package][:files]
-    |> Enum.filter(&String.ends_with?(&1, ".md"))
+    |> Enum.flat_map(fn entry ->
+      cond do
+        String.ends_with?(entry, [".md", ".livemd"]) -> [entry]
+        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd}"))
+        true -> []
+      end
+    end)
+    |> Enum.uniq()
     |> Enum.sort()
   end
 
@@ -73,7 +83,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   # one that exists nowhere, for a reader of the archive.
   defp repo_doc_stems do
     shipped_markdown()
-    |> Enum.map(&Path.basename(&1, ".md"))
+    |> Enum.map(&(&1 |> Path.basename(".md") |> Path.basename(".livemd")))
   end
 
   # Captures the document token naming a section: `A2A §7.6.4` → "A2A",

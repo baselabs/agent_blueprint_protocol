@@ -37,7 +37,26 @@ end
 ```
 
 The package has **zero production dependencies**, no application callback, and
-no supervision tree.
+no supervision tree. It requires Elixir 1.19 or newer on OTP 27, 28, or 29.
+
+## A first verification
+
+From a checkout of this repository (or with the example file fetched as
+the [quickstart](documentation/quickstart.md) shows), decode the example
+Blueprint, then watch a value that is not a Blueprint get a typed denial:
+
+```elixir
+bytes = File.read!("examples/echo-blueprint.json")
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
+AgentBlueprintProtocol.canonical_bytes(blueprint) == {:ok, bytes} # => true
+{:ok, other} = AgentBlueprintProtocol.Canonicalization.encode({:object, [{"a", {:integer, 1}}]})
+AgentBlueprintProtocol.decode_blueprint(other) # => {:error, :unknown_member}
+```
+
+The quickstart runs this from a new Mix project, and the
+[Livebook walkthrough](docs/livebooks/abp-walkthrough.livemd)
+goes end to end: compose, sign, negotiate, reconcile, and the attacks that
+fail closed.
 
 ## Installation (TypeScript)
 
@@ -47,8 +66,8 @@ declarations, and the conformance corpus embedded byte-identically to
 the release-certified copy. Zero runtime dependencies; Node 24+.
 
 ```bash
-npx @agent-blueprint-protocol/verifier                        # verify the embedded corpus
-npx @agent-blueprint-protocol/verifier --artifact <file.json> # verify one artifact
+npx @agent-blueprint-protocol/verifier@0.8.1                        # verify the embedded corpus
+npx @agent-blueprint-protocol/verifier@0.8.1 --artifact <file.json> # verify one artifact
 ```
 
 See the [TypeScript quickstart](documentation/typescript.md) and the
@@ -109,7 +128,7 @@ against its tags' actual trees.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated: 951 tests
+and conformance corpus are implemented and gated: 955 tests
 (63 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, a 129-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
@@ -159,12 +178,15 @@ mix deps.get
 mix quality
 ```
 
-`mix quality` runs dependency audits, formatting, warnings-as-errors
-compilation, Credo, tests with the 100% coverage threshold, the
-conformance corpus and its mutation gate, the second-language verifier
-agreement gate, Dialyzer, documentation with warnings-as-errors, and the
-release-candidate check (requirement-map completeness plus protocol-doc
-coupling). Every gate carries a recorded red proof — see the requirement map at
+`mix quality` runs dependency audits (retirement, advisories, and
+dependency currency), formatting, warnings-as-errors compilation, Credo,
+tests with the 100% coverage threshold, the conformance corpus and its
+mutation gate, the npm kit build, the TypeScript guide's import example,
+the second-language verifier agreement gate, the compatibility replay, Dialyzer, documentation with
+warnings-as-errors, the specification-extraction, grammar-derivation,
+registry-equality, and release-asset gates, and the release-candidate
+check (requirement-map completeness, specification coupling, and the
+release identity chain). Every gate carries a recorded red proof — see the requirement map at
 `docs/design/requirement-map.md` in this repository.
 
 ### Conformance corpus
@@ -200,11 +222,11 @@ compatibility, and federation semantics. Run it:
 ```bash
 node verifier/cli.ts --corpus priv/conformance  # exit 0/1/2, report bytes on stdout
 node verifier/self_checks.ts                    # RFC 8785 Appendix B, window matrix,
-                                                            # Ed25519 keys, stored JOSE vectors
-mix verifier.agreement                                     # byte-agrees the TS report with the
-                                                            # escript's (repo AND built archive),
-                                                            # runs the self-checks, and proves three
-                                                            # seeded reds fire
+                                                # Ed25519 keys, stored JOSE vectors
+mix verifier.agreement                          # byte-agrees the TS report with the
+                                                # escript's (repo AND built archive),
+                                                # runs the self-checks, and proves its
+                                                # seeded reds (planted breaks) fire
 ```
 
 The agreement gate is part of `mix quality`: the two implementations must
@@ -217,7 +239,8 @@ Every guide ships in the package and renders on HexDocs:
 
 - Start here: [getting started](documentation/getting-started.md) ·
   [quickstart](documentation/quickstart.md) ·
-  [TypeScript quickstart](documentation/typescript.md)
+  [TypeScript quickstart](documentation/typescript.md) ·
+  [Livebook walkthrough](docs/livebooks/abp-walkthrough.livemd)
 - Concepts: [what a blueprint is](documentation/what-a-blueprint-is.md) ·
   [what a deployment is](documentation/what-a-deployment-is.md) ·
   [portability](documentation/portability.md) ·

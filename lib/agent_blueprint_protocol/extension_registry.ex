@@ -25,7 +25,6 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   (`priv/conformance/schemas/estate-contract.schema.json`); the remaining
   product-owned entries carry `nil` until their owners author one.
   Registry entries are published facts about namespaces; the registry carries no authority.
-  Registry entries are published facts about namespaces; the registry carries no authority.
   """
 
   alias AgentBlueprintProtocol.{Canonicalization, Digest, Json}

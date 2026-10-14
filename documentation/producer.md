@@ -38,7 +38,7 @@ signed_attributes = {:object, [{"algorithm", {:string, "Ed25519"}}, {"content_di
 protected_bytes = AgentBlueprintProtocol.Canonicalization.encode(protected) |> elem(1)
 attributes_bytes = AgentBlueprintProtocol.Canonicalization.encode(signed_attributes) |> elem(1)
 preimage = AgentBlueprintProtocol.Base64Url.encode(protected_bytes) <> "." <> attributes_bytes
-signature = :crypto.sign(:eddsa, :ed25519, preimage, [private_key, :ed25519])
+signature = :crypto.sign(:eddsa, :none, preimage, [private_key, :ed25519])
 envelope = {:object, [{"protected", protected}, {"signed_attributes", signed_attributes}, {"signature", {:string, AgentBlueprintProtocol.Base64Url.encode(signature)}}]}
 key = %AgentBlueprintProtocol.Signature.PublicKey{key_id: "example-demo-1", algorithm: :ed25519, key: public_key}
 AgentBlueprintProtocol.Signature.verify(envelope, [key]) # => {:ok, :verified}
@@ -57,3 +57,8 @@ base64url (86 chars for Ed25519). Because `content_digest` and
 onto a different artifact. Any `b64=false`-aware JOSE library can
 produce the same envelope — the constraint is the preimage form above,
 not this code.
+
+The [Livebook walkthrough](../docs/livebooks/abp-walkthrough.livemd)
+runs this recipe end to end on a Blueprint it composes, attaches the
+envelope, and shows each denial: a flipped signature bit, the wrong key,
+an unknown `key_id`, a small-order key, and the strict R and S rule.

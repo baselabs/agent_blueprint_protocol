@@ -17,11 +17,13 @@ mix quality
 `mix quality` runs, in order: dependency audits (retirement, security
 advisories, and latest-release currency), formatting, warnings-as-errors
 compilation, strict Credo, the test suite with the 100% coverage
-threshold, the conformance corpus and its mutation gate, the
-second-language verifier agreement gate (Node >= 24 required), Dialyzer,
-docs with warnings-as-errors, the specification-extraction check, the
-grammar-derivation gate, the registry-equality gate, and the
-release-candidate check (requirement-map completeness, the
+threshold, the conformance corpus and its mutation gate, the npm kit
+build, the TypeScript guide's import example, the second-language
+verifier agreement gate (Node >= 24
+required), the compatibility replay, Dialyzer, docs with
+warnings-as-errors, the specification-extraction check, the
+grammar-derivation gate, the registry-equality gate, the release-asset
+gate, and the release-candidate check (requirement-map completeness, the
 specification's coupling to the implementation, the release identity
 chain, and the reprove pass that replants every recorded red).
 
@@ -50,8 +52,11 @@ did not run); every other context enforces it.
 - **Extension registrations** — file a registry-request issue; the
   process and its rules live in `spec/registry/OPERATIONS.md`.
 - **Documentation** — PRs welcome; every result-claiming guide example is
-  mirror-tested, so examples that do not run will red the build (that is
-  the point).
+  mirror-tested, the Livebook walkthrough
+  (`docs/livebooks/abp-walkthrough.livemd`) runs cell by cell in the test
+  suite against its printed outputs, and the TypeScript guide's import
+  example runs against the built kit (`mix typescript.guide`), so examples that do not run fail
+  the build.
 
 New to the codebase? The guides listed in `mix.exs` `groups_for_extras`
 are the map; `docs/design/requirement-map.md` is the inventory of every

@@ -39,7 +39,8 @@ governance-canonical json is bound to both compiled twins by the
 registry-equality gate.
 
 **How do I run the corpus in my own language?**
-The runner protocol ships as verifier/RUNNER.md: corpus layout,
-load-time integrity, the report format, and the byte-agreement
-contract. The standalone kit (verifier + corpus) is attached to every
-release tag.
+The runner protocol is `verifier/RUNNER.md` in the repository (and in
+the standalone verifier tarball attached to every release tag): corpus
+layout, load-time integrity, the report format, and the byte-agreement
+contract. The corpus itself ships in the Hex package under
+`priv/conformance`.

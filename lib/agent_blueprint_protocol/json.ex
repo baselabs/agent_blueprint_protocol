@@ -30,7 +30,6 @@ defmodule AgentBlueprintProtocol.Json do
   Errors are **value-free**: a reason names a category, never the offending
   bytes or values.
   The tagged value algebra is decode output — it never authorizes anything.
-  The tagged value algebra is decode output — it never authorizes anything.
   """
 
   alias AgentBlueprintProtocol.{Bounds, Canonicalization}

@@ -1,10 +1,10 @@
 # Evidence commitments and the EU AI Act
 
-The AI Act became fully applicable August 2, 2026. For high-risk
-systems, Article 12 requires automatic logging of events over the
-system's lifetime, with deployer retention of at least six months, and
-Article 26 flows deployer due-diligence duties down to providers and
-suppliers. Procurement practice is converging on machine-readable
+Most of the EU AI Act's provisions apply from August 2, 2026. For
+high-risk systems, Article 12 requires automatic logging of events over
+the system's lifetime, and Article 26 requires deployers to keep those
+logs for at least six months; deployers in turn ask providers and
+suppliers for the information they need to meet those duties. Procurement practice is converging on machine-readable
 conformity claims (the EU's model contractual clauses for AI
 procurement are the reference shape).
 
@@ -27,10 +27,8 @@ What a Blueprint offers on that surface is structure, not compliance:
   manifest's evaluation binding names the evaluation corpus by digest.
 
 The honest boundary: this protocol does not log anything, satisfy an
-article, or certify a system. Logging systems do the logging (the
-IETF's in-progress agent audit-trail work — hash-chained records
-explicitly mapped to Article 12, SOC 2, and ISO/IEC 42001 — is the
-candidate substrate); certification remains the registrar's. A
+article, or certify a system. Logging systems do the logging, and
+conformity assessment stays with the bodies that perform it. A
 blueprint makes the producer's claims verifiable so the human and
 regulatory machinery has exact, signed inputs to work from.
 

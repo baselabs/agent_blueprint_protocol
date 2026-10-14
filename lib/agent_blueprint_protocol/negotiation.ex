@@ -61,7 +61,6 @@ defmodule AgentBlueprintProtocol.Negotiation do
   from `from_value` carries no integrity proof — outcomes derive from the
   given content.
   Negotiation reports what a support posture accepts; it never authorizes an operation.
-  Negotiation reports what a support posture accepts; it never authorizes an operation.
   """
 
   alias AgentBlueprintProtocol.{
@@ -169,7 +168,6 @@ defmodule AgentBlueprintProtocol.Negotiation do
     entries), and the host-supplied schemas for critical namespaces
     (`%{namespace => schema_document}`).
     A support posture is a consumer's declaration that carries no authority.
-    A support posture is a consumer's declaration that carries no authority.
     """
 
     alias AgentBlueprintProtocol.ExtensionRegistry
@@ -190,7 +188,6 @@ defmodule AgentBlueprintProtocol.Negotiation do
     required-core-field list, the supported critical / retained optional /
     quarantined namespaces, and typed notices (reason atoms — the typed
     Error notices are the Evidence surface).
-    The outcome lists facts about revisions and extensions — it is not a decision.
     The outcome lists facts about revisions and extensions — it is not a decision.
     """
 

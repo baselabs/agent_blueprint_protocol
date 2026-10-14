@@ -10,7 +10,6 @@ defmodule AgentBlueprintProtocol.Extension do
   schema pins — are different from the table's shape checks); this module is
   the TABLE-check and scan-walk surface only.
   Extension envelopes are inert data — an extension never authorizes an operation.
-  Extension envelopes are inert data — an extension never authorizes an operation.
   """
 
   alias AgentBlueprintProtocol.Json

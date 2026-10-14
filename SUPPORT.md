@@ -5,8 +5,8 @@
   corpus) — open an issue with the repository's bug-report template.
 - **Extension namespace registration** — open an issue with the
   registry-request template, following `spec/registry/OPERATIONS.md`.
-- **Security** — private vulnerability reporting via the repo's Security
-  tab; see [`SECURITY.md`](SECURITY.md). Do not open a public issue for
+- **Security** — the repository's Security tab, **Report a vulnerability**;
+  see [`SECURITY.md`](SECURITY.md). Do not open a public issue for
   vulnerabilities.
 
 The package is deliberately inert: it grants no authority and starts

@@ -75,7 +75,6 @@ defmodule AgentBlueprintProtocol.Deployment do
   whole-second RFC3339: sub-second attestations are unrepresentable, so
   `max_attestation_age_ms` is effectively second-granular.
   A Deployment Manifest is an inert binding description — it never authorizes execution.
-  A Deployment Manifest is an inert binding description — it never authorizes execution.
   """
 
   alias AgentBlueprintProtocol.{
@@ -157,7 +156,6 @@ defmodule AgentBlueprintProtocol.Deployment do
     stages: the host clock, the host's maximum tolerable attestation age,
     and the currently OBSERVED descriptor digests by logical operation.
     Absent inputs skip exactly their stages — see `Deployment`'s moduledoc.
-    Observed facts are host-supplied records that carry no authority.
     Observed facts are host-supplied records that carry no authority.
     """
 

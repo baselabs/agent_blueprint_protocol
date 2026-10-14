@@ -54,6 +54,7 @@ defmodule AgentBlueprintProtocol.Architecture.CiTriggerFilterTest do
          "priv/**",
          "scripts/build_kit.mjs"
        ]},
+    "typescript.guide" => {:lean, "mix typescript.guide"},
     "verifier.agreement" =>
       {:reads,
        ["mix.exs", "package.json", "config/**", "lib/**", "priv/**", "scripts/**", "verifier/**"],

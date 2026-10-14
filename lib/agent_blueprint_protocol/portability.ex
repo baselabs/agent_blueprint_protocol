@@ -61,7 +61,6 @@ defmodule AgentBlueprintProtocol.Portability do
   Total and never-raising: malformed tagged shapes pass through unchecked
   (the layers below already denied them).
   The guard reports portability facts — it does not authorize or permit anything.
-  The guard reports portability facts — it does not authorize or permit anything.
   """
 
   alias AgentBlueprintProtocol.Json

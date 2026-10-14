@@ -22,7 +22,8 @@ codes).
 ```bash
 node verifier/cli.ts --corpus priv/conformance        # exit 0/1/2; report bytes on stdout
 node verifier/cli.ts --prior-corpus <released-dir>    # compatibility replay of a released census
-node verifier/cli.ts --artifact echo-blueprint.json   # single-artifact mode (kit-only)
+node verifier/cli.ts --artifact echo-blueprint.json   # single-artifact mode (TypeScript only;
+                                                      # the Elixir escript has none)
 node verifier/self_checks.ts                          # RFC 8785 Appendix B, window matrix,
                                                       # Ed25519 keys, prior-census anchors
 ```

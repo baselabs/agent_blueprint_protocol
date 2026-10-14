@@ -15,7 +15,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
      `verify_content`).
   2. `AgentBlueprintProtocol.Registry.validate/2` against `table/0` — closed world
      (`:unknown_member`), required members, tag-strict integer typing (the
-     The window-float deny: `{:float, f}` in an integer-typed core field is
+     window-float deny: `{:float, f}` in an integer-typed core field is
      `:invalid_type` here, because only this layer sees the decoder tag the
      wire cannot carry), enums, cardinalities, and the per-member custom
      checks (bounded schemas via `Schema`, signature envelopes via

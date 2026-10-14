@@ -47,6 +47,9 @@ mix conformance.verify    # load, integrity-verify, execute: exit 0/1/2
 
 ## What to read next
 
+- [The Livebook walkthrough](../docs/livebooks/abp-walkthrough.livemd) —
+  compose, sign, negotiate, and reconcile your own artifacts, then watch
+  the attacks fail closed
 - [What a blueprint is](what-a-blueprint-is.md) — the artifact's shape
 - [The error guide](errors.md) — every code, what it means, what the
   host does
@@ -57,5 +60,5 @@ mix conformance.verify    # load, integrity-verify, execute: exit 0/1/2
 
 Grant authority. A fully green verification is structural evidence;
 identity, tenancy, live policy, effect ownership, execution, billing,
-and evaluation truth remain yours. See the specification's
-non-authorizing boundary.
+and evaluation truth remain yours. See the
+[non-authorizing boundary decision record](../docs/adr/non-authorizing-boundary.md).

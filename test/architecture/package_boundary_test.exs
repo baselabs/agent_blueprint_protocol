@@ -22,6 +22,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     hex_metadata.config
     docs/federation-mapping.md
     docs/ard-mapping.md
+    docs/livebooks/abp-walkthrough.livemd
     docs/adr/compiled-registry.md
     docs/adr/dependency-currency-gate.md
     docs/adr/deny-default-clamps.md
@@ -116,6 +117,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     priv/release-history.json
     docs/federation-mapping.md
     docs/ard-mapping.md
+    docs/livebooks/abp-walkthrough.livemd
     docs/adr/compiled-registry.md
     docs/adr/dependency-currency-gate.md
     docs/adr/deny-default-clamps.md

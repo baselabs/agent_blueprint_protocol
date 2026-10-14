@@ -5,7 +5,8 @@
 # runs every gate that reads, digests, or pins them: the secret scan over
 # the full history, the full test suite (the privacy history scan and
 # every documentation, specification, errata, landing-page, and ADR-pin
-# test), the documentation build, the specification extraction (local
+# test), the TypeScript guide's import example against the built kit,
+# the documentation build, the specification extraction (local
 # and from a filtered clone), and the grammar, registry, compatibility,
 # and release-candidate checks (spec digest, release manifest, release
 # history, requirement map). test/architecture/ci_trigger_filter_test.exs
@@ -76,6 +77,13 @@ jobs:
 
       - name: Install dependencies
         run: mix deps.get
+
+      # The TypeScript guide's import example runs against the built kit.
+      - name: Build the npm kit
+        run: mix kit.build
+
+      - name: TypeScript guide example
+        run: mix typescript.guide
 
       # The full suite: the privacy history scan plus every test that reads
       # a documentation or specification path. It also writes the suite

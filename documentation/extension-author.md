@@ -6,7 +6,7 @@ criticality.
 
 ## The registry is a closed world
 
-Namespaces are reverse-DNS-plus-path (`com.example.commerce/graph`),
+Namespaces are reverse-DNS-plus-path (`org.example.weather/units`),
 lowercase, one `/`, never parseable as an endpoint. The
 governance-canonical source is `spec/registry/registry.json`; entries
 carry owner, criticality, lifecycle state, and — for critical

@@ -48,7 +48,6 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   `.raw` sidecars are hash-bound (per-file SHA in the index + the referring
   case's own reference hash) and carried as opaque binaries — never parsed.
   Corpus loading and integrity are facts about test data — the loader carries no authority.
-  Corpus loading and integrity are facts about test data — the loader carries no authority.
   """
 
   alias AgentBlueprintProtocol.{Canonicalization, Digest, Error, ExtensionRegistry, Json}

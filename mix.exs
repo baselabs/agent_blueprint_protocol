@@ -79,6 +79,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "priv/release-history.json",
         "docs/federation-mapping.md",
         "docs/ard-mapping.md",
+        "docs/livebooks/abp-walkthrough.livemd",
         "docs/adr/compiled-registry.md",
         "docs/adr/dependency-currency-gate.md",
         "docs/adr/deny-default-clamps.md",
@@ -134,7 +135,8 @@ defmodule AgentBlueprintProtocol.MixProject do
           "documentation/getting-started.md",
           "documentation/quickstart.md",
           "documentation/typescript.md",
-          "documentation/examples.md"
+          "documentation/examples.md",
+          "docs/livebooks/abp-walkthrough.livemd"
         ],
         Concepts: [
           "documentation/what-a-blueprint-is.md",
@@ -192,6 +194,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "documentation/getting-started.md",
         "documentation/quickstart.md",
         "documentation/examples.md",
+        "docs/livebooks/abp-walkthrough.livemd",
         "documentation/typescript.md",
         "documentation/what-a-blueprint-is.md",
         "documentation/what-a-deployment-is.md",
@@ -267,6 +270,9 @@ defmodule AgentBlueprintProtocol.MixProject do
       "release.asset": [
         "run --no-start scripts/check_release_asset.exs"
       ],
+      "typescript.guide": [
+        "run --no-start scripts/check_typescript_guide.exs"
+      ],
       quality: [
         "hex.audit",
         "deps.unlock --check-unused",
@@ -279,6 +285,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "conformance.verify",
         "conformance.mutations",
         "kit.build",
+        "typescript.guide",
         "verifier.agreement",
         "compatibility.replay",
         "dialyzer",

@@ -10,8 +10,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   - the README install requirement pins the exact current version;
   - SECURITY.md's supported table opens with the current `major.minor`
     line marked supported;
-  - CHANGELOG.md opens with the entry for the current version, and that
-    entry carries the live corpus digest and case total;
+  - CHANGELOG.md opens with the entry for the current version (below an
+    optional `Unreleased` section), and that entry carries the live corpus
+    digest and case total;
   - every count claim in README (tests, properties, corpus cases,
     coverage) matches the live value.
   """
@@ -35,6 +36,18 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert Enum.uniq(pins) == ["~> " <> version],
            "README install requirement is stale: #{inspect(pins)} — the " <>
              "current version is #{version}"
+
+    # npm kit commands in README name a version only when it is this
+    # release's: the kit and the Hex package release together.
+    stale_npm =
+      ~r/@agent-blueprint-protocol\/verifier@(\d+\.\d+\.\d+)/
+      |> Regex.scan(readme)
+      |> Enum.map(fn [_, pinned] -> pinned end)
+      |> Enum.uniq()
+      |> Kernel.--([version])
+
+    assert stale_npm == [],
+           "README npm kit commands pin #{inspect(stale_npm)} — the current version is #{version}"
 
     security = File.read!(@security_path)
 
@@ -111,12 +124,13 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   # Package entries include bare directories ("documentation", "examples");
   # a flat ends_with?(".md") filter over the entries list silently skipped
   # every file inside them, which is how the guides' install pins drifted.
+  # Livebooks (.livemd) are shipped documents too and carry the same claims.
   defp shipped_markdown do
     Mix.Project.config()[:package][:files]
     |> Enum.flat_map(fn entry ->
       cond do
-        String.ends_with?(entry, ".md") -> [entry]
-        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.md"))
+        String.ends_with?(entry, [".md", ".livemd"]) -> [entry]
+        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd}"))
         true -> []
       end
     end)
@@ -208,9 +222,11 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     end
   end
 
-  # The changelog's first version heading must be the current release.
+  # The changelog's first version heading must be the current release. An
+  # `## [Unreleased]` section may sit above it (changes landed on main
+  # after the current release); it is not a version heading.
   defp first_version_heading(changelog) do
-    case Regex.run(~r/^## \[([^\]]+)\]/m, changelog) do
+    case Regex.run(~r/^## \[(?!Unreleased\])([^\]]+)\]/m, changelog) do
       [_, heading] -> heading
       nil -> ""
     end

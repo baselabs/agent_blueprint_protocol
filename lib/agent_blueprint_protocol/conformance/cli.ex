@@ -13,7 +13,6 @@ defmodule AgentBlueprintProtocol.Conformance.Cli do
   beams). Everything downstream of reading the directory is the pure
   loader/runner/report.
   The CLI reports conformance facts; it never authorizes anything.
-  The CLI reports conformance facts; it never authorizes anything.
   """
 
   alias AgentBlueprintProtocol.Conformance.{Corpus, Report, Runner}

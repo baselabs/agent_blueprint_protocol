@@ -12,7 +12,6 @@ defmodule AgentBlueprintProtocol.Error do
   (`:155-156`) requires to carry values; every other code carries a code
   and a subject and nothing else.
   An error is a typed failure fact, not a decision.
-  An error is a typed failure fact, not a decision.
   """
 
   defstruct [:code, :subject, :detail]

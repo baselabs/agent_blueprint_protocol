@@ -16,6 +16,13 @@ Bytes and structure: `invalid_syntax`, `invalid_encoding`,
 `duplicate_member`, `trailing_bytes`, `non_canonical_bytes`,
 `base64url_invalid`, `base64url_padded`.
 
+Decoder limits: `{:ceiling, key}`, one code per limit in the bounds
+profile you pass (or `Bounds.maximum()` by default) — `:bytes`,
+`:depth`, `:members`, `:items`, `:nodes`, `:string`, `:key`,
+`:number_lexeme`. The input exceeded that limit before it was fully
+read; reject it, or decode under a larger profile only if your host
+policy allows one.
+
 Closed worlds: `unknown_member`, `missing_required_field`,
 `invalid_type`, `invalid_constraint`, `invalid_cardinality`,
 `lifecycle_state_invalid`.

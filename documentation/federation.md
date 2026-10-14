@@ -16,13 +16,14 @@ the federation mapping document.
 ## Lossy-aware state codecs
 
 Crossings deny rather than degrade: A2A `REJECTED`/`AUTH_REQUIRED`
-deny crossing into MCP, `UNSPECIFIED` is unmappable, and two terminal
+deny crossing into MCP and `UNSPECIFIED` has no logical state (both
+`:federation_state_unmappable`), and two terminal
 receipts for one task identity diverging in ANY commitment component
 deny `:federation_terminal_conflict`.
 
 ## Receiver posture
 
-`verify_commitment/2` is purpose-pinned (a blueprint signature never
+`AgentBlueprintProtocol.Federation.verify_commitment/2` is purpose-pinned (a blueprint signature never
 verifies a receipt); keys are labels, not issuers — per-issuer
 attribution uses the host's key sets; replay is receiver policy with
 signed-staleness windows. Correlation grants nothing.
