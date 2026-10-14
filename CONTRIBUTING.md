@@ -14,7 +14,8 @@ mix deps.get
 mix quality
 ```
 
-`mix quality` runs, in order: dependency audits (retirement, security
+`mix quality` runs, in order: dependency audits (retirement, the
+unused-lock-entry check `deps.unlock --check-unused`, security
 advisories, and latest-release currency), formatting, warnings-as-errors
 compilation, strict Credo, the test suite with the 100% coverage
 threshold, the conformance corpus and its mutation gate, the npm kit
@@ -55,7 +56,7 @@ did not run); every other context enforces it.
   mirror-tested, the Livebook walkthrough
   (`docs/livebooks/abp-walkthrough.livemd`) runs cell by cell in the test
   suite against its printed outputs, and the TypeScript guide's import
-  example runs against the built kit (`mix typescript.guide`), so examples that do not run fail
+  example runs against the packed kit (`mix typescript.guide`), so examples that do not run fail
   the build.
 
 New to the codebase? The guides listed in `mix.exs` `groups_for_extras`

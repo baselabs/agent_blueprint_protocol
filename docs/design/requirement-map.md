@@ -209,9 +209,10 @@ agreement gate`.
 ### alias: typescript.guide
 
 The TypeScript guide's import example (`documentation/typescript.md`)
-runs as written against the built kit: copied into a scratch directory
-beside the echo example, with `node_modules` linking the package name to
-this tree, its output must equal the value its trailing comment claims,
+runs as written against the PACKED kit: `npm pack` of the built kit
+(package.json `files` decides what ships), installed from that tarball
+into a scratch project beside the echo example, run on the tree's pinned
+Node executable. Its output must equal the value its trailing comment claims,
 and the same program over an edited example must print something else
 (the vacuous-sample guard). A missing kit build raises, never skips. It
 reads a documentation path, so the doc-gates workflow runs it too.
@@ -220,6 +221,12 @@ reads a documentation path, so the doc-gates workflow runs it too.
 $ # plant: the example's claimed output changed to digest_mismatch
 $ mix typescript.guide
 ** (RuntimeError) documentation/typescript.md import example drift: it claims digest_mismatch, it ran {"valid", 0}
+```
+
+```red
+$ # plant: package.json files gains "!dist/verifier/canonical.*" (a module blueprint.js imports)
+$ mix typescript.guide
+** (RuntimeError) documentation/typescript.md import example drift: it claims valid, it ran {"node:internal/modules/esm/resolve:272\n    throw new ERR_MODULE_NOT_FOUND(\n … Error [ERR_MODULE_NOT_FOUND]: Cannot find module '…/node_modules/@agent-blueprint-protocol/verifier/dist/verifier/canonical.js' imported from …/dist/verifier/blueprint.js …", 1}
 ```
 
 ### alias: verifier.agreement
@@ -235,10 +242,14 @@ priv/release-metadata.json (seeded red on a divergent copy; 0.8.0),
 sweeps every
 text-only decode-surface corpus case through the kit's `--artifact`
 mode requiring each case's own verdict (with an inverted-expectation
-seed), then runs three seeded reds — scratch-copy mutations of the
+seed), then runs nineteen seeded reds — scratch-copy mutations of the
 verifier, each directional and asserted to have caused the expected
 divergence; a seed that fails to diverge raises (vacuous-seed guard,
-calibration-receipted 2026-08-23).
+calibration-receipted 2026-08-23). The fence below quotes a run from
+before the strict-Ed25519 seeds, when there were three; a run on
+October 14, 2026 printed all nineteen plus the kit-embedded manifest
+seed (twenty `seeded red fired` lines, listed under the conformance
+runner-agreement entry).
 
 ```red
 $ mix verifier.agreement
@@ -991,20 +1002,20 @@ Result: 0/1 passed, 6 excluded
 
 Documentation-currency gate: the README install requirement pins the
 exact current version (every hex requirement string in README is an
-install pin and must name it; every npm kit command that names a
-version, `@agent-blueprint-protocol/verifier@x.y.z`, must name it too),
+install pin and must name it; every npm kit command stays unpinned,
+because a kit release goes live only after a maintainer approves its
+staged publish, and README must say how to see which kit npx runs),
 and SECURITY.md's supported-version
 table opens with the current `major.minor` line marked supported (a
 stale first row — wrong line, or the right line marked no — reds). The
 version is read live from `mix.exs`, never frozen.
 
 ```red
-$ # plant: the README's first npx command pinned to the previous release
+$ # plant: the README's first npx command pinned to @0.8.1
 $ mix test test/architecture/documentation_currency_test.exs
 1) test README and SECURITY.md name the current released version
-README npm kit commands pin ["0.8.0"] — the current version is 0.8.1
-code: assert stale_npm == [],
-Result: 4/5 passed
+README npm kit commands must stay unpinned (npx runs the latest published kit), found ["@agent-blueprint-protocol/verifier@0.8.1"]
+code: assert npm_pins == [],
 ```
 
 ```red
@@ -1865,13 +1876,32 @@ EXIT=1
 in-suite tests under the alias `test` entry; the report refuses a
 vacuous green (`total > 0` AND zero disagreements). The
 cross-implementation form of the same contract is
-`verifier.agreement`, whose seeded reds are asserted to fire every run:
+`verifier.agreement`, whose seeded reds are asserted to fire every run
+(the nineteen verifier seeds plus the kit-embedded manifest seed, as a
+run on October 14, 2026 printed them):
 
 ```red
 $ mix verifier.agreement
+seeded red fired: kit-embedded manifest
 seeded red fired: verdict-comparison-inverted
 seeded red fired: calibration-report-format-drift
 seeded red fired: window-check-deleted
+seeded red fired: key-usable-check-removed
+seeded red fired: corpus-scalar-bound-removed
+seeded red fired: corpus-r-point-rule-removed
+seeded red fired: corpus-canonical-y-removed
+seeded red fired: corpus-small-order-y-zero-removed
+seeded red fired: corpus-small-order-plus-x-removed
+seeded red fired: corpus-small-order-minus-x-removed
+seeded red fired: corpus-root-zero-branch-removed
+seeded red fired: corpus-sqrt-m1-digit
+seeded red fired: strict-call-site-removed
+seeded red fired: key-length-guard-removed
+seeded red fired: group-order-digit
+seeded red fired: key-cache-eviction-removed
+seeded red fired: strict-signature-scalar-clause-dropped
+seeded red fired: strict-signature-point-clause-dropped
+seeded red fired: curve-constant-d-digit
 report byte drift (repo corpus)   # the raise form — any byte divergence
 seeded red did not diverge        # the vacuous-seed guard
 ```

@@ -59,7 +59,7 @@
       <div class="actor verifier"><svg class="ic"><use href="#i-person"/></svg><span>Host</span><small>decides — always</small></div>
     </div>
     <ul class="badges">
-      <li>hex 0.8.1 · zero deps</li><li>npm verifier kit · Node 24+</li><li>955 tests · 129-case corpus</li><li>two-language byte agreement</li><li>certified release identity</li>
+      <li>hex 0.8.1 · zero deps</li><li>npm verifier kit · Node 24+</li><li>956 tests · 129-case corpus</li><li>two-language byte agreement</li><li>certified release identity</li>
     </ul>
   </div>
 </section>
@@ -136,11 +136,12 @@
 <section id="try" class="wrap">
   <div class="sec-head"><h2>Try it</h2>
   <p>The verifier ships as an npm kit with the conformance corpus embedded byte-identically to
-  the release-certified copy — zero runtime dependencies.</p></div>
+  the release-certified copy — zero runtime dependencies. npx runs the latest published kit;
+  <code>npm view @agent-blueprint-protocol/verifier version</code> shows which.</p></div>
   <div class="tryit">
-    <pre class="code">npx @agent-blueprint-protocol/verifier@0.8.1
-# verify the embedded 129-case corpus</pre>
-    <pre class="code">npx @agent-blueprint-protocol/verifier@0.8.1 \
+    <pre class="code">npx @agent-blueprint-protocol/verifier
+# verify the embedded corpus</pre>
+    <pre class="code">npx @agent-blueprint-protocol/verifier \
     --artifact blueprint.json
 # verify one artifact</pre>
   </div>

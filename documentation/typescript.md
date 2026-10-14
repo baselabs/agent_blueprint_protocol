@@ -5,19 +5,20 @@ The verifier ships as an installable npm kit,
 embedded conformance corpus (byte-identical to the release-certified
 copy), the release-identity manifest, and one bin installed under two
 names (`verifier` and `agent-blueprint-protocol`). Node 24 or newer; zero
-runtime dependencies. The kit and the Hex package release together under
-the same version; the commands below name this release's kit.
+runtime dependencies. The kit carries the same version number as the
+Hex package, but a kit release goes live on npm only after a maintainer
+approves its staged publish, so it can trail the Hex release. npx runs the latest published kit; `npm view @agent-blueprint-protocol/verifier version` shows which.
 
 ## Verify the kit (one command)
 
 ```bash
-npx @agent-blueprint-protocol/verifier@0.8.1
+npx @agent-blueprint-protocol/verifier
 ```
 
-With no arguments the kit runs its EMBEDDED corpus — 129 cases over
-every protocol surface — and prints the single-line report. Green is
-`"agreement":true` and exit 0; the report names the corpus digest, so
-what you verified is an exact, identified byte set:
+With no arguments the kit runs its EMBEDDED corpus over every protocol
+surface (129 cases in the 0.8.1 kit) and prints the single-line report.
+Green is `"agreement":true` and exit 0; the report names the corpus
+digest, so what you verified is an exact, identified byte set:
 
 ```json
 {"agreed":129,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":129}
@@ -33,7 +34,7 @@ corpora are typed failures, exit 2; a tampered corpus cannot verify
 green).
 
 ```bash
-npx @agent-blueprint-protocol/verifier@0.8.1 --corpus ./conformance
+npx @agent-blueprint-protocol/verifier --corpus ./conformance
 ```
 
 `--prior-corpus <dir>` replays a previously released corpus under the
@@ -49,7 +50,7 @@ each kind's typed code, so the file's shape is legible from the report
 alone:
 
 ```bash
-$ npx @agent-blueprint-protocol/verifier@0.8.1 --artifact echo-blueprint.json
+$ npx @agent-blueprint-protocol/verifier --artifact echo-blueprint.json
 {"format":"agent-blueprint-protocol-artifact-report","kind":"blueprint","verdict":"valid"}
 ```
 
@@ -63,7 +64,7 @@ full corpus run).
 ## As a dependency
 
 ```bash
-npm install @agent-blueprint-protocol/verifier@0.8.1
+npm install @agent-blueprint-protocol/verifier
 ```
 
 The package carries the compiled verifier modules under

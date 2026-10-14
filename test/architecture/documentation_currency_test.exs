@@ -37,17 +37,22 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
            "README install requirement is stale: #{inspect(pins)} — the " <>
              "current version is #{version}"
 
-    # npm kit commands in README name a version only when it is this
-    # release's: the kit and the Hex package release together.
-    stale_npm =
-      ~r/@agent-blueprint-protocol\/verifier@(\d+\.\d+\.\d+)/
+    # npm kit commands in README stay unpinned: a kit release goes live on
+    # npm only after a maintainer approves its staged publish, so a pin to
+    # the current version can name a kit npm does not serve yet. The README
+    # says how to see which kit npx runs. Pure file read, no registry call.
+    npm_pins =
+      ~r/@agent-blueprint-protocol\/verifier@\S+/
       |> Regex.scan(readme)
-      |> Enum.map(fn [_, pinned] -> pinned end)
+      |> Enum.map(&hd/1)
       |> Enum.uniq()
-      |> Kernel.--([version])
 
-    assert stale_npm == [],
-           "README npm kit commands pin #{inspect(stale_npm)} — the current version is #{version}"
+    assert npm_pins == [],
+           "README npm kit commands must stay unpinned (npx runs the latest " <>
+             "published kit), found #{inspect(npm_pins)}"
+
+    assert readme =~ "npm view @agent-blueprint-protocol/verifier version",
+           "README must say how to see which kit npx runs"
 
     security = File.read!(@security_path)
 

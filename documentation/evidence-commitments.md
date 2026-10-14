@@ -1,12 +1,17 @@
 # Evidence commitments and the EU AI Act
 
-Most of the EU AI Act's provisions apply from August 2, 2026. For
-high-risk systems, Article 12 requires automatic logging of events over
-the system's lifetime, and Article 26 requires deployers to keep those
-logs for at least six months; deployers in turn ask providers and
-suppliers for the information they need to meet those duties. Procurement practice is converging on machine-readable
-conformity claims (the EU's model contractual clauses for AI
-procurement are the reference shape).
+For high-risk systems, the EU AI Act (Regulation (EU) 2024/1689)
+requires automatic logging of events over the system's lifetime
+(Article 12) and requires deployers to keep those logs for at least six
+months (Article 26). Article 25(4) requires a provider and the third
+parties that supply it tools, services, components, or processes to set
+out, by written agreement, the information and assistance the provider
+needs to meet its obligations. The application dates of these
+high-risk obligations were moved by Regulation (EU) 2026/1744, the
+Digital Omnibus on AI; check the consolidated text of Regulation (EU)
+2024/1689 on EUR-Lex for the dates that currently apply. Procurement
+practice is converging on machine-readable conformity claims (the EU's
+model contractual clauses for AI procurement are the reference shape).
 
 What a Blueprint offers on that surface is structure, not compliance:
 

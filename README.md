@@ -66,9 +66,11 @@ declarations, and the conformance corpus embedded byte-identically to
 the release-certified copy. Zero runtime dependencies; Node 24+.
 
 ```bash
-npx @agent-blueprint-protocol/verifier@0.8.1                        # verify the embedded corpus
-npx @agent-blueprint-protocol/verifier@0.8.1 --artifact <file.json> # verify one artifact
+npx @agent-blueprint-protocol/verifier                        # verify the embedded corpus
+npx @agent-blueprint-protocol/verifier --artifact <file.json> # verify one artifact
 ```
+
+npx runs the latest published kit; `npm view @agent-blueprint-protocol/verifier version` shows which.
 
 See the [TypeScript quickstart](documentation/typescript.md) and the
 [examples gallery](documentation/examples.md).
@@ -128,7 +130,7 @@ against its tags' actual trees.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated: 955 tests
+and conformance corpus are implemented and gated: 956 tests
 (63 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, a 129-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
@@ -178,8 +180,9 @@ mix deps.get
 mix quality
 ```
 
-`mix quality` runs dependency audits (retirement, advisories, and
-dependency currency), formatting, warnings-as-errors compilation, Credo,
+`mix quality` runs dependency audits (retirement, the unused-lock-entry
+check `deps.unlock --check-unused`, advisories, and dependency
+currency), formatting, warnings-as-errors compilation, Credo,
 tests with the 100% coverage threshold, the conformance corpus and its
 mutation gate, the npm kit build, the TypeScript guide's import example,
 the second-language verifier agreement gate, the compatibility replay, Dialyzer, documentation with

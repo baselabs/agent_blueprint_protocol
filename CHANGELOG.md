@@ -16,16 +16,18 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   and compares each result with the output printed in the notebook.
 - The README opens with a first-verification example, and the
   TypeScript guide with an import example; the README example runs in
-  the guide mirror test, and the TypeScript one runs against the built
-  kit in a new quality step, `mix typescript.guide`, which the doc-gates
-  workflow also runs.
+  the guide mirror test, and the TypeScript one runs against the kit
+  as npm packs it (installed from the `npm pack` tarball) in a new
+  quality step, `mix typescript.guide`, which the doc-gates workflow also
+  runs.
 
 ### Changed — documentation
 
 - npm kit commands in the README, the TypeScript guide, and the landing
-  page name the kit version (`@agent-blueprint-protocol/verifier@0.8.1`).
-  The documentation-currency gate holds README pins to the current
-  version.
+  page stay unpinned, with a line saying npx runs the latest published
+  kit and how to check its version (a kit release goes live after a
+  maintainer approves its staged publish). The documentation-currency
+  gate requires the README's npm commands to stay unpinned.
 - The document-citation gate now checks the guides under
   `documentation/` and the Livebook (it skipped directory entries
   before), and the version gate scans the Livebook.
@@ -35,9 +37,14 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   lists the `{:ceiling, key}` decoder-limit family; SECURITY.md names
   the Security tab's **Report a vulnerability** form; the battery lists
   in the README, CONTRIBUTING.md, and the operations guide name every
-  step; the EU AI Act dates and articles in the evidence-commitments
-  guide are stated precisely.
-- Removed duplicated sentences from eighteen module docs.
+  step; the evidence-commitments guide cites the AI Act articles it
+  relies on (12, 25(4), and 26) and points to Regulation (EU) 2026/1744,
+  which moved the high-risk application dates.
+- Removed duplicated sentences from eighteen module docs. The comments
+  on small-order keys in `Signature` and the TypeScript verifier now say
+  exactly what the backends accept: under the identity key, R = identity
+  with S = 0 verifies for every message; under the all-zero key, the
+  all-zero signature verifies for about one message in four.
 
 ## [0.8.1] — 2026-10-14
 

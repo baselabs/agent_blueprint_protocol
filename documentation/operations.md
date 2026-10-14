@@ -6,7 +6,8 @@
 mix quality
 ```
 
-Dependency audits and dependency currency, format, warnings-as-errors
+Dependency audits (retirement, the unused-lock-entry check
+`deps.unlock --check-unused`, advisories) and dependency currency, format, warnings-as-errors
 compile, strict Credo, tests at 100% coverage, the corpus and its
 mutation gate, the npm kit build, the TypeScript guide's import example,
 the second-language agreement gate
