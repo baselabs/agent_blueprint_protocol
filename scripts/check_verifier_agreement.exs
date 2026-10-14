@@ -245,11 +245,16 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     [%{"files" => files}] = Jason.decode!(json)
     paths = Enum.map(files, & &1["path"])
 
+    # Every packed file under dist/ is scanned whatever its type (.js,
+    # .mjs, .cjs, .d.ts, source maps, JSON): a reference to the
+    # repo-side test data or self-check battery from anything the tarball
+    # ships is a module that cannot run from it. The top-level documents
+    # (README, CHANGELOG, LICENSE, NOTICE) are prose, not code.
     offenders =
       for path <- paths,
+          String.starts_with?(path, "dist/"),
           String.starts_with?(path, "dist/verifier/self_checks") or
-            (String.ends_with?(path, ".js") and
-               File.read!(Path.join(@root, path)) =~ "testdata"),
+            File.read!(Path.join(@root, path)) =~ ~r/testdata|self_checks/,
           do: path
 
     unless offenders == [] do
@@ -506,8 +511,8 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       # verifies the identity-key forgery). Red on node 22.23.1 and 24.19.0.
       name: "key-usable-check-removed",
       path: "signature.ts",
-      from: "    (key) => key.key.length === 32 && usableEd25519Key(key.key),",
-      to: "    (key) => key.key.length === 32,",
+      from: "  const usable = candidates.filter((key) => usableEd25519Key(key.key));",
+      to: "  const usable = candidates.filter((key) => key.key.length === 32);",
       expect: :byte_drift
     },
     %{
@@ -587,6 +592,16 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       path: "signature.ts",
       from:
         "  if (!strictSignature(signature)) return { ok: false, e: \"signature_not_verified\" };",
+      to: "",
+      expect: :self_check_failure
+    },
+    %{
+      # The point rule's 32-byte length guard dropped: a wrong-length
+      # matched key is no longer refused, and the self-checks' 31-byte key
+      # case fails (the key decoder reads past the buffer).
+      name: "key-length-guard-removed",
+      path: "signature.ts",
+      from: "  if (encoding.length !== 32) return false;\n",
       to: "",
       expect: :self_check_failure
     },

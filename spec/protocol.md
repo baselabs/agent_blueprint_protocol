@@ -3,7 +3,7 @@
 Status: published pre-1.0 protocol (0.x release line). This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:nwi8r5fjushIO4TuTfZ14hQvtNYpeq5Y5vzkA_FqO_Q`, 128 cases) are
+`sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4`, 129 cases) are
 certified against this document at every release through the release
 identity chain — the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -292,10 +292,10 @@ keys).
   a `statement_digest`. The attestation kind registry is empty by
   design in this release.
 - A supplied key whose `key_id` matches but which is not a usable
-  Ed25519 public key — a non-canonical encoding (y ≥ p, or x = 0 with
-  the sign bit set), an encoding that decodes to no curve point, or a
-  small-order point (any of the eight 8-torsion points, the identity and
-  the order-2 point included) — MUST deny
+  Ed25519 public key — not exactly 32 bytes, a non-canonical encoding
+  (y ≥ p, or x = 0 with the sign bit set), an encoding that decodes to
+  no curve point, or a small-order point (any of the eight 8-torsion
+  points, the identity and the order-2 point included) — MUST deny
   `:signature_algorithm_unsupported` when no matched key is usable.
   `:signature_key_unsupported` is reserved for a `key_id` that matches
   no supplied key.
@@ -310,14 +310,22 @@ keys).
   equation [S]B = R + [k]A. Under an honest key, R = the identity with
   S = k·a mod L satisfies that equation; only the key holder can build
   it, and this rule denies it.
-- Order of the checks: the key facts come first, then the signature
-  rule, then the equation. With no supplied key for the `key_id` the
-  verdict is `:signature_key_unsupported`; with matched keys none of
-  which is usable, `:signature_algorithm_unsupported`, whatever the
-  signature bytes (a small-order key with an all-zero signature
-  included); only then do R and S face the strict rule. When several
-  keys share the `key_id`, the unusable ones are set aside and the
-  signature verifies if any usable one verifies it.
+- Order of the checks. (1) The envelope parses: exactly the three
+  entry members; the exact four-member protected header, where an `alg`
+  string other than `EdDSA` denies `:signature_algorithm_unsupported`
+  and any other header violation `:signature_malformed`; the exact
+  five signed attributes, where an `algorithm` string other than
+  `Ed25519` denies `:signature_algorithm_unsupported` and any other
+  attribute violation `:signature_malformed`; `kid` equal to `key_id`;
+  and a signature body that decodes (unpadded base64url) to exactly
+  64 bytes — all else `:signature_malformed`. (2) The key facts: with no
+  supplied key for the `key_id`, `:signature_key_unsupported`; with
+  matched keys none of which is usable, `:signature_algorithm_unsupported`,
+  whatever the well-formed 64-byte signature (an all-zero signature
+  under a small-order key included). (3) The strict signature rule on R
+  and S. (4) The equation. When several keys share the `key_id`, the
+  unusable ones are set aside and the signature verifies if any usable
+  one verifies it.
 
 ## 7. Evolution and negotiation
 
@@ -641,10 +649,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-128 cases covering every required cell of the 16-surface × 31-class
+129 cases covering every required cell of the 16-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:nwi8r5fjushIO4TuTfZ14hQvtNYpeq5Y5vzkA_FqO_Q`. Corpus identity
+`sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over `%{path => binary}` and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,

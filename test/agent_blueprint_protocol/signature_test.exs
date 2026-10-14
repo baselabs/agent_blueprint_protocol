@@ -327,6 +327,24 @@ defmodule AgentBlueprintProtocol.SignatureTest do
       end
     end
 
+    test "a matched key of the wrong length is not usable Ed25519" do
+      # The conformance runners reject a non-32-byte key in their own input
+      # parsing (invalid_type), so the library's own denial is pinned here.
+      for size <- [0, 31, 33, 64] do
+        keys = [
+          %Signature.PublicKey{
+            key_id: "test-key",
+            algorithm: :ed25519,
+            key: :binary.copy(<<9>>, size)
+          }
+        ]
+
+        assert Signature.verify(signed_entry(), keys) ==
+                 {:error, :signature_algorithm_unsupported},
+               "a #{size}-byte key"
+      end
+    end
+
     test "an honest envelope verified under the supplied key" do
       assert Signature.verify(signed_entry(), keys()) == {:ok, :verified}
     end

@@ -98,7 +98,7 @@ Semantics:
   (canonical, digest, negotiation, structure, portability, signatures, bind,
   bounds), reject-or-annotate, never repair, under host-supplied inputs.
 
-Tooling: `mix conformance.verify` executes the shipped 128-case corpus;
+Tooling: `mix conformance.verify` executes the shipped 129-case corpus;
 `mix conformance.mutations` re-proves the corpus catches named implementation
 breaks; `mix verifier.agreement` byte-agrees the Elixir runner with the
 independent TypeScript verifier; `mix compatibility.replay` certifies the
@@ -109,9 +109,9 @@ against its tags' actual trees.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated: 948 tests
+and conformance corpus are implemented and gated: 951 tests
 (63 properties) at 100% coverage, zero Dialyzer errors, `--strict`
-Credo clean, a 128-case conformance corpus with a mutation gate, and a
+Credo clean, a 129-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
 The normative specification, [`spec/protocol.md`](spec/protocol.md),
 ships in the Hex archive. The full gate battery and every gate's
@@ -169,7 +169,7 @@ coupling). Every gate carries a recorded red proof — see the requirement map a
 
 ### Conformance corpus
 
-The package ships a portable conformance corpus (`priv/conformance/`) — 128
+The package ships a portable conformance corpus (`priv/conformance/`) — 129
 cases covering every required cell of the 16-surface × 31-class applicability
 floor, full-registry golden artifacts, RFC 8785 number vectors, and
 deterministic Ed25519 fixtures. Run it:

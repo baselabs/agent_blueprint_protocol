@@ -32,7 +32,7 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Changed — corpus and specification
 
-- The conformance corpus grows from 96 to 128 cases, all on
+- The conformance corpus grows from 96 to 129 cases, all on
   `signature.verify`. Signature-rule cases: R = the identity with
   S = k*a under an honest key (built by the key holder), each of the
   eight small-order R encodings, five non-canonical R encodings, S = L,
@@ -41,7 +41,9 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   keys, a y = p key, an off-curve key, a 31-byte key, a `key_id` with
   no supplied key, the identity key with R = [r]B and S = r (which the
   backend's equation alone accepts), a zero key with an all-zero
-  signature, and an unusable key beside a good one. Every case whose
+  signature, a small-order key with a malformed two-byte signature body
+  (envelope parsing comes first: `signature_malformed`), and an unusable
+  key beside a good one. Every case whose
   signature decodes to 64 bytes also pins `expected.strict_signature`,
   the strict rule's verdict on those bytes, and both verifiers'
   runners compare their own rule to it, so the agreement sees each
@@ -50,22 +52,24 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   0.3.0 through 0.5.0; 96 cases, 0.6.0 through 0.8.0) both replay as
   `equivalent`; `verification_semantics_version` stays 1.
 - `spec/protocol.md` §6 states the strict R and S rule normatively and
-  the order of the checks (key facts first, then the signature rule,
-  then the equation), and two statements now match the implementation:
+  the exact order of the checks (envelope parsing, then the key facts,
+  then the signature rule, then the equation) and that a matched key
+  not exactly 32 bytes long is unusable, and two statements now match
+  the implementation:
   the signing input is the RFC 7797 input `BASE64URL(JCS(protected))
   || "." || JCS(signed_attributes)`, and a matched key that is not
   usable Ed25519 (small-order included) denies
   `signature_algorithm_unsupported` (`signature_key_unsupported` is
   only for a `key_id` with no supplied key). Both corrections are
-  recorded in `spec/errata.md`. The `spec/protocol.md` §5 separator table now lists the
-  extension-schema and extension-registry separators. The conformance
+  recorded in `spec/errata.md`, as is the `spec/protocol.md` §5 separator table, which
+  now lists the extension-schema and extension-registry separators. The conformance
   mutation gate breaks the implementation at seventeen named points.
 
-The public API and the registry are unchanged. The test suite is 948
-tests (63 properties) at 100% coverage. Corpus: 128 cases, digest
-`sha-256:nwi8r5fjushIO4TuTfZ14hQvtNYpeq5Y5vzkA_FqO_Q`; registry
+The public API and the registry are unchanged. The test suite is 951
+tests (63 properties) at 100% coverage. Corpus: 129 cases, digest
+`sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
-digest `sha-256:wGkMqHYxUdQ6ywsBcVj3HBEKIuPETPbY8PJmpfRhpYA`.
+digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
 
 ## [0.8.0] — 2026-09-24
 

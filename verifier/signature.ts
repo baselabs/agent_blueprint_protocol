@@ -180,9 +180,9 @@ function check(
   const candidates = keys.filter((key) => key.keyId === keyId);
   if (candidates.length === 0) return { ok: false, e: "signature_key_unsupported" };
 
-  const usable = candidates.filter(
-    (key) => key.key.length === 32 && usableEd25519Key(key.key),
-  );
+  // usableEd25519Key owns the 32-byte length rule (a second length test
+  // here would be redundant and could be deleted with no verdict moving).
+  const usable = candidates.filter((key) => usableEd25519Key(key.key));
   if (usable.length === 0) return { ok: false, e: "signature_algorithm_unsupported" };
 
   if (!strictSignature(signature)) return { ok: false, e: "signature_not_verified" };

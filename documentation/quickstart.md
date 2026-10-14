@@ -68,7 +68,7 @@ silent repair.
 
 ## 4. The corpus (what the package proves about itself)
 
-The package you installed ships a 128-case conformance corpus, and its
+The package you installed ships a 129-case conformance corpus, and its
 release was gated on that corpus passing plus a mutation gate (the
 corpus must catch seventeen named implementation breaks) and byte-agreement
 with an independent TypeScript verifier. You consume an already

@@ -841,6 +841,15 @@ key_cases =
         weak_entry.(<<0::512>>),
         "signature_algorithm_unsupported"
       ),
+      # Envelope parsing precedes the key facts: a small-order key with a
+      # two-byte signature body is a malformed envelope, not a key fact.
+      key_case.(
+        "signature-verify-small-order-key-short-signature",
+        "invalid_encoding",
+        [corpus_key.(StrictFixture.identity())],
+        CorpusGen.bad_signature_entry(sig_digest, "AAA"),
+        "signature_malformed"
+      ),
       key_case.(
         "signature-verify-non-canonical-key-y-equals-p",
         "signature_invalid",
