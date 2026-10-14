@@ -466,6 +466,37 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       from: "      if (beyondIjsonMax(lexeme)) {",
       to: "      if (false) {",
       expect: :self_check_failure
+    },
+    %{
+      # The strict signature rule's scalar clause (S < L) dropped: the
+      # S = L, S = L + 1, and honest S + L self-checks fail on the
+      # predicate even where the runtime's backend rejects the bytes.
+      name: "strict-signature-scalar-clause-dropped",
+      path: "signature.ts",
+      from:
+        "return leInt(signature.subarray(32)) < ED_L && usableEd25519Key(signature.subarray(0, 32));",
+      to: "return usableEd25519Key(signature.subarray(0, 32));",
+      expect: :self_check_failure
+    },
+    %{
+      # The strict signature rule's point clause (R canonical, not
+      # small-order) dropped: every weak-R self-check fails.
+      name: "strict-signature-point-clause-dropped",
+      path: "signature.ts",
+      from:
+        "return leInt(signature.subarray(32)) < ED_L && usableEd25519Key(signature.subarray(0, 32));",
+      to: "return leInt(signature.subarray(32)) < ED_L;",
+      expect: :self_check_failure
+    },
+    %{
+      # One digit of the curve constant d changed: the re-derivation check
+      # and the generated-honest-key battery fail (the predicate on the
+      # wrong curve rejects about half of all honest keys).
+      name: "curve-constant-d-digit",
+      path: "signature.ts",
+      from: "  37095705934669439343138083508754565189542113879843219016388785533085940283555n;",
+      to: "  37095705934669439343338083508754565189542113879843219016388785533085940283555n;",
+      expect: :self_check_failure
     }
   ]
 

@@ -4,7 +4,9 @@
 // (algorithm, data, key, signature) — probed on v25.9.0), and the
 // small-order / off-curve public-key rejection the twin added after the
 // found live (:crypto AND OpenSSL both accept small-order keys
-// with all-zero signatures — a universal forgery).
+// with all-zero signatures — a universal forgery), and the strict
+// signature rule (R canonical and not small-order, S < L) checked before
+// node:crypto, so the verdict never depends on the runtime's backend.
 //
 // Attestations (verify_attestation) are not mirrored: no corpus surface
 // dispatches them and the kind registry is empty by design.
@@ -183,6 +185,8 @@ function check(
   );
   if (usable.length === 0) return { ok: false, e: "signature_algorithm_unsupported" };
 
+  if (!strictSignature(signature)) return { ok: false, e: "signature_not_verified" };
+
   const inputBytes = Buffer.from(input, "utf8");
   for (const key of usable) {
     if (cryptoVerify(null, inputBytes, keyObject(key.key), signature)) {
@@ -202,13 +206,38 @@ function keyObject(raw: Buffer): KeyObject {
   return key;
 }
 
-// ---- small-order / off-curve rejection (RFC 8032 §5.1 algebra in BigInt) --------
+// ---- strict Ed25519: the point rule and the scalar rule (RFC 8032 §5.1) ----------
+//
+// One point rule (usableEd25519Key) for the public key A and the
+// signature's R alike: canonical encoding, on the curve, not small-order.
+// The scalar rule: S < L (RFC 8032 5.1.7 step 1). Both run before
+// node:crypto, whose own verdict on a small-order R differs by runtime
+// (node 22.23.1 accepts R = the identity with S = k*a mod L under an
+// honest key; node 24.19.0 rejects it) — mirrors the Elixir twin.
+
+const ED_L = 2n ** 252n + 27742317777372353535851937790883648493n;
+
+export function strictSignature(signature: Buffer): boolean {
+  if (signature.length !== 64) return false;
+  return leInt(signature.subarray(32)) < ED_L && usableEd25519Key(signature.subarray(0, 32));
+}
+
+function leInt(bytes: Buffer): bigint {
+  let n = 0n;
+  for (let i = bytes.length - 1; i >= 0; i--) n = (n << 8n) | BigInt(bytes[i]!);
+  return n;
+}
 
 const ED_P = 2n ** 255n - 19n;
 const ED_D =
-  37095705934669439343338083508754565189542113879843219016388785533085940283555n;
+  37095705934669439343138083508754565189542113879843219016388785533085940283555n;
 const ED_SQRT_M1 =
   19681161376707505956807079304988542015446066515923890162744021073123829784752n;
+
+// The literals, exposed so the self-check battery can re-derive each one
+// from the curve definition (d = -121665/121666, sqrt(-1) = 2^((p-1)/4),
+// L = 2^252 + c) and assert equality — a mistyped digit reds there.
+export const ED25519_CONSTANTS = { p: ED_P, d: ED_D, sqrtM1: ED_SQRT_M1, l: ED_L } as const;
 
 function modPow(base: bigint, exponent: bigint): bigint {
   let result = 1n;

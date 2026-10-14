@@ -14,7 +14,14 @@ import { encode } from "./canonical.ts";
 import * as b64 from "./b64url.ts";
 import { member, memberString } from "./corpus.ts";
 import type { Value } from "./value.ts";
-import { verify as sigVerify, toCompact, signingInput, usableEd25519Key } from "./signature.ts";
+import {
+  verify as sigVerify,
+  toCompact,
+  signingInput,
+  strictSignature,
+  usableEd25519Key,
+  ED25519_CONSTANTS,
+} from "./signature.ts";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -324,6 +331,170 @@ check(
       !tamperedResult.ok && tamperedResult.e === "signature_not_verified",
       true,
     );
+  }
+}
+
+// ---- Ed25519 curve constants, re-derived from the curve definition ----------------
+//
+// RFC 8032 5.1: p = 2^255 - 19, d = -121665/121666 mod p, L = 2^252 + c;
+// p = 5 mod 8, so 2^((p-1)/4) is a square root of -1.
+
+{
+  const p = 2n ** 255n - 19n;
+  const powMod = (base: bigint, exponent: bigint): bigint => {
+    let result = 1n;
+    let b = ((base % p) + p) % p;
+    let e = exponent;
+    while (e > 0n) {
+      if (e & 1n) result = (result * b) % p;
+      b = (b * b) % p;
+      e >>= 1n;
+    }
+    return result;
+  };
+  const d = (((-121665n * powMod(121666n, p - 2n)) % p) + p) % p;
+  check("ed25519 constant p", ED25519_CONSTANTS.p === p, true);
+  check("ed25519 constant d", ED25519_CONSTANTS.d === d, true);
+  check("ed25519 constant sqrt(-1)", ED25519_CONSTANTS.sqrtM1 === powMod(2n, (p - 1n) / 4n), true);
+  check("ed25519 constant L", ED25519_CONSTANTS.l === 2n ** 252n + 27742317777372353535851937790883648493n, true);
+
+  // Every honestly generated public key is a usable main-subgroup point,
+  // and an honest signature under it verifies through the twin.
+  let rejectedKeys = 0;
+  let rejectedSignatures = 0;
+  for (let i = 0; i < 256; i++) {
+    const seed = createHash("sha256").update(`self-check-key-${i}`).digest();
+    const privateKey = createPrivateKey({
+      key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), seed]),
+      format: "der",
+      type: "pkcs8",
+    });
+    const x = (createPublicKey(privateKey).export({ format: "jwk" }) as { x: string }).x;
+    const raw = Buffer.from(x, "base64url");
+    if (!usableEd25519Key(raw)) rejectedKeys++;
+    const signature = cryptoSign(null, Buffer.from(`message-${i}`), privateKey);
+    if (!strictSignature(signature)) rejectedSignatures++;
+  }
+  check("ed25519 generated honest keys usable (rejected of 256)", rejectedKeys, 0);
+  check("ed25519 generated honest signatures strict (rejected of 256)", rejectedSignatures, 0);
+}
+
+// ---- strict signature rule: R canonical and not small-order, S < L ---------------
+//
+// The key holder (RFC 8032 TEST 1 seed) builds R = the identity with
+// S = k*a mod L: the cofactorless equation holds, so node:crypto alone
+// accepts it, and the twin must deny it before the backend. Every other
+// weak R (the small-order set, non-canonical encodings) and S >= L must
+// deny too. L, p, and the clamped scalar are derived here from RFC 8032 5.1.
+
+{
+  const L = 2n ** 252n + 27742317777372353535851937790883648493n;
+  const P = 2n ** 255n - 19n;
+  const leInt = (bytes: Buffer): bigint => {
+    let n = 0n;
+    for (let i = bytes.length - 1; i >= 0; i--) n = (n << 8n) | BigInt(bytes[i]!);
+    return n;
+  };
+  const leBytes = (n: bigint): Buffer => {
+    const out = Buffer.alloc(32);
+    let v = n;
+    for (let i = 0; i < 32; i++) {
+      out[i] = Number(v & 0xffn);
+      v >>= 8n;
+    }
+    return out;
+  };
+
+  const vectors = decode(readFileSync(join(import.meta.dirname, "testdata", "jose-vectors.json")));
+  if (!vectors.ok || vectors.v.t !== "obj") {
+    check("strict: jose vectors shape", false, true);
+  } else {
+    const seed = Buffer.from(memberString(member(vectors.v, "rfc8032_test1")!, "seed_hex")!, "hex");
+    const publicKey = Buffer.from(memberString(vectors.v, "public_key")!, "base64url");
+    const keys = [{ keyId: "test-key", key: publicKey }];
+    const entries = member(vectors.v, "entries")!;
+    const entry = member((entries.t === "arr" ? entries.v : [])[0]!, "entry")!;
+    const input = signingInput(entry);
+    const inputBytes = Buffer.from(input.ok ? input.v : "", "utf8");
+
+    const digest = createHash("sha512").update(seed).digest();
+    let a = leInt(digest.subarray(0, 32));
+    a = (a & ~7n & ((1n << 255n) - 1n)) | (1n << 254n);
+
+    const keyHolder = (r: Buffer): Buffer => {
+      const k =
+        leInt(createHash("sha512").update(Buffer.concat([r, publicKey, inputBytes])).digest()) % L;
+      return Buffer.concat([r, leBytes((k * a) % L)]);
+    };
+    const withSignature = (signature: Buffer): Value => ({
+      t: "obj",
+      v: (entry as { t: "obj"; v: [string, Value][] }).v.map(([k, v]) =>
+        k === "signature" ? [k, { t: "str" as const, v: signature.toString("base64url") }] : [k, v]),
+    });
+    // Denied through verify AND refused by the strict predicate itself:
+    // the predicate check is what keeps each clause red-capable on a
+    // runtime whose backend already rejects the same bytes.
+    const denied = (signature: Buffer): boolean => {
+      const result = sigVerify(withSignature(signature), keys);
+      return !result.ok && result.e === "signature_not_verified" && !strictSignature(signature);
+    };
+    const stockKey = createPublicKey({
+      key: { kty: "OKP", crv: "Ed25519", x: publicKey.toString("base64url") },
+      format: "jwk",
+    });
+
+    const identity = Buffer.from("01" + "00".repeat(31), "hex");
+    const forged = keyHolder(identity);
+    // The backend's own verdict on this signature is runtime-dependent
+    // (observed: node 22.23.1 accepts it, node 24.19.0 rejects it, OTP's
+    // :crypto accepts it), which is exactly why the twin rules on R and S
+    // before the backend. The construction itself is certified by the
+    // corpus generator, which asserts OTP accepts its identity-R case.
+    void cryptoVerify(null, inputBytes, stockKey, forged);
+    check("strict: identity-R key-holder signature denied", denied(forged), true);
+
+    const SMALL_ORDER_HEX = [
+      "0100000000000000000000000000000000000000000000000000000000000000",
+      "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+      "0000000000000000000000000000000000000000000000000000000000000000",
+      "0000000000000000000000000000000000000000000000000000000000000080",
+      "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+      "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa",
+      "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+      "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85",
+    ];
+    for (const hex of SMALL_ORDER_HEX) {
+      check(`strict: small-order R ${hex.slice(0, 8)}… denied`, denied(keyHolder(Buffer.from(hex, "hex"))), true);
+    }
+
+    const NON_CANONICAL = [
+      leBytes(P), // y = p
+      leBytes(P + 1n), // y = p + 1 (the identity's y, unreduced)
+      leBytes((1n << 255n) - 1n), // all-ones y
+      leBytes(1n | (1n << 255n)), // identity, sign bit set
+      leBytes((P - 1n) | (1n << 255n)), // order-2 point, sign bit set
+    ];
+    for (const r of NON_CANONICAL) {
+      check(`strict: non-canonical R ${r.toString("hex").slice(0, 8)}… denied`, denied(keyHolder(r)), true);
+    }
+
+    const honest = cryptoSign(
+      null,
+      inputBytes,
+      createPrivateKey({
+        key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), seed]),
+        format: "der",
+        type: "pkcs8",
+      }),
+    );
+    const honestR = honest.subarray(0, 32);
+    const honestS = leInt(honest.subarray(32));
+    for (const [label, s] of [["L", L], ["L + 1", L + 1n], ["honest S + L", honestS + L]] as const) {
+      check(`strict: S = ${label} denied`, denied(Buffer.concat([honestR, leBytes(s)])), true);
+    }
+    const honestResult = sigVerify(withSignature(honest), keys);
+    check("strict: honest signature verifies", honestResult.ok && honestResult.v === "verified", true);
+    check("strict: honest signature passes the strict predicate", strictSignature(honest), true);
   }
 }
 
