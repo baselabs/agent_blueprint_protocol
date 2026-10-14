@@ -1,0 +1,110 @@
+# Doc gates — the lean workflow for docs-only pushes.
+#
+# The heavy CI workflow skips a push that changes only the paths below
+# (its paths-ignore); this workflow triggers on exactly those paths and
+# runs every gate that reads, digests, or pins them: the secret scan over
+# the full history, the full test suite (the privacy history scan and
+# every documentation, specification, errata, landing-page, and ADR-pin
+# test), the documentation build, the specification extraction (local
+# and from a filtered clone), and the grammar, registry, compatibility,
+# and release-candidate checks (spec digest, release manifest, release
+# history, requirement map). test/architecture/ci_trigger_filter_test.exs
+# keeps this list identical to ci.yml's paths-ignore and fails if a gate
+# this workflow does not run reads an ignored path.
+name: Doc gates
+
+on:
+  push:
+    branches:
+      - main
+    paths: ['*.md', 'docs/**', 'documentation/**', 'spec/**/*.md', '.github/ISSUE_TEMPLATE/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
+  ABP_PRIVACY_SCAN: enforce
+
+concurrency:
+  group: docs-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # The same pinned gitleaks commit as ci.yml (v8.30.1), full history.
+      - name: Run gitleaks over full history
+        run: go run github.com/zricethezav/gitleaks/v8@83d9cd684c87d95d656c1458ef04895a7f1cbd8e git --config .gitleaks.toml --redact --no-banner
+
+  doc-gates:
+    name: Doc, spec, and privacy gates
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: test
+    steps:
+      - name: Check out source (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install git-filter-repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git-filter-repo
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.19.0"
+          package-manager-cache: false
+
+      # The dev pin (mirrors .tool-versions).
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "29.0.3"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      # The full suite: the privacy history scan plus every test that reads
+      # a documentation or specification path. It also writes the suite
+      # census the release-candidate check compares.
+      - name: Run the test suite
+        run: mix test --seed 42
+
+      - name: Build the documentation
+        run: mix docs --warnings-as-errors
+
+      - name: Specification extraction (local)
+        run: mix spec.extraction
+
+      - name: Grammar derivation
+        run: mix grammar.derivation
+
+      - name: Registry equality
+        run: mix registry.equality
+
+      - name: Compatibility replay
+        run: mix compatibility.replay
+
+      - name: Release candidate (spec digest, release manifest and history, requirement map)
+        run: mix release.candidate
+
+      # The submission-time extraction, as the heavy workflow's
+      # spec-extraction job runs it.
+      - name: Specification extraction (filtered clone)
+        run: |
+          git clone --no-local "$GITHUB_WORKSPACE" /tmp/spec-extraction-clone
+          git -C /tmp/spec-extraction-clone filter-repo --path spec/ --path priv/conformance
+          elixir scripts/check_spec_extraction.exs --tree /tmp/spec-extraction-clone

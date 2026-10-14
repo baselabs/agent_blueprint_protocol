@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+    # Docs-only pushes skip this heavy workflow to save CI minutes; the
+    # lean doc-gates workflow (docs-gates.yml) triggers on exactly these
+    # paths and runs every gate that reads them. The two lists are kept
+    # identical by test/architecture/ci_trigger_filter_test.exs.
+    paths-ignore: ['*.md', 'docs/**', 'documentation/**', 'spec/**/*.md', '.github/ISSUE_TEMPLATE/**']
   workflow_dispatch:
 
 permissions:

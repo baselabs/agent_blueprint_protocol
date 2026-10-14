@@ -1050,29 +1050,86 @@ $ # plant: the secret scan switched from git history to a directory scan
 $ mix test test/architecture/ci_trigger_filter_test.exs
 1) test the privacy scan and the secret scan read every tracked path
 the CI secret scan no longer runs gitleaks over the git history
-Result: 2/3 passed
+Result: 2/3 passed (when the file held three cases)
 ```
 
-### case: "no CI paths-ignore glob skips a path a gate reads"
+### case: "every quality step and heavy CI job is classified for the docs-only split"
 
-A push that the CI workflow's `paths-ignore` skips runs no gate, so an
-ignored path must be one no gate reads; every tracked path is gate-read
-(previous case), so any glob matching a tracked path reds.
+The heavy CI workflow skips docs-only pushes; the lean doc-gates
+workflow triggers on exactly those paths. The guard's model classifies
+every `mix quality` step and every heavy CI job as lean (the lean
+workflow runs it) or heavy-only with the paths it reads; a new step or
+job without a classification reds.
 
 ```red
-$ # organic red: the docs-only skip list (**/*.md, docs/**, LICENSE*, issue templates)
+$ # plant: an extra job added to ci.yml
 $ mix test test/architecture/ci_trigger_filter_test.exs
-1) test no CI paths-ignore glob skips a path a gate reads
-CI paths-ignore skips pushes that change gate-read paths (70 matches), e.g. [{".github/ISSUE_TEMPLATE/**", ".github/ISSUE_TEMPLATE/bug_report.yml"}, ...]
-Result: 1/2 passed
+1) test every quality step and heavy CI job is classified for the docs-only split
+unclassified or stale entries: {["ci:extra-lint"], []}
+Result: 6/7 passed
+```
+
+### case: "the lean workflow runs every lean gate"
+
+Every gate the model calls lean must appear as a command in
+`docs-gates.yml`; dropping one from the lean workflow reds.
+
+```red
+$ # plant: the documentation build removed from docs-gates.yml
+$ mix test test/architecture/ci_trigger_filter_test.exs
+1) test the lean workflow runs every lean gate
+lean gates the doc-gates workflow does not run: ["docs --warnings-as-errors"]
+Result: 6/7 passed
+```
+
+### case: "no heavy-only gate reads a path the heavy workflow ignores"
+
+Every tracked path matching the heavy workflow's `paths-ignore` must be
+read only by lean gates: a heavy-only gate reading an ignored path would
+not run on a docs-only push.
+
+```red
+$ # plant: lib/** added to both trigger lists
+$ mix test test/architecture/ci_trigger_filter_test.exs
+1) test no heavy-only gate reads a path the heavy workflow ignores
+heavy-only gates read paths a docs-only push skips (216), e.g. [{"compile --warnings-as-errors", "lib/agent_blueprint_protocol.ex"}, ...]
+Result: 6/7 passed
 ```
 
 ```red
-$ # plant: paths-ignore re-added as **/*.md alone
+$ # plant: the earlier **/*.md list (it also skipped the verifier's README and runner contract)
 $ mix test test/architecture/ci_trigger_filter_test.exs
-1) test no CI paths-ignore glob skips a path a gate reads
-CI paths-ignore skips pushes that change gate-read paths (49 matches), e.g. [{"**/*.md", "CHANGELOG.md"}, ...]
-Result: 1/2 passed
+1) test no heavy-only gate reads a path the heavy workflow ignores
+heavy-only gates read paths a docs-only push skips (6), e.g. [{"kit.build", "verifier/README.md"}, ...]
+Result: 6/7 passed
+```
+
+### case: "heavy-only scripts reference no documentation path"
+
+The model's read lists for script-backed heavy-only steps are
+cross-checked against the scripts: a documentation-path reference in
+such a script reds the model as stale (the marker is proven live
+against the release-candidate script, which reads documents).
+
+```red
+$ # plant: a README.md reference appended to the deps-currency script
+$ mix test test/architecture/ci_trigger_filter_test.exs
+1) test heavy-only scripts reference no documentation path
+heavy-only scripts read documentation paths: [{"deps.currency", "scripts/check_deps_currency.exs"}]
+Result: 6/7 passed
+```
+
+### case: "the lean workflow triggers on exactly the paths the heavy workflow ignores"
+
+The two trigger lists must be identical, so every push the heavy
+workflow skips runs the lean one.
+
+```red
+$ # plant: docs/** dropped from the lean trigger list
+$ mix test test/architecture/ci_trigger_filter_test.exs
+1) test the lean workflow triggers on exactly the paths the heavy workflow ignores
+trigger lists differ: heavy ["*.md", "docs/**", "documentation/**", "spec/**/*.md", ".github/ISSUE_TEMPLATE/**"], lean ["*.md", "documentation/**", "spec/**/*.md", ".github/ISSUE_TEMPLATE/**"]
+Result: 6/7 passed
 ```
 
 ### case: "the landing page deploys only from a release tag or a manual dispatch"
@@ -1086,7 +1143,7 @@ $ # organic red: pages.yml deployed on every main push touching site/**
 $ mix test test/architecture/ci_trigger_filter_test.exs
 1) test the landing page deploys only from a release tag or a manual dispatch
 pages.yml deploys on a branch push; it must deploy only on a release tag
-Result: 2/3 passed
+Result: 2/3 passed (when the file held three cases)
 ```
 
 ### case: "README count claims match the live test tree and corpus index"

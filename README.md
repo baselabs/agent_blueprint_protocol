@@ -109,7 +109,7 @@ against its tags' actual trees.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated: 944 tests
+and conformance corpus are implemented and gated: 948 tests
 (63 properties) at 100% coverage, zero Dialyzer errors, `--strict`
 Credo clean, a 128-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
