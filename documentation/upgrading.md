@@ -20,7 +20,7 @@ new digest chain, not a renamed module.
 Canonicalization (RFC 8785), the digest domain separators, the
 closed member worlds per revision, and the non-authorizing boundary.
 Evolution happens at digest-covered revision boundaries, gated by
-negotiation. Since 0.8.0 these stability claims carry a named axis: the
+negotiation. Since the 0.8 line these stability claims carry a named axis: the
 release manifest's `verification_semantics_version` changes exactly
 when verification semantics for previously-certified inputs change (the
 specification's Evolution clause defines the axis; census growth — more

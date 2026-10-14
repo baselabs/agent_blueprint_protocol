@@ -77,7 +77,7 @@ every other axis in this inventory.
 
 ## Amendment — the release-identity consumer contract (2026-09-24)
 
-The release-identity consumer contract (0.8.0) extends the axis
+The release-identity consumer contract (the 0.8 line) extends the axis
 inventory and states the precedence rules:
 
 1. **`manifest_version`** (in `priv/release-metadata.json`) versions the

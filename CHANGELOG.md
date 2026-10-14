@@ -2,6 +2,28 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.8.1] — unreleased
+
+### Fixed
+
+- Strict Ed25519 signature checks: reject small-order or non-canonical
+  R and S >= L before verification. `Signature.verify/2` now holds the
+  signature's R to the same point rule as the trusted key (canonical
+  encoding, on the curve, not small-order) and requires S below the
+  group order, before the cryptographic backend is called, so the
+  verdict no longer depends on the backend's own checks. These
+  rejections deny with the existing `:signature_not_verified`; the
+  error vocabulary is unchanged.
+
+For consumers nothing else changed: the public API, the conformance
+corpus, the registry, and the specification are byte-identical to
+0.8.0, and `verification_semantics_version` stays 1 (no certified
+input's verdict moves). The test suite is 933 tests (62 properties) at
+100% coverage. Corpus: 96 cases, digest
+`sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
+digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
+
 ## [0.8.0] — 2026-09-24
 
 ### Added — the release-identity consumer contract
