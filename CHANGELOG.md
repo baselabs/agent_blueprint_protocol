@@ -40,6 +40,14 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   step; the evidence-commitments guide cites the AI Act articles it
   relies on (12, 25(4), and 26) and points to Regulation (EU) 2026/1744,
   which moved the high-risk application dates.
+- The release-candidate reprove turns off git's automatic maintenance in
+  its scratch repositories, as does the privacy gate's throwaway
+  repository. From git 2.54, `git commit` starts a detached repack that
+  keeps writing into `.git` after the command returns; on hosted CI
+  (git 2.55) it raced the scratch cleanup and failed the check with
+  `could not remove files and directories recursively ... file already
+  exists`. A new architecture test requires every script or test that
+  commits in a scratch repository to set `maintenance.auto` false.
 - Removed duplicated sentences from eighteen module docs. The comments
   on small-order keys in `Signature` and the TypeScript verifier now say
   exactly what the backends accept: under the identity key, R = identity

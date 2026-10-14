@@ -829,9 +829,19 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     end
   end
 
+  # The scratch repository never runs git's automatic maintenance. From git
+  # 2.54 the default maintenance strategy is "geometric", and `git commit`
+  # starts `git maintenance run --auto --detach`: a detached repack that
+  # keeps writing packs into .git after `git commit` returns. Under load it
+  # outlived the plant command and refilled .git/objects while File.rm_rf!
+  # emptied the scratch (hosted CI, git 2.55, October 14, 2026:
+  # `could not remove files and directories recursively ... file already
+  # exists`). With maintenance.auto false, git starts no such process.
   defp initialize_git_repo!(scratch) do
     commands = [
       ["init", "--initial-branch=main"],
+      ["config", "maintenance.auto", "false"],
+      ["config", "gc.auto", "0"],
       ["config", "user.email", "release-candidate@example.invalid"],
       ["config", "user.name", "Release Candidate"],
       ["add", "--all"],

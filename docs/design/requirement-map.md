@@ -1851,6 +1851,35 @@ code:  assert [{:def, :main, [{arg_name, _, nil}]}] = defs
 Result: 0/1 passed
 ```
 
+### case: "every scratch git repository that commits disables automatic maintenance"
+
+Scratch-repository maintenance gate: a script or test that runs a git
+command which starts automatic maintenance (`commit`, `merge`, `fetch`,
+`pull`, `am`, `rebase`, `clone`) must set `maintenance.auto` false for the
+repository it drives. From git 2.54 those commands start a detached
+geometric repack that keeps writing into `.git` after they return; the
+release-candidate reprove's `File.rm_rf!` raced it on hosted CI (git
+2.55, October 14, 2026: `could not remove files and directories
+recursively ... file already exists`). The scan must keep seeing the two
+known drivers, so a broken scan cannot pass vacuously.
+
+```red
+$ # plant: the reprove scratch's `git config maintenance.auto false` line removed
+$ mix test test/architecture/scratch_git_maintenance_test.exs
+1) test every scratch git repository that commits disables automatic maintenance
+these files run git commands that start detached background maintenance without setting maintenance.auto false: ["scripts/check_release_candidate.exs"]
+code: assert offenders == [],
+Result: 0/1 passed
+```
+
+```red
+$ # plant: the subcommand pattern broken (the scan sees no driver)
+$ mix test test/architecture/scratch_git_maintenance_test.exs
+1) test every scratch git repository that commits disables automatic maintenance
+the scan no longer sees the known git drivers ["scripts/check_release_candidate.exs", "test/architecture/public_surface_privacy_test.exs"]
+Result: 0/1 passed
+```
+
 ## The conformance lane (in-suite)
 
 ### conformance: corpus loader integrity

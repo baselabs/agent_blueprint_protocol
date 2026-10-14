@@ -23,11 +23,17 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
                    ])
   @test_canary "public privacy canary"
   @test_key "public-test-key"
+  # maintenance.auto false: a commit in the throwaway repository must not
+  # start git's detached background maintenance (the geometric repack, the
+  # default from git 2.54), which writes into .git after the command returns
+  # and races the on_exit cleanup.
   @git_env [
     {"GIT_GRAFT_FILE", "/dev/null"},
-    {"GIT_CONFIG_COUNT", "1"},
+    {"GIT_CONFIG_COUNT", "2"},
     {"GIT_CONFIG_KEY_0", "advice.graftFileDeprecated"},
-    {"GIT_CONFIG_VALUE_0", "false"}
+    {"GIT_CONFIG_VALUE_0", "false"},
+    {"GIT_CONFIG_KEY_1", "maintenance.auto"},
+    {"GIT_CONFIG_VALUE_1", "false"}
   ]
   # Fork pull requests receive no repository secrets, so the enforcing scan
   # cannot run there. The ONLY relaxation is an exact "fork-skip" mode set
