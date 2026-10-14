@@ -228,6 +228,37 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     "federation-decode-a2a-state-invalid"
   ]
 
+  # The published tarball must hold only modules that run from it: the
+  # repo-side self-check battery (verifier/self_checks.ts reads
+  # verifier/testdata/, which never ships) stays out of the package, and no
+  # packed module may reference testdata. Read from `npm pack --dry-run`,
+  # the file list npm would publish.
+  defp packed_files_check! do
+    npm = System.find_executable("npm") || raise "npm not found for the packed-file check"
+
+    {json, 0} =
+      System.cmd(npm, ["pack", "--dry-run", "--json", "--ignore-scripts"],
+        cd: @root,
+        stderr_to_stdout: false
+      )
+
+    [%{"files" => files}] = Jason.decode!(json)
+    paths = Enum.map(files, & &1["path"])
+
+    offenders =
+      for path <- paths,
+          String.starts_with?(path, "dist/verifier/self_checks") or
+            (String.ends_with?(path, ".js") and
+               File.read!(Path.join(@root, path)) =~ "testdata"),
+          do: path
+
+    unless offenders == [] do
+      raise "the npm tarball ships modules that cannot run from it: #{inspect(offenders)}"
+    end
+
+    IO.puts("kit: packed tarball holds #{length(paths)} files, none repo-side only")
+  end
+
   defp kit_checks!(node, escript_bytes) do
     unless File.exists?(@kit_bin) do
       raise "npm kit not built — run `npm install && npm run build` before the agreement gate"
@@ -248,6 +279,8 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
     assert_embedded_manifest!(manifest, embedded_manifest)
     seed_embedded_manifest_red!(manifest)
+
+    packed_files_check!()
 
     {kit_out, kit_status} = System.cmd(node, [@kit_bin], stderr_to_stdout: true)
 

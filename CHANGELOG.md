@@ -24,6 +24,11 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 - The npm verifier kit's key-object cache (one parsed key per raw
   public key) is bounded at 256 entries, evicting the oldest; it grew
   without limit before.
+- The npm tarball no longer ships `dist/verifier/self_checks.*`: the
+  repo-side self-check battery reads `verifier/testdata/`, which never
+  shipped, so the packed copy could not run. The kit's documented
+  commands (the bin over the embedded corpus, `--corpus`, `--artifact`,
+  and the importable modules) are unchanged.
 
 ### Changed — corpus and specification
 
@@ -56,8 +61,7 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   extension-schema and extension-registry separators. The conformance
   mutation gate breaks the implementation at seventeen named points.
 
-The public API and the registry are unchanged. The test suite is
-944
+The public API and the registry are unchanged. The test suite is 948
 tests (63 properties) at 100% coverage. Corpus: 128 cases, digest
 `sha-256:nwi8r5fjushIO4TuTfZ14hQvtNYpeq5Y5vzkA_FqO_Q`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification

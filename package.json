@@ -17,6 +17,7 @@
   },
   "files": [
     "dist",
+    "!dist/verifier/self_checks.*",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
