@@ -21,6 +21,18 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
 
   @mutations [
     %{
+      # The strict Ed25519 signature rule removed (R canonical and not
+      # small-order, S < L, checked before :crypto.verify): the key-holder
+      # R = identity, S = k*a case verifies on the backend's cofactorless
+      # equation and disagrees with its expected denial.
+      name: "strict-signature-rule-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from:
+        "      not strict_signature?(parts.signature) ->\n        {:error, :signature_not_verified}\n\n",
+      to: "",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
       # The intersection's meet flips narrowest→widest: the operational
       # widening case's effective (pinned to the narrow 3s) disagrees.
       name: "intersect-min-to-max",

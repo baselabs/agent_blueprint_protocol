@@ -3,7 +3,7 @@
 Status: published pre-1.0 protocol (0.x release line). This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`, 96 cases) are
+`sha-256:DmUx8_bLo4coAtKbGdtH0yxW9XqnVVN7Yt6qm5f-_vs`, 112 cases) are
 certified against this document at every release through the release
 identity chain — the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -251,7 +251,7 @@ extension payloads retained verbatim.
 | Blueprint content | `agent-blueprint-protocol/blueprint-content` |
 | Deployment content | `agent-blueprint-protocol/deployment-content` |
 | Federation envelope | `agent-blueprint-protocol/federation-envelope` |
-| Signature input | `agent-blueprint-protocol/signature` |
+| Signature (reserved; not part of the signing input, §6) | `agent-blueprint-protocol/signature` |
 | Conformance report | `agent-blueprint-protocol/conformance-report` |
 | Corpus index | `agent-blueprint-protocol/corpus-index` |
 
@@ -274,8 +274,12 @@ keys).
   false}`. Ed25519 only; an unknown `alg` MUST deny.
 - `signed_attributes = {algorithm, content_digest, created_at, key_id,
   purpose}` with `purpose` one of `blueprint` | `deployment` |
-  `federation-envelope`; the signing input is the signature domain
-  separator, a zero byte, and JCS(signed_attributes).
+  `federation-envelope`. The signing input is the RFC 7797 §3 input
+  `ASCII(BASE64URL(JCS(protected))) || "." || JCS(signed_attributes)`,
+  where `protected` is the exact four-member header; no digest domain
+  separator is part of it. A producer whose protected-header segment is
+  not the JCS serialization of that header produces a signature that
+  MUST deny `:signature_not_verified`.
 - Because the digest covers `protocol_revision`, identity members,
   extensions, and `required_core_fields`, a signature cannot be lifted
   onto a different artifact, revision, or purpose; `key_id` prevents key
@@ -285,8 +289,25 @@ keys).
 - Attestations use the identical envelope with a registered `kind` and
   a `statement_digest`. The attestation kind registry is empty by
   design in this release.
-- Small-order Ed25519 public keys (identity and order-2 encodings)
-  MUST reject `:signature_key_unsupported`.
+- A supplied key whose `key_id` matches but which is not a usable
+  Ed25519 public key — a non-canonical encoding (y ≥ p, or x = 0 with
+  the sign bit set), an encoding that decodes to no curve point, or a
+  small-order point (any of the eight 8-torsion points, the identity and
+  the order-2 point included) — MUST deny
+  `:signature_algorithm_unsupported` when no matched key is usable.
+  `:signature_key_unsupported` is reserved for a `key_id` that matches
+  no supplied key.
+- Strict signature encoding (RFC 8032 §5.1.7): before any curve
+  arithmetic, the signature's first half R MUST satisfy the same point
+  rule as the public key (canonical encoding, decodes to a curve point,
+  not small-order), and its second half S, read as a little-endian
+  integer, MUST be less than the group order L = 2^252 +
+  27742317777372353535851937790883648493. A signature failing either
+  rule MUST deny `:signature_not_verified`, whatever the cryptographic
+  backend would conclude. Verification is otherwise the cofactorless
+  equation [S]B = R + [k]A. Under an honest key, R = the identity with
+  S = k·a mod L satisfies that equation; only the key holder can build
+  it, and this rule denies it.
 
 ## 7. Evolution and negotiation
 
@@ -569,10 +590,10 @@ raised, the subject it names, and the host action it demands):
 | `schema_keyword_value_invalid` | a schema keyword carries an invalid value | schema document | reject the artifact |
 | `schema_ref_cycle` | a schema $ref cycle | schema document | reject the artifact |
 | `schema_ref_unresolvable` | a schema $ref resolves nowhere | schema document | reject the artifact |
-| `signature_algorithm_unsupported` | an unknown signature algorithm | signatures | halt the import (reconcile denies) |
-| `signature_key_unsupported` | no supplied key matches, or a small-order key | signatures | halt the import (reconcile denies) |
+| `signature_algorithm_unsupported` | an unknown signature algorithm, or no matched key is usable Ed25519 (non-canonical, off-curve, or small-order) | signatures | halt the import (reconcile denies) |
+| `signature_key_unsupported` | no supplied key matches the `key_id` | signatures | halt the import (reconcile denies) |
 | `signature_malformed` | a signature envelope fails its parse | signatures | halt the import (reconcile denies) |
-| `signature_not_verified` | the cryptographic verification fails | signatures | halt the import (reconcile denies) |
+| `signature_not_verified` | the cryptographic verification fails, or R or S breaks the strict encoding rule (§6) | signatures | halt the import (reconcile denies) |
 | `trailing_bytes` | bytes follow the JSON value | bytes | reject the artifact |
 | `unknown_bound` | a bounds member name is unknown | bounds | reject the artifact |
 | `unknown_member` | a member is outside the closed world | the member | reject the artifact |
@@ -610,10 +631,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-96 cases covering every required cell of the 16-surface × 31-class
+112 cases covering every required cell of the 16-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`. Corpus identity
+`sha-256:DmUx8_bLo4coAtKbGdtH0yxW9XqnVVN7Yt6qm5f-_vs`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over `%{path => binary}` and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
@@ -625,7 +646,7 @@ archive) independently recomputes every corpus verdict and integrity
 check with its own scanner, canonicalizer, and `node:crypto` Ed25519
 path; the release gate requires its report to be byte-identical to the
 Elixir escript's over both the repo corpus and the built archive's
-corpus. A mutation gate breaks the implementation at seven named
+corpus. A mutation gate breaks the implementation at eight named
 points and requires the corpus to go red on each — a vacuous case set
 is a build failure.
 

@@ -162,7 +162,7 @@ EXIT=1
 ### alias: conformance.mutations
 
 Self-proving by construction (`scripts/check_conformance_mutations.exs`):
-for each of the seven named mutations the script isolates a scratch copy
+for each of the eight named mutations the script isolates a scratch copy
 of the repo, applies exactly one one-match source mutation, first proves
 the UNMUTATED command green in a clean scratch (baseline non-vacuity),
 then runs `mix conformance.verify` and raises `mutation survived` if the

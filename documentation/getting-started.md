@@ -38,7 +38,7 @@ AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, :unknown_member}
 
 ## Run the shipped conformance corpus
 
-The package ships a 96-case conformance corpus; run it to see the
+The package ships a 112-case conformance corpus; run it to see the
 protocol's whole behavior surface:
 
 ```bash

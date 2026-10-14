@@ -14,15 +14,35 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   verdict no longer depends on the backend's own checks. These
   rejections deny with the existing `:signature_not_verified`; the
   error vocabulary is unchanged.
+- The npm verifier kit applies the same strict rule before
+  `node:crypto`. Its public-key check also carried a mistyped digit in
+  the curve constant d, so it rejected about half of all honest Ed25519
+  public keys with `signature_algorithm_unsupported` where the Elixir
+  verifier verifies them; the constant is corrected and re-derived from
+  the curve definition in the kit's self-checks.
 
-For consumers nothing else changed: the public API, the conformance
-corpus, the registry, and the specification are byte-identical to
-0.8.0, and `verification_semantics_version` stays 1 (no certified
-input's verdict moves). The test suite is 933 tests (62 properties) at
-100% coverage. Corpus: 96 cases, digest
-`sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
+### Changed — corpus and specification
+
+- The conformance corpus grows from 96 to 112 cases, all on
+  `signature.verify`: R = the identity with S = k*a under an honest key
+  (built by the key holder), each of the eight small-order R encodings,
+  five non-canonical R encodings, S = L and the honest S + L (all deny
+  `signature_not_verified`), and a valid signature under a second
+  honest key. Both verifiers agree on every case. Every 96-case census
+  replays as `equivalent`; `verification_semantics_version` stays 1.
+- `spec/protocol.md` §6 states the strict R and S rule normatively, and two
+  statements now match the implementation: the signing input is the
+  RFC 7797 input `BASE64URL(JCS(protected)) || "." ||
+  JCS(signed_attributes)`, and a matched key that is not usable Ed25519
+  (small-order included) denies `signature_algorithm_unsupported`
+  (`signature_key_unsupported` is only for a `key_id` with no supplied
+  key). The conformance mutation gate gains an eighth named break.
+
+The public API and the registry are unchanged. The test suite is 933
+tests (62 properties) at 100% coverage. Corpus: 112 cases, digest
+`sha-256:DmUx8_bLo4coAtKbGdtH0yxW9XqnVVN7Yt6qm5f-_vs`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
-digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
+digest `sha-256:hy-JUYSG0B5DpzKnrD_N5kT58ZdXt-JH-KtFx_wNp-k`.
 
 ## [0.8.0] — 2026-09-24
 

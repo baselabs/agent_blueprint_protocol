@@ -11,13 +11,13 @@ copy), and a single bin. Node 24 or newer; zero runtime dependencies.
 npx @agent-blueprint-protocol/verifier
 ```
 
-With no arguments the kit runs its EMBEDDED corpus — 96 cases over
+With no arguments the kit runs its EMBEDDED corpus — 112 cases over
 every protocol surface — and prints the single-line report. Green is
 `"agreement":true` and exit 0; the report names the corpus digest, so
 what you verified is an exact, identified byte set, not a vibe:
 
 ```json
-{"agreed":96,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":96}
+{"agreed":112,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":112}
 ```
 
 ## Verify any corpus

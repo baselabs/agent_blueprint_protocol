@@ -16,6 +16,7 @@
 Code.require_file("test/support/blueprint_fixture.exs", __DIR__ |> Path.join(".."))
 Code.require_file("test/support/deployment_fixture.exs", __DIR__ |> Path.join(".."))
 Code.require_file("test/support/federation_fixture.exs", __DIR__ |> Path.join(".."))
+Code.require_file("test/support/ed25519_strict_fixture.exs", __DIR__ |> Path.join(".."))
 
 alias AgentBlueprintProtocol.{
   Blueprint,
@@ -653,6 +654,116 @@ signature_cases = [
     "expected" => %{"verdict" => "invalid", "code" => "signature_malformed"}
   }
 ]
+
+# ---- signature.verify: the strict Ed25519 rule (R canonical and not
+# small-order, S < L) and a second honest key ----
+#
+# Every weak signature below rides the exact envelope of
+# signature-verify-valid (same key, same signed attributes); only the
+# 64 signature bytes change. The key holder of the corpus key builds
+# R = P and S = k*a mod L (k = SHA-512(R || A || M) mod L); with R = the
+# identity the cofactorless equation holds, so a backend that checks only
+# the equation accepts it — asserted below, so the case can never go
+# vacuous. The second-key valid case pins agreement on an honest key the
+# point rule must accept (its key is one a mistyped curve constant
+# misclassifies).
+alias AgentBlueprintProtocol.Ed25519StrictFixture, as: StrictFixture
+
+{:ok, sig_entry_value} = Json.decode(sig_entry_text)
+{:ok, sig_signing_input} = Signature.signing_input(sig_entry_value)
+sig_holder_seed = :crypto.hash(:sha256, "corpus-signature-valid")
+
+{^sig_pub, _} = :crypto.generate_key(:eddsa, :ed25519, sig_holder_seed)
+
+identity_forged =
+  StrictFixture.key_holder_signature(sig_holder_seed, StrictFixture.identity(), sig_signing_input)
+
+true = :crypto.verify(:eddsa, :none, sig_signing_input, identity_forged, [sig_pub, :ed25519])
+
+weak_entry = fn signature ->
+  CorpusGen.bad_signature_entry(sig_digest, AgentBlueprintProtocol.Base64Url.encode(signature))
+end
+
+weak_case = fn id, signature ->
+  %{
+    "id" => id,
+    "surface" => "signature.verify",
+    "class" => "signature_invalid",
+    "input" => %{"entry" => weak_entry.(signature), "keys" => sig_keys},
+    "expected" => %{"verdict" => "invalid", "code" => "signature_not_verified"}
+  }
+end
+
+small_order_names = [
+  "identity",
+  "order-2",
+  "order-4-sign-clear",
+  "order-4-sign-set",
+  "order-8-a",
+  "order-8-b",
+  "order-8-c",
+  "order-8-d"
+]
+
+small_order_cases =
+  Enum.zip_with(small_order_names, StrictFixture.small_order_encodings(), fn name, r ->
+    true = StrictFixture.small_order?(r)
+
+    weak_case.(
+      "signature-verify-small-order-r-#{name}",
+      StrictFixture.key_holder_signature(sig_holder_seed, r, sig_signing_input)
+    )
+  end)
+
+non_canonical_names = [
+  "y-equals-p",
+  "y-equals-p-plus-1",
+  "y-all-ones",
+  "identity-sign-set",
+  "order-2-sign-set"
+]
+
+non_canonical_cases =
+  Enum.zip_with(non_canonical_names, StrictFixture.non_canonical_encodings(), fn name, r ->
+    weak_case.(
+      "signature-verify-non-canonical-r-#{name}",
+      StrictFixture.key_holder_signature(sig_holder_seed, r, sig_signing_input)
+    )
+  end)
+
+{:object, sig_entry_members} = sig_entry_value
+{"signature", {:string, sig_b64}} = List.keyfind(sig_entry_members, "signature", 0)
+
+{:ok, <<honest_r::binary-size(32), honest_s::little-unsigned-256>>} =
+  AgentBlueprintProtocol.Base64Url.decode(sig_b64)
+
+scalar_cases = [
+  weak_case.(
+    "signature-verify-s-equals-l",
+    honest_r <> <<StrictFixture.l()::little-unsigned-256>>
+  ),
+  weak_case.(
+    "signature-verify-s-plus-l",
+    honest_r <> <<honest_s + StrictFixture.l()::little-unsigned-256>>
+  )
+]
+
+{second_entry_text, second_pub} =
+  CorpusGen.signature_entry("corpus-signature-valid-3", "corpus-key-3", sig_digest)
+
+second_key_case = %{
+  "id" => "signature-verify-valid-second-key",
+  "surface" => "signature.verify",
+  "class" => "valid",
+  "input" => %{
+    "entry" => second_entry_text,
+    "keys" => [%{"key_id" => "corpus-key-3", "key" => CorpusGen.b64(second_pub)}]
+  },
+  "expected" => %{"verdict" => "valid", "verified" => true}
+}
+
+signature_cases =
+  signature_cases ++ [second_key_case] ++ small_order_cases ++ non_canonical_cases ++ scalar_cases
 
 # ---- schema.validate_instance (5) ----
 object_schema = %{"type" => "object", "additionalProperties" => false, "properties" => %{}}
@@ -1956,8 +2067,39 @@ defmodule GenMain do
   defp project({:ok, m}) when is_map(m), do: {:ok, m}
   defp project(other), do: other
 
+  # The goldens' fixture signatures (kid example-demo-signing-key /
+  # example-demo-deploy-key, over the digest-UNCOVERED `signatures`
+  # member) are minted under a fresh random key on every run and carry no
+  # verdict. A regenerated file whose ONLY difference from the committed
+  # one is such a token keeps its committed bytes, so the corpus digest
+  # moves only when certified content moves.
+  @fixture_signature ~r/(example-demo-(?:signing|deploy)-key\\?"\},\\?"signature\\?":\\?")[A-Za-z0-9_-]{86}/
+
+  def preserve_fixture_signatures(map, dir) do
+    Enum.reduce(map, map, fn
+      {"index.json", _bytes}, acc ->
+        acc
+
+      {path, bytes}, acc ->
+        case File.read(Path.join(dir, path)) do
+          {:ok, committed} when committed != bytes ->
+            if mask(committed) == mask(bytes),
+              do:
+                AgentBlueprintProtocol.ConformanceTest.Builder.resync_file(acc, path, committed),
+              else: acc
+
+          _unchanged_or_new ->
+            acc
+        end
+    end)
+  end
+
+  defp mask(bytes), do: Regex.replace(@fixture_signature, bytes, "\\1<fixture-signature>")
+
   def main(all_cases, data) do
-    map = AgentBlueprintProtocol.ConformanceTest.Builder.build(all_cases, %{}, data: data)
+    map =
+      AgentBlueprintProtocol.ConformanceTest.Builder.build(all_cases, %{}, data: data)
+      |> preserve_fixture_signatures("priv/conformance")
 
     with {:ok, corpus} <- AgentBlueprintProtocol.Conformance.Corpus.load(map) do
       results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)

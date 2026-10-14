@@ -60,7 +60,8 @@ defmodule AgentBlueprintProtocol.ReleaseIdentity do
   # semantics-break claim; stops replay, never inverse-checked).
   @protocol_revisions_supported [1]
   @prior_census_verdicts %{
-    "sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo" => "equivalent"
+    "sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo" => "equivalent",
+    "sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8" => "equivalent"
   }
 
   def metadata_path, do: @metadata_path
