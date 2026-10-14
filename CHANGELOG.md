@@ -2,7 +2,7 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
-## [0.8.1] — unreleased
+## [0.8.1] — 2026-10-14
 
 ### Fixed
 
@@ -127,10 +127,10 @@ digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
   `no-versioning-rule` axis amendment (precedence: the wire revision,
   the semantics version, and the release identity are independent
   axes). Answering an inbound consumer request for input
-  (bounded_authority, 2026-09-23) in full.
+  (an exact-pinned consumer, 2026-09-23) in full.
 - `docs/consumer-evidence.md` (repository-level, deliberately NOT
   shipped): the unverified third-party consumer-rehearsal lane, its
-  first entry reserved for the bounded_authority rehearsal.
+  first entry reserved for an exact-pinned consumer's rehearsal.
 
 The correction the record now states plainly: the 0.6.0 corpus change
 was not purely additive at the byte level — the golden vectors' fixture

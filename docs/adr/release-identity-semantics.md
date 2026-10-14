@@ -4,7 +4,7 @@ Status: accepted (2026-09-24).
 
 ## Context
 
-Exact-pinned consumers (bounded_authority first: an exact pin one
+Exact-pinned consumers (the first: an exact pin one
 census generation back, identity verified against the installed
 `priv/release-metadata.json` before decode and database access, exact
 equality of persisted identity fields on replay) broke on identity

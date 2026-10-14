@@ -26,7 +26,7 @@ that the consumer published it.
 
 ## Entries
 
-_None yet._ The first entry is reserved for the bounded_authority
+_None yet._ The first entry is reserved for an exact-pinned consumer's
 rehearsal (a populated pre-upgrade database; old accepted replay / new
 import / changed-body conflict / restart recovery), to be linked when
 the consumer can publish it.
