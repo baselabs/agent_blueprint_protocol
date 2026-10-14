@@ -265,11 +265,12 @@ defmodule AgentBlueprintProtocol.SignatureTest do
 
   describe "verify/2 facts" do
     test "a small-order public key never verifies anything (universal forgery tripwire)" do
-      # Confirmed live: :crypto.verify accepts
-      # the all-zero (small-order) public key with an all-zero signature —
-      # a universal forgery if such a key ever enters a trust set. The
-      # zero key must be unusable Ed25519, and the forged envelope (all-zero
-      # signature over OUR signing input) must never be :verified.
+      # Confirmed live: :crypto.verify accepts the all-zero (order-4)
+      # public key with an all-zero signature for about one message in
+      # four (under the identity key, R = identity with S = 0 verifies for
+      # every message). The zero key must be unusable Ed25519, and the
+      # forged envelope (all-zero signature over OUR signing input) must
+      # never be :verified.
       zero_key = [%Signature.PublicKey{key_id: "test-key", algorithm: :ed25519, key: <<0::256>>}]
 
       forged =

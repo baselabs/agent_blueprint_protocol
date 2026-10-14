@@ -2,9 +2,12 @@
 // RFC 7515 compact + RFC 7797 b64=false unencoded detached payload, Ed25519
 // via node:crypto (one-shot verify arg order on node ≥ 24 is
 // (algorithm, data, key, signature) — probed on v25.9.0), and the
-// small-order / off-curve public-key rejection the twin added after the
-// found live (:crypto AND OpenSSL both accept small-order keys
-// with all-zero signatures — a universal forgery), and the strict
+// small-order / off-curve public-key rejection the Elixir twin also
+// carries, added after a live finding (:crypto accepts forgeries under small-order keys: under the
+// identity key, R = identity with S = 0 verifies for every message; measured
+// October 14, 2026, node:crypto on Node 22.23.1 accepts the same forgery and
+// Node 24.19.0 rejects it — runtime-dependent, which is why the rule lives
+// here), and the strict
 // signature rule (R canonical and not small-order, S < L) checked before
 // node:crypto, so the verdict never depends on the runtime's backend.
 //

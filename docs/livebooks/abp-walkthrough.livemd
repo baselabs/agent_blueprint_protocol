@@ -242,12 +242,17 @@ Negotiation is the evolution gate a host runs before reading the artifact's mean
 states its posture in `Negotiation.Support`: the protocol revisions it supports, as an exact
 set. Extensions follow a fixed state machine against the compiled extension registry:
 
-* an optional namespace nobody registered is quarantined: kept byte-exactly, never executed;
-* a registered optional namespace is retained (a deprecated one also gets a notice);
+* an optional namespace nobody registered is quarantined: kept byte-exactly, never executed,
+  with the notice `:extension_unknown_optional_retained`;
+* a registered active optional namespace is retained; a deprecated one is retained with the
+  notice `:extension_deprecated`; a reserved or retired one is retained with a notice too
+  (`:extension_unknown_optional_retained` or `:extension_retired`);
 * an unknown critical namespace denies the whole artifact.
 
-This cell composes a second Blueprint, a weather-forecast digest, with two optional extensions,
-then the same Blueprint with an unregistered critical extension.
+This cell composes a second Blueprint, a weather-forecast digest, with two optional extensions:
+`com.example.platform/estate`, the registry's deprecated optional entry, and
+`org.example.weather/units`, which nobody registered. Then it composes the same Blueprint with
+an unregistered critical extension.
 
 ```elixir
 alias AgentBlueprintProtocol.Negotiation.Support
@@ -542,8 +547,10 @@ Each attack below gets a typed denial; none is repaired.
 
 * A tampered signature: one bit flipped.
 * The wrong key under the right `key_id`.
-* A small-order public key (all zero bytes) with an all-zero signature. `:crypto` alone
-  accepts that pair for any message; the package refuses the key before calling it.
+* A small-order public key: the identity point (encoded as y = 1), with a signature whose R
+  is the identity and whose S is 0. Under that key the verification equation holds for every
+  message, so `:crypto` alone accepts the forgery whatever was signed; the package refuses the
+  key before calling `:crypto`.
 * An edited member that keeps the old `content_digest`.
 * The same Blueprint re-spelled with whitespace: the value is identical, the bytes are not
   canonical.
@@ -552,10 +559,14 @@ Each attack below gets a typed denial; none is repaired.
 ```elixir
 flip_bit = fn <<first, rest::binary>> -> <<Bitwise.bxor(first, 1), rest::binary>> end
 
+# The identity point, y = 1 with the sign bit clear: a small-order public key.
+identity_point = <<1, 0::248>>
+small_order_forgery = identity_point <> <<0::256>>
+
 small_order_key = %PublicKey{
   key_id: "library-producer-1",
   algorithm: :ed25519,
-  key: <<0::256>>
+  key: identity_point
 }
 
 # Canonical bytes again, but release_number edited while content_digest keeps its old value.
@@ -569,12 +580,12 @@ respelled_bytes = String.replace(library_bytes, ~s(":), ~s(": ), global: false)
 
 %{
   backend_accepts_small_order_forgery:
-    :crypto.verify(:eddsa, :none, signing_input, <<0::512>>, [<<0::256>>, :ed25519]),
+    :crypto.verify(:eddsa, :none, signing_input, small_order_forgery, [identity_point, :ed25519]),
   rejections: %{
     tampered_signature: Signature.verify(envelope_with.(flip_bit.(signature)), [producer_key]),
     wrong_key:
       Signature.verify(envelope, [%PublicKey{producer_key | key: other_public}]),
-    small_order_key: Signature.verify(envelope_with.(<<0::512>>), [small_order_key]),
+    small_order_key: Signature.verify(envelope_with.(small_order_forgery), [small_order_key]),
     edited_member: AgentBlueprintProtocol.decode_blueprint(edited_bytes),
     respelled_bytes: AgentBlueprintProtocol.decode_blueprint(respelled_bytes),
     unknown_key_id:
@@ -601,9 +612,9 @@ respelled_bytes = String.replace(library_bytes, ~s(":), ~s(": ), global: false)
 
 ## 8. The strict Ed25519 rule on R and S
 
-Since 0.8.1 the package holds a signature's R to the same point rule as the public key
-(canonical encoding, on the curve, not small-order) and requires S below the group order L,
-before `:crypto` sees the bytes.
+The package holds a signature's R to the same point rule as the public key (canonical
+encoding, on the curve, not small-order) and requires S below the group order L, before
+`:crypto` sees the bytes. The CHANGELOG records the release that added the rule.
 
 Two signatures over the same input show why. The key holder can build one whose R is the
 identity point: with S = k·a mod L (k is the RFC 8032 challenge hash, a the secret scalar), the
@@ -654,8 +665,8 @@ package = fn bytes -> Signature.verify(envelope_with.(bytes), [producer_key]) en
 * Signing stays in the producer's toolchain; the package verifies against keys the host
   supplies, and refuses keys and signatures that Ed25519's equation alone would accept.
 * Negotiation quarantines what it does not know when that is safe and denies when it is not.
-* Reconcile returns evidence and names what it did not check. Identity, tenancy, live policy,
-  effect ownership, execution, billing, and evaluation truth stay with your host.
+* Reconcile returns evidence and names what it did not check: tenancy, live policy,
+  authority, effect ownership, execution, billing, and evaluation truth stay with your host.
 
 Next: the [host-integration guide](../../documentation/host-integration.md), the
 [error guide](../../documentation/errors.md), and the normative

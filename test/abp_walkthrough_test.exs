@@ -107,6 +107,49 @@ defmodule AgentBlueprintProtocol.WalkthroughTest do
     assert StrictFixture.strict_signature?(binding[:signature])
   end
 
+  # The notebook prints that :crypto accepts its small-order forgery. That
+  # must hold for every message, not by luck on the one it signs: over 200
+  # envelopes naming random content digests, :crypto accepts the forgery
+  # under the small-order key every time, and the package denies every one.
+  test "the small-order forgery is universal for :crypto and always denied", %{
+    binding: binding
+  } do
+    alias AgentBlueprintProtocol.{Base64Url, Digest, Signature}
+
+    key = binding[:small_order_key]
+    forgery = binding[:small_order_forgery]
+    {:object, protected_members} = binding[:protected]
+    {:object, attribute_members} = binding[:signed_attributes]
+
+    verdicts =
+      for _ <- 1..200 do
+        digest = Digest.to_tagged(Digest.of(:crypto.strong_rand_bytes(32)))
+
+        attributes =
+          List.keystore(
+            attribute_members,
+            "content_digest",
+            0,
+            {"content_digest", {:string, digest}}
+          )
+
+        envelope =
+          {:object,
+           [
+             {"protected", {:object, protected_members}},
+             {"signed_attributes", {:object, attributes}},
+             {"signature", {:string, Base64Url.encode(forgery)}}
+           ]}
+
+        {:ok, input} = Signature.signing_input(envelope)
+
+        {:crypto.verify(:eddsa, :none, input, forgery, [key.key, :ed25519]),
+         Signature.verify(envelope, [key])}
+      end
+
+    assert Enum.uniq(verdicts) == [{true, {:error, :signature_algorithm_unsupported}}]
+  end
+
   # Splits the notebook into its elixir cells, each with the numbered
   # section it sits in, its first code line, and the persisted output block
   # that follows it (nil when absent). The Mix.install cell is returned

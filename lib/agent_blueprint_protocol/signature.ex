@@ -415,11 +415,14 @@ defmodule AgentBlueprintProtocol.Signature do
   # The point rule (strict_point?/1) holds for the public key A and for the
   # signature's R alike: the encoding is canonical (y < p; x = 0 never with
   # the sign bit set), decodes to an on-curve point, and that point is not
-  # small-order. Confirmed live on this OTP: :crypto.verify ACCEPTS a
-  # small-order public key with an all-zero signature — a universal forgery
-  # whenever such a key enters a trust set (a zeroed key is exactly the "key
-  # failed to load" misconfiguration) — and, under an honest prime-order
-  # key, ACCEPTS R = the identity with S = k*a mod L (the cofactorless
+  # small-order. Confirmed live on this OTP: :crypto.verify ACCEPTS
+  # forgeries under small-order public keys whenever such a key enters a
+  # trust set. Under the identity key (y = 1), R = the identity with S = 0
+  # verifies for every message (a universal forgery); under the all-zero
+  # key (an order-4 point, exactly the "key failed to load"
+  # misconfiguration), the all-zero signature verifies for about one
+  # message in four. And under an honest prime-order key it ACCEPTS
+  # R = the identity with S = k*a mod L (the cofactorless
   # equation holds). Only the key holder can build the latter, so it is not
   # a third-party forgery, but it is a second, verdict-divergent signature
   # that strict verifiers deny. The small-order test is the algebraic
