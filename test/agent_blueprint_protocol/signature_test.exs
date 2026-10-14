@@ -463,6 +463,42 @@ defmodule AgentBlueprintProtocol.SignatureTest do
       end
     end
 
+    test "the strict predicate is exposed to the conformance runner" do
+      input = input_for(header(), attrs())
+      honest = :crypto.sign(:eddsa, :none, input, [priv(), :ed25519])
+      <<r::binary-size(32), _s::binary>> = honest
+
+      assert Signature.strict_signature?(honest)
+      refute Signature.strict_signature?(r <> <<StrictFixture.l()::little-unsigned-256>>)
+      refute Signature.strict_signature?(binary_part(honest, 0, 63))
+    end
+
+    test "the scalar bound is exactly L: S = L - 1 under the honest R reaches the backend" do
+      # The package's L literal is pinned against the fixture's L, which is
+      # itself proven to be the base point's order (next test): a typo
+      # either way moves this case or the S = L case.
+      input = input_for(header(), attrs())
+      <<r::binary-size(32), _s::binary>> = :crypto.sign(:eddsa, :none, input, [priv(), :ed25519])
+      below = r <> <<StrictFixture.l() - 1::little-unsigned-256>>
+
+      assert StrictFixture.backend_verify_calls(fn ->
+               Signature.verify(entry_with_signature(below), keys())
+             end) == {{:error, :signature_not_verified}, 1}
+    end
+
+    test "the fixture's L is the base point's order, derived on the curve" do
+      b = StrictFixture.base_point()
+      l = StrictFixture.l()
+
+      assert StrictFixture.scalar_mult(l, b) == StrictFixture.neutral()
+      refute StrictFixture.scalar_mult(l - 1, b) == StrictFixture.neutral()
+      assert Bitwise.bsl(1, 252) < l and l < Bitwise.bsl(1, 253)
+
+      # B is the RFC 8032 base point: its encoding is 0x58 then 0x66 x 31.
+      {_x, y} = b
+      assert <<y::little-unsigned-256>> == <<0x58>> <> :binary.copy(<<0x66>>, 31)
+    end
+
     test "the key facts keep precedence over the signature rule" do
       forged =
         StrictFixture.key_holder_signature(

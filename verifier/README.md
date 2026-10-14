@@ -5,7 +5,9 @@ Protocol: its own bounded JSON scanner (duplicate rejection, integer
 window), its own RFC 8785 canonicalizer (number digits anchored to the
 native ECMAScript serializer, member sort by UTF-16 code units),
 domain-separated digests, detached-JWS Ed25519 verification through
-`node:crypto` with small-order key rejection, and the negotiation,
+`node:crypto` with small-order key rejection and the strict signature
+rule (R canonical and not small-order, S < L), a key-object cache
+bounded at 256 entries, and the negotiation,
 bounds-algebra, compatibility, and federation semantics. Zero npm
 runtime dependencies — `node:` builtins only; Node >= 24 required.
 

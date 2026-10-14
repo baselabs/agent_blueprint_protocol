@@ -162,7 +162,7 @@ EXIT=1
 ### alias: conformance.mutations
 
 Self-proving by construction (`scripts/check_conformance_mutations.exs`):
-for each of the eight named mutations the script isolates a scratch copy
+for each of the seventeen named mutations the script isolates a scratch copy
 of the repo, applies exactly one one-match source mutation, first proves
 the UNMUTATED command green in a clean scratch (baseline non-vacuity),
 then runs `mix conformance.verify` and raises `mutation survived` if the
@@ -1020,6 +1020,73 @@ $ mix test test/architecture/documentation_currency_test.exs
 CHANGELOG.md's first entry is "0.0.0" — the current release entry (0.2.1) must open the changelog
 code: assert first == version,
 Result: 1/2 passed
+```
+
+### case: "the landing page's visible text names only the current version"
+
+The landing page (`site/index.html`) names the package version in its
+install pin and its badges. With tags and attribute values stripped
+(SVG path data carries dotted numbers), every remaining x.y.z token
+must be the current version from `mix.exs`.
+
+```red
+$ # organic red: the install pin still named the 0.7 line at 0.8.1
+$ mix test test/architecture/documentation_currency_test.exs
+2) test the landing page's visible text names only the current version
+site/index.html names stale versions ["0.7.1"] — only 0.8.1 may appear
+Result: 3/5 passed
+```
+
+### case: "the privacy scan and the secret scan read every tracked path"
+
+The CI trigger-filter gate derives its gate-read set from two scans:
+the privacy scan walks `git ls-files`, and the CI secret scan runs
+gitleaks over the git history. If either narrows, the derivation no
+longer holds and this case reds instead of the filter gate silently
+widening.
+
+```red
+$ # plant: the secret scan switched from git history to a directory scan
+$ mix test test/architecture/ci_trigger_filter_test.exs
+1) test the privacy scan and the secret scan read every tracked path
+the CI secret scan no longer runs gitleaks over the git history
+Result: 2/3 passed
+```
+
+### case: "no CI paths-ignore glob skips a path a gate reads"
+
+A push that the CI workflow's `paths-ignore` skips runs no gate, so an
+ignored path must be one no gate reads; every tracked path is gate-read
+(previous case), so any glob matching a tracked path reds.
+
+```red
+$ # organic red: the docs-only skip list (**/*.md, docs/**, LICENSE*, issue templates)
+$ mix test test/architecture/ci_trigger_filter_test.exs
+1) test no CI paths-ignore glob skips a path a gate reads
+CI paths-ignore skips pushes that change gate-read paths (70 matches), e.g. [{".github/ISSUE_TEMPLATE/**", ".github/ISSUE_TEMPLATE/bug_report.yml"}, ...]
+Result: 1/2 passed
+```
+
+```red
+$ # plant: paths-ignore re-added as **/*.md alone
+$ mix test test/architecture/ci_trigger_filter_test.exs
+1) test no CI paths-ignore glob skips a path a gate reads
+CI paths-ignore skips pushes that change gate-read paths (49 matches), e.g. [{"**/*.md", "CHANGELOG.md"}, ...]
+Result: 1/2 passed
+```
+
+### case: "the landing page deploys only from a release tag or a manual dispatch"
+
+The landing names the package version, so `pages.yml` must deploy only
+on a `v*` tag or a manual dispatch, never on a branch push that may
+name a version the registry does not have yet.
+
+```red
+$ # organic red: pages.yml deployed on every main push touching site/**
+$ mix test test/architecture/ci_trigger_filter_test.exs
+1) test the landing page deploys only from a release tag or a manual dispatch
+pages.yml deploys on a branch push; it must deploy only on a release tag
+Result: 2/3 passed
 ```
 
 ### case: "README count claims match the live test tree and corpus index"

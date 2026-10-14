@@ -762,8 +762,142 @@ second_key_case = %{
   "expected" => %{"verdict" => "valid", "verified" => true}
 }
 
+# S = L - 1 under the honest R passes the strict rule and fails only the
+# equation: it pins the exact scalar bound from below (S = L pins it from
+# above).
+scalar_cases =
+  scalar_cases ++
+    [
+      weak_case.(
+        "signature-verify-s-equals-l-minus-1",
+        honest_r <> <<StrictFixture.l() - 1::little-unsigned-256>>
+      )
+    ]
+
+# ---- signature.verify: key facts, which come before the signature rule ----
+#
+# A matched key that is not usable Ed25519 (each small-order point, y = p,
+# off the curve) denies signature_algorithm_unsupported whatever the
+# signature; a key_id with no supplied key denies signature_key_unsupported.
+# The identity key with R = [r]B, S = r passes the strict signature rule and
+# the backend's equation ([S]B = R + [k]O), asserted below: only the key
+# rule stands between it and a verified verdict.
+key_case = fn id, class, keys, entry_text, code ->
+  %{
+    "id" => id,
+    "surface" => "signature.verify",
+    "class" => class,
+    "input" => %{"entry" => entry_text, "keys" => keys},
+    "expected" => %{"verdict" => "invalid", "code" => code}
+  }
+end
+
+corpus_key = fn bytes -> %{"key_id" => "corpus-key", "key" => CorpusGen.b64(bytes)} end
+
+small_order_key_cases =
+  Enum.zip_with(small_order_names, StrictFixture.small_order_encodings(), fn name, key ->
+    key_case.(
+      "signature-verify-small-order-key-#{name}",
+      "signature_invalid",
+      [corpus_key.(key)],
+      sig_entry_text,
+      "signature_algorithm_unsupported"
+    )
+  end)
+
+forgery_r = 123_456_789
+
+identity_key_forgery =
+  StrictFixture.encode_point(StrictFixture.scalar_mult(forgery_r, StrictFixture.base_point())) <>
+    <<forgery_r::little-unsigned-256>>
+
+true = StrictFixture.strict_signature?(identity_key_forgery)
+
+true =
+  :crypto.verify(:eddsa, :none, sig_signing_input, identity_key_forgery, [
+    StrictFixture.identity(),
+    :ed25519
+  ])
+
+off_curve_key =
+  Base.decode16!("d7f0980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+    case: :lower
+  )
+
+key_cases =
+  small_order_key_cases ++
+    [
+      key_case.(
+        "signature-verify-identity-key-forgery",
+        "signature_invalid",
+        [corpus_key.(StrictFixture.identity())],
+        weak_entry.(identity_key_forgery),
+        "signature_algorithm_unsupported"
+      ),
+      key_case.(
+        "signature-verify-zero-key-zero-signature",
+        "signature_invalid",
+        [corpus_key.(<<0::256>>)],
+        weak_entry.(<<0::512>>),
+        "signature_algorithm_unsupported"
+      ),
+      key_case.(
+        "signature-verify-non-canonical-key-y-equals-p",
+        "signature_invalid",
+        [corpus_key.(<<StrictFixture.p()::little-unsigned-256>>)],
+        sig_entry_text,
+        "signature_algorithm_unsupported"
+      ),
+      key_case.(
+        "signature-verify-off-curve-key",
+        "signature_invalid",
+        [corpus_key.(off_curve_key)],
+        sig_entry_text,
+        "signature_algorithm_unsupported"
+      ),
+      key_case.(
+        "signature-verify-short-key",
+        "invalid_encoding",
+        [corpus_key.(binary_part(sig_pub, 0, 31))],
+        sig_entry_text,
+        "invalid_type"
+      ),
+      key_case.(
+        "signature-verify-unmatched-key-id",
+        "signature_invalid",
+        [%{"key_id" => "other-key", "key" => CorpusGen.b64(sig_pub)}],
+        sig_entry_text,
+        "signature_key_unsupported"
+      ),
+      %{
+        "id" => "signature-verify-small-order-key-then-good-key",
+        "surface" => "signature.verify",
+        "class" => "valid",
+        "input" => %{
+          "entry" => sig_entry_text,
+          "keys" => [corpus_key.(StrictFixture.identity()), corpus_key.(sig_pub)]
+        },
+        "expected" => %{"verdict" => "valid", "verified" => true}
+      }
+    ]
+
+# Every signature.verify case whose signature decodes to 64 bytes pins the
+# strict predicate's verdict, computed by the independent fixture rule, so
+# the agreement sees each clause even where the backend rejects the bytes.
+strict_expectation = fn case_obj ->
+  with {:ok, {:object, members}} <- Json.decode(case_obj["input"]["entry"]),
+       {"signature", {:string, body}} <- List.keyfind(members, "signature", 0),
+       {:ok, <<_::512>> = signature} <- AgentBlueprintProtocol.Base64Url.decode(body) do
+    put_in(case_obj, ["expected", "strict_signature"], StrictFixture.strict_signature?(signature))
+  else
+    _no_signature_bytes -> case_obj
+  end
+end
+
 signature_cases =
-  signature_cases ++ [second_key_case] ++ small_order_cases ++ non_canonical_cases ++ scalar_cases
+  (signature_cases ++
+     [second_key_case] ++ small_order_cases ++ non_canonical_cases ++ scalar_cases ++ key_cases)
+  |> Enum.map(strict_expectation)
 
 # ---- schema.validate_instance (5) ----
 object_schema = %{"type" => "object", "additionalProperties" => false, "properties" => %{}}

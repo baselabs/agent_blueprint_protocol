@@ -21,9 +21,11 @@ import {
   strictSignature,
   usableEd25519Key,
   ED25519_CONSTANTS,
+  KEY_OBJECT_CACHE_LIMIT,
+  keyObjectCacheSize,
 } from "./signature.ts";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 
@@ -334,6 +336,66 @@ check(
   }
 }
 
+// Independent affine Edwards arithmetic for the checks below
+// (complete addition on -x^2 + y^2 = 1 + d x^2 y^2; d derived, not copied).
+const ED_P_CHECK = 2n ** 255n - 19n;
+function edMod(v: bigint): bigint {
+  return ((v % ED_P_CHECK) + ED_P_CHECK) % ED_P_CHECK;
+}
+function edPow(base: bigint, exponent: bigint): bigint {
+  let result = 1n;
+  let b = edMod(base);
+  let e = exponent;
+  while (e > 0n) {
+    if (e & 1n) result = (result * b) % ED_P_CHECK;
+    b = (b * b) % ED_P_CHECK;
+    e >>= 1n;
+  }
+  return result;
+}
+function edInv(v: bigint): bigint {
+  return edPow(v, ED_P_CHECK - 2n);
+}
+const ED_D_CHECK = edMod(-121665n * edInv(121666n));
+type EdPoint = { x: bigint; y: bigint };
+function edAdd(a: EdPoint, b: EdPoint): EdPoint {
+  const t = edMod(ED_D_CHECK * a.x * b.x * a.y * b.y);
+  return {
+    x: edMod((a.x * b.y + a.y * b.x) * edInv(1n + t)),
+    y: edMod((a.y * b.y + a.x * b.x) * edInv(1n - t)),
+  };
+}
+function edScalarMult(n: bigint, point: EdPoint): EdPoint {
+  let result: EdPoint = { x: 0n, y: 1n };
+  let addend = point;
+  let k = n;
+  while (k > 0n) {
+    if (k & 1n) result = edAdd(result, addend);
+    addend = edAdd(addend, addend);
+    k >>= 1n;
+  }
+  return result;
+}
+function edIsNeutral(point: EdPoint): boolean {
+  return point.x === 0n && point.y === 1n;
+}
+function edBasePoint(): EdPoint {
+  const y = edMod(4n * edInv(5n));
+  const x2 = edMod((y * y - 1n) * edInv(ED_D_CHECK * y * y + 1n));
+  let x = edPow(x2, (ED_P_CHECK + 3n) / 8n);
+  if (edMod(x * x - x2) !== 0n) x = edMod(x * edPow(2n, (ED_P_CHECK - 1n) / 4n));
+  return { x: x % 2n === 0n ? x : ED_P_CHECK - x, y };
+}
+function edEncode(point: EdPoint): Buffer {
+  const out = Buffer.alloc(32);
+  let v = point.y | ((point.x & 1n) << 255n);
+  for (let i = 0; i < 32; i++) {
+    out[i] = Number(v & 0xffn);
+    v >>= 8n;
+  }
+  return out;
+}
+
 // ---- Ed25519 curve constants, re-derived from the curve definition ----------------
 //
 // RFC 8032 5.1: p = 2^255 - 19, d = -121665/121666 mod p, L = 2^252 + c;
@@ -356,7 +418,13 @@ check(
   check("ed25519 constant p", ED25519_CONSTANTS.p === p, true);
   check("ed25519 constant d", ED25519_CONSTANTS.d === d, true);
   check("ed25519 constant sqrt(-1)", ED25519_CONSTANTS.sqrtM1 === powMod(2n, (p - 1n) / 4n), true);
-  check("ed25519 constant L", ED25519_CONSTANTS.l === 2n ** 252n + 27742317777372353535851937790883648493n, true);
+  // L is pinned on the curve, not against a second copy of the literal:
+  // [L]B is the neutral element, [L - 1]B is not, and 2^252 < L < 2^253.
+  const base = edBasePoint();
+  check("ed25519 base point encoding", edEncode(base).toString("hex"), "58" + "66".repeat(31));
+  check("ed25519 constant L: [L]B = O", edIsNeutral(edScalarMult(ED25519_CONSTANTS.l, base)), true);
+  check("ed25519 constant L: [L-1]B != O", edIsNeutral(edScalarMult(ED25519_CONSTANTS.l - 1n, base)), false);
+  check("ed25519 constant L: size", 2n ** 252n < ED25519_CONSTANTS.l && ED25519_CONSTANTS.l < 2n ** 253n, true);
 
   // Every honestly generated public key is a usable main-subgroup point,
   // and an honest signature under it verifies through the twin.
@@ -495,6 +563,143 @@ check(
     const honestResult = sigVerify(withSignature(honest), keys);
     check("strict: honest signature verifies", honestResult.ok && honestResult.v === "verified", true);
     check("strict: honest signature passes the strict predicate", strictSignature(honest), true);
+  }
+}
+
+// ---- key usability, through verify (key facts come before the R/S rule) -------
+//
+// check() must deny an unusable matched key with
+// signature_algorithm_unsupported before it looks at the signature. The
+// forged signature under the identity key (R = [r]B, S = r) passes the
+// strict signature rule and satisfies [S]B = R + [k]A for A = O, so only
+// the key rule stands between it and a verified verdict.
+
+{
+  const vectors = decode(readFileSync(join(import.meta.dirname, "testdata", "jose-vectors.json")));
+  if (!vectors.ok || vectors.v.t !== "obj") {
+    check("keys: jose vectors shape", false, true);
+  } else {
+    const goodKey = Buffer.from(memberString(vectors.v, "public_key")!, "base64url");
+    const entries = member(vectors.v, "entries")!;
+    const entry = member((entries.t === "arr" ? entries.v : [])[0]!, "entry")!;
+    const withSignature = (signature: Buffer): Value => ({
+      t: "obj",
+      v: (entry as { t: "obj"; v: [string, Value][] }).v.map(([k, v]) =>
+        k === "signature" ? [k, { t: "str" as const, v: signature.toString("base64url") }] : [k, v]),
+    });
+    const verdict = (signature: Buffer | null, keys: { keyId: string; key: Buffer }[]): string => {
+      const result = sigVerify(signature === null ? entry : withSignature(signature), keys);
+      return result.ok ? result.v : result.e;
+    };
+    const P = 2n ** 255n - 19n;
+    const leBytes = (n: bigint): Buffer => {
+      const out = Buffer.alloc(32);
+      let v = n;
+      for (let i = 0; i < 32; i++) {
+        out[i] = Number(v & 0xffn);
+        v >>= 8n;
+      }
+      return out;
+    };
+
+    const r = 123456789n;
+    const forged = Buffer.concat([edEncode(edScalarMult(r, edBasePoint())), leBytes(r)]);
+    const identityKey = Buffer.from("01" + "00".repeat(31), "hex");
+    check("keys: forged signature passes the strict signature rule", strictSignature(forged), true);
+    check(
+      "keys: identity key with R = [r]B, S = r denied before the signature",
+      verdict(forged, [{ keyId: "test-key", key: identityKey }]),
+      "signature_algorithm_unsupported",
+    );
+
+    const SMALL_ORDER_KEYS = [
+      "0100000000000000000000000000000000000000000000000000000000000000",
+      "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+      "0000000000000000000000000000000000000000000000000000000000000000",
+      "0000000000000000000000000000000000000000000000000000000000000080",
+      "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+      "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa",
+      "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+      "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85",
+    ];
+    for (const hex of SMALL_ORDER_KEYS) {
+      check(
+        `keys: small-order key ${hex.slice(0, 8)}… denied through verify`,
+        verdict(null, [{ keyId: "test-key", key: Buffer.from(hex, "hex") }]),
+        "signature_algorithm_unsupported",
+      );
+    }
+    const BAD_KEYS: [string, Buffer][] = [
+      ["y = p", leBytes(P)],
+      ["off-curve", Buffer.from("d7f0980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a", "hex")],
+      ["31 bytes", goodKey.subarray(0, 31)],
+    ];
+    for (const [label, key] of BAD_KEYS) {
+      check(`keys: ${label} key denied through verify`, verdict(null, [{ keyId: "test-key", key }]), "signature_algorithm_unsupported");
+    }
+    check(
+      "keys: zero key with an all-zero signature is a key fact first",
+      verdict(Buffer.alloc(64), [{ keyId: "test-key", key: Buffer.alloc(32) }]),
+      "signature_algorithm_unsupported",
+    );
+    check(
+      "keys: an unusable key beside the good key still verifies",
+      verdict(null, [
+        { keyId: "test-key", key: identityKey },
+        { keyId: "test-key", key: goodKey },
+      ]),
+      "verified",
+    );
+    check("keys: no supplied key for the key_id", verdict(null, [{ keyId: "other", key: goodKey }]), "signature_key_unsupported");
+  }
+}
+
+// ---- the strict rule runs inside check(), before the backend ---------------------
+//
+// On a runtime whose backend already rejects every byte string the strict
+// rule rejects (node 24.19.0 does, for the corpus and the checks above),
+// deleting the call in check() changes no verdict, so it is pinned
+// structurally: within check(), the key rule, then the strict signature
+// rule, then the backend call, in that order.
+
+{
+  const here = existsSync(join(import.meta.dirname, "signature.ts")) ? "signature.ts" : "signature.js";
+  const source = readFileSync(join(import.meta.dirname, here), "utf8");
+  const start = source.indexOf("function check(");
+  const body = start < 0 ? "" : source.slice(start, source.indexOf("\n}\n", start));
+  const keyRule = body.indexOf("usableEd25519Key(key.key)");
+  const strictRule = body.indexOf("if (!strictSignature(signature)) return");
+  const backend = body.indexOf("cryptoVerify(");
+  check("order: check() applies the key rule", keyRule >= 0, true);
+  check("order: check() applies the strict signature rule", strictRule >= 0, true);
+  check("order: key rule, then strict rule, then backend", keyRule < strictRule && strictRule < backend, true);
+}
+
+// ---- the key-object cache is bounded --------------------------------------------
+
+{
+  const keys: { keyId: string; key: Buffer }[] = [];
+  for (let i = 0; i < KEY_OBJECT_CACHE_LIMIT + 44; i++) {
+    const seed = createHash("sha256").update(`cache-key-${i}`).digest();
+    const privateKey = createPrivateKey({
+      key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), seed]),
+      format: "der",
+      type: "pkcs8",
+    });
+    const x = (createPublicKey(privateKey).export({ format: "jwk" }) as { x: string }).x;
+    keys.push({ keyId: "test-key", key: Buffer.from(x, "base64url") });
+  }
+  const vectors = decode(readFileSync(join(import.meta.dirname, "testdata", "jose-vectors.json")));
+  const entries = vectors.ok && vectors.v.t === "obj" ? member(vectors.v, "entries")! : null;
+  const entry = entries !== null && entries.t === "arr" ? member(entries.v[0]!, "entry")! : null;
+  if (entry === null) {
+    check("cache: jose entry", false, true);
+  } else {
+    // Every candidate key is tried (none verifies this entry), so each one
+    // passes through the cache.
+    const result = sigVerify(entry, keys);
+    check("cache: unrelated keys do not verify", !result.ok && result.e === "signature_not_verified", true);
+    check("cache: size stays at the limit", keyObjectCacheSize(), KEY_OBJECT_CACHE_LIMIT);
   }
 }
 

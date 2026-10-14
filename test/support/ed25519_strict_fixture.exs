@@ -125,13 +125,50 @@ defmodule AgentBlueprintProtocol.Ed25519StrictFixture do
     end
   end
 
-  # Complete affine addition on -x^2 + y^2 = 1 + d x^2 y^2 (d non-square).
-  defp double({x, y}) do
-    t = d() * x * x * y * y
+  defp double(point), do: add(point, point)
 
-    {Integer.mod((x * y + y * x) * inverse(1 + t), @p),
-     Integer.mod((y * y + x * x) * inverse(1 - t), @p)}
+  @doc "Complete affine addition on -x^2 + y^2 = 1 + d x^2 y^2 (d non-square)."
+  def add({x1, y1}, {x2, y2}) do
+    t = d() * x1 * x2 * y1 * y2
+
+    {Integer.mod((x1 * y2 + y1 * x2) * inverse(1 + t), @p),
+     Integer.mod((y1 * y2 + x1 * x2) * inverse(1 - t), @p)}
   end
+
+  @doc "The neutral element (0, 1)."
+  def neutral, do: {0, 1}
+
+  @doc "The RFC 8032 5.1 base point B: y = 4/5 mod p, x the even root."
+  def base_point do
+    y = Integer.mod(4 * inverse(5), @p)
+    x = recover_x(y)
+    {if(band(x, 1) == 0, do: x, else: @p - x), y}
+  end
+
+  @doc "The RFC 8032 5.1.2 encoding of an affine point."
+  def encode_point({x, y}), do: <<bor(y, bsl(band(x, 1), 255))::little-unsigned-256>>
+
+  @doc "[n]P by double-and-add."
+  def scalar_mult(0, _point), do: neutral()
+
+  def scalar_mult(n, point) when n > 0 do
+    half = scalar_mult(bsr(n, 1), point) |> double()
+    if band(n, 1) == 1, do: add(half, point), else: half
+  end
+
+  @doc """
+  The strict signature rule, implemented here independently of the
+  package: S < L, and R decodes canonically to a curve point with
+  [8]R not the neutral element.
+  """
+  def strict_signature?(<<r::binary-size(32), s::little-unsigned-256>>),
+    do: s < @l and strict_point?(r)
+
+  def strict_signature?(_other), do: false
+
+  @doc "Canonical, on the curve, and not small-order ([8]P is not the neutral element)."
+  def strict_point?(encoding),
+    do: match?({:ok, _}, decode(encoding)) and not small_order?(encoding)
 
   defp inverse(v), do: pow(Integer.mod(v, @p), @p - 2)
 

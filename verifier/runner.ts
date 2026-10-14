@@ -44,9 +44,32 @@ export function execute(
   raws: Map<string, Buffer>,
 ): { actual: SurfaceResult; agree: boolean } {
   const input = caseObj.input;
-  const expected = caseObj.expected;
+  const strict = caseObj.expected.t === "obj" ? member(caseObj.expected, "strict_signature") : null;
+  const expected: Value =
+    caseObj.expected.t === "obj"
+      ? { t: "obj", v: caseObj.expected.v.filter(([k]) => k !== "strict_signature") }
+      : caseObj.expected;
   const actual = dispatch(caseObj.surface, input, data, raws);
-  return { actual, agree: agrees(expected, actual) };
+  return { actual, agree: agrees(expected, actual) && strictAgrees(caseObj.surface, strict, input) };
+}
+
+// A signature.verify case may pin the strict signature predicate's
+// verdict on its 64 signature bytes (mirrors the Elixir twin); any other
+// surface, a non-boolean, or an entry without 64 decodable signature
+// bytes disagrees.
+function strictAgrees(surface: string, want: Value | null, input: Value): boolean {
+  if (want === null) return true;
+  if (surface !== "signature.verify" || want.t !== "bool") return false;
+  const entryText = memberString(input, "entry");
+  if (entryText === null) return false;
+  const { decode } = require_decode();
+  const entry = decode(entryText);
+  if (!entry.ok || entry.v.t !== "obj") return false;
+  const body = memberString(entry.v, "signature");
+  if (body === null) return false;
+  const bytes = b64.decodeStrict(body);
+  if (!bytes.ok || bytes.v.length !== 64) return false;
+  return signature.strictSignature(bytes.v) === want.v;
 }
 
 export type SurfaceResult = { ok: true; v: Record<string, unknown> } | { ok: false; e: string };

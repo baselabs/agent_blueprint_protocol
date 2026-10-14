@@ -103,10 +103,28 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   @spec execute(map(), map(), map()) :: {term(), boolean()}
   def execute(case_obj, data, raws) do
     input = Map.get(case_obj, "input", %{})
-    expected = Map.get(case_obj, "expected", %{})
+    {strict, expected} = Map.pop(Map.get(case_obj, "expected", %{}), "strict_signature")
     actual = dispatch(case_obj["surface"], input, data, raws)
-    {actual, agrees?(expected, actual)}
+    {actual, agrees?(expected, actual) and strict_agrees?(case_obj["surface"], strict, input)}
   end
+
+  # A signature.verify case may pin the strict signature predicate's
+  # verdict on its 64 signature bytes; any other surface, a non-boolean,
+  # or an entry without 64 decodable signature bytes disagrees.
+  defp strict_agrees?(_surface, nil, _input), do: true
+
+  defp strict_agrees?("signature.verify", want, input) when is_boolean(want) do
+    with {:ok, entry_text} <- fetch_binary(input, "entry"),
+         {:ok, {:object, members}} <- Json.decode(entry_text),
+         {"signature", {:string, body}} <- List.keyfind(members, "signature", 0),
+         {:ok, <<_::512>> = signature} <- Base64Url.decode(body) do
+      Signature.strict_signature?(signature) == want
+    else
+      _no_signature_bytes -> false
+    end
+  end
+
+  defp strict_agrees?(_surface, _want, _input), do: false
 
   # --- agreement ---------------------------------------------------------------
 

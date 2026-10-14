@@ -424,8 +424,8 @@ defmodule AgentBlueprintProtocol.Signature do
   # a third-party forgery, but it is a second, verdict-divergent signature
   # that strict verifiers deny. The small-order test is the algebraic
   # characterization of the 8-torsion (as libsodium's
-  # ge25519_has_small_order computes it): x = 0, or y = 0, or
-  # y*sqrt(-1) = +/- x.
+  # ge25519_has_small_order computes it): x = 0 (handled by the root == 0
+  # branch), or y = 0, or y*sqrt(-1) = +/- x.
   #
   # The scalar rule: S < L (RFC 8032 5.1.7 step 1), never left to the
   # backend's own range check.
@@ -439,9 +439,16 @@ defmodule AgentBlueprintProtocol.Signature do
   @ed_d 37_095_705_934_669_439_343_138_083_508_754_565_189_542_113_879_843_219_016_388_785_533_085_940_283_555
   @ed_sqrt_m1 19_681_161_376_707_505_956_807_079_304_988_542_015_446_066_515_923_890_162_744_021_073_123_829_784_752
 
-  defp strict_signature?(<<r::binary-size(32), s::little-unsigned-256>>) do
+  # The conformance runner's seam: the corpus pins this predicate's verdict
+  # per signature case, so the agreement sees each clause of the rule even
+  # where the backend rejects the same bytes. Not public API.
+  @doc false
+  @spec strict_signature?(binary()) :: boolean()
+  def strict_signature?(<<r::binary-size(32), s::little-unsigned-256>>) do
     s < @ed_l and strict_point?(r)
   end
+
+  def strict_signature?(_not_64_bytes), do: false
 
   defp strict_point?(<<encoding::binary-size(32)>>) do
     <<y_raw::little-unsigned-256>> = encoding
@@ -499,10 +506,13 @@ defmodule AgentBlueprintProtocol.Signature do
       else: @ed_p - root
   end
 
+  # x = 0 never reaches this test: x = 0 means root == 0, which strict_point?
+  # already rejected (the identity and the order-2 point), so an `x == 0`
+  # clause here would be unreachable and untestable.
   defp small_order?(x, y) do
     y_sqrt_m1 = Integer.mod(y * @ed_sqrt_m1, @ed_p)
 
-    x == 0 or y == 0 or y_sqrt_m1 == x or y_sqrt_m1 == @ed_p - x
+    y == 0 or y_sqrt_m1 == x or y_sqrt_m1 == @ed_p - x
   end
 
   defp mod_pow(base, exponent) do

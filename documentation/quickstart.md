@@ -68,9 +68,9 @@ silent repair.
 
 ## 4. The corpus (what the package proves about itself)
 
-The package you installed ships a 112-case conformance corpus, and its
+The package you installed ships a 128-case conformance corpus, and its
 release was gated on that corpus passing plus a mutation gate (the
-corpus must catch eight named implementation breaks) and byte-agreement
+corpus must catch seventeen named implementation breaks) and byte-agreement
 with an independent TypeScript verifier. You consume an already
 verified package; the corpus and the standalone verification kit (the
 verifier + corpus tarball) are attached to every git release tag if

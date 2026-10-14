@@ -33,6 +33,84 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
       command: ["mix", "conformance.verify"]
     },
     %{
+      # Every matched key counts as usable Ed25519: the small-order, y = p, and
+      # off-curve key cases stop denying signature_algorithm_unsupported, and the
+      # identity-key forgery (R = [r]B, S = r) verifies on the backend's equation.
+      name: "strict-key-usable-check-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "          strict_point?(encoding)\n",
+      to: "          _ = encoding\n          true\n",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      # S < L dropped: the S = L and S + L cases' pinned strict predicate
+      # (false) disagrees, whatever the backend concludes.
+      name: "strict-scalar-bound-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "    s < @ed_l and strict_point?(r)",
+      to: "    _ = s\n    strict_point?(r)",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      # y >= p accepted: the y = p key and the non-canonical R cases flip.
+      name: "strict-canonical-y-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "    if y >= @ed_p do",
+      to: "    if false do",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      # The y = 0 (order-4) test dropped: the order-4 key and R cases flip.
+      name: "strict-small-order-y-zero-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "    y == 0 or y_sqrt_m1 == x or y_sqrt_m1 == @ed_p - x",
+      to: "    y_sqrt_m1 == x or y_sqrt_m1 == @ed_p - x",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      # The y*sqrt(-1) = x order-8 test dropped: two order-8 cases flip.
+      name: "strict-small-order-plus-x-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "    y == 0 or y_sqrt_m1 == x or y_sqrt_m1 == @ed_p - x",
+      to: "    y == 0 or y_sqrt_m1 == @ed_p - x",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      # The y*sqrt(-1) = -x order-8 test dropped: the other two order-8 cases flip.
+      name: "strict-small-order-minus-x-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "    y == 0 or y_sqrt_m1 == x or y_sqrt_m1 == @ed_p - x",
+      to: "    y == 0 or y_sqrt_m1 == x",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      # The root == 0 branch never matches: the sign-set identity and order-2
+      # encodings (non-canonical R) decode as usable points and flip.
+      name: "strict-root-zero-branch-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "        0 ->\n          # root == 0 happens",
+      to: "        -1 ->\n          # root == 0 happens",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      # One digit of sqrt(-1) changed: square roots and the order-8 tests go
+      # wrong, so honest keys or the order-8 cases flip.
+      name: "strict-sqrt-m1-digit",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "  @ed_sqrt_m1 19_681_161_376",
+      to: "  @ed_sqrt_m1 19_681_161_377",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      # One digit of L changed (L - 1): the S = L - 1 case's pinned strict
+      # predicate (true) disagrees.
+      name: "strict-group-order-digit",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "_285_454_250_989\n  @ed_p",
+      to: "_285_454_250_988\n  @ed_p",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
       # The intersection's meet flips narrowest→widest: the operational
       # widening case's effective (pinned to the narrow 3s) disagrees.
       name: "intersect-min-to-max",

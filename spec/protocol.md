@@ -3,7 +3,7 @@
 Status: published pre-1.0 protocol (0.x release line). This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:DmUx8_bLo4coAtKbGdtH0yxW9XqnVVN7Yt6qm5f-_vs`, 112 cases) are
+`sha-256:nwi8r5fjushIO4TuTfZ14hQvtNYpeq5Y5vzkA_FqO_Q`, 128 cases) are
 certified against this document at every release through the release
 identity chain — the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -252,6 +252,8 @@ extension payloads retained verbatim.
 | Deployment content | `agent-blueprint-protocol/deployment-content` |
 | Federation envelope | `agent-blueprint-protocol/federation-envelope` |
 | Signature (reserved; not part of the signing input, §6) | `agent-blueprint-protocol/signature` |
+| Extension schema | `agent-blueprint-protocol/extension-schema` |
+| Extension registry | `agent-blueprint-protocol/extension-registry` |
 | Conformance report | `agent-blueprint-protocol/conformance-report` |
 | Corpus index | `agent-blueprint-protocol/corpus-index` |
 
@@ -308,6 +310,14 @@ keys).
   equation [S]B = R + [k]A. Under an honest key, R = the identity with
   S = k·a mod L satisfies that equation; only the key holder can build
   it, and this rule denies it.
+- Order of the checks: the key facts come first, then the signature
+  rule, then the equation. With no supplied key for the `key_id` the
+  verdict is `:signature_key_unsupported`; with matched keys none of
+  which is usable, `:signature_algorithm_unsupported`, whatever the
+  signature bytes (a small-order key with an all-zero signature
+  included); only then do R and S face the strict rule. When several
+  keys share the `key_id`, the unusable ones are set aside and the
+  signature verifies if any usable one verifies it.
 
 ## 7. Evolution and negotiation
 
@@ -631,10 +641,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-112 cases covering every required cell of the 16-surface × 31-class
+128 cases covering every required cell of the 16-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:DmUx8_bLo4coAtKbGdtH0yxW9XqnVVN7Yt6qm5f-_vs`. Corpus identity
+`sha-256:nwi8r5fjushIO4TuTfZ14hQvtNYpeq5Y5vzkA_FqO_Q`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over `%{path => binary}` and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
@@ -646,9 +656,14 @@ archive) independently recomputes every corpus verdict and integrity
 check with its own scanner, canonicalizer, and `node:crypto` Ed25519
 path; the release gate requires its report to be byte-identical to the
 Elixir escript's over both the repo corpus and the built archive's
-corpus. A mutation gate breaks the implementation at eight named
+corpus. A mutation gate breaks the implementation at seventeen named
 points and requires the corpus to go red on each — a vacuous case set
-is a build failure.
+is a build failure. A `signature.verify` case whose signature decodes
+to 64 bytes also pins `expected.strict_signature`, the strict
+signature rule's verdict on those bytes (§6), and an implementation
+agrees with the case only when its own rule gives the same verdict, so
+the corpus sees each clause of the rule even where a cryptographic
+backend already rejects the same bytes.
 
 ### Conforming implementations (normative)
 

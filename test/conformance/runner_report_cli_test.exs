@@ -1730,6 +1730,119 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
     end
   end
 
+  describe "the runner: the strict_signature expectation" do
+    # A signature.verify case may pin the strict predicate's verdict on its
+    # signature bytes, so the agreement sees the rule even where the
+    # cryptographic backend already rejects the same bytes.
+
+    test "an honest entry agrees only with strict_signature true" do
+      {entry_text, keys, _sig} = strict_entry(fn sig -> sig end)
+
+      assert agree?([strict_case("honest-true", entry_text, keys, :valid, true)], "honest-true")
+
+      refute agree?(
+               [strict_case("honest-false", entry_text, keys, :valid, false)],
+               "honest-false"
+             )
+    end
+
+    test "S = L agrees only with strict_signature false, whatever the verdict code" do
+      l = AgentBlueprintProtocol.Ed25519StrictFixture.l()
+
+      {entry_text, keys, _sig} =
+        strict_entry(fn <<r::binary-size(32), _s::binary>> ->
+          r <> <<l::little-unsigned-256>>
+        end)
+
+      assert agree?([strict_case("s-l-false", entry_text, keys, :invalid, false)], "s-l-false")
+      refute agree?([strict_case("s-l-true", entry_text, keys, :invalid, true)], "s-l-true")
+    end
+
+    test "a strict_signature expectation on any other surface, a non-boolean, or an entry without 64 signature bytes disagrees" do
+      {entry_text, keys, _sig} = strict_entry(fn sig -> sig end)
+
+      other_surface = %{
+        "id" => "json-strict",
+        "surface" => "json.decode",
+        "class" => "valid",
+        "input" => %{"text" => "{}"},
+        "expected" => %{"verdict" => "valid", "canonical" => "{}", "strict_signature" => true}
+      }
+
+      non_boolean =
+        strict_case("non-boolean", entry_text, keys, :valid, true)
+        |> put_in(["expected", "strict_signature"], "true")
+
+      short = String.replace(entry_text, ~r/"signature":"[A-Za-z0-9_-]+"/, ~s("signature":"AAAA"))
+
+      refute agree?([other_surface], "json-strict")
+      refute agree?([non_boolean], "non-boolean")
+      refute agree?([strict_case("short", short, keys, :malformed, false)], "short")
+      refute agree?([strict_case("not-json", "not json", keys, :malformed, false)], "not-json")
+    end
+  end
+
+  defp strict_case(id, entry_text, keys, verdict, strict) do
+    expected =
+      case verdict do
+        :valid -> %{"verdict" => "valid", "verified" => true}
+        :invalid -> %{"verdict" => "invalid", "code" => "signature_not_verified"}
+        :malformed -> %{"verdict" => "invalid", "code" => "signature_malformed"}
+      end
+
+    %{
+      "id" => id,
+      "surface" => "signature.verify",
+      "class" => "signature_invalid",
+      "input" => %{"entry" => entry_text, "keys" => keys},
+      "expected" => Map.put(expected, "strict_signature", strict)
+    }
+  end
+
+  # An honestly signed entry, with `rewrite` applied to its 64 signature
+  # bytes; the keys list names its public key.
+  defp strict_entry(rewrite) do
+    alias AgentBlueprintProtocol.{Base64Url, Canonicalization, Digest}
+
+    {pub, priv} =
+      :crypto.generate_key(:eddsa, :ed25519, :crypto.hash(:sha256, "runner-strict-signature"))
+
+    header =
+      {:object,
+       [
+         {"alg", {:string, "EdDSA"}},
+         {"b64", {:boolean, false}},
+         {"crit", {:array, [{:string, "b64"}]}},
+         {"kid", {:string, "strict-key"}}
+       ]}
+
+    attrs =
+      {:object,
+       [
+         {"algorithm", {:string, "Ed25519"}},
+         {"content_digest", {:string, Digest.to_tagged(Digest.hash(:deployment_content, "s"))}},
+         {"created_at", {:string, "2026-08-23T00:00:00Z"}},
+         {"key_id", {:string, "strict-key"}},
+         {"purpose", {:string, "deployment"}}
+       ]}
+
+    {:ok, h} = Canonicalization.encode(header)
+    {:ok, a} = Canonicalization.encode(attrs)
+    sig = rewrite.(:crypto.sign(:eddsa, :none, Base64Url.encode(h) <> "." <> a, [priv, :ed25519]))
+
+    {:ok, entry_text} =
+      Canonicalization.encode(
+        {:object,
+         [
+           {"protected", header},
+           {"signed_attributes", attrs},
+           {"signature", {:string, Base64Url.encode(sig)}}
+         ]}
+      )
+
+    {entry_text, [%{"key_id" => "strict-key", "key" => Base64Url.encode(pub)}], sig}
+  end
+
   defp write_corpus(dir, map) do
     File.rm_rf!(dir)
     File.mkdir_p!(dir)

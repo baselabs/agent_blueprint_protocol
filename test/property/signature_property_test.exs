@@ -128,6 +128,20 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
     end
   end
 
+  property "the package's strict predicate matches the independent implementation" do
+    check all(
+            r <- StreamData.one_of([weak_r(), StreamData.binary(length: 32)]),
+            s <-
+              StreamData.one_of([
+                StreamData.integer(-4..4) |> StreamData.map(&(StrictFixture.l() + &1)),
+                StreamData.binary(length: 32) |> StreamData.map(&:binary.decode_unsigned/1)
+              ])
+          ) do
+      sig = r <> <<s::little-unsigned-256>>
+      assert Signature.strict_signature?(sig) == StrictFixture.strict_signature?(sig)
+    end
+  end
+
   property "signing input is deterministic and byte-stable" do
     check all(
             seed <- StreamData.binary(length: 32),

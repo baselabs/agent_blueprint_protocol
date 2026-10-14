@@ -468,6 +468,114 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       expect: :self_check_failure
     },
     %{
+      # The key rule dropped from check(): the small-order, y = p, and off-curve
+      # key cases stop denying signature_algorithm_unsupported (and node 22
+      # verifies the identity-key forgery). Red on node 22.23.1 and 24.19.0.
+      name: "key-usable-check-removed",
+      path: "signature.ts",
+      from: "    (key) => key.key.length === 32 && usableEd25519Key(key.key),",
+      to: "    (key) => key.key.length === 32,",
+      expect: :byte_drift
+    },
+    %{
+      # S < L dropped: the corpus's pinned strict predicate disagrees on the
+      # S = L and S + L cases even where the backend rejects them.
+      name: "corpus-scalar-bound-removed",
+      path: "signature.ts",
+      from:
+        "return leInt(signature.subarray(32)) < ED_L && usableEd25519Key(signature.subarray(0, 32));",
+      to: "return usableEd25519Key(signature.subarray(0, 32));",
+      expect: :byte_drift
+    },
+    %{
+      # The R point rule dropped: every weak-R case's pinned predicate disagrees.
+      name: "corpus-r-point-rule-removed",
+      path: "signature.ts",
+      from:
+        "return leInt(signature.subarray(32)) < ED_L && usableEd25519Key(signature.subarray(0, 32));",
+      to: "return leInt(signature.subarray(32)) < ED_L;",
+      expect: :byte_drift
+    },
+    %{
+      # y >= p accepted: the y = p key and the non-canonical R cases flip.
+      name: "corpus-canonical-y-removed",
+      path: "signature.ts",
+      from: "  if (y >= ED_P) return false; // non-canonical y",
+      to: "  if (false) return false; // non-canonical y",
+      expect: :byte_drift
+    },
+    %{
+      # The y = 0 (order-4) test dropped: the order-4 key and R cases flip.
+      name: "corpus-small-order-y-zero-removed",
+      path: "signature.ts",
+      from: "  return y === 0n || ySqrtM1 === x || ySqrtM1 === ED_P - x;",
+      to: "  return ySqrtM1 === x || ySqrtM1 === ED_P - x;",
+      expect: :byte_drift
+    },
+    %{
+      # The y*sqrt(-1) = x order-8 test dropped: two order-8 cases flip.
+      name: "corpus-small-order-plus-x-removed",
+      path: "signature.ts",
+      from: "  return y === 0n || ySqrtM1 === x || ySqrtM1 === ED_P - x;",
+      to: "  return y === 0n || ySqrtM1 === ED_P - x;",
+      expect: :byte_drift
+    },
+    %{
+      # The y*sqrt(-1) = -x order-8 test dropped: the other two order-8 cases flip.
+      name: "corpus-small-order-minus-x-removed",
+      path: "signature.ts",
+      from: "  return y === 0n || ySqrtM1 === x || ySqrtM1 === ED_P - x;",
+      to: "  return y === 0n || ySqrtM1 === x;",
+      expect: :byte_drift
+    },
+    %{
+      # The root == 0 branch dropped: the sign-set identity and order-2
+      # encodings decode as usable points and flip.
+      name: "corpus-root-zero-branch-removed",
+      path: "signature.ts",
+      from: "  if (root === 0n) return false;",
+      to: "  if (false) return false;",
+      expect: :byte_drift
+    },
+    %{
+      # One digit of sqrt(-1) changed: honest keys, the order-8 cases, and the
+      # second-key case flip.
+      name: "corpus-sqrt-m1-digit",
+      path: "signature.ts",
+      from: "  19681161376707505956807079304988542015446066515923890162744021073123829784752n;",
+      to: "  19681161376707505956807079304988542015446066515923890162744021073123829784753n;",
+      expect: :byte_drift
+    },
+    %{
+      # The strict rule's call in check() deleted: node 24.19.0's backend
+      # rejects every byte string the rule rejects, so no verdict moves
+      # there; the structural order self-check fails on every runtime.
+      name: "strict-call-site-removed",
+      path: "signature.ts",
+      from:
+        "  if (!strictSignature(signature)) return { ok: false, e: \"signature_not_verified\" };",
+      to: "",
+      expect: :self_check_failure
+    },
+    %{
+      # One digit of L changed: the S = L - 1 (or S = L) case's pinned
+      # predicate disagrees, and the self-checks' [L]B = O derivation fails.
+      name: "group-order-digit",
+      path: "signature.ts",
+      from: "const ED_L = 2n ** 252n + 27742317777372353535851937790883648493n;",
+      to: "const ED_L = 2n ** 252n + 27742317777372353535851937790883648492n;",
+      expect: :byte_drift
+    },
+    %{
+      # The key-object cache's eviction dropped: the cache grows past
+      # KEY_OBJECT_CACHE_LIMIT and the bound self-check fails.
+      name: "key-cache-eviction-removed",
+      path: "signature.ts",
+      from: "  if (keyObjectCache.size >= KEY_OBJECT_CACHE_LIMIT) {",
+      to: "  if (false) {",
+      expect: :self_check_failure
+    },
+    %{
       # The strict signature rule's scalar clause (S < L) dropped: the
       # S = L, S = L + 1, and honest S + L self-checks fail on the
       # predicate even where the runtime's backend rejects the bytes.

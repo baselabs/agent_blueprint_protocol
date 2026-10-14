@@ -680,6 +680,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     "mix.lock",
     "priv",
     "scripts",
+    # The documentation-currency gate reads the landing page's version claims.
+    "site",
     "verifier",
     "spec",
     "test"

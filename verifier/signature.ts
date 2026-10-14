@@ -196,12 +196,25 @@ function check(
   return { ok: false, e: "signature_not_verified" };
 }
 
+// Parsed KeyObjects are cached per raw key, bounded at
+// KEY_OBJECT_CACHE_LIMIT entries: when full, the oldest insertion is
+// evicted, so a long-lived process verifying under many keys holds at
+// most that many KeyObjects.
+export const KEY_OBJECT_CACHE_LIMIT = 256;
 const keyObjectCache = new Map<string, KeyObject>();
+
+export function keyObjectCacheSize(): number {
+  return keyObjectCache.size;
+}
+
 function keyObject(raw: Buffer): KeyObject {
   const x = raw.toString("base64url");
   const cached = keyObjectCache.get(x);
   if (cached !== undefined) return cached;
   const key = createPublicKey({ key: { kty: "OKP", crv: "Ed25519", x }, format: "jwk" });
+  if (keyObjectCache.size >= KEY_OBJECT_CACHE_LIMIT) {
+    keyObjectCache.delete(keyObjectCache.keys().next().value!);
+  }
   keyObjectCache.set(x, key);
   return key;
 }
@@ -285,7 +298,10 @@ export function usableEd25519Key(encoding: Buffer): boolean {
   return !smallOrder(x, y);
 }
 
+// x = 0 never reaches this test: it means root == 0, which
+// usableEd25519Key already rejected, so an `x === 0n` clause here would be
+// unreachable and untestable (mirrors the Elixir twin).
 function smallOrder(x: bigint, y: bigint): boolean {
   const ySqrtM1 = (y * ED_SQRT_M1) % ED_P;
-  return x === 0n || y === 0n || ySqrtM1 === x || ySqrtM1 === ED_P - x;
+  return y === 0n || ySqrtM1 === x || ySqrtM1 === ED_P - x;
 }

@@ -18,7 +18,13 @@ A corpus directory carries:
 - `cases/<surface>.json` — one file per surface, a `cases` array;
   each case: `id` (unique), `class`, `surface`, `expected` (verdict +
   code or `valid: true`), and `input` (surface-specific; the decode
-  surfaces carry `text` — the exact wire bytes).
+  surfaces carry `text` — the exact wire bytes). A `signature.verify`
+  case whose signature decodes to 64 bytes also carries
+  `expected.strict_signature`: the strict Ed25519 rule's verdict on
+  those bytes (R canonical and not small-order, S < L). A runner agrees
+  with such a case only when its verdict matches AND its own strict
+  rule gives the same boolean, so a rule the backend already enforces
+  stays visible to the agreement.
 - `vectors/*.json` — golden artifacts and RFC 8785 number vectors.
 - `schemas/*.json` — shipped schema documents.
 
