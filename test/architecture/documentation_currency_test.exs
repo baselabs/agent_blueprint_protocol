@@ -90,6 +90,24 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
              "(only #{version} may appear): #{inspect(offenders)}"
   end
 
+  test "the landing page's visible text names only the current version" do
+    version = current_version()
+
+    # Tags and attribute values (SVG path data carries dotted numbers) are
+    # stripped first; what remains is the text a visitor reads.
+    visible = Regex.replace(~r/<[^>]*>/s, File.read!("site/index.html"), " ")
+
+    stale =
+      ~r/(?<![\d.])\d+\.\d+\.\d+(?![\d.])/
+      |> Regex.scan(visible)
+      |> Enum.map(&hd/1)
+      |> Enum.uniq()
+      |> Kernel.--([version])
+
+    assert stale == [],
+           "site/index.html names stale versions #{inspect(stale)} — only #{version} may appear"
+  end
+
   # Package entries include bare directories ("documentation", "examples");
   # a flat ends_with?(".md") filter over the entries list silently skipped
   # every file inside them, which is how the guides' install pins drifted.

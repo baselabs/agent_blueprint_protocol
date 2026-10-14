@@ -1,11 +1,13 @@
 # GitHub Pages — the ABP landing. Pure static site (no build step, no
-# JavaScript, no secrets).
+# JavaScript, no secrets). The page names the package version, so it
+# deploys only from a release tag (the site as of that release) or a
+# manual dispatch, never from a main-branch push that may name a version
+# the registry does not have yet.
 name: Pages
 
 on:
   push:
-    branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:

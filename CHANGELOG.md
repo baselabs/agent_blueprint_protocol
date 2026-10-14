@@ -38,7 +38,7 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   (`signature_key_unsupported` is only for a `key_id` with no supplied
   key). The conformance mutation gate gains an eighth named break.
 
-The public API and the registry are unchanged. The test suite is 933
+The public API and the registry are unchanged. The test suite is 937
 tests (62 properties) at 100% coverage. Corpus: 112 cases, digest
 `sha-256:DmUx8_bLo4coAtKbGdtH0yxW9XqnVVN7Yt6qm5f-_vs`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
