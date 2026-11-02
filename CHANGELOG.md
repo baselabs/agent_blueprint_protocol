@@ -4,6 +4,15 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ## [Unreleased]
 
+### Fixed — documentation
+
+- Correction to an earlier entry: bare `npx agent-blueprint-protocol` and
+  `npx verifier` work only where `@agent-blueprint-protocol/verifier` is
+  installed. Elsewhere, npx looks the bare name up on the public registry,
+  where it is not this project's. Use `npx @agent-blueprint-protocol/verifier`.
+- The post-publish check runs `npx --no-install verifier`, so it can never
+  fetch the unrelated npm package named `verifier`.
+
 ### Added — documentation
 
 - A Livebook walkthrough, `docs/livebooks/abp-walkthrough.livemd`,

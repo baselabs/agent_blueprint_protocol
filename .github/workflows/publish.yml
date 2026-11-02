@@ -139,7 +139,7 @@ jobs:
           cd /tmp/postpublish
           npm init -y > /dev/null
           npm install --no-audit --no-fund "${NPM_PACKAGE}@${VERSION}"
-          npx verifier > /tmp/kit-report.json
+          npx --no-install verifier > /tmp/kit-report.json
           cd "$GITHUB_WORKSPACE"
           mix escript.build
           ./agent_blueprint_protocol_conformance --corpus priv/conformance > /tmp/escript-report.json
