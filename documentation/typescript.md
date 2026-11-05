@@ -16,7 +16,7 @@ npx @agent-blueprint-protocol/verifier
 ```
 
 With no arguments the kit runs its EMBEDDED corpus over every protocol
-surface (129 cases in the 0.8.1 kit) and prints the single-line report.
+surface (129 cases in the 0.8.2 kit) and prints the single-line report.
 Green is `"agreement":true` and exit 0; the report names the corpus
 digest, so what you verified is an exact, identified byte set:
 

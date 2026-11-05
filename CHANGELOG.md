@@ -2,7 +2,7 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
-## [Unreleased]
+## [0.8.2] — 2026-11-05
 
 ### Fixed — documentation
 
@@ -32,6 +32,10 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Changed — documentation
 
+- The CI workflows' GitHub Action pins move with their dependabot bumps
+  (`actions/setup-node` v7.1.0, `actions/upload-pages-artifact` v5.0.0,
+  `actions/deploy-pages` v5.0.1); the toolchain lockstep test's pinned
+  setup-node identity moves with them. No workflow inputs changed.
 - npm kit commands in the README, the TypeScript guide, and the landing
   page stay unpinned, with a line saying npx runs the latest published
   kit and how to check its version (a kit release goes live after a
@@ -62,6 +66,22 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   exactly what the backends accept: under the identity key, R = identity
   with S = 0 verifies for every message; under the all-zero key, the
   all-zero signature verifies for about one message in four.
+- The errata table's release boundaries now name the recording date
+  instead of a concrete version ("every release published before
+  2026-10-13 that ships this specification"), so each row stays true and
+  gate-clean at every later release without rewording. The corrections'
+  substance is unchanged; the specification digest moves with the
+  rewording (the digest covers the whole extracted specification,
+  errata included), which is recorded in the release history;
+  `verification_semantics_version` stays 1.
+
+This is a documentation-only release; the public API, the registry, and
+the corpus are unchanged from 0.8.1, and `spec/protocol.md` is
+byte-identical. The test suite is 957 tests (63 properties) at 100%
+coverage. Corpus: 129 cases, digest
+`sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4`; registry
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
+digest `sha-256:aBgeih79woOR7YmJ_OBhyFgKU0j2euO-eieJKxLVDeA`.
 
 ## [0.8.1] — 2026-10-14
 

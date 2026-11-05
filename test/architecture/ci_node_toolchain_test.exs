@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.CiNodeToolchainTest do
   use ExUnit.Case, async: true
 
-  @setup_node_sha "820762786026740c76f36085b0efc47a31fe5020"
+  @setup_node_sha "949feb2413d6458794dcd2491c4babbbce0c15c1"
   @node_version "24.19.0"
 
   test "the quality job selects an immutable supported Node runtime" do
@@ -9,7 +9,7 @@ defmodule AgentBlueprintProtocol.CiNodeToolchainTest do
     [_, quality_job] = String.split(workflow, "\n  quality:", parts: 2)
 
     setup_node =
-      "uses: actions/setup-node@#{@setup_node_sha} # v7.0.0\n" <>
+      "uses: actions/setup-node@#{@setup_node_sha} # v7.1.0\n" <>
         "        with:\n" <>
         "          node-version: \"#{@node_version}\"\n" <>
         "          package-manager-cache: false"
