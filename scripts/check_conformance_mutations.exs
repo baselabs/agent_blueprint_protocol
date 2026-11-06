@@ -196,8 +196,24 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
   ]
 
   def run do
-    Enum.each(@mutations, &run_mutation/1)
+    # Each distinct command's baseline once, then every mutation; all of them run in their own
+    # scratch copy, so they run side by side, one per scheduler.
+    @mutations
+    |> Enum.uniq_by(& &1.command)
+    |> parallel(&baseline_green!(&1.command))
+
+    parallel(@mutations, &run_mutation/1)
     IO.puts("conformance mutation gate: ok mutations=#{length(@mutations)}")
+  end
+
+  defp parallel(items, fun) do
+    items
+    |> Task.async_stream(fun,
+      max_concurrency: System.schedulers_online(),
+      ordered: false,
+      timeout: :infinity
+    )
+    |> Stream.run()
   end
 
   defp run_mutation(mutation) do
@@ -240,7 +256,7 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
   defp baseline_green!(command) do
     key = {:baseline_green, command}
 
-    if Process.get(key) != :ok do
+    if :persistent_term.get(key, nil) != :ok do
       scratch =
         Path.join(
           System.tmp_dir!(),
@@ -265,7 +281,7 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
           raise "baseline not green: the unmutated command exited #{status}\n#{output}"
         end
 
-        Process.put(key, :ok)
+        :persistent_term.put(key, :ok)
       after
         File.rm_rf!(scratch)
       end
