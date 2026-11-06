@@ -216,6 +216,14 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
     |> Stream.run()
   end
 
+  # Each run's own temporary directory, beside its scratch copy: tests that use fixed names
+  # under System.tmp_dir!/0 would otherwise collide when one test file runs in two copies at once.
+  defp private_tmp!(scratch) do
+    path = scratch <> ".tmp"
+    File.mkdir_p!(path)
+    path
+  end
+
   defp run_mutation(mutation) do
     baseline_green!(mutation.command)
 
@@ -237,7 +245,7 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
         System.cmd(hd(mutation.command), tl(mutation.command),
           cd: scratch,
           stderr_to_stdout: true,
-          env: [{"MIX_ENV", "dev"}]
+          env: [{"MIX_ENV", "dev"}, {"TMPDIR", private_tmp!(scratch)}]
         )
 
       if status == 0 do
@@ -247,6 +255,7 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
       IO.puts("mutation caught: #{mutation.name}")
     after
       File.rm_rf!(scratch)
+      File.rm_rf!(scratch <> ".tmp")
     end
   end
 
@@ -274,7 +283,7 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
           System.cmd(hd(command), tl(command),
             cd: scratch,
             stderr_to_stdout: true,
-            env: [{"MIX_ENV", "dev"}]
+            env: [{"MIX_ENV", "dev"}, {"TMPDIR", private_tmp!(scratch)}]
           )
 
         if status != 0 do
@@ -284,6 +293,7 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
         :persistent_term.put(key, :ok)
       after
         File.rm_rf!(scratch)
+        File.rm_rf!(scratch <> ".tmp")
       end
     end
 
