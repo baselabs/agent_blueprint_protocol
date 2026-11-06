@@ -1,14 +1,12 @@
 defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
   use ExUnit.Case, async: false
 
-  # The history scan is O(tracked files × commits) — the budget GROWS
-  # with the repository: 150–190s at the 0.2.1 tree, 460s+ at 0.5.x
-  # under full-suite load (the 480s ceiling was clipped once, 2026-09-13
-  # — a timeout here is a flake, not a privacy finding). 960s held until
-  # the 0.8.0 tree (886s pass, then a 961s clip on the next run,
-  # 2026-09-24 — the release added commits and files); 1920s restores
-  # roughly 2× the observed worst case. Re-raise on the same evidence.
-  @moduletag timeout: 1_920_000
+  # The history scan fingerprints each distinct file version once, in parallel
+  # (historical_content_forbidden?/3), so it grows with file versions, not
+  # commits × files. At 0.8.2 (103 commits, 842 versions): 18s on a laptop,
+  # where the per-commit scan took 1625s in CI. A timeout here is a flake,
+  # not a privacy finding.
+  @moduletag timeout: 600_000
 
   @forbidden_hmacs MapSet.new([
                      "b588ad7e20b48289a4be8ca875a2fbfc461914717baba46fc18ba63c462205e0",
@@ -258,9 +256,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
       repo
       |> git!(["ls-files", "-z"])
       |> String.split(<<0>>, trim: true)
-      |> Enum.count(fn path ->
+      |> parallel(fn path ->
         forbidden?(path <> "\n" <> File.read!(Path.join(repo, path)), forbidden_hmacs, key)
       end)
+      |> Enum.count(& &1)
 
     messages = git!(repo, ["log", "--all", "--format=fuller"])
 
@@ -282,23 +281,44 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
       |> git!(["rev-list", "--all"])
       |> String.split("\n", trim: true)
 
-    Enum.any?(commits, fn commit ->
+    # Every file of every commit, scanned once per distinct content: an unchanged file is
+    # the same blob in every commit that carries it, so the scan grows with the number of
+    # file versions, not commits × files (that was 1625s of a 1632s suite at 0.8.2).
+    commits
+    |> Enum.flat_map(fn commit ->
       repo
-      |> git!(["ls-tree", "-r", "--name-only", commit])
-      |> String.split("\n", trim: true)
-      |> Enum.any?(&historical_file_forbidden?(repo, commit, &1, forbidden_hmacs, key))
+      |> git!(["ls-tree", "-r", "-z", commit])
+      |> String.split(<<0>>, trim: true)
+      |> Enum.map(&tree_entry_blob!/1)
     end)
+    |> Enum.uniq()
+    |> parallel(&historical_blob_forbidden?(repo, &1, forbidden_hmacs, key))
+    |> Enum.any?()
   end
 
-  defp historical_file_forbidden?(repo, commit, path, forbidden_hmacs, key) do
+  # Fingerprinting dominates the scan and each item is independent: one task per scheduler.
+  defp parallel(items, fun) do
+    items
+    |> Task.async_stream(fun, ordered: false, timeout: :infinity)
+    |> Enum.map(fn {:ok, result} -> result end)
+  end
+
+  defp tree_entry_blob!(entry) do
+    case Regex.run(~r/\A\d+ (\w+) ([0-9a-f]+)\t/, entry, capture: :all_but_first) do
+      ["blob", id] -> id
+      _other -> raise "unexpected tree entry (only files are scanned): #{inspect(entry)}"
+    end
+  end
+
+  defp historical_blob_forbidden?(repo, id, forbidden_hmacs, key) do
     case System.cmd(
            "git",
-           ["--no-replace-objects", "-C", repo, "show", "#{commit}:#{path}"],
+           ["--no-replace-objects", "-C", repo, "cat-file", "blob", id],
            stderr_to_stdout: true,
            env: @git_env
          ) do
       {content, 0} -> forbidden?(content, forbidden_hmacs, key)
-      {output, status} -> raise "git show failed with #{status}: #{output}"
+      {output, status} -> raise "git cat-file failed with #{status}: #{output}"
     end
   end
 
