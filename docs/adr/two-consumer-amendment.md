@@ -26,5 +26,7 @@ Product-specific semantics (graph authoring, rubric assertions,
 classification labels) live in registered extensions owned by their
 products, promotable only with a revision increment when a second host
 proves the same semantics. The core stays small and neutral; registry
-entries carry the honesty record of who consumes what. This is the
+entries carry the owner and other published facts, never authority
+(`spec/registry/OPERATIONS.md`), and the honesty record of who
+consumes what is kept in `docs/consumer-evidence.md`. This is the
 load-bearing reason the package contains no product schema bodies.
