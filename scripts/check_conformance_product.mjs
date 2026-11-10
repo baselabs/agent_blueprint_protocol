@@ -17,7 +17,7 @@ try {
     run(['dist/kit/cli.mjs','conformance','run','--corpus','priv/conformance','--results',output,'--',...command]);
     assert.deepEqual(readFileSync(output),certified,label+' results differ');
   }
-  const outcomes={echo:15,duplicate:11,missing:12,extra:13,reordered:14,malformed:15,oversized:16,wrong:19,slow:17,early:18,mismatch:10,projection:19,unclosed:17,inherited:17};
+  const outcomes={echo:15,duplicate:11,missing:12,extra:13,reordered:14,malformed:15,oversized:16,wrong:19,slow:17,early:18,mismatch:10,projection:19,unclosed:17,inherited:18};
   for(const [stub,status] of Object.entries(outcomes)){const started=Date.now();run(['dist/kit/cli.mjs','conformance','run','--corpus','priv/conformance','--results',join(scratch,'negative.json'),'--timeout-ms','1000','--',process.execPath,'test/external/'+stub+'.mjs'],status);if(stub==='inherited')assert.ok(Date.now()-started<6000,'inherited stdout exceeded shutdown deadline');}
   const claim=join(scratch,'claim.json'),result=join(scratch,'claim-results.json');
   const identity=['--claim',claim,'--implementation','example-verifier','--implementation-version','1','--source','https://example.com/source','--platform','example-platform','--date','2026-11-10'];

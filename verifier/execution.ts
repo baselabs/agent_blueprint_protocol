@@ -10,7 +10,7 @@ export class ExecutionFailure extends Error {
   outcome:string;
   constructor(outcome:string){super(outcome);this.outcome=outcome;}
 }
-export function lines(stream:Readable):{next:(timeout:number)=>Promise<unknown>} {
+export function lines(stream:Readable):{next:(timeout:number)=>Promise<unknown>;end:()=>void} {
   const queue:unknown[]=[];let pending:((x:unknown)=>void)|null=null,buffer=Buffer.alloc(0),ended=false;
   const push=(x:unknown)=>{if(pending){const resolve=pending;pending=null;resolve(x);}else queue.push(x);};
   stream.on('data',(chunk:Buffer)=>{
@@ -22,9 +22,10 @@ export function lines(stream:Readable):{next:(timeout:number)=>Promise<unknown>}
     }
     if(buffer.length>=LINE_LIMIT){push(new ExecutionFailure('oversized_line'));stream.pause();}
   });
-  stream.on('end',()=>{ended=true;if(buffer.length)push(new ExecutionFailure('malformed_line'));push(null);});
+  const end=()=>{if(ended)return;ended=true;if(buffer.length)push(new ExecutionFailure('malformed_line'));push(null);};
+  stream.on('end',end);
   stream.on('error',()=>push(new ExecutionFailure('early_exit')));
-  return {next:async(timeout)=>{
+  return {end,next:async(timeout)=>{
     let timer:ReturnType<typeof setTimeout>|undefined;
     const item=queue.length?queue.shift():ended?null:await new Promise(resolve=>{pending=resolve;timer=setTimeout(()=>{pending=null;resolve(new ExecutionFailure('response_timeout'));},timeout);});
     if(timer)clearTimeout(timer);if(item instanceof Error)throw item;return item;

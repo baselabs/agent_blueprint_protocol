@@ -53,6 +53,9 @@ export async function runHarness(args:string[],readCorpus:(path:string)=>Map<str
     finally{if(timer)clearTimeout(timer);}
   };
   const reader=lines(child.stdout);
+  // Output still buffered when the adapter exits arrives within the grace;
+  // after it, a descendant holding the pipe open cannot hide the exit.
+  child.once('exit',()=>{setTimeout(reader.end,Math.min(250,Math.floor(timeout/4))).unref();});
   const rows=corpus.cases.flatMap(f=>f.cases).sort((a,b)=>Buffer.compare(Buffer.from(a.id),Buffer.from(b.id)));
   const results:unknown[]=[];const ids=new Set<string>();
   try {
