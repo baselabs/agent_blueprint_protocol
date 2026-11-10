@@ -671,6 +671,9 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     # identity chain at all.
     "package.json",
     "package-lock.json",
+    # The documentation-currency baseline reads the Pages workflow to confirm
+    # the site directory it checks is the one that deploys.
+    ".github/workflows/pages.yml",
     "README.md",
     "CHANGELOG.md",
     "CODE_OF_CONDUCT.md",
