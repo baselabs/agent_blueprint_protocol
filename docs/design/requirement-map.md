@@ -873,7 +873,7 @@ Result: 7/8 passed
 
 ### case: "no archived file carries a private-path byte pattern"
 
-Decided-red acceptance of this slice (M1):
+Decided-red acceptance of this slice:
 
 ```red
 $ # plant: "See .kimosabe/handoffs for design history." appended to README.md
@@ -1585,7 +1585,7 @@ Result: 0/1 passed
 
 ### case: "every public function has a matching @spec"
 
-Natural red at gate birth (one real gap) plus decided-red acceptance (M2):
+Natural red at gate birth (one real gap) plus decided-red acceptance:
 
 ```red
 $ # no plant: the 2026-08-23 tree as it stood

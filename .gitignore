@@ -48,5 +48,4 @@ verifier-*.tar.gz
 # git — the Hex package ships neither)
 node_modules/
 dist/
-package-lock.json
 /.forge/

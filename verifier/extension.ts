@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // The positional extension envelope — the mirror of AgentBlueprintProtocol.Extension:
 // {"critical": {ns → body}, "optional": {ns → body}}, shared by both artifact
 // tables as a table check and by the scans as the open-region walk.
@@ -14,7 +15,7 @@ type VResult = { ok: true } | { ok: false; e: string };
 // The envelope shape check a table carries: exactly critical + optional
 // regions, namespace form, total cardinality, no namespace in both.
 export function envelopeOk(value: Value): VResult {
-  if (value.t !== "obj") return { ok: false, e: "invalid_type" };
+  if (!isValue(value) || value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = value.v;
 
   const names = members.map(([name]) => name).sort();
@@ -75,6 +76,7 @@ function namespaceForm(ns: string): boolean {
 }
 
 function memberValue(members: [string, Value][], name: string): Value | null {
+  if (!isValue({ t: "obj", v: members })) return null;
   const found = members.find(([key]) => key === name);
   return found ? found[1] : null;
 }

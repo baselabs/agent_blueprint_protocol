@@ -40,10 +40,7 @@ const cli = join(here, "..", "verifier", "cli.js");
 const embedded = join(here, "..", "corpus");
 
 const args = process.argv.slice(2);
-const hasCorpus = args.includes("--corpus");
-const hasPriorCorpus = args.includes("--prior-corpus");
-const hasArtifact = args.includes("--artifact");
-if (!hasCorpus && !hasPriorCorpus && !hasArtifact) {
+if (args.length === 0) {
   args.push("--corpus", embedded);
 }
 

@@ -7,7 +7,7 @@
 // tags; string lengths count codepoints.
 
 import type { Value } from "./value.ts";
-import { err, ok } from "./value.ts";
+import { err, ok, isValue as wellFormed } from "./value.ts";
 
 const DIALECT = "https://json-schema.org/draft/2020-12/schema";
 const CEILING = 512;
@@ -86,6 +86,10 @@ export function validateInstance(
 // codepoint-for-codepoint, arrays order-sensitive, objects order-blind with
 // equal member counts.
 export function equal(a: Value, b: Value): boolean {
+  return wellFormed(a) && wellFormed(b) && equalAt(a, b);
+}
+
+function equalAt(a: Value, b: Value): boolean {
   if (
     (a.t === "int" || a.t === "float") &&
     (b.t === "int" || b.t === "float")
@@ -103,14 +107,14 @@ export function equal(a: Value, b: Value): boolean {
       return (
         b.t === "arr" &&
         a.v.length === b.v.length &&
-        a.v.every((x, i) => equal(x, b.v[i]!))
+        a.v.every((x, i) => equalAt(x, b.v[i]!))
       );
     case "obj":
       if (b.t !== "obj") return false;
       if (a.v.length !== b.v.length) return false;
       return a.v.every(([name, value]) => {
         const other = b.v.find(([n]) => n === name);
-        return other !== undefined && equal(value, other[1]);
+        return other !== undefined && equalAt(value, other[1]);
       });
     // int/float cannot reach the switch (the numeric cross-compare above
     // already returned); the default only completes the switch for the compiler.
@@ -122,46 +126,7 @@ export function equal(a: Value, b: Value): boolean {
 // ---- gates ----------------------------------------------------------------------
 
 function rootShape(value: Value): boolean {
-  return value.t === "obj" || value.t === "bool";
-}
-
-// The tagged-value well-formedness gate (decoder output always passes; this
-// is the fail-closed guard for hand-built terms).
-function wellFormed(value: Value): boolean {
-  switch (value.t) {
-    case "null":
-    case "bool":
-    case "int":
-    case "float":
-      return true;
-    case "str":
-      return validString(value.v);
-    case "arr":
-      return value.v.every(wellFormed);
-    case "obj": {
-      const seen = new Set<string>();
-      for (const [name, member] of value.v) {
-        if (typeof name !== "string" || !validString(name) || seen.has(name)) return false;
-        if (!wellFormed(member)) return false;
-        seen.add(name);
-      }
-      return true;
-    }
-  }
-}
-
-function validString(s: string): boolean {
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    if (c >= 0xd800 && c <= 0xdbff) {
-      const next = s.charCodeAt(i + 1);
-      if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
-      i++;
-    } else if (c >= 0xdc00 && c <= 0xdfff) {
-      return false;
-    }
-  }
-  return true;
+  return value !== null && typeof value === "object" && (value.t === "obj" || value.t === "bool");
 }
 
 // ---- positional walk: keyword validation, metering, pointers, ref edges -----------
@@ -254,7 +219,7 @@ function allowedKey(key: string): boolean {
 }
 
 function schemaShape(value: Value): boolean {
-  return value.t === "obj" || value.t === "bool";
+  return value !== null && typeof value === "object" && (value.t === "obj" || value.t === "bool");
 }
 
 function validateValue(key: string, value: Value): { ok: true } | { ok: false; e: string } {
@@ -688,13 +653,11 @@ function evalItems(
   memo: Map<Value, Map<string, EvalResult>>,
   pointers: Map<string, Value>,
 ): EvalResult {
-  if (index >= items.length) return ok(undefined);
-  // Schema first, instance second — the historical swap here evaluated each
-  // item AS the schema (object-shaped items passed vacuously, scalar items
-  // crashed); the tier schemas are the first corpus-bearing items user.
-  const result = evaluate(sub, items[index]!, [String(index), ...loc], memo, pointers);
-  if (!result.ok) return result;
-  return evalItems(items, index + 1, sub, loc, memo, pointers);
+  for (let i = index; i < items.length; i++) {
+    const result = evaluate(sub, items[i]!, [String(i), ...loc], memo, pointers);
+    if (!result.ok) return result;
+  }
+  return ok(undefined);
 }
 
 function evalAdditional(

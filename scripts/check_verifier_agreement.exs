@@ -90,7 +90,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     {out, status} =
       System.cmd(Path.join(@root, "agent_blueprint_protocol_conformance"), ["--corpus", @corpus],
         cd: @root,
-        stderr_to_stdout: true
+        stderr_to_stdout: false
       )
 
     unless status == 0, do: raise("escript disagreement over the shipped corpus:\n#{out}")
@@ -103,7 +103,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     {out, status} =
       System.cmd(node, [Path.join(@root, "verifier/cli.ts"), "--corpus", corpus_dir],
         cd: @root,
-        stderr_to_stdout: true
+        stderr_to_stdout: false
       )
 
     unless status == 0, do: raise("TS verifier disagreement:\n#{out}")
@@ -270,7 +270,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
   defp kit_checks!(node, escript_bytes) do
     unless File.exists?(@kit_bin) do
-      raise "npm kit not built — run `npm install && npm run build` before the agreement gate"
+      raise "npm kit not built — run `mix kit.build` before the agreement gate"
     end
 
     # The kit embeds the release-identity manifest byte-identically (npm
@@ -291,7 +291,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
     packed_files_check!()
 
-    {kit_out, kit_status} = System.cmd(node, [@kit_bin], stderr_to_stdout: true)
+    {kit_out, kit_status} = System.cmd(node, [@kit_bin], stderr_to_stdout: false)
 
     unless kit_status == 0 and kit_out == escript_bytes do
       raise """
@@ -302,7 +302,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     end
 
     {explicit_out, explicit_status} =
-      System.cmd(node, [@kit_bin, "--corpus", Path.join(@root, @corpus)], stderr_to_stdout: true)
+      System.cmd(node, [@kit_bin, "--corpus", Path.join(@root, @corpus)], stderr_to_stdout: false)
 
     unless explicit_status == 0 and explicit_out == escript_bytes do
       raise """
@@ -605,8 +605,8 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       # case fails (the key decoder reads past the buffer).
       name: "key-length-guard-removed",
       path: "signature.ts",
-      from: "  if (encoding.length !== 32) return false;\n",
-      to: "",
+      from: "  if (!(input instanceof Uint8Array) || input.length !== 32) return false;\n",
+      to: "  if (!(input instanceof Uint8Array)) return false;\n",
       expect: :self_check_failure
     },
     %{
@@ -677,6 +677,11 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       File.cp_r!(Path.join(@root, @verifier), Path.join(scratch, "verifier"))
       File.cp_r!(Path.join(@root, @corpus), Path.join(scratch, "corpus"))
 
+      File.cp!(
+        Path.join(@root, "priv/release-metadata.json"),
+        Path.join(scratch, "release-metadata.json")
+      )
+
       mutate_once!(
         Path.join(Path.join(scratch, "verifier"), seed.path),
         seed.from,
@@ -689,7 +694,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
             System.cmd(
               node,
               [Path.join(scratch, "verifier/cli.ts"), "--corpus", Path.join(scratch, "corpus")],
-              stderr_to_stdout: true
+              stderr_to_stdout: false
             )
 
           if out == baseline_bytes do

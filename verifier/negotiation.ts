@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // Negotiation — the mirror of AgentBlueprintProtocol.Negotiation: the
 // evolution gate over protocol machinery only (protocol_revision →
 // required_core_fields → extensions, precedence pinned), the host-pinned
@@ -122,6 +123,10 @@ const RESERVED_NAMES = new Set([
 ]);
 
 export function negotiate(artifact: Value, support: Support): { ok: true; v: Outcome } | { ok: false; e: string } {
+  if (!isValue(artifact) || !support || !(support.revisions instanceof Set) || !(support.coreFields instanceof Set) ||
+      !support.registry || typeof support.registry !== "object" || Array.isArray(support.registry) ||
+      Object.values(support.registry).some((entry) => !entry || typeof entry !== "object") ||
+      !support.schemas || typeof support.schemas !== "object" || Array.isArray(support.schemas)) return { ok: false, e: "invalid_type" };
   // Revision stays FIRST — a max+1 artifact reports its revision reason
   // before any other defect.
   const revision = revisionCheck(artifact, support);

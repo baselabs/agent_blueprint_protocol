@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // The case executor — the mirror of AgentBlueprintProtocol.Conformance.Runner:
 // dispatches each corpus case against the verifier's own surface twins and
 // compares to the case's code-level, shape-agnostic expectation (invalid →
@@ -29,7 +30,12 @@ export interface CaseResult {
   agree: boolean;
 }
 
-export function run(corpus: LoadedCorpus): CaseResult[][] {
+export function run(corpus: LoadedCorpus): CaseResult[][];
+export function run(corpus: unknown): CaseResult[][] | { ok: false; e: string };
+export function run(input: unknown): CaseResult[][] | { ok: false; e: string } {
+  const corpus = input as LoadedCorpus;
+  if (!corpus || !Array.isArray(corpus.cases) || !(corpus.data instanceof Map) || !(corpus.raws instanceof Map) ||
+      corpus.cases.some((file) => !file || !Array.isArray(file.cases) || file.cases.some((row) => !row || typeof row.id !== "string" || !isValue(row.input) || !isValue(row.expected)))) return { ok: false, e: "invalid_type" };
   return corpus.cases.map((file) =>
     file.cases.map((caseObj) => ({
       caseId: caseObj.id,
@@ -43,6 +49,7 @@ export function execute(
   data: Map<string, Value>,
   raws: Map<string, Buffer>,
 ): { actual: SurfaceResult; agree: boolean } {
+  if (!caseObj || typeof caseObj !== "object" || !isValue(caseObj.input) || !isValue(caseObj.expected) || !(data instanceof Map) || !(raws instanceof Map)) return { actual: { ok: false, e: "invalid_type" }, agree: false };
   const input = caseObj.input;
   const strict = caseObj.expected.t === "obj" ? member(caseObj.expected, "strict_signature") : null;
   const expected: Value =

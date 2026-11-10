@@ -67,6 +67,8 @@ defmodule AgentBlueprintProtocol.Bounds do
     end
   end
 
+  def new(_), do: {:error, :invalid_type}
+
   @doc """
   Validate and normalize a `Bounds` struct, or build one from an overrides map.
 
@@ -77,6 +79,8 @@ defmodule AgentBlueprintProtocol.Bounds do
   @spec coerce(t() | map()) :: {:ok, t()} | {:error, error()}
   def coerce(%__MODULE__{} = bounds), do: bounds |> Map.from_struct() |> new()
   def coerce(overrides) when is_map(overrides), do: new(overrides)
+
+  def coerce(_), do: {:error, :invalid_type}
 
   defp validate_keys(overrides) do
     case Map.keys(overrides) -- @fields do

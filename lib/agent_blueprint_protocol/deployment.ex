@@ -432,46 +432,66 @@ defmodule AgentBlueprintProtocol.Deployment do
   schema (the validated-extension channel). Those bodies skip the portability value-shape
   heuristics; the channel is tied to THIS artifact's critical region, and
   the default (`[]`) keeps the strict posture everywhere.
+  The caller is responsible for this provenance; the constructor checks only
+  that the supplied namespaces occur in this artifact's critical region.
+  `Reconcile.reconcile/3` derives the list from the current negotiation.
   """
   @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, reason()}
-  def from_value(value, opts \\ %{}) when is_map(value) or is_tuple(value) do
+  def from_value(value, opts \\ %{})
+
+  def from_value(value, opts) when is_map(opts) do
     validated = Map.get(opts, :authored_extensions, [])
 
-    with :ok <- authored_tied_to_value(value, validated),
+    with true <- authored_names?(validated) or {:error, :invalid_type},
+         {:ok, _bytes} <- Canonicalization.encode(value),
+         :ok <- authored_tied_to_value(value, validated),
          :ok <- Registry.validate(table(), value),
          :ok <- scan(value, MapSet.new(validated)) do
       {:ok, %__MODULE__{value: value}}
     end
   end
 
+  def from_value(_, _), do: {:error, :invalid_type}
+
   @doc "The held tagged value — the identity, so the round-trip is byte-exact."
   @spec to_value(t()) :: Json.value()
   def to_value(%__MODULE__{value: value}), do: value
+  def to_value(_), do: {:error, :invalid_type}
 
   # ---- the digest surface -----------------------------------------------------------
 
   @doc "The digest input: the artifact minus the three evidence members (§8.2)."
   @spec digest_input(t()) :: Json.value()
   def digest_input(%__MODULE__{value: {:object, members}}) do
-    {:object, Enum.reject(members, fn {name, _} -> name in @evidence_members end)}
+    with {:ok, _bytes} <- Canonicalization.encode({:object, members}) do
+      {:object, Enum.reject(members, fn {name, _} -> name in @evidence_members end)}
+    end
   end
+
+  def digest_input(_), do: {:error, :invalid_type}
 
   @doc "Whether `member_name` (a wire-level member name) is digest-covered."
   @spec digest_covered?(binary()) :: boolean()
   def digest_covered?(member_name) when is_binary(member_name),
     do: member_name in @covered_members
 
+  def digest_covered?(_), do: false
+
   @doc "The canonical bytes of the whole artifact."
   @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, reason()}
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
+  def canonical_bytes(_), do: {:error, :invalid_type}
 
   @doc "The honest content digest over the covered members' canonical bytes."
   @spec content_digest(t()) :: Digest.t() | {:error, reason()}
   def content_digest(%__MODULE__{} = deployment) do
-    with {:ok, jcs} <- Canonicalization.encode(digest_input(deployment)) do
+    with {:object, _} = covered <- digest_input(deployment),
+         {:ok, jcs} <- Canonicalization.encode(covered) do
       Digest.hash(:deployment_content, jcs)
     end
   end
+
+  def content_digest(_), do: {:error, :invalid_type}
 
   @doc """
   Compare the declared `deployment_digest` member against the recomputed
@@ -480,9 +500,18 @@ defmodule AgentBlueprintProtocol.Deployment do
   """
   @spec verify_content_digest(t()) :: :ok | {:error, reason()}
   def verify_content_digest(%__MODULE__{value: {:object, members}} = deployment) do
+    with {:ok, _} <- Canonicalization.encode({:object, members}) do
+      verify_declared_digest(deployment, members)
+    end
+  end
+
+  def verify_content_digest(_), do: {:error, :invalid_type}
+
+  defp verify_declared_digest(deployment, members) do
     case List.keyfind(members, "deployment_digest", 0) do
       {"deployment_digest", {:string, tagged}} ->
-        with {:ok, jcs} <- Canonicalization.encode(digest_input(deployment)) do
+        with {:object, _} = covered <- digest_input(deployment),
+             {:ok, jcs} <- Canonicalization.encode(covered) do
           Digest.verify_content(:deployment_content, jcs, tagged)
         end
 
@@ -532,8 +561,7 @@ defmodule AgentBlueprintProtocol.Deployment do
   Digest equality and nothing else (base §7's binding rule): the declared
   release digest against the paired Blueprint's RECOMPUTED content digest —
   never its declared member. Total over the deployment side: malformed
-  deployment input answers `false` (a hand-built malformed `%Blueprint{}`
-  raises in `Blueprint`'s own digest surface — its contract).
+  deployment or Blueprint input answers `false`.
   """
   @spec binds?(t(), Blueprint.t()) :: boolean()
   def binds?(%__MODULE__{} = deployment, %Blueprint{} = blueprint) do
@@ -545,6 +573,8 @@ defmodule AgentBlueprintProtocol.Deployment do
     end
   end
 
+  def binds?(_, _), do: false
+
   @doc """
   The bind-time deny set (order pinned; see the moduledoc): stage 0 validates
   the deployment's own shape — a non-object root, DUPLICATE root members
@@ -555,6 +585,8 @@ defmodule AgentBlueprintProtocol.Deployment do
   @spec verify_binding(t(), Blueprint.t(), Observations.t()) :: :ok | {:error, reason()}
   def verify_binding(%__MODULE__{} = deployment, %Blueprint{} = blueprint, %Observations{} = obs) do
     with {:ok, bindings} <- bound_tool_bindings(deployment),
+         {:ok, _} <- canonical_bytes(deployment),
+         {:ok, _} <- Blueprint.canonical_bytes(blueprint),
          :ok <- stage_release_digest(deployment, blueprint),
          :ok <- stage_release_identity(deployment, blueprint),
          :ok <- stage_completeness(bindings, blueprint),
@@ -563,6 +595,8 @@ defmodule AgentBlueprintProtocol.Deployment do
       stage_rug_pull(bindings, obs)
     end
   end
+
+  def verify_binding(_, _, _), do: {:error, :invalid_type}
 
   defp stage_release_digest(deployment, blueprint) do
     with {:ok, release} <- bound_release(deployment),
@@ -664,6 +698,10 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp stage_rug_pull(_bindings, %Observations{observed: observed}) when observed == %{},
     do: :ok
 
+  defp stage_rug_pull(_bindings, %Observations{observed: observed})
+       when not is_map(observed) or is_struct(observed),
+       do: {:error, :invalid_type}
+
   defp stage_rug_pull(bindings, %Observations{observed: observed}) do
     attested = attested_descriptors(bindings)
 
@@ -691,7 +729,7 @@ defmodule AgentBlueprintProtocol.Deployment do
     end
   end
 
-  # A hand-built malformed %Blueprint{} raises in Blueprint's own digest
+  # A hand-built malformed %Blueprint{} denies in Blueprint's own digest
   # surface (its module's contract); this clause assumes its public shape.
   defp blueprint_members(%Blueprint{} = blueprint) do
     {:object, members} = Blueprint.to_value(blueprint)
@@ -751,12 +789,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   # decide a binding), or a malformed tool_bindings member denies before
   # any cross-artifact judgment.
   defp bound_tool_bindings(%__MODULE__{value: {:object, members}}) when is_list(members) do
-    names = Enum.map(members, fn {name, _} -> name end)
-
-    if length(names) == length(Enum.uniq(names)) do
-      tool_bindings_of(members)
-    else
-      {:error, :invalid_type}
+    case Canonicalization.encode({:object, members}) do
+      {:ok, _} -> tool_bindings_of(members)
+      {:error, _} -> {:error, :invalid_type}
     end
   end
 
@@ -1011,14 +1046,18 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   # The authored channel is tied to THIS artifact (the authored-channel rule, mirrored):
   # every authored namespace must sit in this value's critical region.
+  defp authored_names?([]), do: true
+  defp authored_names?([name | rest]) when is_binary(name), do: authored_names?(rest)
+  defp authored_names?(_), do: false
+
   defp authored_tied_to_value(_value, []), do: :ok
 
   defp authored_tied_to_value({:object, members}, authored) do
-    critical = Extension.critical_namespaces(members)
-
-    if Enum.all?(authored, &MapSet.member?(critical, &1)),
-      do: :ok,
-      else: {:error, :invalid_type}
+    with %MapSet{} = critical <- Extension.critical_namespaces(members) do
+      if Enum.all?(authored, &MapSet.member?(critical, &1)),
+        do: :ok,
+        else: {:error, :invalid_type}
+    end
   end
 
   defp authored_tied_to_value(_other, _authored), do: {:error, :invalid_type}
@@ -1095,7 +1134,7 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp scan_evidence_key_ids(members) do
     members
     |> member_array("signatures")
-    |> Enum.find_value(:ok, &evidence_key_id_result/1)
+    |> Enum.find_value(:ok, fn entry -> pass_nil(evidence_key_id_result(entry)) end)
     |> case do
       :ok -> :ok
       {:error, _reason} = error -> error

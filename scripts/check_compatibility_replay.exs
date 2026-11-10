@@ -535,7 +535,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         try do
           {out, status} =
             System.cmd(node, [Path.expand("../verifier/cli.ts", __DIR__), "--prior-corpus", dir],
-              stderr_to_stdout: true
+              stderr_to_stdout: false
             )
 
           {:ok, bytes} = Report.to_bytes(census.corpus, census.results)

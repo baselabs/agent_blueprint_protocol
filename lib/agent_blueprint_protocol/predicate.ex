@@ -91,13 +91,25 @@ defmodule AgentBlueprintProtocol.Predicate do
   end
 
   def validate(predicate, port_names) when is_list(port_names) do
+    if port_names?(port_names) do
+      validate_names(predicate, port_names)
+    else
+      {:error, :invalid_type}
+    end
+  end
+
+  def validate(_predicate, _port_names), do: {:error, :invalid_type}
+
+  defp port_names?([]), do: true
+  defp port_names?([name | rest]) when is_binary(name), do: port_names?(rest)
+  defp port_names?(_), do: false
+
+  defp validate_names(predicate, port_names) do
     case shape(predicate, MapSet.new(port_names), 0) do
       {:ok, _nodes} -> :ok
       {:error, _reason} = error -> error
     end
   end
-
-  def validate(_predicate, _port_names), do: {:error, :invalid_type}
 
   @doc """
   Apply `predicate` to `ports` (port name → tagged value). Validates first,

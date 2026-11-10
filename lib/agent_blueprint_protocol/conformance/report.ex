@@ -32,7 +32,27 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
 
   @doc "Builds the agreement report from the loaded corpus and runner results."
   @spec build(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) :: t()
-  def build(%Corpus{}, results) do
+  def build(%Corpus{}, results) when is_list(results) do
+    if results_ok?(results), do: build_results(results), else: {:error, :invalid_type}
+  end
+
+  def build(_, _), do: {:error, :invalid_type}
+
+  defp results_ok?([]), do: true
+
+  defp results_ok?([{path, rows} | rest]) when is_binary(path),
+    do: rows_ok?(rows) and results_ok?(rest)
+
+  defp results_ok?(_), do: false
+
+  defp rows_ok?([]), do: true
+
+  defp rows_ok?([%{case_id: id, agree: agree} | rest]) when is_binary(id) and is_boolean(agree),
+    do: rows_ok?(rest)
+
+  defp rows_ok?(_), do: false
+
+  defp build_results(results) do
     all = results |> Enum.flat_map(&elem(&1, 1))
 
     total = length(all)
@@ -53,8 +73,14 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
   @spec to_bytes(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) ::
           {:ok, binary()} | {:error, term()}
   def to_bytes(%Corpus{identity: identity} = corpus, results) do
-    report = build(corpus, results)
+    with %__MODULE__{} = report <- build(corpus, results) do
+      encode_report(identity, report)
+    end
+  end
 
+  def to_bytes(_, _), do: {:error, :invalid_type}
+
+  defp encode_report(identity, report) do
     value =
       {:object,
        [

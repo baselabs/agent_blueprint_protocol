@@ -56,11 +56,15 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   @doc """
   Encode `value` (the tagged algebra) to RFC 8785 canonical JSON under
   `bounds` (a `Bounds` struct or tighten-only overrides, defaulting to the
-  profile maxima). The `bytes` ceiling bounds the OUTPUT size.
+  profile maxima). Every structural ceiling applies to hand-built values,
+  including container size, string and key lengths, node count, and depth;
+  the `bytes` ceiling bounds the output size. Producers cannot emit artifacts
+  that verifiers refuse to decode.
   """
   @spec encode(Json.value(), Bounds.t() | map()) :: {:ok, binary()} | {:error, reason()}
   def encode(value, bounds \\ Bounds.maximum()) do
     with {:ok, bounds} <- Bounds.coerce(bounds),
+         {:ok, _nodes} <- shape(value, bounds, 0, 0),
          {:ok, iodata} <- iodata(value) do
       binary = IO.iodata_to_binary(iodata)
 
@@ -77,8 +81,12 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   """
   @spec sort_key(binary()) :: binary()
   def sort_key(name) when is_binary(name) do
-    :unicode.characters_to_binary(name, :utf8, {:utf16, :big})
+    if String.valid?(name),
+      do: :unicode.characters_to_binary(name, :utf8, {:utf16, :big}),
+      else: {:error, :invalid_encoding}
   end
+
+  def sort_key(_), do: {:error, :invalid_type}
 
   @doc """
   Serialize `float` per ECMA-262 §7.1.12.1 (Note 2 included): `-0.0` is
@@ -94,6 +102,8 @@ defmodule AgentBlueprintProtocol.Canonicalization do
     end
   end
 
+  def number(_), do: {:error, :invalid_type}
+
   @type reason ::
           :non_canonical_bytes
           | :integer_magnitude
@@ -107,14 +117,80 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   `:number_not_double_expressible` included — can surface here).
   """
   @spec verify(binary(), Bounds.t() | map()) :: {:ok, Json.value()} | {:error, reason()}
-  def verify(input, bounds \\ Bounds.maximum()) when is_binary(input) do
+  def verify(input, bounds \\ Bounds.maximum())
+
+  def verify(input, bounds) when is_binary(input) do
     with {:ok, value} <- Json.decode(input, bounds),
          {:ok, canonical} <- encode(value, bounds) do
       if canonical == input, do: {:ok, value}, else: {:error, :non_canonical_bytes}
     end
   end
 
+  def verify(_, _), do: {:error, :invalid_type}
+
   # ---- encode walk ------------------------------------------------------------
+
+  defp shape(_value, bounds, _depth, nodes) when nodes >= bounds.nodes,
+    do: {:error, {:ceiling, :nodes}}
+
+  defp shape({tag, values}, bounds, depth, nodes)
+       when tag in [:array, :object] and is_list(values) do
+    limit = if tag == :array, do: bounds.items, else: bounds.members
+    field = if tag == :array, do: :items, else: :members
+
+    if depth >= bounds.depth do
+      {:error, {:ceiling, :depth}}
+    else
+      with :ok <- container_size(values, limit, field),
+           do: shape_children(values, tag, bounds, depth + 1, nodes + 1)
+    end
+  end
+
+  defp shape({:string, value}, bounds, _depth, nodes) when is_binary(value) do
+    cond do
+      byte_size(value) > bounds.bytes -> {:error, {:ceiling, :bytes}}
+      byte_size(value) > bounds.string -> {:error, {:ceiling, :string}}
+      true -> {:ok, nodes + 1}
+    end
+  end
+
+  defp shape(:null, _bounds, _depth, nodes), do: {:ok, nodes + 1}
+
+  defp shape({:boolean, value}, _bounds, _depth, nodes) when is_boolean(value),
+    do: {:ok, nodes + 1}
+
+  defp shape({:integer, value}, _bounds, _depth, nodes) when is_integer(value),
+    do: {:ok, nodes + 1}
+
+  defp shape({:float, value}, _bounds, _depth, nodes) when is_float(value), do: {:ok, nodes + 1}
+  defp shape(_, _, _, _), do: {:error, :invalid_type}
+
+  defp container_size([], _remaining, _field), do: :ok
+  defp container_size([_ | _], 0, field), do: {:error, {:ceiling, field}}
+
+  defp container_size([_ | rest], remaining, field),
+    do: container_size(rest, remaining - 1, field)
+
+  defp container_size(_, _, _), do: {:error, :invalid_type}
+
+  defp shape_children([], _tag, _bounds, _depth, nodes), do: {:ok, nodes}
+
+  defp shape_children([value | rest], :array, bounds, depth, nodes) do
+    with {:ok, next} <- shape(value, bounds, depth, nodes),
+         do: shape_children(rest, :array, bounds, depth, next)
+  end
+
+  defp shape_children([{name, value} | rest], :object, bounds, depth, nodes)
+       when is_binary(name) do
+    if byte_size(name) > bounds.key do
+      {:error, {:ceiling, :key}}
+    else
+      with {:ok, next} <- shape(value, bounds, depth, nodes),
+           do: shape_children(rest, :object, bounds, depth, next)
+    end
+  end
+
+  defp shape_children(_, _, _, _, _), do: {:error, :invalid_type}
 
   defp iodata(:null), do: {:ok, "null"}
   defp iodata({:boolean, true}), do: {:ok, "true"}

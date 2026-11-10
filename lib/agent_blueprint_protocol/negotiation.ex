@@ -238,7 +238,9 @@ defmodule AgentBlueprintProtocol.Negotiation do
     # Revision stays FIRST (the pinned order — a max+1 artifact reports
     # its revision reason before any other defect, including an undecidable
     # kind); the vocabulary follows and feeds the fields check.
-    with {:ok, revision} <- revision_check(value, support),
+    with :ok <- support_shape(support),
+         {:ok, _} <- Canonicalization.encode(value),
+         {:ok, revision} <- revision_check(value, support),
          {:ok, vocabulary} <- vocabulary_of(value),
          :ok <- required_fields_check(value, support, vocabulary),
          {:ok, extensions} <- extensions_check(value, support) do
@@ -253,6 +255,18 @@ defmodule AgentBlueprintProtocol.Negotiation do
        }}
     end
   end
+
+  def negotiate(_, _), do: {:error, :invalid_type}
+
+  defp support_shape(%Support{
+         revisions: %MapSet{},
+         core_fields: %MapSet{},
+         registry: registry,
+         schemas: schemas
+       })
+       when is_map(registry) and is_map(schemas), do: :ok
+
+  defp support_shape(_), do: {:error, :invalid_type}
 
   # The artifact kind resolves through MACHINERY only (content
   # digests are protocol machinery): which digest member the value carries

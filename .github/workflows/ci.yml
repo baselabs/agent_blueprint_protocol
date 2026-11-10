@@ -160,7 +160,7 @@ jobs:
       # kit (gitignored dist/) must be built from this same tree first.
       - name: Build the npm kit
         run: |
-          npm install --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
           npm run build
 
       - name: Run complete quality gate

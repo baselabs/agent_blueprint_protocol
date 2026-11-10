@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // The Blueprint artifact — the mirror of AgentBlueprintProtocol.Blueprint:
 // canonical verify → the 18-member registry table → the portability scan →
 // the content-digest comparison, over the digest-covered members minus the
@@ -246,7 +247,11 @@ export function decode(
 }
 
 export function fromValue(value: Value, opts: { authoredExtensions?: string[] } = {}): { ok: true; v: Blueprint } | { ok: false; e: string } {
+  if (opts === null || typeof opts !== "object" || Array.isArray(opts)) return { ok: false, e: "invalid_type" };
   const validated = opts.authoredExtensions ?? [];
+  if (!Array.isArray(validated) || validated.some((ns) => typeof ns !== "string")) return { ok: false, e: "invalid_type" };
+  const shaped = canonical.encode(value);
+  if (!shaped.ok) return shaped;
   if (validated.length > 0) {
     if (value.t !== "obj") return { ok: false, e: "invalid_type" };
     const critical = extension.criticalNamespaces(value.v);
@@ -259,29 +264,32 @@ export function fromValue(value: Value, opts: { authoredExtensions?: string[] } 
   return { ok: true, v: { value } };
 }
 
-export function toValue(blueprint: Blueprint): Value {
-  return blueprint.value;
+export function toValue(blueprint: Blueprint): Value | { ok: false; e: string } {
+  return blueprint && isValue(blueprint.value) ? blueprint.value : { ok: false, e: "invalid_type" };
 }
 
 // ---- digest surface ----------------------------------------------------------------
 
-export function digestInput(blueprint: Blueprint): Value {
+export function digestInput(blueprint: Blueprint): Value | { ok: false; e: string } {
+  if (!blueprint || !isValue(blueprint.value)) return { ok: false, e: "invalid_type" };
   if (blueprint.value.t !== "obj") return blueprint.value;
   return { t: "obj", v: blueprint.value.v.filter(([name]) => !EVIDENCE_MEMBERS.includes(name)) };
 }
 
 export function canonicalBytes(blueprint: Blueprint): { ok: true; v: string } | { ok: false; e: string } {
+  if (!blueprint || typeof blueprint !== "object") return { ok: false, e: "invalid_type" };
   return canonical.encode(blueprint.value);
 }
 
 // The honest content digest over the covered members' canonical bytes.
-export function contentDigest(blueprint: Blueprint): string {
+export function contentDigest(blueprint: Blueprint): string | { ok: false; e: string } {
   const jcs = canonical.encode(digestInput(blueprint));
-  if (!jcs.ok) throw new Error("blueprint digest input must encode");
+  if (!jcs.ok) return jcs;
   return digest.toTagged(digest.hash("blueprint_content", Buffer.from(jcs.v, "utf8")));
 }
 
 export function verifyContentDigest(blueprint: Blueprint): VResult {
+  if (!blueprint || !isValue(blueprint.value)) return { ok: false, e: "invalid_type" };
   const members = blueprint.value.t === "obj" ? blueprint.value.v : [];
   const declared = keyfind(members, "content_digest");
   if (declared === null || declared.t !== "str") return { ok: false, e: "invalid_type" };
@@ -612,10 +620,7 @@ function predicateOperands(members: [string, Value][]): Value[] {
     if (kind === null || kind.t !== "str" || kind.v !== "deterministic_predicate") continue;
     const predicateValue = keyfind(assertion.v, "predicate");
     if (predicateValue === null || predicateValue.t !== "obj") continue;
-    for (const operandName of ["value", "values"]) {
-      const operand = keyfind(predicateValue.v, operandName);
-      if (operand !== null) out.push(operand);
-    }
+    out.push(predicateValue);
   }
   return out;
 }
@@ -745,6 +750,7 @@ function malformed(): { ok: false; e: string } {
 }
 
 export function signatureAttributes(entry: Value): { ok: true; v: SignatureAttributes } | { ok: false; e: string } {
+  if (!isValue(entry)) return { ok: false, e: "invalid_type" };
   if (entry.t !== "obj") return malformed();
   const entryPairs = entry.v;
 
@@ -836,6 +842,7 @@ export function signatureAttributes(entry: Value): { ok: true; v: SignatureAttri
 
 // DateTime.from_iso8601's field validation for the Z whole-second form.
 export function validZFormDate(stamped: string): boolean {
+  if (typeof stamped !== "string") return false;
   const year = Number(stamped.slice(0, 4));
   const month = Number(stamped.slice(5, 7));
   const day = Number(stamped.slice(8, 10));

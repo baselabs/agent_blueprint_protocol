@@ -1,8 +1,9 @@
 // The never-portable structural guard — the mirror of AgentBlueprintProtocol.Portability:
 // member-name and value-shape denylists over tagged values, four walks
 // (scan / scanAuthored / scanIdentifier / scanValue) with the position-scoped
-// identifier exemption. Deny reason everywhere: forbidden_portable_value.
+// identifier exemption and bounded recursion. Malformed inputs deny by type.
 
+import { MAXIMA } from "./bounds.ts";
 import type { Value } from "./value.ts";
 
 // The 34-name member denylist, verbatim, stored NORMALIZED (snake +
@@ -73,7 +74,7 @@ const B64URL = /^[A-Za-z0-9_-]+$/;
 const LOWER_IDENTIFIER = /^[a-z0-9_-]+$/;
 const UPPER_IDENTIFIER = /^[A-Z0-9_-]+$/;
 
-type ScanResult = { ok: true } | { ok: false; e: "forbidden_portable_value" };
+type ScanResult = { ok: true } | { ok: false; e: "forbidden_portable_value" | "invalid_type" | "ceiling:depth" };
 
 const forbidden = (): ScanResult => ({ ok: false, e: "forbidden_portable_value" });
 
@@ -102,22 +103,29 @@ function deniedName(name: string): boolean {
   return DENIED_NAMES.has(normalized);
 }
 
-function walk(value: Value, names: boolean, exempt: boolean): ScanResult {
+function walk(value: Value, names: boolean, exempt: boolean, depth = 0): ScanResult {
+  if (value === null || typeof value !== "object") return { ok: false, e: "invalid_type" };
+  if ((value.t === "obj" || value.t === "arr") && depth >= MAXIMA.depth) return { ok: false, e: "ceiling:depth" };
   switch (value.t) {
     case "obj": {
+      if (!Array.isArray(value.v) || Array.from(value.v).some((pair) => !Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== "string")) return { ok: false, e: "invalid_type" };
       if (names && value.v.some(([name]) => deniedName(name))) return forbidden();
       for (const [, member] of value.v) {
-        if (!walk(member, names, exempt).ok) return forbidden();
+        const result = walk(member, names, exempt, depth + 1);
+        if (!result.ok) return result;
       }
       return { ok: true };
     }
     case "arr": {
+      if (!Array.isArray(value.v)) return { ok: false, e: "invalid_type" };
       for (const item of value.v) {
-        if (!walk(item, names, exempt).ok) return forbidden();
+        const result = walk(item, names, exempt, depth + 1);
+        if (!result.ok) return result;
       }
       return { ok: true };
     }
     case "str":
+      if (typeof value.v !== "string") return { ok: false, e: "invalid_type" };
       if (exempt && identifierStyle(value.v)) return { ok: true };
       return forbiddenValue(value.v) ? forbidden() : { ok: true };
     default:

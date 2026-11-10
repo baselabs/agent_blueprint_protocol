@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // The Deployment Manifest artifact — the mirror of AgentBlueprintProtocol.Deployment:
 // canonical verify → the 19-member registry table (exact-only build-identity
 // versions, lifecycle temporal rules, the as_of total rule) → the portability
@@ -307,7 +308,11 @@ export function decode(
 }
 
 export function fromValue(value: Value, opts: { authoredExtensions?: string[] } = {}): { ok: true; v: Deployment } | { ok: false; e: string } {
+  if (opts === null || typeof opts !== "object" || Array.isArray(opts)) return { ok: false, e: "invalid_type" };
   const validated = opts.authoredExtensions ?? [];
+  if (!Array.isArray(validated) || validated.some((ns) => typeof ns !== "string")) return { ok: false, e: "invalid_type" };
+  const shaped = canonical.encode(value);
+  if (!shaped.ok) return shaped;
   if (validated.length > 0) {
     if (value.t !== "obj") return { ok: false, e: "invalid_type" };
     const critical = extension.criticalNamespaces(value.v);
@@ -320,28 +325,31 @@ export function fromValue(value: Value, opts: { authoredExtensions?: string[] } 
   return { ok: true, v: { value } };
 }
 
-export function toValue(deployment: Deployment): Value {
-  return deployment.value;
+export function toValue(deployment: Deployment): Value | { ok: false; e: string } {
+  return deployment && isValue(deployment.value) ? deployment.value : { ok: false, e: "invalid_type" };
 }
 
 // ---- digest surface --------------------------------------------------------------------
 
-export function digestInput(deployment: Deployment): Value {
+export function digestInput(deployment: Deployment): Value | { ok: false; e: string } {
+  if (!deployment || !isValue(deployment.value)) return { ok: false, e: "invalid_type" };
   if (deployment.value.t !== "obj") return deployment.value;
   return { t: "obj", v: deployment.value.v.filter(([name]) => !EVIDENCE_MEMBERS.includes(name)) };
 }
 
 export function canonicalBytes(deployment: Deployment): { ok: true; v: string } | { ok: false; e: string } {
+  if (!deployment || typeof deployment !== "object") return { ok: false, e: "invalid_type" };
   return canonical.encode(deployment.value);
 }
 
-export function contentDigest(deployment: Deployment): string {
+export function contentDigest(deployment: Deployment): string | { ok: false; e: string } {
   const jcs = canonical.encode(digestInput(deployment));
-  if (!jcs.ok) throw new Error("deployment digest input must encode");
+  if (!jcs.ok) return jcs;
   return digest.toTagged(digest.hash("deployment_content", Buffer.from(jcs.v, "utf8")));
 }
 
 export function verifyContentDigest(deployment: Deployment): VResult {
+  if (!deployment || !isValue(deployment.value)) return { ok: false, e: "invalid_type" };
   const members = deployment.value.t === "obj" ? deployment.value.v : [];
   const declared = keyfind(members, "deployment_digest");
   if (declared === null || declared.t !== "str") return { ok: false, e: "invalid_type" };
@@ -362,6 +370,7 @@ interface Release {
 // a non-array member, a non-object entry, a non-string operand, or an
 // unparsable descriptor digest is a malformed deployment, never empty.
 function boundToolBindings(deployment: Deployment): { ok: true; v: Value[] } | { ok: false; e: string } {
+  if (!deployment || !isValue(deployment.value)) return { ok: false, e: "invalid_type" };
   if (deployment.value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = deployment.value.v;
   const names = members.map(([name]) => name);
@@ -393,6 +402,7 @@ function boundRelease(deployment: Deployment): { ok: true; v: Release } | { ok: 
   const bindings = boundToolBindings(deployment);
   if (!bindings.ok) return bindings;
 
+  if (!deployment || !isValue(deployment.value)) return { ok: false, e: "invalid_type" };
   if (deployment.value.t !== "obj") return { ok: false, e: "invalid_type" };
   const release = keyfind(deployment.value.v, "blueprint_release");
   if (release === null || release.t !== "obj") return { ok: false, e: "invalid_type" };
@@ -417,6 +427,8 @@ export function verifyBinding(
   bound: blueprint.Blueprint,
   obs: Observations,
 ): VResult {
+  if (!deployment || !isValue(deployment.value) || !bound || !isValue(bound.value) || !obs || typeof obs !== "object" || !obs.observed || typeof obs.observed !== "object" ||
+      (Object.getPrototypeOf(obs.observed) !== Object.prototype && Object.getPrototypeOf(obs.observed) !== null)) return { ok: false, e: "invalid_type" };
   const bindings = boundToolBindings(deployment);
   if (!bindings.ok) return bindings;
 
@@ -522,6 +534,7 @@ function stageRugPull(bindings: Value[], obs: Observations): VResult {
   for (const entry of bindings) {
     const operation = memberString(entry, "logical_operation");
     const tagged = memberString(entry, "descriptor_digest");
+    if (typeof tagged !== "string") return { ok: false, e: "invalid_type" };
     const parsed = digest.fromTagged(tagged);
     if (parsed.ok) attested.set(operation, parsed.v);
   }
@@ -539,6 +552,7 @@ function stageRugPull(bindings: Value[], obs: Observations): VResult {
 }
 
 function recoveryMode(deployment: Deployment): { ok: true; v: string } | { ok: false; e: string } {
+  if (!deployment || !isValue(deployment.value)) return { ok: false, e: "invalid_type" };
   if (deployment.value.t !== "obj") return { ok: false, e: "invalid_type" };
   const owner = keyfind(deployment.value.v, "effect_owner");
   if (owner === null || owner.t !== "obj") return { ok: false, e: "invalid_type" };
@@ -553,6 +567,7 @@ function recoveryMode(deployment: Deployment): { ok: true; v: string } | { ok: f
 function blueprintContentDigest(bound: blueprint.Blueprint): digest.Digest | null {
   try {
     const tagged = blueprint.contentDigest(bound);
+    if (typeof tagged !== "string") return null;
     const parsed = digest.fromTagged(tagged);
     return parsed.ok ? parsed.v : null;
   } catch {
@@ -850,6 +865,7 @@ function normalizeBounds(bounds?: Bounds | Record<string, unknown>): { ok: true;
 // (DateTime.from_iso8601 parity, restricted to the calendar-valid Z form the
 // tables already enforce).
 export function parseTimestamp(stamped: string): number | null {
+  if (typeof stamped !== "string") return null;
   const matched = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(Z|[+-]\d{2}:\d{2})$/.exec(stamped);
   if (matched === null) return null;
   const [, y, mo, d, h, mi, s, zone] = matched;

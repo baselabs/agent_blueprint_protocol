@@ -13,13 +13,17 @@
 
 const ALPHABET = /^[A-Za-z0-9_-]*$/;
 
-export function encode(data: Buffer): string {
+export function encode(data: Buffer): string;
+export function encode(data: unknown): string | { ok: false; e: string };
+export function encode(data: unknown): string | { ok: false; e: string } {
+  if (!Buffer.isBuffer(data)) return { ok: false, e: "invalid_type" };
   return data.toString("base64url");
 }
 
-export type StrictErr = "base64url_padded" | "base64url_invalid";
+export type StrictErr = "base64url_padded" | "base64url_invalid" | "invalid_type";
 
 export function decodeStrict(input: string): { ok: true; v: Buffer } | { ok: false; e: StrictErr } {
+  if (typeof input !== "string") return { ok: false, e: "invalid_type" };
   if (input.includes("=")) return { ok: false, e: "base64url_padded" };
   if (!ALPHABET.test(input)) return { ok: false, e: "base64url_invalid" };
   if (input.length % 4 === 1) return { ok: false, e: "base64url_invalid" };
@@ -30,7 +34,8 @@ export function decodeStrict(input: string): { ok: true; v: Buffer } | { ok: fal
 
 const LENIENT = /^[A-Za-z0-9_-]+={0,2}$/;
 
-export function decodeLenient(input: string): { ok: true; v: Buffer } | { ok: false; e: "lenient_invalid" } {
+export function decodeLenient(input: string): { ok: true; v: Buffer } | { ok: false; e: "lenient_invalid" | "invalid_type" } {
+  if (typeof input !== "string") return { ok: false, e: "invalid_type" };
   if (!LENIENT.test(input)) return { ok: false, e: "lenient_invalid" };
   if (input.length % 4 === 1) return { ok: false, e: "lenient_invalid" };
   return { ok: true, v: Buffer.from(input, "base64url") };

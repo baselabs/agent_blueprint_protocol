@@ -64,25 +64,34 @@ defmodule AgentBlueprintProtocol.Digest do
 
   @doc "SHA-256 of `data` as a tagged digest value."
   @spec of(iodata()) :: t()
-  def of(data), do: %__MODULE__{algorithm: :sha256, bytes: :crypto.hash(:sha256, data)}
+  def of(data) do
+    if iodata?(data),
+      do: %__MODULE__{algorithm: :sha256, bytes: :crypto.hash(:sha256, data)},
+      else: {:error, :invalid_type}
+  end
 
   @doc """
   Domain-separated digest over canonical JCS bytes: the base §8.2 preimage
   `separator || <<0>> || jcs_bytes` under the registered separator for
-  `domain`. An unknown domain is an internal invariant and raises loudly.
+  `domain`. An unknown domain or malformed byte input denies `:invalid_type`.
   """
   @spec hash(domain(), iodata()) :: t()
-  def hash(domain, data), do: of([Map.fetch!(@separators, domain), <<0>>, data])
+  def hash(domain, data) do
+    case Map.fetch(@separators, domain) do
+      {:ok, separator} -> of([separator, <<0>>, data])
+      :error -> {:error, :invalid_type}
+    end
+  end
 
   @doc ~S"""
-  The wire form `"sha-256:<43-char unpadded base64url>"`. The clause matches
-  the 256-bit `t()` byte shape, so a hand-built struct with wrong-size bytes
-  fails loud (a `FunctionClauseError` invariant) rather than emitting a
-  non-conforming wire string.
+  The wire form `"sha-256:<43-char unpadded base64url>"`. A hand-built struct with an unknown algorithm or wrong-size bytes
+  denies `:invalid_type`.
   """
   @spec to_tagged(t()) :: binary()
-  def to_tagged(%__MODULE__{algorithm: algorithm, bytes: <<_::256>> = bytes}),
+  def to_tagged(%__MODULE__{algorithm: :sha256 = algorithm, bytes: <<_::256>> = bytes}),
     do: Map.fetch!(@tags, algorithm) <> ":" <> Base64Url.encode(bytes)
+
+  def to_tagged(_), do: {:error, :invalid_type}
 
   @doc """
   Parse a tagged digest string. A string with no colon is not a tagged
@@ -107,6 +116,8 @@ defmodule AgentBlueprintProtocol.Digest do
     end
   end
 
+  def from_tagged(_), do: {:error, :invalid_type}
+
   @doc """
   Constant-time equality over the digest bytes: the comparison accumulates
   the XOR of every byte pair and tests once at the end, so no early exit
@@ -117,8 +128,11 @@ defmodule AgentBlueprintProtocol.Digest do
   """
   @spec equal?(t(), t()) :: boolean()
   def equal?(%__MODULE__{algorithm: a1, bytes: b1}, %__MODULE__{algorithm: a2, bytes: b2}) do
-    byte_size(b1) == byte_size(b2) and a1 == a2 and xor_zero?(b1, b2, 0)
+    is_binary(b1) and is_binary(b2) and byte_size(b1) == byte_size(b2) and a1 == a2 and
+      xor_zero?(b1, b2, 0)
   end
+
+  def equal?(_, _), do: false
 
   @doc """
   Verify that `tagged` is the honest `hash(domain, jcs_bytes)`: parse first
@@ -129,11 +143,22 @@ defmodule AgentBlueprintProtocol.Digest do
   """
   @spec verify_content(domain(), binary(), binary()) :: :ok | {:error, reason()}
   def verify_content(domain, jcs_bytes, tagged)
-      when is_binary(jcs_bytes) and is_binary(tagged) do
+      when is_map_key(@separators, domain) and is_binary(jcs_bytes) and is_binary(tagged) do
     with {:ok, declared} <- from_tagged(tagged) do
       if equal?(hash(domain, jcs_bytes), declared), do: :ok, else: {:error, :digest_mismatch}
     end
   end
+
+  def verify_content(_, _, _), do: {:error, :invalid_type}
+
+  defp iodata?(data) when is_binary(data), do: true
+  defp iodata?([]), do: true
+
+  defp iodata?([head | tail]) when is_integer(head) and head >= 0 and head <= 255,
+    do: iodata?(tail)
+
+  defp iodata?([head | tail]), do: iodata?(head) and iodata?(tail)
+  defp iodata?(_), do: false
 
   # ---- internals ----------------------------------------------------------------
 

@@ -26,7 +26,7 @@ const CREATED_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 export interface PublicKey {
   keyId: string;
-  key: Buffer; // raw 32-byte Ed25519 encoding
+  key: Uint8Array; // raw 32-byte Ed25519 encoding
 }
 
 type VerifyResult = { ok: true; v: "verified" } | { ok: false; e: string };
@@ -36,6 +36,7 @@ function malformed(): { ok: false; e: string } {
 }
 
 export function verify(entry: Value, keys: PublicKey[]): VerifyResult {
+  if (!Array.isArray(keys) || keys.some((key) => key === null || typeof key !== "object")) return { ok: false, e: "invalid_type" };
   const parts = parseParts(entry);
   if (!parts.ok) return parts;
   const input = parts.v.headerB64 + "." + parts.v.payload;
@@ -64,6 +65,8 @@ interface Parts {
 }
 
 function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: string } {
+  const shaped = encode(entry);
+  if (!shaped.ok) return shaped.e === "invalid_type" ? shaped : malformed();
   if (entry.t !== "obj") return malformed();
   const names = entry.v.map(([k]) => k).sort();
   if (
@@ -210,8 +213,8 @@ export function keyObjectCacheSize(): number {
   return keyObjectCache.size;
 }
 
-function keyObject(raw: Buffer): KeyObject {
-  const x = raw.toString("base64url");
+function keyObject(raw: Uint8Array): KeyObject {
+  const x = Buffer.from(raw).toString("base64url");
   const cached = keyObjectCache.get(x);
   if (cached !== undefined) return cached;
   const key = createPublicKey({ key: { kty: "OKP", crv: "Ed25519", x }, format: "jwk" });
@@ -234,7 +237,7 @@ function keyObject(raw: Buffer): KeyObject {
 const ED_L = 2n ** 252n + 27742317777372353535851937790883648493n;
 
 export function strictSignature(signature: Buffer): boolean {
-  if (signature.length !== 64) return false;
+  if (!Buffer.isBuffer(signature) || signature.length !== 64) return false;
   return leInt(signature.subarray(32)) < ED_L && usableEd25519Key(signature.subarray(0, 32));
 }
 
@@ -267,8 +270,9 @@ function modPow(base: bigint, exponent: bigint): bigint {
   return result;
 }
 
-export function usableEd25519Key(encoding: Buffer): boolean {
-  if (encoding.length !== 32) return false;
+export function usableEd25519Key(input: Uint8Array): boolean {
+  if (!(input instanceof Uint8Array) || input.length !== 32) return false;
+  const encoding = Buffer.from(input);
   const yRaw = encoding.readBigUInt64LE(0) | (encoding.readBigUInt64LE(8) << 64n) |
     (encoding.readBigUInt64LE(16) << 128n) | (encoding.readBigUInt64LE(24) << 192n);
   // RFC 8032 5.1.2: bit 255 carries the sign of x; the low 255 bits are y.

@@ -91,7 +91,8 @@ defmodule AgentBlueprintProtocol.Compatibility do
   @spec verify(Deployment.t(), Observed.t()) :: {:ok, Evidence.t()} | {:error, Error.t()}
   def verify(%Deployment{} = deployment, %Observed{identities: identities})
       when is_list(identities) do
-    with {:ok, manifest} <- manifest_identities(deployment),
+    with {:ok, _} <- deployment_shape(deployment),
+         {:ok, manifest} <- manifest_identities(deployment),
          {:ok, observed} <- validated_observed(identities) do
       match_manifest(manifest, observed, deployment)
     end
@@ -103,6 +104,13 @@ defmodule AgentBlueprintProtocol.Compatibility do
   def verify(%Deployment{}, _), do: {:error, %Error{code: :invalid_type, subject: ["observed"]}}
 
   def verify(_, _), do: {:error, %Error{code: :invalid_type, subject: ["deployment"]}}
+
+  defp deployment_shape(deployment) do
+    case Deployment.canonical_bytes(deployment) do
+      {:ok, bytes} -> {:ok, bytes}
+      {:error, reason} -> {:error, %Error{code: reason, subject: ["deployment"]}}
+    end
+  end
 
   # The manifest side: read build_identities as identity maps with their
   # member indices. Absent member, non-array member, or a malformed entry
@@ -168,27 +176,24 @@ defmodule AgentBlueprintProtocol.Compatibility do
 
   # The observed side: host-built, so every shape is checked here — exactly
   # the four keys, every value a binary, every version an exact spelling.
-  defp validated_observed(identities) do
-    identities
-    |> Enum.with_index()
-    |> Enum.reduce_while({:ok, []}, fn {identity, index}, {:ok, acc} ->
-      cond do
-        not well_formed?(identity) ->
-          {:halt, {:error, %Error{code: :invalid_type, subject: ["identities", index]}}}
+  defp validated_observed(identities), do: validated_observed(identities, 0, [])
+  defp validated_observed([], _index, acc), do: {:ok, Enum.reverse(acc)}
 
-        not exact?(identity) ->
-          {:halt,
-           {:error, %Error{code: :compatibility_identity_inexact, subject: ["identities", index]}}}
+  defp validated_observed([identity | rest], index, acc) do
+    cond do
+      not well_formed?(identity) ->
+        {:error, %Error{code: :invalid_type, subject: ["identities", index]}}
 
-        true ->
-          {:cont, {:ok, [identity | acc]}}
-      end
-    end)
-    |> case do
-      {:ok, reversed} -> {:ok, Enum.reverse(reversed)}
-      error -> error
+      not exact?(identity) ->
+        {:error, %Error{code: :compatibility_identity_inexact, subject: ["identities", index]}}
+
+      true ->
+        validated_observed(rest, index + 1, [identity | acc])
     end
   end
+
+  defp validated_observed(_, index, _),
+    do: {:error, %Error{code: :invalid_type, subject: ["identities", index]}}
 
   defp well_formed?(identity) do
     is_map(identity) and map_size(identity) == 4 and

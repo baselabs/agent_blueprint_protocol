@@ -304,6 +304,8 @@ check(
       const compact = memberString(wrapped, "compact")!;
       const purpose = memberString(member(entry, "signed_attributes")!, "purpose");
       const verified = sigVerify(entry, keys);
+      const byteArrayResult = sigVerify(entry, keys.map((key) => ({ ...key, key: new Uint8Array(key.key) })));
+      check(`jose byte-array key verifies (${purpose})`, byteArrayResult.ok, true);
       check(
         `jose entry verifies (${purpose})`,
         verified.ok && verified.v === "verified",
@@ -783,7 +785,7 @@ function flipSignatureByte(entry: Value): Value {
 
 import { load, loadPriorCensus } from "./corpus.ts";
 import * as digest from "./digest.ts";
-import { arr, int, obj, str } from "./value.ts";
+import { arr, int, obj, str, nil, bool } from "./value.ts";
 
 function sha256B64Of(bytes: Buffer | string): string {
   return createHash("sha256").update(bytes).digest("base64url");
@@ -1075,6 +1077,94 @@ const exampleIdentity = { kind: "tool", name: "example", version: "1.0.0", diges
 const observedWithInheritedMembers = Object.assign(Object.create(exampleIdentity), { one: 1, two: 2, three: 3, four: 4 });
 const exampleDeployment = { value: obj([["build_identities", arr([obj(Object.entries(exampleIdentity).map(([key, value]) => [key, str(value)]))])]]) };
 check("compatibility: inherited identity members deny", resultCode(() => compatibility.verify(exampleDeployment, { identities: [observedWithInheritedMembers] })), "invalid_type");
+
+import * as blueprint from "./blueprint.ts";
+
+// Direct inputs exercise boundaries that JSON bytes cannot carry.
+import { MAXIMA } from "./bounds.ts";
+check("bounds: immutable maxima", Object.isFrozen(MAXIMA), true);
+check("decode: empty overrides retain depth", resultCode(() => decode("[".repeat(65) + "0" + "]".repeat(65), {})), "ceiling:depth");
+check("decode: partial overrides retain strings", resultCode(() => decode(JSON.stringify("x".repeat(100_001)), { bytes: 200_000 })), "ceiling:string");
+check("decode: unknown overrides deny", resultCode(() => decode("0", { example: 1 })), "unknown_bound");
+check("encode: unknown overrides deny", resultCode(() => encode(nil, { example: 1 })), "unknown_bound");
+check("decode: lone surrogate input", resultCode(() => decode('"\ud800"')), "invalid_encoding");
+check("encode: non-finite float", resultCode(() => encode({ t: "float", v: NaN })), "invalid_number");
+let deepValue: Value = nil;
+for (let i = 0; i < 20_000; i++) deepValue = arr([deepValue]);
+check("encode: deep values deny", resultCode(() => encode(deepValue)), "ceiling:depth");
+const broadValue = obj([["example", arr(Array.from({ length: 201 }, () => arr(Array.from({ length: 1_000 }, () => nil))))]]);
+check("federation: total nodes", resultCode(() => federation.fromValue(broadValue)), "ceiling:nodes");
+check("signature: byte arrays are accepted as bytes", resultCode(() => ({ ok: usableEd25519Key(new Uint8Array(32) as Buffer), e: "unusable" })), "unusable");
+
+import * as schema from "./schema.ts";
+check("schema: deep instance denies", resultCode(() => schema.validateInstance(bool(true), deepValue, schema.dialect())), "invalid_type");
+check("schema: maximum-size arrays validate without exhausting the stack", resultCode(() => schema.validateInstance(obj([["items", bool(true)]]), arr(Array.from({ length: 10_000 }, () => nil)), schema.dialect())), "valid");
+check("schema: malformed scalar denies", resultCode(() => schema.validateInstance(bool(true), { t: "float", v: NaN }, schema.dialect())), "invalid_type");
+check("blueprint: malformed options deny", resultCode(() => blueprint.fromValue(obj([]), [] as unknown as {})), "invalid_type");
+check("signature: missing keys deny", resultCode(() => sigVerify(nil, null as unknown as [])), "invalid_type");
+check("signature: malformed member list denies", resultCode(() => sigVerify({ t: "obj", v: [null] } as unknown as Value, [])), "invalid_type");
+check("encode: malformed tagged scalar denies", resultCode(() => encode({ t: "bool", v: 1 } as unknown as Value)), "invalid_type");
+check("encode: malformed object member denies", resultCode(() => encode({ t: "obj", v: [null] } as unknown as Value)), "invalid_type");
+check("encode: partial overrides retain depth", resultCode(() => encode(arr([arr([])]), { depth: 1 })), "ceiling:depth");
+
+const exampleSchemaItems = obj([["items", obj([["enum", arr([str("match"), str("x".repeat(90_000))])]])]]);
+check("schema: shared enum payload validates across locations", resultCode(() => schema.validateInstance(exampleSchemaItems, arr(Array.from({ length: 1_600 }, () => str("match"))), schema.dialect())), "valid");
+for (const bad of [null, 1, { t: "arr", v: null }, { t: "obj", v: [null] }] as unknown as Value[]) {
+  check("encode: malformed host values deny", resultCode(() => encode(bad)), "invalid_type");
+  check("blueprint: malformed host values deny", resultCode(() => blueprint.fromValue(bad)), "invalid_type");
+}
+check("portability: deep values deny", resultCode(() => portability.scan(deepValue)), "ceiling:depth");
+check("portability: malformed members deny", resultCode(() => portability.scan({ t: "obj", v: [null] } as unknown as Value)), "invalid_type");
+import * as values from "./value.ts";
+import * as deployment from "./deployment.ts";
+import * as extension from "./extension.ts";
+import * as corpusApi from "./corpus.ts";
+import * as report from "./report.ts";
+import * as registryEngine from "./registry_engine.ts";
+import * as signatures from "./signature.ts";
+import * as decoder from "./decode.ts";
+
+check("schema: deep equality denies", schema.equal(deepValue, deepValue), false);
+check("value: deep equality denies", values.sameValue(deepValue, deepValue), false);
+check("value: deep tagged projection denies", (values.toPlain(deepValue) as { e: string }).e, "invalid_type");
+let deepPlain: values.Plain = null;
+for (let i = 0; i < 20_000; i++) deepPlain = [deepPlain];
+check("value: deep plain projection denies", (values.fromPlain(deepPlain) as { e: string }).e, "invalid_type");
+const cyclicValue: Value = arr([]);
+if (cyclicValue.t === "arr") cyclicValue.v.push(cyclicValue);
+check("value: cyclic equality denies", values.sameValue(cyclicValue, cyclicValue), false);
+check("value: cyclic projection denies", (values.toPlain(cyclicValue) as { e: string }).e, "invalid_type");
+check("schema: cyclic equality denies", schema.equal(cyclicValue, cyclicValue), false);
+const cyclicPlain: values.Plain[] = [];
+cyclicPlain.push(cyclicPlain);
+check("value: cyclic plain projection denies", (values.fromPlain(cyclicPlain) as { e: string }).e, "invalid_type");
+check("value: valid projection", JSON.stringify(values.toPlain(obj([["x", arr([int(1), nil])]]))), '{"x":[1,null]}');
+check("value: valid plain conversion", JSON.stringify(values.fromPlain({ x: [1, null] })), JSON.stringify(obj([["x", arr([int(1), nil])]])));
+
+const hostShapes: unknown[] = [null, undefined, 1, "x", Symbol("example"), {}, [], Array(1), new Set([1]), new Map(),
+  { t: "arr", v: null }, { t: "obj", v: [null] }, { t: "arr", v: Array(1) }, { t: "obj", v: Array(1) }, { t: "str", v: 1 }, { t: "bad" }, nil, obj([]),
+  { value: null }, { value: obj([]) }, new Map([["index.json", null]])];
+for (const [moduleName, api] of Object.entries({ b64, blueprint, deployment, compatibility, boundsAlgebra,
+    corpusApi, decoder, digest, extension, federation, negotiation, portability, predicate, registryEngine,
+    report, runner, schema, signatures, values })) {
+  for (const [name, fn] of Object.entries(api)) {
+    if (typeof fn !== "function" || name === "CodeFail" || name === "SyntaxFail") continue;
+    const call = fn as (...args: unknown[]) => unknown;
+    for (const bad of hostShapes) {
+      const args = Array.from({ length: call.length }, () => bad);
+      let raised = false;
+      try { call(...args); } catch { raised = true; }
+      check(`${moduleName}.${name}: malformed arguments return`, raised, false);
+    }
+  }
+}
+
+for (const kind of [null, undefined, { enum: [] }, { array: null }, { object: null }, { object: { members: null } }]) {
+  check("registry: malformed descriptors deny", resultCode(() => registryEngine.validate(
+    [{ name: "example", kind } as unknown as registryEngine.Spec], obj([["example", nil]]))), "invalid_type");
+}
+check("registry: malformed check denies", resultCode(() => registryEngine.validate(
+  [{ name: "example", kind: "any", check: 1 } as unknown as registryEngine.Spec], obj([["example", nil]]))), "invalid_type");
 
 // ---- summary --------------------------------------------------------------------
 

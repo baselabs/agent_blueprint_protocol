@@ -317,44 +317,64 @@ defmodule AgentBlueprintProtocol.Blueprint do
   them): their controls are the digest-pinned schema validation and the
   reserved-semantics denylist, both at negotiation. The default (`[]`)
   keeps the strict posture everywhere.
+  The caller is responsible for this provenance; the constructor checks only
+  that the supplied namespaces occur in this artifact's critical region.
+  `Reconcile.reconcile/3` derives the list from the current negotiation.
   """
   @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, reason()}
-  def from_value(value, opts \\ %{}) when is_map(value) or is_tuple(value) do
+  def from_value(value, opts \\ %{})
+
+  def from_value(value, opts) when is_map(opts) do
     validated = Map.get(opts, :authored_extensions, [])
 
-    with :ok <- authored_tied_to_value(value, validated),
+    with true <- authored_names?(validated) or {:error, :invalid_type},
+         {:ok, _bytes} <- Canonicalization.encode(value),
+         :ok <- authored_tied_to_value(value, validated),
          :ok <- Registry.validate(table(), value),
          :ok <- scan(value, MapSet.new(validated)) do
       {:ok, %__MODULE__{value: value}}
     end
   end
 
+  def from_value(_, _), do: {:error, :invalid_type}
+
   @doc "The held tagged value — the identity, so the round-trip is byte-exact."
   @spec to_value(t()) :: Json.value()
   def to_value(%__MODULE__{value: value}), do: value
+  def to_value(_), do: {:error, :invalid_type}
 
   @doc "The digest input: the artifact minus the three evidence members (§8.2)."
   @spec digest_input(t()) :: Json.value()
   def digest_input(%__MODULE__{value: {:object, members}}) do
-    {:object, Enum.reject(members, fn {name, _} -> name in @evidence_members end)}
+    with {:ok, _bytes} <- Canonicalization.encode({:object, members}) do
+      {:object, Enum.reject(members, fn {name, _} -> name in @evidence_members end)}
+    end
   end
+
+  def digest_input(_), do: {:error, :invalid_type}
 
   @doc "Whether `member_name` (a wire-level member name) is digest-covered."
   @spec digest_covered?(binary()) :: boolean()
   def digest_covered?(member_name) when is_binary(member_name),
     do: member_name in @covered_members
 
+  def digest_covered?(_), do: false
+
   @doc "The canonical bytes of the whole artifact."
   @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, reason()}
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
+  def canonical_bytes(_), do: {:error, :invalid_type}
 
   @doc "The honest content digest over the covered members' canonical bytes."
   @spec content_digest(t()) :: Digest.t() | {:error, reason()}
   def content_digest(%__MODULE__{} = blueprint) do
-    with {:ok, jcs} <- Canonicalization.encode(digest_input(blueprint)) do
+    with {:object, _} = covered <- digest_input(blueprint),
+         {:ok, jcs} <- Canonicalization.encode(covered) do
       Digest.hash(:blueprint_content, jcs)
     end
   end
+
+  def content_digest(_), do: {:error, :invalid_type}
 
   @doc """
   Compare the declared `content_digest` member against the recomputed
@@ -363,9 +383,18 @@ defmodule AgentBlueprintProtocol.Blueprint do
   """
   @spec verify_content_digest(t()) :: :ok | {:error, reason()}
   def verify_content_digest(%__MODULE__{value: {:object, members}} = blueprint) do
+    with {:ok, _} <- Canonicalization.encode({:object, members}) do
+      verify_declared_digest(blueprint, members)
+    end
+  end
+
+  def verify_content_digest(_), do: {:error, :invalid_type}
+
+  defp verify_declared_digest(blueprint, members) do
     case List.keyfind(members, "content_digest", 0) do
       {"content_digest", {:string, tagged}} ->
-        with {:ok, jcs} <- Canonicalization.encode(digest_input(blueprint)) do
+        with {:object, _} = covered <- digest_input(blueprint),
+             {:ok, jcs} <- Canonicalization.encode(covered) do
           Digest.verify_content(:blueprint_content, jcs, tagged)
         end
 
@@ -701,19 +730,21 @@ defmodule AgentBlueprintProtocol.Blueprint do
   # ---- the portability scan ------------------------------------------------------------------
 
   # The channel is tied to THIS artifact: every authored namespace must sit
-  # in this value's critical region (an
-  # Outcome from a different artifact, an optional/quarantined
-  # namespace, or a hand-typed list all deny here instead of silently
-  # waiving the scan). The composed-import helper that threads
+  # in this value's critical region (an optional or quarantined namespace denies here. The caller
+  # is responsible for supplying only schema-validated namespaces). The composed-import helper that threads
   # negotiation's validated list mechanically is the reconcile surface.
+  defp authored_names?([]), do: true
+  defp authored_names?([name | rest]) when is_binary(name), do: authored_names?(rest)
+  defp authored_names?(_), do: false
+
   defp authored_tied_to_value(_value, []), do: :ok
 
   defp authored_tied_to_value({:object, members}, authored) do
-    critical = Extension.critical_namespaces(members)
-
-    if Enum.all?(authored, &MapSet.member?(critical, &1)),
-      do: :ok,
-      else: {:error, :invalid_type}
+    with %MapSet{} = critical <- Extension.critical_namespaces(members) do
+      if Enum.all?(authored, &MapSet.member?(critical, &1)),
+        do: :ok,
+        else: {:error, :invalid_type}
+    end
   end
 
   defp authored_tied_to_value(_other, _authored), do: {:error, :invalid_type}
@@ -764,12 +795,8 @@ defmodule AgentBlueprintProtocol.Blueprint do
     for {:object, assertion} <- member_array(members, "evaluation_assertions"),
         {"kind", {:string, "deterministic_predicate"}} <-
           List.wrap(List.keyfind(assertion, "kind", 0)),
-        {"predicate", {:object, predicate_members}} <-
-          List.wrap(List.keyfind(assertion, "predicate", 0)),
-        operand_name <- ["value", "values"],
-        {^operand_name, operand} <-
-          List.wrap(List.keyfind(predicate_members, operand_name, 0)),
-        do: operand
+        {"predicate", predicate} <- List.wrap(List.keyfind(assertion, "predicate", 0)),
+        do: predicate
   end
 
   defp schema_documents(members) do

@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // The closed, portable boolean predicate algebra — the mirror of
 // AgentBlueprintProtocol.Predicate's validate/2 (the shape walk the Blueprint
 // root hook consumes): closed operator world, per-operator operand members,
@@ -45,6 +46,7 @@ const OPERANDS: Record<string, string[]> = {
 };
 
 export function validate(predicate: Value, portNames: string[]): VResult {
+  if (!isValue(predicate) || !Array.isArray(portNames) || portNames.some((name) => typeof name !== "string")) return { ok: false, e: "invalid_type" };
   const ports = new Set(portNames);
   const result = shape(predicate, ports, 0);
   return result.ok ? { ok: true } : { ok: false, e: result.e };

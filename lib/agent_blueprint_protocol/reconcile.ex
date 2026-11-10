@@ -26,7 +26,7 @@ defmodule AgentBlueprintProtocol.Reconcile do
   4. `structure` — `Registry` validation against each artifact's table
      (the closed world, cardinalities, member checks).
   5. `portability` — the DIRECT scans under the authored channel
-     re-derived from THIS import's negotiated critical extensions (F8):
+     re-derived from THIS import's negotiated critical extensions:
      non-authored extension bodies, eligibility expressions, every core
      string, and signature key_ids (`:forbidden_portable_value`). The
      registry half of the decode pipeline is NOT re-run here — it is
@@ -136,13 +136,17 @@ defmodule AgentBlueprintProtocol.Reconcile do
   end
 
   defp keys_check(keys) when is_list(keys) do
-    case Enum.find_index(keys, &(not is_struct(&1, PublicKey))) do
+    case invalid_key_index(keys, 0) do
       nil -> :ok
       index -> {:error, %Error{code: :invalid_type, subject: ["inputs", "keys", index]}}
     end
   end
 
   defp keys_check(_), do: {:error, %Error{code: :invalid_type, subject: ["inputs", "keys"]}}
+
+  defp invalid_key_index([], _index), do: nil
+  defp invalid_key_index([%PublicKey{} | rest], index), do: invalid_key_index(rest, index + 1)
+  defp invalid_key_index(_, index), do: index
 
   defp posture_check(posture) when posture in @postures, do: :ok
 
@@ -178,9 +182,7 @@ defmodule AgentBlueprintProtocol.Reconcile do
   end
 
   # The artifact ROOT must be an object before any member-reading stage
-  # runs — Blueprint/Deployment's own digest surfaces legitimately raise
-  # on struct-bypassed shapes (their documented contract), so the composed
-  # pass gates the root here to keep ITS never-raising contract.
+  # runs; the composed pass gates the root before reading artifact members.
   defp stage_canonical(blueprint, deployment) do
     with :ok <- object_root(Blueprint.to_value(blueprint), "blueprint"),
          {:ok, _} <- Blueprint.canonical_bytes(blueprint) |> typed("blueprint"),
@@ -407,11 +409,8 @@ defmodule AgentBlueprintProtocol.Reconcile do
     for {:object, assertion} <- member_array(members, "evaluation_assertions"),
         {"kind", {:string, "deterministic_predicate"}} <-
           List.wrap(List.keyfind(assertion, "kind", 0)),
-        {"predicate", {:object, predicate_members}} <-
-          List.wrap(List.keyfind(assertion, "predicate", 0)),
-        operand_name <- ["value", "values"],
-        {^operand_name, operand} <- List.wrap(List.keyfind(predicate_members, operand_name, 0)),
-        do: operand
+        {"predicate", predicate} <- List.wrap(List.keyfind(assertion, "predicate", 0)),
+        do: predicate
   end
 
   # Post-structure these members are present validated arrays; anything

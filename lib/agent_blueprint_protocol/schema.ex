@@ -165,7 +165,7 @@ defmodule AgentBlueprintProtocol.Schema do
     with :ok <- check_dialect(dialect),
          {:ok, parsed} <- coerce(schema),
          :ok <- tagged_well_formed(instance, :invalid_type) do
-      {result, _memo} = evaluate(parsed.root, instance, [], %{}, parsed.pointers)
+      {result, _memo} = evaluate(parsed.root, instance, [], %{}, {parsed.pointers, []})
       result
     end
   end
@@ -579,15 +579,15 @@ defmodule AgentBlueprintProtocol.Schema do
     end)
   end
 
-  ## Evaluation — memoized on (schema term, instance location)
+  ## Evaluation — memoized on (schema pointer, instance location)
 
   defp evaluate({:boolean, true}, _instance, _loc, memo, _pointers), do: {:ok, memo}
 
   defp evaluate({:boolean, false}, _instance, _loc, memo, _pointers),
     do: {{:error, :invalid_type}, memo}
 
-  defp evaluate({:object, _} = schema, instance, loc, memo, pointers) do
-    key = {schema, loc}
+  defp evaluate({:object, _} = schema, instance, loc, memo, {_index, path} = pointers) do
+    key = {path, loc}
 
     case memo do
       %{^key => result} ->
@@ -598,7 +598,7 @@ defmodule AgentBlueprintProtocol.Schema do
           {:ok, memo2} ->
             {:ok, Map.put(memo2, key, :ok)}
 
-          # errors are as deterministic as successes per (term, location) —
+          # errors are as deterministic as successes per (schema pointer, instance location) —
           # and the memo gained on the way down MUST survive the unwind:
           # dropping it re-walks shared subtrees once per distinct branch
           # (2^depth without it)
@@ -635,10 +635,10 @@ defmodule AgentBlueprintProtocol.Schema do
     end
   end
 
-  defp eval_keyword("$ref", _schema, {:string, ref}, instance, loc, memo, pointers) do
+  defp eval_keyword("$ref", _schema, {:string, ref}, instance, loc, memo, {pointers, _path}) do
     {:ok, tokens} = ref_tokens(ref)
 
-    case evaluate(Map.fetch!(pointers, tokens), instance, loc, memo, pointers) do
+    case evaluate(Map.fetch!(pointers, tokens), instance, loc, memo, {pointers, tokens}) do
       {:ok, memo2} -> {:ok, memo2}
       {{:error, reason}, memo2} -> {:error, reason, memo2}
     end
@@ -744,14 +744,17 @@ defmodule AgentBlueprintProtocol.Schema do
 
   defp eval_keyword("properties", _schema, {:object, subs}, instance, loc, memo, pointers) do
     case instance do
-      {:object, members} -> eval_present_properties(subs, members, loc, memo, pointers)
-      _non_object -> {:ok, memo}
+      {:object, members} ->
+        eval_present_properties(subs, members, loc, memo, child_pointer(pointers, "properties"))
+
+      _non_object ->
+        {:ok, memo}
     end
   end
 
   defp eval_keyword("items", _schema, sub, instance, loc, memo, pointers) do
     case instance do
-      {:array, items} -> eval_items(items, 0, sub, loc, memo, pointers)
+      {:array, items} -> eval_items(items, 0, sub, loc, memo, child_pointer(pointers, "items"))
       _non_array -> {:ok, memo}
     end
   end
@@ -769,7 +772,14 @@ defmodule AgentBlueprintProtocol.Schema do
   end
 
   defp eval_keyword("oneOf", _schema, {:array, branches}, instance, loc, memo, pointers) do
-    case count_passes(branches, instance, loc, memo, pointers, 0) do
+    case count_passes(
+           Enum.with_index(branches),
+           instance,
+           loc,
+           memo,
+           child_pointer(pointers, "oneOf"),
+           0
+         ) do
       {1, memo2} -> {:ok, memo2}
       {_other, memo2} -> {:error, :invalid_cardinality, memo2}
     end
@@ -789,10 +799,23 @@ defmodule AgentBlueprintProtocol.Schema do
     additional = Enum.reject(members, fn {name, _v} -> name in adjacent end)
 
     case sub do
-      {:boolean, true} -> {:ok, memo}
-      {:boolean, false} when additional == [] -> {:ok, memo}
-      {:boolean, false} -> {:error, :invalid_cardinality, memo}
-      _schema_value -> eval_additional(additional, sub, loc, memo, pointers)
+      {:boolean, true} ->
+        {:ok, memo}
+
+      {:boolean, false} when additional == [] ->
+        {:ok, memo}
+
+      {:boolean, false} ->
+        {:error, :invalid_cardinality, memo}
+
+      _schema_value ->
+        eval_additional(
+          additional,
+          sub,
+          loc,
+          memo,
+          child_pointer(pointers, "additionalProperties")
+        )
     end
   end
 
@@ -801,7 +824,7 @@ defmodule AgentBlueprintProtocol.Schema do
   defp eval_present_properties([{name, sub} | tail], members, loc, memo, pointers) do
     case List.keyfind(members, name, 0) do
       {^name, value} ->
-        case evaluate(sub, value, [name | loc], memo, pointers) do
+        case evaluate(sub, value, [name | loc], memo, child_pointer(pointers, name)) do
           {:ok, memo2} -> eval_present_properties(tail, members, loc, memo2, pointers)
           {{:error, reason}, memo2} -> {:error, reason, memo2}
         end
@@ -829,18 +852,23 @@ defmodule AgentBlueprintProtocol.Schema do
     end
   end
 
-  # Branch results are memoized on (term, loc); counting stops at two —
+  # Branch results are memoized on (schema pointer, loc); counting stops at two —
   # exactly-one needs the full count only below two.
   defp count_passes([], _instance, _loc, memo, _pointers, count), do: {count, memo}
 
-  defp count_passes([branch | tail], instance, loc, memo, pointers, count) when count < 2 do
-    {result, memo2} = evaluate(branch, instance, loc, memo, pointers)
+  defp count_passes([{branch, index} | tail], instance, loc, memo, pointers, count)
+       when count < 2 do
+    {result, memo2} =
+      evaluate(branch, instance, loc, memo, child_pointer(pointers, Integer.to_string(index)))
+
     count = if result == :ok, do: count + 1, else: count
 
     if count >= 2,
       do: {count, memo2},
       else: count_passes(tail, instance, loc, memo2, pointers, count)
   end
+
+  defp child_pointer({pointers, path}, name), do: {pointers, path ++ [name]}
 
   defp type_names({:string, name}), do: [name]
   defp type_names({:array, names}), do: Enum.map(names, fn {:string, name} -> name end)
@@ -893,7 +921,7 @@ defmodule AgentBlueprintProtocol.Schema do
   def equal?(:null, :null), do: true
   def equal?({:boolean, a}, {:boolean, b}), do: a == b
   def equal?({:array, a}, {:array, b}), do: list_equal?(a, b)
-  def equal?({:object, a}, {:object, b}), do: object_equal?(a, b)
+  def equal?({:object, a}, {:object, b}) when is_list(a) and is_list(b), do: object_equal?(a, b)
   def equal?(_a, _b), do: false
 
   defp list_equal?([], []), do: true
@@ -905,11 +933,12 @@ defmodule AgentBlueprintProtocol.Schema do
 
   # Hand-built values may carry non-pair members; they are unequal, never a
   # crash (the newly-public equal?/2 owes totality on any input).
-  defp pair?({key, _}) when is_binary(key), do: true
-  defp pair?(_other), do: false
+  defp pairs?([]), do: true
+  defp pairs?([{key, _} | rest]) when is_binary(key), do: pairs?(rest)
+  defp pairs?(_other), do: false
 
   defp object_equal?(a, b) do
-    length(a) == length(b) and Enum.all?(a, &pair?/1) and Enum.all?(b, &pair?/1) and
+    pairs?(a) and pairs?(b) and length(a) == length(b) and
       Enum.all?(a, fn {key, value} ->
         case List.keyfind(b, key, 0) do
           {^key, other} -> equal?(value, other)

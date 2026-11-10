@@ -3,7 +3,7 @@
 Status: published pre-1.0 protocol (0.x release line). This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:SvJLvMwXdYQZBjOrklsQSHQRX8PhxPHOv23C2rmFazQ`, 190 cases) are
+`sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8`, 199 cases) are
 certified against this document at every release through the release
 identity chain — the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -649,14 +649,19 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-190 cases covering every required cell of the 16-surface × 31-class
+199 cases covering every required cell of the 16-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:SvJLvMwXdYQZBjOrklsQSHQRX8PhxPHOv23C2rmFazQ`. Corpus identity
+`sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over `%{path => binary}` and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
-and applicability totality; the report refuses a vacuous green.
+and applicability totality; the report refuses a vacuous green. Each shipped
+CLI states on stderr whether the loaded corpus digest equals the
+release-certified corpus digest in the release metadata. Other corpora,
+including prior-release corpora, may run; their agreement does not establish
+a pass on the release-certified corpus. This label is separate from the
+canonical stdout report.
 
 A repo-side second-language verifier (`verifier/`,
 TypeScript on Node ≥ 24, `node:` builtins only, never in the Hex
@@ -664,7 +669,7 @@ archive) independently recomputes every corpus verdict and integrity
 check with its own scanner, canonicalizer, and `node:crypto` Ed25519
 path; the release gate requires its report to be byte-identical to the
 Elixir escript's over both the repo corpus and the built archive's
-corpus. A mutation gate breaks the implementation at seventeen named
+corpus. A mutation gate breaks the implementation at nineteen named
 points and requires the corpus to go red on each — a vacuous case set
 is a build failure. A `signature.verify` case whose signature decodes
 to 64 bytes also pins `expected.strict_signature`, the strict
@@ -729,11 +734,13 @@ constructors, never through facade-level minting: compose the member
 value, construct it with `Blueprint.from_value/2` or
 `Deployment.from_value/2` (threading `:authored_extensions` for
 critical namespaces whose bodies negotiation validated against a
-digest-pinned schema), compute the release identity with the
+digest-pinned schema; the caller supplies that provenance, and the constructor
+checks membership in this artifact's critical region), compute the release identity with the
 artifact's `content_digest/1`, and serialize with its
 `canonical_bytes/1`. The round-trip property (decode → `to_value/1` →
 encode is a fixed point) is the byte-exactness guarantee a producer
-relies on. The facade stays a verification facade: it delegates and
+relies on. The conformance CLI emits a separate corpus-certification label on stderr
+without changing the canonical stdout report (§15). The facade stays a verification facade: it delegates and
 never implements, and no facade-level producer functions grow (the
 accepted producer-surface decision record).
 

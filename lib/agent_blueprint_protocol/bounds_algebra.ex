@@ -109,7 +109,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
     `:bound_value_invalid`. Absent names are simply absent.
     """
     @spec new(%{optional(atom()) => term()}) :: {:ok, t()} | {:error, Error.t()}
-    def new(map) when is_map(map) do
+    def new(map) when is_map(map) and not is_struct(map) do
       map
       |> Enum.reduce_while({:ok, %{}}, fn {name, value}, {:ok, acc} ->
         case AgentBlueprintProtocol.BoundsAlgebra.build_bound(name, value) do
@@ -134,8 +134,12 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
     @doc "The plain name-to-value map (rebuild a set via `new/1`)."
     @spec to_map(t()) :: {:ok, %{optional(atom()) => term()}} | {:error, Error.t()}
-    def to_map(%BoundSet{bounds: bounds}) when is_map(bounds),
-      do: {:ok, Map.new(bounds, fn {name, bound} -> {name, bound.value} end)}
+    def to_map(%BoundSet{bounds: bounds}) when is_map(bounds) and not is_struct(bounds) do
+      Enum.reduce_while(bounds, {:ok, %{}}, fn
+        {name, %Bound{value: value}}, {:ok, acc} -> {:cont, {:ok, Map.put(acc, name, value)}}
+        _, _ -> {:halt, {:error, %Error{code: :invalid_type, subject: ["bound_set"]}}}
+      end)
+    end
 
     def to_map(_), do: {:error, %Error{code: :invalid_type, subject: ["bound_set"]}}
   end
@@ -355,11 +359,15 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   end
 
   defp revalidate_one(set, name) do
-    {:ok, bound} = BoundSet.fetch(set, name)
+    case BoundSet.fetch(set, name) do
+      {:ok, %Bound{value: value}} ->
+        case build_bound(name, value) do
+          {:ok, _} -> nil
+          {:error, _} = error -> error
+        end
 
-    case build_bound(name, bound.value) do
-      {:ok, _} -> nil
-      {:error, _} = error -> error
+      _ ->
+        {:error, %Error{code: :invalid_type, subject: ["bound_set"]}}
     end
   end
 
@@ -520,8 +528,11 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   def widens?(%BoundSet{bounds: a}, %BoundSet{bounds: b}) when is_map(a) and is_map(b) do
     Enum.any?(names(), fn name ->
       case {Map.fetch(a, name), Map.fetch(b, name)} do
-        {{:ok, left}, {:ok, right}} -> widens_value(name, left.value, right.value)
-        _incomplete -> true
+        {{:ok, %Bound{value: left}}, {:ok, %Bound{value: right}}} ->
+          widens_value(name, left, right)
+
+        _incomplete ->
+          true
       end
     end)
   end
@@ -657,7 +668,8 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   """
   @spec from_blueprint(Blueprint.t()) :: {:ok, BoundSet.t()} | {:error, Error.t()}
   def from_blueprint(%Blueprint{value: {:object, members}}) when is_list(members) do
-    with {:ok, bounds} <- lift_operational(member_of(members, "ceilings")) do
+    with :ok <- value_shape({:object, members}),
+         {:ok, bounds} <- lift_operational(member_of(members, "ceilings")) do
       derive_protected(members, bounds)
     end
   end
@@ -670,6 +682,14 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   """
   @spec from_deployment(Deployment.t()) :: {:ok, BoundSet.t()} | {:error, Error.t()}
   def from_deployment(%Deployment{value: {:object, members}}) when is_list(members) do
+    with :ok <- value_shape({:object, members}) do
+      lift_deployment_members(members)
+    end
+  end
+
+  def from_deployment(_), do: {:error, %Error{code: :invalid_type, subject: ["deployment"]}}
+
+  defp lift_deployment_members(members) do
     case member_of(members, "host_bounds") do
       nil ->
         {:ok, %BoundSet{bounds: %{}}}
@@ -684,7 +704,12 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
     end
   end
 
-  def from_deployment(_), do: {:error, %Error{code: :invalid_type, subject: ["deployment"]}}
+  defp value_shape(value) do
+    case AgentBlueprintProtocol.Canonicalization.encode(value) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, %Error{code: reason, subject: ["bound_set"]}}
+    end
+  end
 
   defp lift_operational(nil), do: {:ok, %{}}
 
@@ -943,17 +968,11 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
     end
   end
 
-  # No {:object, _} clause: every caller passes a member list (object
-  # tuples are destructured at their call sites) or junk, which the
-  # catch-all below reads as absent.
+  # Callers pass member lists from the validated tagged value.
   defp member_of(members, name) when is_list(members) do
     case List.keyfind(members, name, 0) do
       {^name, value} -> value
       nil -> nil
     end
   end
-
-  # Malformed member lists (a hand-built struct's junk) read as absent —
-  # the lifters stay total, never raising.
-  defp member_of(_malformed, _name), do: nil
 end

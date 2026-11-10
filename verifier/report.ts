@@ -20,7 +20,11 @@ export interface Report {
   disagreed: number;
 }
 
-export function build(results: CaseResult[][]): Report {
+export function build(results: CaseResult[][]): Report;
+export function build(results: unknown): Report | { ok: false; e: string };
+export function build(input: unknown): Report | { ok: false; e: string } {
+  const results = input as CaseResult[][];
+  if (!Array.isArray(results) || results.some((rows) => !Array.isArray(rows) || rows.some((row) => !row || typeof row.caseId !== "string" || typeof row.agree !== "boolean"))) return { ok: false, e: "invalid_type" };
   const all = results.flat();
   const total = all.length;
   const agreed = all.filter((r) => r.agree).length;
@@ -29,8 +33,12 @@ export function build(results: CaseResult[][]): Report {
   return { agreement, exitStatus: agreement ? 0 : 1, total, agreed, disagreed };
 }
 
-export function toBytes(corpusIdentity: string, results: CaseResult[][]): string {
-  const report = build(results);
+export function toBytes(corpusIdentity: string, results: CaseResult[][]): string;
+export function toBytes(corpusIdentity: unknown, results: unknown): string | { ok: false; e: string };
+export function toBytes(corpusIdentity: unknown, results: unknown): string | { ok: false; e: string } {
+  if (typeof corpusIdentity !== "string") return { ok: false, e: "invalid_type" };
+  const report = build(results as unknown);
+  if ("ok" in report) return report;
   const encoded = encode(
     obj([
       ["format", str(FORMAT)],
@@ -42,6 +50,6 @@ export function toBytes(corpusIdentity: string, results: CaseResult[][]): string
       ["corpus_digest", str(corpusIdentity)],
     ]),
   );
-  if (!encoded.ok) throw new Error("report must encode");
+  if (!encoded.ok) return encoded;
   return encoded.v;
 }

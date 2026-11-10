@@ -87,7 +87,8 @@ defmodule AgentBlueprintProtocol.Registry do
   """
   @spec validate([spec()], Json.value()) :: :ok | {:error, reason()}
   def validate(table, {:object, members}) when is_list(table) and is_list(members) do
-    with :ok <- member_pairs_ok?(members),
+    with true <- table_ok?(table) or {:error, :invalid_type},
+         :ok <- member_pairs_ok?(members),
          :ok <- no_duplicate_members(members),
          :ok <- unknown_check(table, members),
          :ok <- required_check(table, members),
@@ -101,13 +102,38 @@ defmodule AgentBlueprintProtocol.Registry do
 
   def validate(_table, _value), do: {:error, :invalid_type}
 
+  defp table_ok?([]), do: true
+
+  defp table_ok?([%{name: name, required: required, kind: _} = spec | rest])
+       when is_binary(name) and is_boolean(required) do
+    (not Map.has_key?(spec, :check) or is_function(spec.check, 1)) and
+      (not Map.has_key?(spec, :root_hook) or is_function(spec.root_hook, 1)) and
+      kind_spec_ok?(spec.kind) and table_ok?(rest)
+  end
+
+  defp table_ok?(_), do: false
+
+  defp kind_spec_ok?(kind)
+       when kind in [:string, :integer, :float, :boolean, :number, :any, :custom], do: true
+
+  defp kind_spec_ok?({:enum, %MapSet{map: map}}), do: is_map(map)
+  defp kind_spec_ok?({:array, %{kind: kind}}), do: kind_spec_ok?(kind)
+  defp kind_spec_ok?({:object, %{members: members}}), do: table_ok?(members)
+  defp kind_spec_ok?(_), do: false
+
+  defp proper_list?([]), do: true
+  defp proper_list?([_ | rest]), do: proper_list?(rest)
+  defp proper_list?(_), do: false
+
   # ---- object well-formedness (hand-built values) ----------------------------------
 
   defp member_pairs_ok?(members) do
-    if Enum.all?(members, &match?({name, _} when is_binary(name), &1)),
-      do: :ok,
-      else: {:error, :invalid_type}
+    if pairs?(members), do: :ok, else: {:error, :invalid_type}
   end
+
+  defp pairs?([]), do: true
+  defp pairs?([{name, _} | rest]) when is_binary(name), do: pairs?(rest)
+  defp pairs?(_), do: false
 
   defp no_duplicate_members(members) do
     names = Enum.map(members, fn {name, _} -> name end)
@@ -297,16 +323,18 @@ defmodule AgentBlueprintProtocol.Registry do
   defp kind_ok?(:integer, {:integer, n}) when is_integer(n), do: true
   defp kind_ok?(:float, {:float, f}) when is_float(f), do: true
   defp kind_ok?(:boolean, {:boolean, b}) when is_boolean(b), do: true
-  defp kind_ok?(:number, {:integer, _n}), do: true
-  defp kind_ok?(:number, {:float, _f}), do: true
+  defp kind_ok?(:number, {:integer, n}) when is_integer(n), do: true
+  defp kind_ok?(:number, {:float, f}) when is_float(f), do: true
   defp kind_ok?(:any, value), do: well_formed?(value)
   defp kind_ok?(:custom, _value), do: true
 
   defp kind_ok?({:enum, _allowed}, {:string, s}) when is_binary(s), do: true
-  defp kind_ok?({:array, _element_spec}, {:array, items}) when is_list(items), do: true
+
+  defp kind_ok?({:array, _element_spec}, {:array, items}) when is_list(items),
+    do: proper_list?(items)
 
   defp kind_ok?({:object, %{members: _member_specs}}, {:object, members}) when is_list(members),
-    do: true
+    do: pairs?(members)
 
   defp kind_ok?(_kind, _value), do: false
 

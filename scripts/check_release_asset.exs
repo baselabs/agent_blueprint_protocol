@@ -68,7 +68,12 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
       )
 
     # erl_tar.add wants binaries, not charlists, for name/value pairs
-    entries = Enum.map(files ++ corpus, fn {name, bytes} -> {String.to_charlist(name), bytes} end)
+    entries =
+      Enum.map(
+        files ++ corpus ++ [{"release-metadata.json", File.read!("priv/release-metadata.json")}],
+        fn {name, bytes} -> {String.to_charlist(name), bytes} end
+      )
+
     :ok = :erl_tar.create(String.to_charlist(tar), entries, [:compressed])
   end
 
@@ -167,7 +172,7 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
 
   defp escript_report(dir, corpus_dir) do
     escript = Path.join(dir, @escript)
-    {out, 0} = System.cmd(escript, ["--corpus", corpus_dir], stderr_to_stdout: true)
+    {out, 0} = System.cmd(escript, ["--corpus", corpus_dir], stderr_to_stdout: false)
     String.trim_trailing(out)
   end
 end

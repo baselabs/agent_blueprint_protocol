@@ -21,6 +21,20 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
 
   @mutations [
     %{
+      name: "predicate-content-scan-removed",
+      path: "lib/agent_blueprint_protocol/blueprint.ex",
+      from: "        do: predicate\n",
+      to: "        do: {:object, []}\n",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      name: "deployment-key-scan-stops-after-first",
+      path: "lib/agent_blueprint_protocol/deployment.ex",
+      from: "Enum.find_value(:ok, fn entry -> pass_nil(evidence_key_id_result(entry)) end)",
+      to: "Enum.find_value(:ok, &evidence_key_id_result/1)",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
       # The strict Ed25519 signature rule removed (R canonical and not
       # small-order, S < L, checked before :crypto.verify): the key-holder
       # R = identity, S = k*a case verifies on the backend's cofactorless

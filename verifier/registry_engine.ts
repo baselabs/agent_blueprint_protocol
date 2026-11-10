@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // The generic field-registry validate engine — the mirror of
 // AgentBlueprintProtocol.Registry: ONE table-driven walk parameterized by the
 // artifact layer's table. The engine knows tables, not domains. Failure
@@ -48,7 +49,7 @@ export function field(name: string, kind: Kind, opts: Partial<Spec> = {}): Spec 
 }
 
 export function validate(table: Spec[], value: Value): VResult {
-  if (value.t !== "obj") return { ok: false, e: "invalid_type" };
+  if (!isValue(value) || !Array.isArray(table) || Array.from(table).some((spec) => !specShape(spec)) || value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = value.v;
 
   for (const [name] of members) {
@@ -104,6 +105,20 @@ export function validate(table: Spec[], value: Value): VResult {
   }
 
   return { ok: true };
+}
+
+function specShape(spec: Spec, depth = 0): boolean {
+  if (!spec || typeof spec !== "object" || depth > 64) return false;
+  if ((spec.check !== undefined && typeof spec.check !== "function") ||
+      (spec.rootHook !== undefined && typeof spec.rootHook !== "function")) return false;
+  const kind = spec.kind;
+  if (typeof kind === "string") return ["string", "integer", "float", "boolean", "number", "any", "custom"].includes(kind);
+  if (!kind || typeof kind !== "object") return false;
+  if ("enum" in kind) return kind.enum instanceof Set;
+  if ("array" in kind) return specShape(kind.array, depth + 1);
+  if ("object" in kind) return !!kind.object && Array.isArray(kind.object.members) &&
+    kind.object.members.every((member) => specShape(member, depth + 1));
+  return false;
 }
 
 // ---- stages --------------------------------------------------------------------------
@@ -219,6 +234,7 @@ function wellFormed(value: Value): boolean {
 // ---- helpers -------------------------------------------------------------------------
 
 export function keyfind(members: [string, Value][], name: string): Value | null {
+  if (!Array.isArray(members) || Array.from(members).some((pair) => !Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== "string")) return null;
   const found = members.find(([key]) => key === name);
   return found ? found[1] : null;
 }
@@ -226,6 +242,10 @@ export function keyfind(members: [string, Value][], name: string): Value | null 
 // Elixir `=:=` term equality over the tagged algebra: tags are strict
 // (int 5 and float 5.0 are distinct), object member ORDER is significant.
 export function termEqual(a: Value, b: Value): boolean {
+  return isValue(a) && isValue(b) && termEqualAt(a, b);
+}
+
+function termEqualAt(a: Value, b: Value): boolean {
   if (a.t !== b.t) return false;
   switch (a.t) {
     case "null":
@@ -239,7 +259,7 @@ export function termEqual(a: Value, b: Value): boolean {
       return (
         b.t === "arr" &&
         a.v.length === b.v.length &&
-        a.v.every((x, i) => termEqual(x, b.v[i]!))
+        a.v.every((x, i) => termEqualAt(x, b.v[i]!))
       );
     case "obj":
       return (
@@ -247,7 +267,7 @@ export function termEqual(a: Value, b: Value): boolean {
         a.v.length === b.v.length &&
         a.v.every((pair, i) => {
           const other = b.v[i]!;
-          return pair[0] === other[0] && termEqual(pair[1], other[1]);
+          return pair[0] === other[0] && termEqualAt(pair[1], other[1]);
         })
       );
   }

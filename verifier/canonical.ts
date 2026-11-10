@@ -15,7 +15,7 @@
 // function declarations — resolved at call time, never at module init.
 
 import type { Bounds } from "./bounds.ts";
-import { maximum } from "./bounds.ts";
+import { coerce, maximum } from "./bounds.ts";
 import { decode } from "./decode.ts";
 import type { Value } from "./value.ts";
 import { err, ok, IJSON_MAX } from "./value.ts";
@@ -29,13 +29,14 @@ const SHORT_ESCAPES: Record<number, string> = {
 };
 
 export function encode(
-  value: Value,
+  value: unknown,
   bounds?: Bounds | Record<string, unknown>,
 ): { ok: true; v: string } | { ok: false; e: string } {
-  // The profile is read field-wise (bytes) whatever the caller passed.
-  const profile = (bounds ?? maximum()) as Bounds;
+  const normalized = coerce(bounds === undefined ? maximum() : bounds);
+  if (!normalized.ok) return normalized;
+  const profile = normalized.v;
   const parts: string[] = [];
-  const walked = walk(value, parts);
+  const walked = walk(value as Value, parts, profile, 0, { nodes: 0 });
   if (!walked.ok) return walked;
   const out = parts.join("");
   if (Buffer.byteLength(out, "utf8") > profile.bytes) return err("ceiling:bytes");
@@ -66,12 +67,21 @@ export function number(f: number): string {
 
 // ---- encode walk ----------------------------------------------------------------
 
-function walk(value: Value, out: string[]): { ok: true } | { ok: false; e: string } {
+function walk(value: Value, out: string[], bounds: Bounds, depth: number, counter: { nodes: number }): { ok: true } | { ok: false; e: string } {
+  if (value === null || typeof value !== "object") return err("invalid_type");
+  if (++counter.nodes > bounds.nodes) return err("ceiling:nodes");
+  if (value.t === "arr" || value.t === "obj") {
+    if (!Array.isArray(value.v)) return err("invalid_type");
+    if (depth >= bounds.depth) return err("ceiling:depth");
+    const field = value.t === "arr" ? "items" : "members";
+    if (value.v.length > bounds[field]) return err(`ceiling:${field}`);
+  }
   switch (value.t) {
     case "null":
       out.push("null");
       return ok(undefined);
     case "bool":
+      if (typeof value.v !== "boolean") return err("invalid_type");
       out.push(value.v ? "true" : "false");
       return ok(undefined);
     case "int":
@@ -81,9 +91,14 @@ function walk(value: Value, out: string[]): { ok: true } | { ok: false; e: strin
       out.push(String(value.v));
       return ok(undefined);
     case "float":
+      if (typeof value.v !== "number") return err("invalid_type");
+      if (!Number.isFinite(value.v)) return err("invalid_number");
       out.push(number(value.v));
       return ok(undefined);
     case "str": {
+      if (typeof value.v !== "string") return err("invalid_type");
+      if (Buffer.byteLength(value.v) > bounds.bytes) return err("ceiling:bytes");
+      if (Buffer.byteLength(value.v) > bounds.string) return err("ceiling:string");
       const escaped = escapeString(value.v);
       if (!escaped.ok) return escaped;
       out.push('"' + escaped.v + '"');
@@ -93,14 +108,17 @@ function walk(value: Value, out: string[]): { ok: true } | { ok: false; e: strin
       out.push("[");
       for (let i = 0; i < value.v.length; i++) {
         if (i > 0) out.push(",");
-        const element = walk(value.v[i]!, out);
+        const element = walk(value.v[i]!, out, bounds, depth + 1, counter);
         if (!element.ok) return element;
       }
       out.push("]");
       return ok(undefined);
     }
     case "obj": {
-      for (const [name] of value.v) {
+      for (const pair of value.v) {
+        if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== "string") return err("invalid_type");
+        const name = pair[0];
+        if (Buffer.byteLength(name) > bounds.key) return err("ceiling:key");
         if (!validString(name)) return err("invalid_encoding");
       }
       const sorted = [...value.v].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
@@ -113,12 +131,13 @@ function walk(value: Value, out: string[]): { ok: true } | { ok: false; e: strin
         const key = escapeString(sorted[i]![0]);
         if (!key.ok) return key;
         out.push('"' + key.v + '":');
-        const member = walk(sorted[i]![1], out);
+        const member = walk(sorted[i]![1], out, bounds, depth + 1, counter);
         if (!member.ok) return member;
       }
       out.push("}");
       return ok(undefined);
     }
+    default: return err("invalid_type");
   }
 }
 

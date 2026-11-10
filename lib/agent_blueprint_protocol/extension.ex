@@ -12,7 +12,7 @@ defmodule AgentBlueprintProtocol.Extension do
   Extension envelopes are inert data — an extension never authorizes an operation.
   """
 
-  alias AgentBlueprintProtocol.Json
+  alias AgentBlueprintProtocol.{Canonicalization, Json}
 
   @identifier_bytes 512
   @ceiling_extensions 32
@@ -25,7 +25,8 @@ defmodule AgentBlueprintProtocol.Extension do
   """
   @spec envelope_ok?(Json.value()) :: :ok | {:error, term()}
   def envelope_ok?({:object, members}) do
-    with :ok <- shape(members),
+    with {:ok, _} <- Canonicalization.encode({:object, members}),
+         :ok <- shape(members),
          {:ok, namespaces} <- namespaces(members),
          :ok <- cardinality(namespaces) do
       no_duplicates(namespaces)
@@ -39,24 +40,43 @@ defmodule AgentBlueprintProtocol.Extension do
   order — the scan's walk over the open region.
   """
   @spec bodies(list() | map()) :: [{binary(), Json.value()}]
-  def bodies(members) do
-    for {:object, regions} <- List.wrap(member_value(members, "extensions")),
-        {_criticality, {:object, namespaces}} <- regions,
-        {ns, body} <- namespaces,
-        do: {ns, body}
+  def bodies(members) when is_list(members) or is_map(members) do
+    with {:ok, regions} <- regions_of(members) do
+      for {_criticality, {:object, namespaces}} <- regions,
+          {ns, body} <- namespaces,
+          do: {ns, body}
+    end
   end
+
+  def bodies(_), do: {:error, :invalid_type}
 
   @doc """
   The critical region's namespace set for THIS value — the authored-channel
   tie (a validated-critical list must sit inside this set).
   """
   @spec critical_namespaces(list() | map()) :: MapSet.t()
-  def critical_namespaces(members) do
-    for {:object, regions} <- List.wrap(member_value(members, "extensions")),
-        {"critical", {:object, namespaces}} <- regions,
-        {ns, _body} <- namespaces,
-        do: ns,
-        into: MapSet.new()
+  def critical_namespaces(members) when is_list(members) or is_map(members) do
+    with {:ok, regions} <- regions_of(members) do
+      for {"critical", {:object, namespaces}} <- regions,
+          {ns, _body} <- namespaces,
+          do: ns,
+          into: MapSet.new()
+    end
+  end
+
+  def critical_namespaces(_), do: {:error, :invalid_type}
+
+  defp regions_of(members) do
+    case member_value(members, "extensions") do
+      nil ->
+        {:ok, []}
+
+      {:object, regions} = value ->
+        with {:ok, _} <- Canonicalization.encode(value), do: {:ok, regions}
+
+      _ ->
+        {:error, :invalid_type}
+    end
   end
 
   # ---- internals ------------------------------------------------------------------
@@ -114,10 +134,10 @@ defmodule AgentBlueprintProtocol.Extension do
   # Root member lists only: both artifact call sites run against the ordered
   # member list (the scan walk and the authored-channel tie), never the
   # engine's hook-shaped map.
-  defp member_value(members, name) when is_list(members) do
-    case List.keyfind(members, name, 0) do
-      {^name, value} -> value
-      nil -> nil
-    end
-  end
+  defp member_value(members, name) when is_map(members), do: Map.get(members, name)
+
+  defp member_value([], _name), do: nil
+  defp member_value([{name, value} | _], name), do: value
+  defp member_value([_ | rest], name), do: member_value(rest, name)
+  defp member_value(_, _), do: :invalid
 end

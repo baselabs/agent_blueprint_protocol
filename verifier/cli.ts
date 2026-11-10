@@ -7,8 +7,11 @@
 // 0/1/2 contract, exactly as an escript crash is — loud, never laundered
 // into "disagreement").
 
-import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync, lstatSync, openSync, closeSync, readSync, fstatSync } from "node:fs";
+import { join, relative, sep } from "node:path";
+import type { CaseObj } from "./corpus.ts";
+import { member } from "./corpus.ts";
+import type { Value } from "./value.ts";
 import { load, loadPriorCensus } from "./corpus.ts";
 import { encode } from "./canonical.ts";
 import { toBytes } from "./report.ts";
@@ -18,10 +21,27 @@ import { decode as decodeDeployment } from "./deployment.ts";
 import { decode as decodeEnvelope } from "./federation.ts";
 import { obj, str } from "./value.ts";
 
-const USAGE = "usage: node verifier/cli.ts --corpus <dir> | --prior-corpus <dir> | --artifact <file>";
+const USAGE = `usage: agent-blueprint-protocol [--corpus <dir> | --prior-corpus <dir> | --artifact <file> | --help | --version]
+No arguments: verify the installed release's embedded corpus.
+--corpus <dir>: verify a corpus and report agreement.
+--prior-corpus <dir>: replay a released corpus under current verification.
+--artifact <file>: verify a Blueprint, Deployment Manifest, or Federation TaskEnvelope.
+--help: print this help. --version: print the package version.
+Exit codes: 0 agreement or valid artifact (also help/version); 1 disagreement or invalid artifact;
+2 usage, unreadable input, or corpus integrity failure; 3 internal error.`;
 const BYTE_CAP = 5_000_000;
 
+function releaseMetadata(): { package_version: string; corpus_digest: string } {
+  for (const path of ["../release-metadata.json", "../priv/release-metadata.json", "./release-metadata.json"]) {
+    try { return JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  }
+  throw new Error("release metadata missing");
+}
+
 function main(argv: string[]): number {
+  if (argv.length === 1 && argv[0] === "--help") { process.stdout.write(USAGE + "\n"); return 0; }
+  if (argv.length === 1 && argv[0] === "--version") { process.stdout.write(releaseMetadata().package_version + "\n"); return 0; }
   if (argv.length === 2 && argv[0] === "--artifact" && argv[1] !== "" && typeof argv[1] === "string") {
     return verifyArtifact(argv[1]!);
   }
@@ -44,7 +64,7 @@ function main(argv: string[]): number {
     map = readCorpus(dir);
   } catch {
     process.stderr.write(
-      "corpus unreadable: a file is missing, unreadable, or over the byte ceiling\n",
+      "corpus unreadable: missing, unreadable, not regular, or over the file or byte ceiling\n",
     );
     return 2;
   }
@@ -57,6 +77,12 @@ function main(argv: string[]): number {
     return 2;
   }
 
+  if (!corpus.v.cases.every((file) => file.cases.every(readerInput))) {
+    process.stderr.write("corpus integrity failure: :invalid_type\n");
+    return 2;
+  }
+  const certified = corpus.v.identity === releaseMetadata().corpus_digest ? "matches" : "does not match";
+  process.stderr.write(`corpus digest ${certified} the release-certified corpus\n`);
   const results = run(corpus.v);
   const bytes = toBytes(corpus.v.identity, results);
 
@@ -64,6 +90,29 @@ function main(argv: string[]): number {
   process.stdout.write(bytes);
   const agreed = results.flat().filter((r) => r.agree).length;
   return agreed === results.flat().length && agreed > 0 ? 0 : 1;
+}
+
+function fieldShape(input: Value, key: string, predicate: (v: Value) => boolean): boolean {
+  const value = member(input, key);
+  return value === null || predicate(value);
+}
+
+function readerInput(row: CaseObj): boolean {
+  const input = row.input;
+  if (row.surface === "negotiation.negotiate" || row.surface === "extension.resolve") {
+    const support = member(input, "support");
+    if (support === null || support.t === "null") return true;
+    if (support.t !== "obj") return false;
+    return ["revisions", "core_fields"].every((key) => fieldShape(support, key, (v) => v.t === "arr")) &&
+      fieldShape(support, "schemas", (v) => v.t === "obj") &&
+      fieldShape(support, "registry", (v) => v.t === "obj" && v.v.every(([, entry]) => entry.t === "obj"));
+  }
+  if (row.surface === "bounds_algebra.intersect") {
+    return ["blueprint", "deployment", "host"].every((key) => fieldShape(input, key, (v) =>
+      v.t === "obj" && v.v.every(([, bound]) => bound.t !== "obj" || member(bound, "ordinal") === null ||
+        fieldShape(bound, "markers", (markers) => markers.t === "arr"))));
+  }
+  return true;
 }
 
 // Single-artifact mode — a kit-side convenience the escript deliberately
@@ -78,10 +127,10 @@ function verifyArtifact(path: string): number {
   let bytes: Buffer;
 
   try {
-    const info = statSync(path);
+    const info = lstatSync(path);
     if (!info.isFile()) throw new Error("not a regular file");
     if (info.size > BYTE_CAP) throw new Error("over byte ceiling");
-    bytes = readFileSync(path);
+    bytes = readRegular(path, BYTE_CAP);
   } catch {
     process.stderr.write(
       "artifact unreadable: missing, not a regular file, or over the byte ceiling\n",
@@ -117,50 +166,53 @@ function verifyArtifact(path: string): number {
   return kind === null ? 1 : 0;
 }
 
-// Reads EVERY file under the corpus directory — dotfiles included — so the
-// loader's file-set equality sees exactly what the directory carries.
-// Per-file size cap at the Bounds byte ceiling; a hostile corpus directory
-// cannot exhaust memory or crash past the exit-code contract. Directory
-// symlinks are followed (Path.wildcard parity).
-function readCorpus(dir: string): Map<string, Buffer> {
-  const map = new Map<string, Buffer>();
-  const visited = new Set<string>();
-  const walk = (current: string) => {
-    // Cycle bound: directory symlinks repeat their realpath; a repeat is
-    // skipped so the walk terminates inside the corpus-error contract.
-    const real = realpathSync(current);
-    if (visited.has(real)) return;
-    visited.add(real);
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const path = join(current, entry.name);
-      if (entry.isDirectory() || (entry.isSymbolicLink() && statSync(path).isDirectory())) {
-        walk(path);
-      } else {
-        const info = statSync(path);
-        // Regular files only: a FIFO/socket/device planted in the corpus
-        // directory would block readFileSync past the exit contract — skip
-        // it and let the loader's file-set equality deny (loud, not a hang).
-        if (info.isFile()) {
-          if (info.size > BYTE_CAP) throw new Error("over byte ceiling");
-          map.set(path.slice(dir.length + 1), readFileSync(path));
-        }
-      }
+// At most 1,000 entries and 5,000,000 bytes across the entire tree.
+// Symlinks and special files deny before reading; reads are bounded even if a file grows.
+function readRegular(path: string, cap: number): Buffer {
+  const fd = openSync(path, "r");
+  try {
+    const info = fstatSync(fd);
+    if (!info.isFile() || info.size > cap) throw new Error("unreadable");
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for (;;) {
+      const chunk = Buffer.alloc(Math.min(64 * 1024, cap - size + 1));
+      const count = readSync(fd, chunk);
+      if (count === 0) return Buffer.concat(chunks, size);
+      size += count;
+      if (size > cap) throw new Error("over byte ceiling");
+      chunks.push(chunk.subarray(0, count));
     }
-  };
-  // A missing (or non-directory) corpus root yields an EMPTY map — the
-  // loader then denies corpus_index_invalid, exactly as the escript's
-  // empty-wildcard path does (integrity failure, not unreadable).
-  if (!existsDirectory(dir)) return map;
-  walk(dir);
-  return map;
+  } finally { closeSync(fd); }
 }
 
-function existsDirectory(dir: string): boolean {
+function readCorpus(dir: string): Map<string, Buffer> {
+  const map = new Map<string, Buffer>();
+  let count = 0;
+  let total = 0;
+  const walk = (current: string) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (entry.name === ".DS_Store" || entry.name.startsWith("._")) continue;
+      if (++count > 1_000) throw new Error("over file ceiling");
+      const path = join(current, entry.name);
+      const info = lstatSync(path);
+      if (info.isDirectory()) walk(path);
+      else if (info.isFile()) {
+        if (info.size > BYTE_CAP - total) throw new Error("over byte ceiling");
+        const bytes = readRegular(path, BYTE_CAP - total);
+        total += bytes.length;
+        map.set(relative(dir, path).split(sep).join("/"), bytes);
+      } else throw new Error("not a regular file");
+    }
+  };
   try {
-    return statSync(dir).isDirectory();
-  } catch {
-    return false;
+    if (!lstatSync(dir).isDirectory()) throw new Error("not a directory");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return map;
+    throw error;
   }
+  walk(dir);
+  return map;
 }
 
 try {

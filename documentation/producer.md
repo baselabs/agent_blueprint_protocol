@@ -62,3 +62,7 @@ The [Livebook walkthrough](../docs/livebooks/abp-walkthrough.livemd)
 runs this recipe end to end on a Blueprint it composes, attaches the
 envelope, and shows each denial: a flipped signature bit, the wrong key,
 an unknown `key_id`, a small-order key, and the strict R and S rule.
+
+Canonical encoding enforces the same structural ceilings as decoding, including
+container size, string and key lengths, node count, and depth. A producer cannot
+emit an artifact that a verifier will refuse to decode.

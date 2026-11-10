@@ -84,6 +84,43 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
 
   defp surfaces(%Evidence{} = evidence), do: Enum.map(evidence.checks, & &1.surface)
 
+  test "predicate content is scanned at every depth during composed import" do
+    leaf =
+      {:object,
+       [
+         {"op", {:string, "eq"}},
+         {"path", BlueprintFixture.path(["request"])},
+         {"value", {:string, "https://example.com/token"}}
+       ]}
+
+    for predicate <- [
+          {:object, [{"op", {:string, "and"}}, {"args", {:array, [leaf]}}]},
+          {:object,
+           [
+             {"op", {:string, "present"}},
+             {"path", BlueprintFixture.path(["request", "https://example.com/token"])}
+           ]}
+        ] do
+      assertion =
+        BlueprintFixture.assertion(kind: "deterministic_predicate", predicate: predicate)
+
+      blueprint = %Blueprint{value: BlueprintFixture.fixture_value(assertions: [assertion])}
+      deployment = golden_deployment(blueprint: blueprint)
+
+      assert {:error, %Error{code: :forbidden_portable_value, subject: ["blueprint"]}} =
+               Reconcile.reconcile(blueprint, deployment, inputs())
+    end
+  end
+
+  test "malformed held member lists deny at the canonical stage" do
+    assert {:error, %Error{code: :invalid_type, subject: ["blueprint"]}} =
+             Reconcile.reconcile(
+               %Blueprint{value: {:object, [:x]}},
+               golden_deployment(),
+               inputs()
+             )
+  end
+
   # ---- golden green -----------------------------------------------------------------
 
   test "green end-to-end over the fixture pair: stage checks, retained fact, no clamps, seven atoms" do

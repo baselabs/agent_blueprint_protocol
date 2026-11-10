@@ -142,10 +142,13 @@ defmodule AgentBlueprintProtocol.Signature do
   """
   @spec verify(Json.value(), [PublicKey.t()]) :: {:ok, :verified} | {:error, reason()}
   def verify(entry, keys) when is_list(keys) do
-    with {:ok, parts} <- parts(entry, :signature) do
+    with true <- keys_shape?(keys) or {:error, :invalid_type},
+         {:ok, parts} <- parts(entry, :signature) do
       check(parts, parts.header_b64 <> "." <> parts.payload, keys)
     end
   end
+
+  def verify(_, _), do: {:error, :invalid_type}
 
   @doc """
   Verify an attestation entry (identical envelope; `kind` and
@@ -161,11 +164,13 @@ defmodule AgentBlueprintProtocol.Signature do
   already shared.
   """
   @spec verify_attestation(Json.value(), [PublicKey.t()]) :: {:ok, :verified} | {:error, reason()}
-  def verify_attestation(entry, _keys) do
+  def verify_attestation(entry, keys) when is_list(keys) do
     case parts(entry, :attestation) do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  def verify_attestation(_, _), do: {:error, :invalid_type}
 
   @doc """
   The RFC 7515 detached compact serialization
@@ -179,9 +184,21 @@ defmodule AgentBlueprintProtocol.Signature do
     end
   end
 
+  defp keys_shape?([]), do: true
+  defp keys_shape?([%PublicKey{} | rest]), do: keys_shape?(rest)
+  defp keys_shape?(_), do: false
+
   # ---- shared engine ------------------------------------------------------------
 
   defp parts(entry, shape) do
+    case Canonicalization.encode(entry) do
+      {:ok, _} -> parsed_parts(entry, shape)
+      {:error, :invalid_type} -> {:error, :invalid_type}
+      {:error, _} -> {:error, malformed(shape)}
+    end
+  end
+
+  defp parsed_parts(entry, shape) do
     with {:ok, members} <- entry_members(entry, shape),
          {:ok, header} <- parse_header(members["protected"], shape),
          {:ok, attrs} <- parse_attrs(members["signed_attributes"], shape),
@@ -207,12 +224,6 @@ defmodule AgentBlueprintProtocol.Signature do
              :signature_algorithm_unsupported
            ] ->
         {:error, reason}
-
-      # canonical_input's bare :error — a member value canonical
-      # serialization rejects (e.g. invalid UTF-8 reaching a hand-built
-      # entry; decoded entries are UTF-8-clean).
-      :error ->
-        {:error, malformed(shape)}
     end
   end
 
@@ -350,17 +361,9 @@ defmodule AgentBlueprintProtocol.Signature do
     # invariant hold by construction; every other member is dot-free from
     # its closed shape. (A belt re-check here would be an unreachable
     # branch — the coverage contract keeps guards live, not decorative.)
-    with {:ok, header_json} <- wrap_encode(header),
-         {:ok, attrs_json} <- wrap_encode(attrs) do
-      {:ok, Base64Url.encode(header_json), attrs_json}
-    end
-  end
-
-  defp wrap_encode(value) do
-    case Canonicalization.encode(value) do
-      {:ok, json} -> {:ok, json}
-      {:error, _reason} -> :error
-    end
+    {:ok, header_json} = Canonicalization.encode(header)
+    {:ok, attrs_json} = Canonicalization.encode(attrs)
+    {:ok, Base64Url.encode(header_json), attrs_json}
   end
 
   defp attributes_struct(attrs) do

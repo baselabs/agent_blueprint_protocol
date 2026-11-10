@@ -76,10 +76,8 @@ defmodule AgentBlueprintProtocol.DigestTest do
       assert {:ok, _} = Base64Url.decode(body)
     end
 
-    test "a hand-built struct with wrong-size bytes fails loud, never emits garbage" do
-      assert_raise FunctionClauseError, fn ->
-        Digest.to_tagged(%Digest{algorithm: :sha256, bytes: <<0>>})
-      end
+    test "a hand-built struct with wrong-size bytes denies without emitting bytes" do
+      assert {:error, :invalid_type} = Digest.to_tagged(%Digest{algorithm: :sha256, bytes: <<0>>})
     end
   end
 

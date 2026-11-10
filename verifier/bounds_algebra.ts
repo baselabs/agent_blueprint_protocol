@@ -127,6 +127,7 @@ export function intersect(
 // here that delegated filter runs first, then BoundSet.new's value checks).
 
 function buildSet(raw: Record<string, unknown>): { ok: true; v: Record<string, BoundValue> } | { ok: false; e: string } {
+  if (!isPlainObject(raw)) return { ok: false, e: "invalid_type" };
   const out: Record<string, BoundValue> = {};
   for (const [name, value] of Object.entries(raw)) {
     if (!Object.hasOwn(TABLE, name)) return { ok: false, e: "invalid_type" };
@@ -195,7 +196,8 @@ function buildBound(name: string, raw: unknown): { ok: true; v: BoundValue } | {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null &&
+    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
 
 // ---- totality ----------------------------------------------------------------------

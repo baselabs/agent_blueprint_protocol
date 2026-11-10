@@ -66,6 +66,9 @@ defmodule AgentBlueprintProtocol.Architecture.NoFileAccessTest do
             {File, :read!},
             {File, :read},
             {File, :stat},
+            {File, :lstat},
+            {File, :ls},
+            {File, :open},
             {File, :dir?},
             {Path, :wildcard},
             {Path, :join},
@@ -76,5 +79,19 @@ defmodule AgentBlueprintProtocol.Architecture.NoFileAccessTest do
 
     assert offenders == [],
            "the CLI carve-out is read-only: #{inspect(offenders)}"
+
+    {_ast, modes} =
+      "lib/agent_blueprint_protocol/conformance/cli.ex"
+      |> File.read!()
+      |> Code.string_to_quoted!()
+      |> Macro.prewalk([], fn
+        {{:., _, [{:__aliases__, _, [:File]}, :open]}, _, [_path, modes, _reader]} = node, acc ->
+          {node, [modes | acc]}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    assert modes == [[:read, :binary]], "the bounded reader must open regular files read-only"
   end
 end

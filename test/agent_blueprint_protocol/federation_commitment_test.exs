@@ -695,6 +695,10 @@ defmodule AgentBlueprintProtocol.FederationCommitmentTest do
 
       assert {:error,
               %AgentBlueprintProtocol.Error{code: :invalid_type, subject: ["prior_receipts"]}} =
+               Federation.verify_commitment(env, context(prior_receipts: [prior | :garbage]))
+
+      assert {:error,
+              %AgentBlueprintProtocol.Error{code: :invalid_type, subject: ["prior_receipts"]}} =
                Federation.verify_commitment(env, context(prior_receipts: [prior, :garbage]))
 
       assert {:error,

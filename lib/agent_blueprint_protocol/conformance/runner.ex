@@ -82,7 +82,25 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   @doc "Executes every loaded case; `%{case_id, agree}` per case, per file."
   @spec run(Corpus.t()) :: [{binary(), [result()]}]
-  def run(%Corpus{cases: cases, data: data, raws: raws}) do
+  def run(%Corpus{cases: cases, data: data, raws: raws})
+      when is_list(cases) and is_map(data) and not is_struct(data) and is_map(raws) and
+             not is_struct(raws) do
+    if cases_ok?(cases), do: run_cases(cases, data, raws), else: {:error, :invalid_type}
+  end
+
+  def run(_), do: {:error, :invalid_type}
+
+  defp cases_ok?([]), do: true
+
+  defp cases_ok?([{path, rows} | rest]) when is_binary(path),
+    do: cases_rows_ok?(rows) and cases_ok?(rest)
+
+  defp cases_ok?(_), do: false
+  defp cases_rows_ok?([]), do: true
+  defp cases_rows_ok?([row | rest]), do: case_shape?(row) and cases_rows_ok?(rest)
+  defp cases_rows_ok?(_), do: false
+
+  defp run_cases(cases, data, raws) do
     Enum.map(cases, fn {path, file_cases} ->
       results =
         Enum.map(file_cases, fn case_obj ->
@@ -100,7 +118,43 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   the second-language mirror's cross-checks); hosts use `run/1`.
   """
   @spec execute(map(), map(), map()) :: {term(), boolean()}
-  def execute(case_obj, data, raws) do
+  def execute(case_obj, data, raws)
+      when is_map(case_obj) and is_map(data) and not is_struct(data) and is_map(raws) and
+             not is_struct(raws) do
+    if case_shape?(case_obj),
+      do: execute_case(case_obj, data, raws),
+      else: {{:error, :invalid_type}, false}
+  end
+
+  def execute(_, _, _), do: {{:error, :invalid_type}, false}
+
+  defp case_shape?(case_obj) when is_map(case_obj) and not is_struct(case_obj),
+    do:
+      plain_map?(Map.get(case_obj, "input", %{})) and
+        plain_map?(Map.get(case_obj, "expected", %{}))
+
+  defp case_shape?(_), do: false
+
+  defp plain_map?(value), do: is_map(value) and not is_struct(value) and plain_value?(value, 0)
+  defp plain_value?(_, depth) when depth > 64, do: false
+
+  defp plain_value?(value, depth) when is_map(value) and not is_struct(value),
+    do:
+      Enum.all?(value, fn {key, member} -> is_binary(key) and plain_value?(member, depth + 1) end)
+
+  defp plain_value?(value, depth) when is_list(value), do: plain_list?(value, depth)
+
+  defp plain_value?(value, _),
+    do: is_binary(value) or is_number(value) or is_atom(value) or is_tuple(value)
+
+  defp plain_list?([], _), do: true
+
+  defp plain_list?([value | rest], depth),
+    do: plain_value?(value, depth + 1) and plain_list?(rest, depth)
+
+  defp plain_list?(_, _), do: false
+
+  defp execute_case(case_obj, data, raws) do
     input = Map.get(case_obj, "input", %{})
     {strict, expected} = Map.pop(Map.get(case_obj, "expected", %{}), "strict_signature")
     actual = dispatch(case_obj["surface"], input, data, raws)
@@ -324,12 +378,14 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp project_deployment(deployment, _input), do: project_artifact(deployment)
 
-  defp parse_time(binary) do
+  defp parse_time(binary) when is_binary(binary) do
     case DateTime.from_iso8601(binary) do
       {:ok, dt, _offset} -> dt
       _ -> nil
     end
   end
+
+  defp parse_time(_), do: nil
 
   defp dispatch_negotiation("negotiation.negotiate", input, _data, _raws) do
     with {:ok, artifact} <- tagged_field(input, "artifact"),
@@ -522,19 +578,21 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     end
   end
 
-  defp fetch_binary(input, key) do
+  defp fetch_binary(input, key) when is_map(input) and not is_struct(input) do
     case Map.get(input, key) do
       bytes when is_binary(bytes) -> {:ok, bytes}
       _ -> {:error, :invalid_type}
     end
   end
 
+  defp fetch_binary(_, _), do: {:error, :invalid_type}
+
   defp bounds_overrides(input) do
     case Map.get(input, "bounds") do
       nil ->
         {:ok, %{}}
 
-      overrides when is_map(overrides) ->
+      overrides when is_map(overrides) and not is_struct(overrides) ->
         {:ok,
          Enum.reduce(overrides, %{}, fn {key, value}, acc ->
            case Map.fetch(@bounds_keys, key) do
@@ -560,11 +618,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   defp schema_input(input, data) do
     cond do
       is_binary(input["schema_file"]) ->
-        case Map.get(data, input["schema_file"]) do
-          nil -> {:error, :invalid_type}
-          schema when is_map(schema) -> {:ok, to_tagged(schema)}
-          schema -> {:ok, schema}
-        end
+        stored_schema(Map.get(data, input["schema_file"]))
 
       is_map(input["schema"]) ->
         {:ok, to_tagged(input["schema"])}
@@ -573,6 +627,14 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         {:error, :invalid_type}
     end
   end
+
+  defp stored_schema(nil), do: {:error, :invalid_type}
+
+  defp stored_schema(schema) when is_map(schema) do
+    if plain_map?(schema), do: {:ok, to_tagged(schema)}, else: {:error, :invalid_type}
+  end
+
+  defp stored_schema(schema), do: {:ok, schema}
 
   defp dialect_input(input) do
     case input["dialect"] do
@@ -638,34 +700,43 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     revisions = Map.get(support_input, "revisions", [1])
     core_fields = Map.get(support_input, "core_fields", [])
 
-    registry =
-      support_input
-      |> Map.get("registry", %{})
-      |> Enum.into(%{}, fn {ns, entry} ->
-        {ns,
-         %ExtensionRegistry{
-           namespace: ns,
-           owner: Map.get(entry, "owner", "corpus"),
-           criticality: atomize_criticality(Map.get(entry, "criticality")),
-           state: atomize_state(Map.get(entry, "state")),
-           schema_digest: Map.get(entry, "schema_digest"),
-           a2a_uri: Map.get(entry, "a2a_uri", "https://example.com/extensions/#{ns}"),
-           promoted_at_revision: Map.get(entry, "promoted_at_revision")
-         }}
-      end)
+    registry_input = Map.get(support_input, "registry", %{})
+    schemas_input = Map.get(support_input, "schemas", %{})
 
-    schemas =
-      support_input
-      |> Map.get("schemas", %{})
-      |> Enum.into(%{}, fn {ns, schema} -> {ns, to_tagged(schema)} end)
+    if is_list(revisions) and is_list(core_fields) and plain_map?(registry_input) and
+         Enum.all?(registry_input, fn {_, entry} -> plain_map?(entry) end) and
+         plain_map?(schemas_input) do
+      registry =
+        support_input
+        |> Map.get("registry", %{})
+        |> Enum.into(%{}, fn {ns, entry} ->
+          {ns,
+           %ExtensionRegistry{
+             namespace: ns,
+             owner: Map.get(entry, "owner", "corpus"),
+             criticality: atomize_criticality(Map.get(entry, "criticality")),
+             state: atomize_state(Map.get(entry, "state")),
+             schema_digest: Map.get(entry, "schema_digest"),
+             a2a_uri: Map.get(entry, "a2a_uri", "https://example.com/extensions/#{ns}"),
+             promoted_at_revision: Map.get(entry, "promoted_at_revision")
+           }}
+        end)
 
-    {:ok,
-     %Negotiation.Support{
-       revisions: MapSet.new(revisions),
-       core_fields: MapSet.new(core_fields),
-       registry: registry,
-       schemas: schemas
-     }}
+      schemas =
+        support_input
+        |> Map.get("schemas", %{})
+        |> Enum.into(%{}, fn {ns, schema} -> {ns, to_tagged(schema)} end)
+
+      {:ok,
+       %Negotiation.Support{
+         revisions: MapSet.new(revisions),
+         core_fields: MapSet.new(core_fields),
+         registry: registry,
+         schemas: schemas
+       }}
+    else
+      {:error, :invalid_type}
+    end
   end
 
   defp atomize_criticality("critical"), do: :critical
@@ -678,7 +749,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp bound_set(input, key) do
     case Map.get(input, key) do
-      map when is_map(map) ->
+      map when is_map(map) and not is_struct(map) ->
         entries =
           Enum.reduce_while(Map.to_list(map), {:ok, %{}}, fn {name, value}, {:ok, acc} ->
             add_bound_entry(name, value, acc)
@@ -703,12 +774,15 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   # Scope values arrive as %{"ordinal" => s, "markers" => [...]}; obligation
   # ordinals as bare strings; costs as %{"amount" => n, "currency" => c}.
-  defp descope_value(%{"ordinal" => ordinal} = value) do
+  defp descope_value(%{"ordinal" => ordinal, "markers" => markers}) when is_list(markers) do
     %{
       ordinal: lattice_atom(ordinal),
-      markers: value |> Map.get("markers", []) |> Enum.map(&lattice_atom/1) |> MapSet.new()
+      markers: markers |> Enum.map(&lattice_atom/1) |> MapSet.new()
     }
   end
+
+  defp descope_value(%{"ordinal" => ordinal} = value) when not is_map_key(value, "markers"),
+    do: %{ordinal: lattice_atom(ordinal), markers: MapSet.new()}
 
   defp descope_value(%{"amount" => amount, "currency" => currency}),
     do: %{amount: amount, currency: currency}
@@ -812,7 +886,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
       nil ->
         {:ok, nil}
 
-      sets when is_map(sets) ->
+      sets when is_map(sets) and not is_struct(sets) ->
         sets
         |> Enum.reduce_while({:ok, %{}}, fn {issuer, key_list}, {:ok, acc} ->
           add_issuer_keys(issuer, key_list, acc)

@@ -28,6 +28,16 @@ A corpus directory carries:
 - `vectors/*.json` — golden artifacts and RFC 8785 number vectors.
 - `schemas/*.json` — shipped schema documents.
 
+Both CLIs write a separate value-free stderr line stating whether the loaded
+corpus digest matches the release-certified digest in the release metadata.
+A different corpus can still run, including `--prior-corpus` replay; agreement
+on that corpus does not certify the release corpus. The stdout report is unchanged.
+
+The filesystem readers reject symlinks and non-regular files. A directory is
+limited to 1,000 entries (files and directories combined) and 5,000,000 total
+file bytes. Finder metadata files are ignored. Unreadable inputs and exceeded
+limits return exit 2 without including paths or file contents.
+
 Integrity is load-time: exact file set (both directions), per-file
 hashes, count, id-uniqueness, applicability totality. A corpus that
 cannot prove its own integrity refuses to run — a vacuous green is
@@ -39,7 +49,7 @@ The report is a single-line JSON object, JCS-canonical (members
 sorted), no trailing newline, on stdout:
 
 ```json
-{"agreed":190,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":190}
+{"agreed":199,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":199}
 ```
 
 - `agreed`/`disagreed` — per-case verdict agreement between the

@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // The federation profile — the mirror of AgentBlueprintProtocol.Federation:
 // the 23-member TaskEnvelope decoded through the registry engine (carrier-key
 // placement laws, R1-R4 root hooks), the lossy-aware A2A/MCP state codecs
@@ -7,7 +8,7 @@
 // compare → prior-receipt conflict → signed freshness).
 
 import type { Bounds } from "./bounds.ts";
-import { MAXIMA as CEILINGS, coerce as coerceBounds, maximum as maxBounds } from "./bounds.ts";
+import { coerce as coerceBounds, maximum as maxBounds } from "./bounds.ts";
 import * as blueprint from "./blueprint.ts";
 import * as canonical from "./canonical.ts";
 import * as digest from "./digest.ts";
@@ -305,7 +306,7 @@ export function decode(
 // already-decoded value, with the decoder's ceilings re-imposed (a hostile
 // carrier body cannot buy unbounded work the decode lane would have refused).
 export function fromValue(value: Value): { ok: true; v: Envelope } | { ok: false; e: string } {
-  if (value.t !== "obj") return { ok: false, e: "invalid_type" };
+  if (!value || value.t !== "obj") return { ok: false, e: "invalid_type" };
   const bounded = boundedShape(value);
   if (!bounded.ok) return bounded;
   const validated = validate(table(), value);
@@ -322,81 +323,15 @@ function normalizeBounds(bounds?: Bounds | Record<string, unknown>): { ok: true;
 
 // ---- the bounded shape walk (from_value's decoder-parity gate) ----------------------
 
-interface ShapeAcc {
-  members: number;
-  items: number;
-  nodes: number;
-  string: number;
-  depth: number;
-}
-
 function boundedShape(value: Value): VResult {
-  return shapeWalk(value, { members: 0, items: 0, nodes: 0, string: 0, depth: 0 });
-}
-
-function shapeWalk(value: Value, acc: ShapeAcc): VResult {
-  const entry = ceiling(acc);
-  if (!entry.ok) return entry;
-
-  switch (value.t) {
-    case "obj": {
-      const bumped = bump(acc, { members: value.v.length, nodes: 1, depth: 1 });
-      return walkShapeMembers(value.v, bumped);
-    }
-    case "arr": {
-      const bumped = bump(acc, { items: value.v.length, nodes: 1, depth: 1 });
-      return walkShapeItems(value.v, bumped);
-    }
-    case "str": {
-      const bumped = bump(acc, { nodes: 1, string: Buffer.byteLength(value.v, "utf8"), depth: 1 });
-      return ceiling(bumped);
-    }
-    default:
-      return ceiling(bump(acc, { nodes: 1 }));
-  }
-}
-
-function walkShapeMembers(members: [string, Value][], acc: ShapeAcc): VResult {
-  for (const [, value] of members) {
-    const result = shapeWalk(value, acc);
-    if (!result.ok) return result;
-  }
-  return { ok: true };
-}
-
-function walkShapeItems(items: Value[], acc: ShapeAcc): VResult {
-  for (const item of items) {
-    const result = shapeWalk(item, acc);
-    if (!result.ok) return result;
-  }
-  return { ok: true };
-}
-
-function bump(acc: ShapeAcc, adds: Partial<Record<keyof ShapeAcc, number>>): ShapeAcc {
-  const out = { ...acc };
-  for (const [key, add] of Object.entries(adds)) {
-    out[key as keyof ShapeAcc] += add!;
-  }
-  return out;
-}
-
-function ceiling(acc: ShapeAcc): VResult {
-  const checks: [keyof ShapeAcc, number, string][] = [
-    ["members", CEILINGS.members, "members"],
-    ["items", CEILINGS.items, "items"],
-    ["nodes", CEILINGS.nodes, "nodes"],
-    ["string", CEILINGS.string, "string"],
-    ["depth", CEILINGS.depth, "depth"],
-  ];
-  for (const [key, max, name] of checks) {
-    if (acc[key] > max) return { ok: false, e: `ceiling:${name}` };
-  }
-  return { ok: true };
+  const result = canonical.encode(value);
+  return result.ok ? { ok: true } : result;
 }
 
 // ---- canonical bytes ------------------------------------------------------------------
 
 export function canonicalBytes(envelope: Envelope): { ok: true; v: string } | { ok: false; e: string } {
+  if (!envelope || typeof envelope !== "object") return { ok: false, e: "invalid_type" };
   return canonical.encode(envelope.value);
 }
 
@@ -528,7 +463,7 @@ export function mcpCarrierKey(): string {
 }
 
 export function fromA2aCarrier(carrier: Value): CodecResult {
-  if (carrier.t !== "obj") return { ok: false, e: "invalid_type" };
+  if (!isValue(carrier) || carrier.t !== "obj") return { ok: false, e: "invalid_type" };
   const id = carrierString(carrier.v, "id");
   if (!id.ok) return id;
   const stateRaw = carrierState(carrier.v);
@@ -544,7 +479,7 @@ export function fromA2aCarrier(carrier: Value): CodecResult {
 }
 
 export function fromMcpCarrier(carrier: Value): CodecResult {
-  if (carrier.t !== "obj") return { ok: false, e: "invalid_type" };
+  if (!isValue(carrier) || carrier.t !== "obj") return { ok: false, e: "invalid_type" };
   const id = carrierString(carrier.v, "taskId");
   if (!id.ok) return id;
   const stateRaw = carrierString(carrier.v, "status");
@@ -611,7 +546,7 @@ function rebuild(id: string, logical: string, body: [string, Value][]): { ok: tr
 // The Terminal Commitment: the domain-separated digest over exactly the
 // seven named components.
 export function terminalCommitment(envelope: Envelope): { ok: true; v: digest.Digest } | { ok: false; e: string } {
-  if (envelope.value.t !== "obj") return { ok: false, e: "invalid_type" };
+  if (!envelope || !isValue(envelope.value) || envelope.value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = new Map(envelope.value.v);
 
   const taskOk = stringMember(members, "task_identity");
@@ -645,7 +580,7 @@ export function verifyCommitment(
   envelope: Envelope,
   context: Context,
 ): { ok: true; v: { taskIdentity: string } } | { ok: false; e: string } {
-  if (envelope.value.t !== "obj") return { ok: false, e: "invalid_type" };
+  if (!envelope || !isValue(envelope.value) || envelope.value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = new Map(envelope.value.v);
 
   const taskOk = stringMember(members, "task_identity");
@@ -658,6 +593,9 @@ export function verifyCommitment(
   const signatureEntry = receiptFetch(receipt.v, "signature");
   if (!signatureEntry.ok) return signatureEntry;
 
+  if (!context || typeof context !== "object" || !Array.isArray(context.keys) ||
+      (context.issuerKeySets != null && (typeof context.issuerKeySets !== "object" || Array.isArray(context.issuerKeySets) || Object.values(context.issuerKeySets).some((keys) => !Array.isArray(keys)))) ||
+      (!Array.isArray(context.priorReceipts) || context.priorReceipts.some((receipt) => !receipt || typeof receipt !== "object"))) return { ok: false, e: "invalid_type" };
   const pool = resolvePool(members, context);
   if (!pool.ok) return pool;
 

@@ -161,6 +161,8 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   def entry(namespace) when is_binary(namespace),
     do: Map.fetch(by_namespace(), namespace)
 
+  def entry(_), do: {:error, :invalid_type}
+
   @doc """
   The registry's content digest (the corpus-registry binding):
   `Digest.hash(:extension_registry, JCS(entries projected to their declared

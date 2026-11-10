@@ -100,7 +100,7 @@ defmodule AgentBlueprintProtocol.Evidence do
     do: {:error, %Error{code: :invalid_type, subject: ["evidence"]}}
 
   defp extras_of(extras) when is_list(extras) do
-    case Enum.find_index(extras, &(not is_atom(&1))) do
+    case invalid_index(extras, &(not is_atom(&1))) do
       nil -> {:ok, extras}
       index -> {:error, %Error{code: :invalid_type, subject: ["not_verified", index]}}
     end
@@ -123,7 +123,7 @@ defmodule AgentBlueprintProtocol.Evidence do
     do: {:error, %Error{code: :invalid_type, subject: [name]}}
 
   defp checks_check(checks) when is_list(checks) do
-    case Enum.find_index(checks, &(!check_ok?(&1))) do
+    case invalid_index(checks, &(!check_ok?(&1))) do
       nil -> :ok
       index -> {:error, %Error{code: :invalid_type, subject: ["checks", index]}}
     end
@@ -133,7 +133,7 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   defp check_ok?(%{surface: surface, subject: subject, verified: verified})
        when is_atom(surface) and is_boolean(verified) and is_list(subject),
-       do: Enum.all?(subject, &(is_binary(&1) or (is_integer(&1) and &1 >= 0)))
+       do: is_nil(invalid_index(subject, &(not (is_binary(&1) or (is_integer(&1) and &1 >= 0)))))
 
   defp check_ok?(_), do: false
 
@@ -144,7 +144,7 @@ defmodule AgentBlueprintProtocol.Evidence do
   defp bounds_check(_), do: {:error, %Error{code: :invalid_type, subject: ["effective_bounds"]}}
 
   defp clamps_check(clamps) when is_list(clamps) do
-    case Enum.find_index(clamps, &(not is_struct(&1, BoundsAlgebra.ClampEvidence))) do
+    case invalid_index(clamps, &(not is_struct(&1, BoundsAlgebra.ClampEvidence))) do
       nil -> :ok
       index -> {:error, %Error{code: :invalid_type, subject: ["clamps", index]}}
     end
@@ -153,7 +153,7 @@ defmodule AgentBlueprintProtocol.Evidence do
   defp clamps_check(_), do: {:error, %Error{code: :invalid_type, subject: ["clamps"]}}
 
   defp retained_check(retained) when is_list(retained) do
-    case Enum.find_index(retained, &(not is_binary(&1))) do
+    case invalid_index(retained, &(not is_binary(&1))) do
       nil ->
         :ok
 
@@ -164,6 +164,15 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   defp retained_check(_),
     do: {:error, %Error{code: :invalid_type, subject: ["optional_extensions_retained"]}}
+
+  defp invalid_index(list, predicate), do: invalid_index(list, predicate, 0)
+  defp invalid_index([], _predicate, _index), do: nil
+
+  defp invalid_index([value | rest], predicate, index) do
+    if predicate.(value), do: index, else: invalid_index(rest, predicate, index + 1)
+  end
+
+  defp invalid_index(_, _predicate, index), do: index
 
   defp known_keys(attrs) do
     allowed = MapSet.new(map_fields())

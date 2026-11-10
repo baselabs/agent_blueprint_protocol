@@ -42,6 +42,19 @@ defmodule AgentBlueprintProtocol.TypeScriptGuideGate do
 
     try do
       install_packed_kit!(dir)
+
+      {"", 0} =
+        System.cmd(
+          node,
+          [
+            "--input-type=module",
+            "-e",
+            "await import('@agent-blueprint-protocol/verifier/dist/verifier/run_corpus.js')"
+          ],
+          cd: dir,
+          stderr_to_stdout: true
+        )
+
       File.write!(Path.join(dir, "verify.mjs"), sample)
       example = File.read!(Path.join(@root, @example))
 

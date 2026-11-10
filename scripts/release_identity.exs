@@ -62,7 +62,8 @@ defmodule AgentBlueprintProtocol.ReleaseIdentity do
   @prior_census_verdicts %{
     "sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo" => "equivalent",
     "sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8" => "equivalent",
-    "sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4" => "equivalent"
+    "sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4" => "equivalent",
+    "sha-256:SvJLvMwXdYQZBjOrklsQSHQRX8PhxPHOv23C2rmFazQ" => "equivalent"
   }
 
   def metadata_path, do: @metadata_path

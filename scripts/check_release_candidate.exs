@@ -128,10 +128,9 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "deployment-validate-skip",
       path: "lib/agent_blueprint_protocol/deployment.ex",
-      from:
-        "    with {:ok, value} <- Canonicalization.verify(binary, bounds),\n         :ok <- Registry.validate(table(), value),\n         :ok <- scan(value, MapSet.new()),\n         :ok <- verify_content_digest(%__MODULE__{value: value}) do\n      {:ok, %__MODULE__{value: value}}\n    end\n  end\n\n  # The API type boundary \u2014 the never-raising posture at this clause too: a\n  # non-binary input denies :invalid_type instead of raising\n  # FunctionClauseError (the corpus floor's json surface fix, applied\n  # symmetrically to the artifact decoders).\n  def decode(_binary, _bounds), do: {:error, :invalid_type}\n\n  @doc \"\"\"\n  Validate an already-decoded tagged value (stages 2-3; no canonicality \u2014\n  there are no bytes, so the canonicality ordering obligation does not apply here).\n  For values that came from verified bytes, follow with\n  `verify_content_digest/1` \u2014 this function does NOT check the declared\n  digest. `opts` carries `:authored_extensions` \u2014 namespaces\n  whose critical bodies negotiation validated against a digest-pinned host\n  schema (the validated-extension channel). Those bodies skip the portability value-shape\n  heuristics; the channel is tied to THIS artifact's critical region, and\n  the default (`[]`) keeps the strict posture everywhere.\n  \"\"\"\n  @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, reason()}\n  def from_value(value, opts \\\\ %{}) when is_map(value) or is_tuple(value) do\n    validated = Map.get(opts, :authored_extensions, [])\n\n    with :ok <- authored_tied_to_value(value, validated),\n         :ok <- Registry.validate(table(), value),\n         :ok <- scan(value, MapSet.new(validated)) do\n      {:ok, %__MODULE__{value: value}}\n",
-      to:
-        "    with {:ok, value} <- Canonicalization.verify(binary, bounds),\n         :ok <- :ok,\n         :ok <- scan(value, MapSet.new()),\n         :ok <- verify_content_digest(%__MODULE__{value: value}) do\n      {:ok, %__MODULE__{value: value}}\n    end\n  end\n\n  # The API type boundary \u2014 the never-raising posture at this clause too: a\n  # non-binary input denies :invalid_type instead of raising\n  # FunctionClauseError (the corpus floor's json surface fix, applied\n  # symmetrically to the artifact decoders).\n  def decode(_binary, _bounds), do: {:error, :invalid_type}\n\n  @doc \"\"\"\n  Validate an already-decoded tagged value (stages 2-3; no canonicality \u2014\n  there are no bytes, so the canonicality ordering obligation does not apply here).\n  For values that came from verified bytes, follow with\n  `verify_content_digest/1` \u2014 this function does NOT check the declared\n  digest. `opts` carries `:authored_extensions` \u2014 namespaces\n  whose critical bodies negotiation validated against a digest-pinned host\n  schema (the validated-extension channel). Those bodies skip the portability value-shape\n  heuristics; the channel is tied to THIS artifact's critical region, and\n  the default (`[]`) keeps the strict posture everywhere.\n  \"\"\"\n  @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, reason()}\n  def from_value(value, opts \\\\ %{}) when is_map(value) or is_tuple(value) do\n    validated = Map.get(opts, :authored_extensions, [])\n\n    with :ok <- authored_tied_to_value(value, validated),\n         :ok <- :ok,\n         :ok <- scan(value, MapSet.new(validated)) do\n      {:ok, %__MODULE__{value: value}}\n",
+      from: "         :ok <- Registry.validate(table(), value),\n",
+      to: "         :ok <- :ok,\n",
+      occurrences: 2,
       command: ~w(mix test test/architecture/deployment_engine_shape_test.exs)
     },
     %{
@@ -663,6 +662,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     # verifier_kit manifest member); a scratch without it cannot run the
     # identity chain at all.
     "package.json",
+    "package-lock.json",
     "README.md",
     "CHANGELOG.md",
     "CODE_OF_CONDUCT.md",
@@ -856,7 +856,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   # A plant is one of three ops: an exact-anchor text replacement (from/to),
   # the creation of a new file (create), or planting a symlink (symlink) —
   # the archive-symlink case needs a symlinked path, not content.
-  defp apply_plant!(path, %{from: from, to: to}), do: mutate_once!(path, from, to)
+  defp apply_plant!(path, %{from: from, to: to} = plant),
+    do: mutate_once!(path, from, to, Map.get(plant, :occurrences, 1))
 
   defp apply_plant!(path, %{create: contents}) do
     if File.exists?(path) do
@@ -876,10 +877,10 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     File.ln_s!(target, path)
   end
 
-  defp mutate_once!(path, source, replacement) do
+  defp mutate_once!(path, source, replacement, expected) do
     contents = File.read!(path)
 
-    if count(contents, source) != 1 do
+    if count(contents, source) != expected do
       raise "reprove anchor is not exact: #{path}"
     end
 

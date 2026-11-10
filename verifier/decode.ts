@@ -13,7 +13,7 @@
 // the twin throws those from inside :json's hooks with the reason attached.
 
 import type { Bounds } from "./bounds.ts";
-import { maximum } from "./bounds.ts";
+import { coerce, maximum } from "./bounds.ts";
 import { number } from "./canonical.ts";
 import type { Value } from "./value.ts";
 import { err, ok } from "./value.ts";
@@ -36,11 +36,13 @@ export function decode(
 ): { ok: true; v: Value } | { ok: false; e: string } {
   if (typeof input !== "string" && !Buffer.isBuffer(input)) return err("invalid_type");
 
+  const normalized = coerce(bounds === undefined ? maximum() : bounds);
+  if (!normalized.ok) return normalized;
   const bytes = typeof input === "string" ? Buffer.from(input, "utf8") : input;
-  // The profile is read field-wise (bytes/items/…) whatever the caller passed.
-  const profile = (bounds ?? maximum()) as Bounds;
+  const profile = normalized.v;
 
   if (bytes.length > profile.bytes) return err("ceiling:bytes");
+  if (typeof input === "string" && bytes.toString("utf8") !== input) return err("invalid_encoding");
 
   const validUtf8 = isUtf8(bytes);
   const s = new Scanner(bytes, profile);
@@ -403,6 +405,7 @@ function utf8Len(firstByte: number): number {
 
 // Strict UTF-8 validation: rejects overlong forms, surrogates, > U+10FFFF.
 export function isUtf8(bytes: Buffer): boolean {
+  if (!Buffer.isBuffer(bytes)) return false;
   let i = 0;
   while (i < bytes.length) {
     const c = bytes[i]!;

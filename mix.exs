@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "0.8.3"
+  @version "0.8.4"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -252,7 +252,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "run --no-start scripts/check_compatibility_replay.exs"
       ],
       "kit.build": [
-        "cmd npm install --no-audit --no-fund --loglevel=error",
+        "cmd npm ci --ignore-scripts --no-audit --no-fund --loglevel=error",
         "cmd npm run build"
       ],
       "release.candidate": [

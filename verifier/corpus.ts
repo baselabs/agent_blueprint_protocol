@@ -274,6 +274,7 @@ export function loadPriorCensus(map: Map<string, Buffer>): LoadResult {
 }
 
 function loadWithMode(map: Map<string, Buffer>, priorCensus: boolean): LoadResult {
+  if (!(map instanceof Map) || [...map].some(([key, bytes]) => typeof key !== "string" || !Buffer.isBuffer(bytes))) return indexInvalid();
   const indexBytes = map.get("index.json");
   if (indexBytes === undefined) return indexInvalid();
 
@@ -766,7 +767,8 @@ function verifyRawBindings(cases: { cases: CaseObj[] }[], raws: Map<string, Buff
 // ---- tagged-object helpers ----------------------------------------------------------------------
 
 export function member(container: Value, key: string): Value | null {
-  if (container.t !== "obj") return null;
+  if (!container || container.t !== "obj" || !Array.isArray(container.v)) return null;
+  if (Array.from(container.v).some((pair) => !Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== "string" || !pair[1] || typeof pair[1] !== "object")) return null;
   const found = container.v.find(([k]) => k === key);
   return found ? found[1] : null;
 }

@@ -1,3 +1,4 @@
+import { isValue } from "./value.ts";
 // The compatibility surface — the mirror of AgentBlueprintProtocol.Compatibility:
 // identity-exact or error. A manifest identity (one build_identities entry)
 // is matched only by an observed identity carrying the EXACT
@@ -39,6 +40,7 @@ const IDENTITY_KEYS = ["kind", "name", "version", "digest"] as const;
 const EXACT_CHARSET = /^[A-Za-z0-9.+-]+$/;
 
 export function verify(deployment: Deployment, observed: Observed): VResult {
+  if (!deployment || !isValue(deployment.value) || !observed || !Array.isArray(observed.identities)) return { ok: false, e: "invalid_type" };
   const manifest = manifestIdentities(deployment);
   if (!manifest.ok) return manifest;
   const validated = validatedObserved(observed.identities);
@@ -49,6 +51,7 @@ export function verify(deployment: Deployment, observed: Observed): VResult {
 // The exactness predicate (public on the twin): total over junk input — any
 // non-conforming shape answers false.
 export function exact(identity: { version: string | null }): boolean {
+  if (!identity || typeof identity !== "object") return false;
   const version = identity.version;
   if (typeof version !== "string") return false;
   const release = version.split("-")[0]!.split("+")[0]!;

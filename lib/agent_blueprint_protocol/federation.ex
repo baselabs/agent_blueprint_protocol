@@ -260,9 +260,9 @@ defmodule AgentBlueprintProtocol.Federation do
   """
   @spec terminal_commitment(t()) :: {:ok, Digest.t()} | {:error, Error.t()}
   def terminal_commitment(%__MODULE__{value: {:object, _} = value}) do
-    members = value |> member_value_map()
-
-    with :ok <- string_member(members, "task_identity"),
+    with :ok <- bounded_shape(value),
+         members = member_value_map(value),
+         :ok <- string_member(members, "task_identity"),
          :ok <- string_member(members, "terminal_state"),
          {:ok, receipt_members} <- receipt_of(members),
          {:ok, result_digest} <- receipt_fetch(receipt_members, "result_digest"),
@@ -281,8 +281,10 @@ defmodule AgentBlueprintProtocol.Federation do
 
       # The components are engine-validated tagged values; encode cannot
       # fail here (an impossible match would raise loudly, not silently).
-      {:ok, jcs} = Canonicalization.encode({:object, ordered})
-      {:ok, Digest.hash(:federation_envelope, jcs)}
+      case Canonicalization.encode({:object, ordered}) do
+        {:ok, jcs} -> {:ok, Digest.hash(:federation_envelope, jcs)}
+        {:error, reason} -> {:error, %Error{code: reason, subject: ["federation_envelope"]}}
+      end
     end
   end
 
@@ -305,9 +307,9 @@ defmodule AgentBlueprintProtocol.Federation do
           {:ok, Context.receipt_fact()}
           | {:error, Error.t()}
   def verify_commitment(%__MODULE__{value: {:object, _} = value}, %Context{} = context) do
-    members = member_value_map(value)
-
-    with :ok <- string_member(members, "task_identity"),
+    with :ok <- bounded_shape(value),
+         members = member_value_map(value),
+         :ok <- string_member(members, "task_identity"),
          :ok <- string_member(members, "terminal_state"),
          {:ok, receipt_members} <- receipt_of(members),
          {:ok, signature} <- receipt_fetch(receipt_members, "signature"),
@@ -575,23 +577,20 @@ defmodule AgentBlueprintProtocol.Federation do
 
   # Receiver-supplied state gets the same typed-denial rim as every other
   # Context field (the never-raise posture is uniform).
-  defp valid_priors?(priors) when is_list(priors) do
-    facts? = fn
-      %{task_identity: id, terminal_state: state, terminal_commitment: %Digest{}}
-      when is_binary(id) and is_binary(state) ->
-        true
-
-      _ ->
-        false
-    end
-
-    if Enum.all?(priors, facts?),
+  defp valid_priors?(priors) do
+    if prior_facts?(priors),
       do: :ok,
       else: {:error, %Error{code: :invalid_type, subject: ["prior_receipts"]}}
   end
 
-  defp valid_priors?(_not_a_list),
-    do: {:error, %Error{code: :invalid_type, subject: ["prior_receipts"]}}
+  defp prior_facts?([]), do: true
+
+  defp prior_facts?([
+         %{task_identity: id, terminal_state: state, terminal_commitment: %Digest{}} | rest
+       ])
+       when is_binary(id) and is_binary(state), do: prior_facts?(rest)
+
+  defp prior_facts?(_), do: false
 
   # ---- the field table (23 members, bijective with the mapping rows) --------
 
@@ -846,73 +845,9 @@ defmodule AgentBlueprintProtocol.Federation do
   # rejects, but a hand-built carrier map can carry) deny typed instead of
   # crashing the later digest encodes.
   defp bounded_shape(value) do
-    limits = Bounds.maximum()
-    zero = %{members: 0, items: 0, nodes: 0, string: 0, depth: 0}
-
-    case shape_walk(value, zero, limits) do
-      :ok -> :ok
-      {:error, _} = error -> error
-    end
-  end
-
-  defp shape_walk(value, acc, limits) do
-    with :ok <- ceiling(acc, limits) do
-      case value do
-        {:object, members} when is_list(members) ->
-          acc = bump(acc, members: length(members), nodes: 1, depth: 1)
-          walk_members(members, acc, limits)
-
-        {:array, items} when is_list(items) ->
-          acc = bump(acc, items: length(items), nodes: 1, depth: 1)
-          walk_items(items, acc, limits)
-
-        {:string, s} ->
-          string_step(s, bump(acc, nodes: 1, string: byte_size(s), depth: 1), limits)
-
-        _leaf ->
-          ceiling(bump(acc, nodes: 1), limits)
-      end
-    end
-  end
-
-  defp string_step(s, acc, limits) do
-    if String.valid?(s),
-      do: ceiling(acc, limits),
-      else: {:error, %Error{code: :invalid_encoding, subject: ["federation_envelope"]}}
-  end
-
-  defp walk_members([], _acc, _limits), do: :ok
-
-  defp walk_members([{_name, value} | rest], acc, limits) do
-    with :ok <- shape_walk(value, acc, limits) do
-      walk_members(rest, acc, limits)
-    end
-  end
-
-  defp walk_items([], _acc, _limits), do: :ok
-
-  defp walk_items([item | rest], acc, limits) do
-    with :ok <- shape_walk(item, acc, limits) do
-      walk_items(rest, acc, limits)
-    end
-  end
-
-  defp bump(acc, kw) do
-    Enum.reduce(kw, acc, fn {key, add}, map -> Map.update!(map, key, &(&1 + add)) end)
-  end
-
-  defp ceiling(acc, limits) do
-    checks = [
-      {:members, limits.members},
-      {:items, limits.items},
-      {:nodes, limits.nodes},
-      {:string, limits.string},
-      {:depth, limits.depth}
-    ]
-
-    case Enum.find(checks, fn {key, max} -> Map.fetch!(acc, key) > max end) do
-      nil -> :ok
-      {key, _max} -> {:error, %Error{code: {:ceiling, key}, subject: ["federation_envelope"]}}
+    case Canonicalization.encode(value) do
+      {:ok, _bytes} -> :ok
+      {:error, reason} -> {:error, %Error{code: reason, subject: ["federation_envelope"]}}
     end
   end
 
@@ -923,10 +858,15 @@ defmodule AgentBlueprintProtocol.Federation do
   """
   @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, term()}
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
+  def canonical_bytes(_), do: {:error, :invalid_type}
 
   @doc "The envelope's members as a map (wire names → tagged values)."
   @spec member_map(t()) :: %{optional(binary()) => Json.value()}
-  def member_map(%__MODULE__{value: {:object, members}}), do: Map.new(members)
+  def member_map(%__MODULE__{value: {:object, members} = value}) do
+    with :ok <- bounded_shape(value), do: Map.new(members)
+  end
+
+  def member_map(_), do: {:error, %Error{code: :invalid_type, subject: ["federation_envelope"]}}
 
   # ---- the federation portability pass (mode map) --------------------------------
 
@@ -1146,8 +1086,9 @@ defmodule AgentBlueprintProtocol.Federation do
   transports — a divergent handle is unmappable).
   """
   @spec to_a2a_carrier(t()) :: {:ok, Json.value()} | {:error, Error.t()}
-  def to_a2a_carrier(%__MODULE__{} = envelope) do
-    with :ok <- recovery_matches(envelope),
+  def to_a2a_carrier(%__MODULE__{value: {:object, _}} = envelope) do
+    with :ok <- bounded_shape(envelope.value),
+         :ok <- recovery_matches(envelope),
          {:ok, logical} <- observed_state(envelope),
          {:ok, spelling} <- to_a2a_state(logical) do
       members = member_map(envelope)
@@ -1175,7 +1116,8 @@ defmodule AgentBlueprintProtocol.Federation do
   """
   @spec from_a2a_carrier(Json.value()) :: {:ok, t()} | {:error, Error.t()}
   def from_a2a_carrier({:object, _} = carrier) do
-    with {:ok, id} <- carrier_string(carrier, "id", ["id"]),
+    with :ok <- bounded_shape(carrier),
+         {:ok, id} <- carrier_string(carrier, "id", ["id"]),
          {:ok, state_raw} <- carrier_state(carrier, "state", ["status", "state"]),
          {:ok, logical} <- from_a2a_state(state_raw),
          {:ok, body} <- carrier_body(carrier, "metadata", a2a_carrier_key()),
@@ -1193,8 +1135,9 @@ defmodule AgentBlueprintProtocol.Federation do
   states deny before placement.
   """
   @spec to_mcp_carrier(t()) :: {:ok, Json.value()} | {:error, Error.t()}
-  def to_mcp_carrier(%__MODULE__{} = envelope) do
-    with :ok <- recovery_matches(envelope),
+  def to_mcp_carrier(%__MODULE__{value: {:object, _}} = envelope) do
+    with :ok <- bounded_shape(envelope.value),
+         :ok <- recovery_matches(envelope),
          {:ok, logical} <- observed_state(envelope),
          {:ok, spelling} <- to_mcp_state(logical) do
       members = member_map(envelope)
@@ -1216,7 +1159,8 @@ defmodule AgentBlueprintProtocol.Federation do
   @doc "Rebuild the envelope from an MCP Task carrier (the upward state mapping; `cancelled` folds to `:canceled`)."
   @spec from_mcp_carrier(Json.value()) :: {:ok, t()} | {:error, Error.t()}
   def from_mcp_carrier({:object, _} = carrier) do
-    with {:ok, id} <- carrier_string(carrier, "taskId", ["taskId"]),
+    with :ok <- bounded_shape(carrier),
+         {:ok, id} <- carrier_string(carrier, "taskId", ["taskId"]),
          {:ok, state_raw} <- carrier_string(carrier, "status", ["status"]),
          {:ok, logical} <- from_mcp_state(state_raw),
          {:ok, body} <- carrier_body(carrier, "_meta", mcp_carrier_key()),

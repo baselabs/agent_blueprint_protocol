@@ -80,7 +80,9 @@ jobs:
 
       # The TypeScript guide's import example runs against the packed kit (npm pack, then install).
       - name: Build the npm kit
-        run: mix kit.build
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
 
       - name: TypeScript guide example
         run: mix typescript.guide

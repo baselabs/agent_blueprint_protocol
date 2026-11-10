@@ -903,6 +903,13 @@ big_schema = %{
 
 schema_cases = [
   %{
+    "id" => "schema-validate-maximum-array",
+    "surface" => "schema.validate_instance",
+    "class" => "valid",
+    "input" => %{"schema" => %{"items" => true}, "instance" => List.duplicate(nil, 10_000)},
+    "expected" => %{"verdict" => "valid", "valid" => true}
+  },
+  %{
     "id" => "schema-validate-valid",
     "surface" => "schema.validate_instance",
     "class" => "valid",
@@ -2267,6 +2274,101 @@ recovery_name_cases =
     }
   end
 
+# Predicate grammar carries authored content through every boolean operand.
+predicate_content_cases =
+  for {name, predicate} <- [
+        {"and-value",
+         {:object,
+          [
+            {"op", {:string, "and"}},
+            {"args",
+             {:array,
+              [
+                {:object,
+                 [
+                   {"op", {:string, "eq"}},
+                   {"path", BlueprintFixture.path(["request"])},
+                   {"value", {:string, "https://example.com/token"}}
+                 ]}
+              ]}}
+          ]}},
+        {"or-values",
+         {:object,
+          [
+            {"op", {:string, "or"}},
+            {"args",
+             {:array,
+              [
+                {:object,
+                 [
+                   {"op", {:string, "in"}},
+                   {"path", BlueprintFixture.path(["request"])},
+                   {"values", {:array, [{:string, "https://example.com/token"}]}}
+                 ]}
+              ]}}
+          ]}},
+        {"not-value",
+         {:object,
+          [
+            {"op", {:string, "not"}},
+            {"args",
+             {:array,
+              [
+                {:object,
+                 [
+                   {"op", {:string, "eq"}},
+                   {"path", BlueprintFixture.path(["request"])},
+                   {"value", {:string, "https://example.com/token"}}
+                 ]}
+              ]}}
+          ]}},
+        {"path-segment",
+         {:object,
+          [
+            {"op", {:string, "present"}},
+            {"path", BlueprintFixture.path(["request", "https://example.com/token"])}
+          ]}}
+      ] do
+    assertion = BlueprintFixture.assertion(kind: "deterministic_predicate", predicate: predicate)
+
+    %{
+      "id" => "blueprint-decode-predicate-" <> name,
+      "surface" => "blueprint.decode",
+      "class" => "forbidden_portable_value",
+      "input" => %{"text" => BlueprintFixture.fixture_bytes(assertions: [assertion])},
+      "expected" => %{"verdict" => "invalid", "code" => "forbidden_portable_value"}
+    }
+  end
+
+signature_key_scan_cases =
+  for {kind, fixture, attrs} <- [
+        {"blueprint", BlueprintFixture, BlueprintFixture.signature_attrs()},
+        {"deployment", DeploymentFixture, DeploymentFixture.signature_attrs()}
+      ],
+      position <- [0, 1] do
+    entry = fn kid ->
+      {:object, fields} = attrs
+      attrs = {:object, List.keyreplace(fields, "key_id", 0, {"key_id", {:string, kid}})}
+
+      BlueprintFixture.signature_entry(
+        header: BlueprintFixture.signature_header(kid),
+        attrs: attrs,
+        signature: {:string, CorpusGen.b64(<<0::512>>)}
+      )
+    end
+
+    entries = List.insert_at([entry.("example-key")], position, entry.("https://example/token"))
+    value = fixture.fixture_value(extra_members: [{"signatures", {:array, entries}}])
+
+    %{
+      "id" => kind <> "-decode-signature-key-position-" <> Integer.to_string(position),
+      "surface" => kind <> ".decode",
+      "class" => "forbidden_portable_value",
+      "input" => %{"text" => CorpusGen.json_text!(value)},
+      "expected" => %{"verdict" => "invalid", "code" => "forbidden_portable_value"}
+    }
+  end
+
 all_cases =
   json_cases ++
     canonicalization_cases ++
@@ -2288,7 +2390,9 @@ all_cases =
     predicate_operator_cases ++
     unknown_state_cases ++
     unknown_bound_cases ++
-    unknown_algebra_cases ++ uri_boundary_cases ++ recovery_name_cases
+    unknown_algebra_cases ++
+    uri_boundary_cases ++
+    recovery_name_cases ++ predicate_content_cases ++ signature_key_scan_cases
 
 # --- vectors + schemas (hash-bound non-case data) ----------------------------
 

@@ -2,6 +2,40 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.8.4] — unreleased
+
+### Fixed
+
+- Portability checks cover predicate arguments and path segments at every depth
+  and every signature key identifier in both implementations.
+- Schema evaluation memoizes by schema location, avoiding repeated hashing of
+  large enum payloads. Federation reconstruction counts nodes across siblings.
+- Malformed host arguments return typed, value-free denials through the
+  existing result channels. Direct canonical encoding enforces all structural
+  ceilings, including container size, string and key lengths, node count, and
+  depth, and rejects non-finite numbers. Producers cannot emit values that
+  verifiers refuse to decode.
+- Conformance readers require regular files, reject symlinks, and cap the
+  entire directory at 1,000 entries and 5,000,000 bytes. Both CLIs state whether
+  the corpus matches the release-certified digest without changing report bytes.
+- The TypeScript decoder retains all ceilings for partial bounds, rejects
+  unknown bounds and lone-surrogate string input, and exposes immutable maxima.
+- The installed CLI accepts relative and absolute corpus paths with trailing
+  separators, reports help and version with exit 0, and keeps unknown arguments
+  at exit 2. Importing the optional corpus entry performs no filesystem access.
+- Dependency installations use the lockfile with lifecycle scripts disabled.
+  Only the npm staging job can request an identity token.
+- Malformed host arguments and hand-built values deny with the code of the
+  first violated rule; no verdict for decoded bytes changes.
+- Publishing jobs consume the npm tarball and standalone kit produced by the
+  verification job.
+
+The corpus contains 199 cases, digest
+`sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8`; registry
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification digest
+`sha-256:YfVuNANOdTyQD2rXtXPbonyguVQBCZQheb9WCv4DR8E`. Protocol revision and
+`verification_semantics_version` remain 1.
+
 ## [0.8.3] — 2026-11-10
 
 ### Fixed — security

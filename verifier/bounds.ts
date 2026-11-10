@@ -14,7 +14,7 @@ export interface Bounds {
   number_lexeme: number;
 }
 
-export const MAXIMA: Bounds = {
+export const MAXIMA: Readonly<Bounds> = Object.freeze({
   bytes: 5_000_000,
   depth: 64,
   members: 1_000,
@@ -23,7 +23,7 @@ export const MAXIMA: Bounds = {
   string: 100_000,
   key: 1_000,
   number_lexeme: 64,
-};
+});
 
 const FIELDS = Object.keys(MAXIMA) as (keyof Bounds)[];
 

@@ -28,6 +28,13 @@ node verifier/self_checks.ts                          # RFC 8785 Appendix B, win
                                                       # Ed25519 keys, prior-census anchors
 ```
 
+The installed `agent-blueprint-protocol --help` lists all modes and exit
+codes; `--version` prints the package version. Both exit 0; unknown arguments
+exit 2. Corpus reads reject symlinks and special files and cap the complete
+tree at 1,000 entries and 5,000,000 bytes. A separate stderr line says whether
+the corpus digest matches the release-certified digest; stdout report bytes
+remain identical across implementations.
+
 ## Distribution
 
 A per-release tarball (`verifier-<version>.tar.gz`) is attached to

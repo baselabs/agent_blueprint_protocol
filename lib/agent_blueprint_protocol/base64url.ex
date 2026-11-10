@@ -36,6 +36,8 @@ defmodule AgentBlueprintProtocol.Base64Url do
   @spec encode(binary()) :: binary()
   def encode(data) when is_binary(data), do: Base.url_encode64(data, padding: false)
 
+  def encode(_), do: {:error, :invalid_type}
+
   @doc """
   Decode strict unpadded base64url. Never raises on binary input; errors
   are value-free.
@@ -48,6 +50,8 @@ defmodule AgentBlueprintProtocol.Base64Url do
       true -> decode_canonical(input)
     end
   end
+
+  def decode(_), do: {:error, :invalid_type}
 
   defp decode_canonical(input) do
     case Base.url_decode64(input, padding: false) do

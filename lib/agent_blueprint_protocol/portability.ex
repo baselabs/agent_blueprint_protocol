@@ -147,23 +147,25 @@ defmodule AgentBlueprintProtocol.Portability do
   @lower_identifier Regex.compile!("\\A[a-z0-9_-]+\\z")
   @upper_identifier Regex.compile!("\\A[A-Z0-9_-]+\\z")
 
-  @type reason :: :forbidden_portable_value
+  @type reason :: :forbidden_portable_value | :invalid_type | {:ceiling, :depth}
+
+  @max_depth AgentBlueprintProtocol.Bounds.maximum().depth
 
   @doc "Names + values, identifier exemption OFF (extension bodies)."
   @spec scan(Json.value()) :: :ok | {:error, reason()}
-  def scan(value), do: walk(value, true, false)
+  def scan(value), do: walk(value, true, false, 0)
 
   @doc "Names + values, identifier exemption ON (authored JSON: schemas, predicate operands)."
   @spec scan_authored(Json.value()) :: :ok | {:error, reason()}
-  def scan_authored(value), do: walk(value, true, true)
+  def scan_authored(value), do: walk(value, true, true, 0)
 
   @doc "Values only, identifier exemption ON (the protocol's identifier positions)."
   @spec scan_identifier(Json.value()) :: :ok | {:error, reason()}
-  def scan_identifier(value), do: walk(value, false, true)
+  def scan_identifier(value), do: walk(value, false, true, 0)
 
   @doc "Values only, exemption OFF (every other string position)."
   @spec scan_value(Json.value()) :: :ok | {:error, reason()}
-  def scan_value(value), do: walk(value, false, false)
+  def scan_value(value), do: walk(value, false, false, 0)
 
   # Names normalize kebab/SCREAMING/camel onto the stored forms before the
   # denylist compare (the normalized
@@ -176,37 +178,55 @@ defmodule AgentBlueprintProtocol.Portability do
     MapSet.member?(@denied_names, normalized)
   end
 
-  defp walk({:object, members}, names?, exempt?) when is_list(members) do
-    member_ok? =
-      if names?,
-        do: Enum.all?(members, fn {name, _} -> not denied_name?(name) end),
-        else: true
+  defp walk({tag, _}, _names?, _exempt?, depth)
+       when tag in [:array, :object] and depth >= @max_depth,
+       do: {:error, {:ceiling, :depth}}
 
-    if member_ok? and
-         Enum.all?(members, fn {_name, value} -> walk(value, names?, exempt?) == :ok end) do
-      :ok
+  defp walk({:object, members}, names?, exempt?, depth) when is_list(members) do
+    if member_pairs?(members),
+      do: walk_object(members, names?, exempt?, depth),
+      else: {:error, :invalid_type}
+  end
+
+  defp walk({:array, items}, names?, exempt?, depth) when is_list(items) do
+    walk_array(items, names?, exempt?, depth)
+  end
+
+  defp walk({:string, s}, _names?, exempt?, _depth) when is_binary(s) do
+    forbidden = if exempt? and identifier_style?(s), do: false, else: forbidden_value?(s)
+    if forbidden, do: {:error, :forbidden_portable_value}, else: :ok
+  end
+
+  defp walk(_other, _names?, _exempt?, _depth), do: :ok
+
+  defp walk_array([], _names?, _exempt?, _depth), do: :ok
+
+  defp walk_array([value | rest], names?, exempt?, depth) do
+    with :ok <- walk(value, names?, exempt?, depth + 1),
+         do: walk_array(rest, names?, exempt?, depth)
+  end
+
+  defp walk_array(_, _, _, _), do: {:error, :invalid_type}
+
+  defp member_pairs?([]), do: true
+  defp member_pairs?([{name, _} | rest]) when is_binary(name), do: member_pairs?(rest)
+  defp member_pairs?(_), do: false
+
+  defp walk_object(members, names?, exempt?, depth) do
+    member_ok? =
+      if names?, do: Enum.all?(members, fn {name, _} -> not denied_name?(name) end), else: true
+
+    if member_ok? do
+      Enum.find_value(members, :ok, fn {_name, value} ->
+        pass_nil(walk(value, names?, exempt?, depth + 1))
+      end)
     else
       {:error, :forbidden_portable_value}
     end
   end
 
-  defp walk({:array, items}, names?, exempt?) when is_list(items),
-    do:
-      if(Enum.all?(items, &(walk(&1, names?, exempt?) == :ok)),
-        do: :ok,
-        else: {:error, :forbidden_portable_value}
-      )
-
-  defp walk({:string, s}, _names?, exempt?) when is_binary(s) do
-    forbidden =
-      if exempt? and identifier_style?(s),
-        do: false,
-        else: forbidden_value?(s)
-
-    if forbidden, do: {:error, :forbidden_portable_value}, else: :ok
-  end
-
-  defp walk(_other, _names?, _exempt?), do: :ok
+  defp pass_nil(:ok), do: nil
+  defp pass_nil({:error, _} = error), do: error
 
   # ---- value shapes ---------------------------------------------------------------
 

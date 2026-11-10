@@ -16,13 +16,18 @@ npx @agent-blueprint-protocol/verifier
 ```
 
 With no arguments the kit runs its EMBEDDED corpus over every protocol
-surface (190 cases in the 0.8.3 kit) and prints the single-line report.
+surface (199 cases in the 0.8.4 kit) and prints the single-line report.
 Green is `"agreement":true` and exit 0; the report names the corpus
-digest, so what you verified is an exact, identified byte set:
+digest, so what you verified is an exact, identified byte set. A separate
+stderr line states whether that digest matches the release-certified corpus:
 
 ```json
-{"agreed":190,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":190}
+{"agreed":199,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":199}
 ```
+
+`--help` prints usage for `agent-blueprint-protocol`, every mode, and the
+exit codes; `--version` prints the package version. Both exit 0. Unknown
+arguments exit 2. Exit 3 indicates an internal error.
 
 ## Verify any corpus
 
@@ -31,7 +36,10 @@ any conformance corpus directory — a copy extracted from a git release
 tag's verification kit, or one you built yourself — and the same
 integrity-first rules apply (missing files, hash mismatches, and empty
 corpora are typed failures, exit 2; a tampered corpus cannot verify
-green).
+green). The reader rejects symlinks and special files and limits the
+whole tree to 1,000 entries and 5,000,000 bytes. A corpus whose digest differs
+from the release-certified digest is labeled on stderr, including prior-corpus
+replay; stdout retains the same report format.
 
 ```bash
 npx @agent-blueprint-protocol/verifier --corpus ./conformance

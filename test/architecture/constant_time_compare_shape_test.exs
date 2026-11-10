@@ -37,7 +37,8 @@ defmodule AgentBlueprintProtocol.Architecture.ConstantTimeCompareShapeTest do
   end
 
   test "equal? reaches the digest bytes only through the accumulating loop" do
-    [equal_body] = function_bodies(ast(), :equal?)
+    # The first clause compares two digests; the second denies any other shape.
+    [equal_body, _not_digests] = function_bodies(ast(), :equal?)
 
     {_body, calls} =
       Macro.prewalk(equal_body, [], fn
