@@ -22,8 +22,11 @@ defmodule AgentBlueprintProtocol.Fuzz.BlueprintTest do
       assert elapsed_ms < 1000
 
       case result do
-        {:ok, %AgentBlueprintProtocol.Blueprint{}} -> assert is_binary(input)
-        {:error, reason} -> assert is_atom(reason) or match?({:ceiling, _}, reason)
+        {:ok, %AgentBlueprintProtocol.Blueprint{}} ->
+          assert is_binary(input)
+
+        {:error, %AgentBlueprintProtocol.Error{code: code, detail: nil}} ->
+          assert is_atom(code) or match?({:ceiling, _}, code)
       end
     end
   end

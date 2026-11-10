@@ -61,6 +61,10 @@ defmodule AgentBlueprintProtocol.Fuzz.SchemaFuzzTest do
 
   defp deny_or_ok(:ok), do: true
   defp deny_or_ok({:ok, _parsed}), do: true
-  defp deny_or_ok({:error, reason}) when is_atom(reason), do: true
+
+  defp deny_or_ok({:error, %AgentBlueprintProtocol.Error{code: code, detail: nil}})
+       when is_atom(code),
+       do: true
+
   defp deny_or_ok(_other), do: false
 end

@@ -124,12 +124,20 @@ defmodule AgentBlueprintProtocol.SchemaPropertyTest do
   property "totality: malformed tagged shapes never raise, on either side" do
     check all(term <- malformed_term(), max_runs: 300) do
       result = Schema.validate_instance(term, {:integer, 1}, @dialect)
-      assert result == :ok or match?({:error, reason} when is_atom(reason), result)
+
+      assert result == :ok or
+               match?(
+                 {:error, %AgentBlueprintProtocol.Error{code: code}} when is_atom(code),
+                 result
+               )
 
       result_instance = Schema.validate_instance(decode!(~s({"type":"object"})), term, @dialect)
 
       assert result_instance == :ok or
-               match?({:error, reason} when is_atom(reason), result_instance)
+               match?(
+                 {:error, %AgentBlueprintProtocol.Error{code: code}} when is_atom(code),
+                 result_instance
+               )
     end
   end
 
@@ -147,11 +155,15 @@ defmodule AgentBlueprintProtocol.SchemaPropertyTest do
 
   defp match_?(schema, instance) do
     result = Schema.validate_instance(schema, instance, @dialect)
-    result == :ok or match?({:error, reason} when is_atom(reason), result)
+
+    result == :ok or
+      match?({:error, %AgentBlueprintProtocol.Error{code: code}} when is_atom(code), result)
   end
 
   defp verdict_class(:ok), do: :ok
-  defp verdict_class({:error, reason}) when is_atom(reason), do: {:error, reason}
+
+  defp verdict_class({:error, %AgentBlueprintProtocol.Error{code: code}}) when is_atom(code),
+    do: {:error, code}
 
   # The malformed-tagged catalog (adversarial finding 5): generator over
   # shapes the decoder can never emit — wrong payloads, wrong tag types,

@@ -7,8 +7,11 @@ defmodule AgentBlueprintProtocol.Base64UrlFuzzTest do
   property "arbitrary strings never raise; the result is always ok or a closed reason" do
     check all(input <- StreamData.string(:ascii), max_runs: 2000) do
       case Base64Url.decode(input) do
-        {:ok, _bytes} -> :ok
-        {:error, reason} -> assert reason in [:base64url_invalid, :base64url_padded]
+        {:ok, _bytes} ->
+          :ok
+
+        {:error, %AgentBlueprintProtocol.Error{code: code, detail: nil}} ->
+          assert code in [:base64url_invalid, :base64url_padded]
       end
     end
   end
@@ -16,8 +19,11 @@ defmodule AgentBlueprintProtocol.Base64UrlFuzzTest do
   property "arbitrary UTF-8 strings never raise either" do
     check all(input <- StreamData.string(:utf8), max_runs: 500) do
       case Base64Url.decode(input) do
-        {:ok, _bytes} -> :ok
-        {:error, reason} -> assert reason in [:base64url_invalid, :base64url_padded]
+        {:ok, _bytes} ->
+          :ok
+
+        {:error, %AgentBlueprintProtocol.Error{code: code, detail: nil}} ->
+          assert code in [:base64url_invalid, :base64url_padded]
       end
     end
   end
@@ -27,8 +33,11 @@ defmodule AgentBlueprintProtocol.Base64UrlFuzzTest do
   property "arbitrary raw binaries never raise" do
     check all(input <- StreamData.binary(), max_runs: 2000) do
       case Base64Url.decode(input) do
-        {:ok, _bytes} -> :ok
-        {:error, reason} -> assert reason in [:base64url_invalid, :base64url_padded]
+        {:ok, _bytes} ->
+          :ok
+
+        {:error, %AgentBlueprintProtocol.Error{code: code, detail: nil}} ->
+          assert code in [:base64url_invalid, :base64url_padded]
       end
     end
   end

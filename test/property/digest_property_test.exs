@@ -82,8 +82,8 @@ defmodule AgentBlueprintProtocol.DigestPropertyTest do
         {:ok, %Digest{algorithm: :sha256, bytes: <<_::256>>}} ->
           assert String.starts_with?(input, "sha-256:")
 
-        {:error, reason}
-        when reason in [:digest_algorithm_unsupported, :digest_encoding_invalid] ->
+        {:error, %AgentBlueprintProtocol.Error{code: code, detail: nil}}
+        when code in [:digest_algorithm_unsupported, :digest_encoding_invalid] ->
           :ok
       end
     end
@@ -95,8 +95,8 @@ defmodule AgentBlueprintProtocol.DigestPropertyTest do
         {:ok, %Digest{algorithm: :sha256, bytes: <<_::256>>}} ->
           :ok
 
-        {:error, reason} ->
-          assert reason in [:digest_algorithm_unsupported, :digest_encoding_invalid]
+        {:error, %AgentBlueprintProtocol.Error{code: code, detail: nil}} ->
+          assert code in [:digest_algorithm_unsupported, :digest_encoding_invalid]
       end
     end
   end

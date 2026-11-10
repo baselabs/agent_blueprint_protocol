@@ -7,8 +7,11 @@ defmodule AgentBlueprintProtocol.JsonFuzzTest do
   property "arbitrary bytes never raise or hang; the result is always ok or a value-free error" do
     check all(bytes <- StreamData.binary(), max_runs: 2000) do
       case Json.decode(bytes) do
-        {:ok, _value} -> :ok
-        {:error, reason} -> assert valid_reason?(reason)
+        {:ok, _value} ->
+          :ok
+
+        {:error, %AgentBlueprintProtocol.Error{code: code, detail: nil}} ->
+          assert valid_reason?(code)
       end
     end
   end
