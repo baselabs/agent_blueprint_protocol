@@ -25,6 +25,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
       assert step =~ "already"
     end
 
+    # A manual dispatch may only publish from a release tag ref.
+    assert workflow =~ "if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')"
+    assert workflow =~ ~s("$GITHUB_REF_TYPE" != tag || "$GITHUB_REF" != refs/tags/v*)
+
     locked_installs()
     token_scope()
     verified_artifacts()
