@@ -1666,7 +1666,10 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
       on_exit(fn -> File.rm(escript) end)
 
       {run_out, run_status} =
-        System.cmd(escript, ["--corpus", "priv/conformance"], cd: root, stderr_to_stdout: true)
+        System.cmd("escript", [escript, "--corpus", "priv/conformance"],
+          cd: root,
+          stderr_to_stdout: true
+        )
 
       assert run_out =~ "\"agreement\":true"
       assert run_status == 0
@@ -1697,7 +1700,7 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
       File.write!(Path.join(Path.join(scratch, "cases"), "._decode.json"), "junk")
 
       {run_out, run_status} =
-        System.cmd(escript, ["--corpus", scratch], cd: root, stderr_to_stdout: true)
+        System.cmd("escript", [escript, "--corpus", scratch], cd: root, stderr_to_stdout: true)
 
       assert run_out =~ "\"agreement\":true"
       assert run_status == 0

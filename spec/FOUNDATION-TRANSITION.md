@@ -1,7 +1,7 @@
 # Foundation transition — asset inventory
 
 What a future transfer of this protocol to a foundation or standards
-venue covers, and what an unincorporated steward can and cannot
+venue covers, and what the steward can and cannot
 transfer. This document is an inventory, not an offer.
 
 ## Transferable as-is
@@ -11,7 +11,7 @@ transfer. This document is an inventory, not an offer.
   governance-canonical registry document, this governance pack, and
   the license copies. Extractable by a tested git filter (the
   extraction is a build-gated proof in the reference repository).
-- **The conformance corpus** (`priv/conformance/`): 129 digest-bound
+- **The conformance corpus** (`priv/conformance/`): 583 digest-bound
   cases with the applicability floor, golden artifacts, and vectors.
 - **The reference implementation and the verifier** (Apache-2.0): the
   Elixir package and the second-language TypeScript verifier.
@@ -21,9 +21,7 @@ transfer. This document is an inventory, not an offer.
 ## Requires the steward's principals
 
 - **Copyright and patent grants**: contributions are DCO-signed and
-  Apache-2.0 licensed; a receiving entity takes the grant as-is. An
-  unincorporated organization cannot itself hold or assign copyright —
-  the named maintainer and contributors retain theirs, licensing
+  Apache-2.0 licensed; a receiving entity takes the grant as-is. BaseLabs Holdings and contributors retain their copyrights, licensing
   perpetually under Apache-2.0.
 - **Registry decision rights**: the registry process (see
   registry/OPERATIONS.md) names the steward; a transfer re-points the
@@ -59,11 +57,10 @@ the durable, shipped record; nothing on it is dropped.
 | npm kit distribution — DELIVERED with the installable-verifier release (`@agent-blueprint-protocol/verifier`; the agreement gate proves the kit against the escript every build) | retired — reopened only if distribution requirements change |
 | Registry public registrants (real product identities) | the portfolio products go public |
 | Benchmark program | the first host-integration performance question |
-| Federation completion (native wire fields revisit) | MCP Tasks finalizes (ext-tasks first tagged release) |
+| Federation completion (native wire fields revisit) | the MCP tasks extension leaves Beta |
 | Attestation-kind registry activation | a second attestation consumer exists |
 | Subset profiles (decode+verify only) — the card projection and single-artifact verify shipped with the installable-verifier release; the NORMATIVE subset profile remains open | an adopter needs the formal profile |
 | Deterministic fixture signing keypair — DELIVERED; new fixtures use a fixed, explicitly test-only Ed25519 seed and existing signatures remain byte-identical | retired — reopened only if fixture derivation changes |
-| 1.0 semver/stability contract | the 0.x line has external consumers and settled dust |
 
 Each trigger is checkable; none is a date. When one fires, the work
 re-enters the queue with the same discipline as everything in the

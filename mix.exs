@@ -91,12 +91,19 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/producer-surface.md",
         "docs/adr/product-extension-registration.md",
         "docs/adr/supported-otp-set.md",
+        "docs/adr/conformance-product.md",
+        "docs/adr/typescript-library-surface.md",
+        "docs/adr/three-platform-support.md",
+        "docs/adr/stability-policy.md",
+        "docs/adr/verification-results.md",
+        "docs/adr/public-surface-privacy.md",
         "docs/adr/two-consumer-amendment.md",
         "spec/protocol.md",
         "spec/README.md",
         "spec/LICENSE",
         "spec/NOTICE",
         "spec/grammar",
+        "spec/conformance",
         "spec/registry/registry.json",
         "spec/IPR.md",
         "spec/FOUNDATION-TRANSITION.md",
@@ -161,12 +168,15 @@ defmodule AgentBlueprintProtocol.MixProject do
           "documentation/evidence-commitments.md",
           "documentation/registry.md",
           "documentation/upgrading.md",
+          "documentation/stability.md",
           "documentation/faq.md",
           "README.md",
           "CHANGELOG.md"
         ],
         Specification: [
           "spec/protocol.md",
+          "spec/conformance/runner.md",
+          "spec/conformance/execution.md",
           "docs/federation-mapping.md",
           "docs/ard-mapping.md"
         ],
@@ -182,9 +192,18 @@ defmodule AgentBlueprintProtocol.MixProject do
           "docs/adr/producer-surface.md",
           "docs/adr/product-extension-registration.md",
           "docs/adr/supported-otp-set.md",
+          "docs/adr/conformance-product.md",
+          "docs/adr/typescript-library-surface.md",
+          "docs/adr/three-platform-support.md",
+          "docs/adr/stability-policy.md",
+          "docs/adr/verification-results.md",
+          "docs/adr/public-surface-privacy.md",
           "docs/adr/two-consumer-amendment.md"
         ],
         Governance: [
+          "spec/IPR.md",
+          "spec/FOUNDATION-TRANSITION.md",
+          "spec/registry/OPERATIONS.md",
           "CONTRIBUTING.md",
           "SECURITY.md",
           "CODE_OF_CONDUCT.md",
@@ -195,6 +214,9 @@ defmodule AgentBlueprintProtocol.MixProject do
         ]
       ],
       extras: [
+        "spec/IPR.md",
+        "spec/FOUNDATION-TRANSITION.md",
+        "spec/registry/OPERATIONS.md",
         "README.md",
         "CHANGELOG.md",
         "documentation/getting-started.md",
@@ -213,9 +235,12 @@ defmodule AgentBlueprintProtocol.MixProject do
         "documentation/federation.md",
         "documentation/registry.md",
         "documentation/upgrading.md",
+        "documentation/stability.md",
         "documentation/faq.md",
         "documentation/operations.md",
         "spec/protocol.md",
+        "spec/conformance/runner.md",
+        "spec/conformance/execution.md",
         "docs/federation-mapping.md",
         "docs/ard-mapping.md",
         "docs/adr/compiled-registry.md",
@@ -229,6 +254,12 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/producer-surface.md",
         "docs/adr/product-extension-registration.md",
         "docs/adr/supported-otp-set.md",
+        "docs/adr/conformance-product.md",
+        "docs/adr/typescript-library-surface.md",
+        "docs/adr/three-platform-support.md",
+        "docs/adr/stability-policy.md",
+        "docs/adr/verification-results.md",
+        "docs/adr/public-surface-privacy.md",
         "docs/adr/two-consumer-amendment.md",
         "LICENSE",
         "NOTICE",
@@ -246,8 +277,13 @@ defmodule AgentBlueprintProtocol.MixProject do
       ],
       "conformance.verify": [
         "escript.build",
-        "cmd ./agent_blueprint_protocol_conformance --corpus priv/conformance"
+        "cmd escript agent_blueprint_protocol_conformance --corpus priv/conformance"
       ],
+      "conformance.product": [
+        "escript.build",
+        "run --no-start scripts/check_conformance_product.exs"
+      ],
+      "release.promote": ["run --no-start scripts/check_release_promotion.exs"],
       "conformance.mutations": [
         "run --no-start scripts/check_conformance_mutations.exs"
       ],
@@ -291,6 +327,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "conformance.verify",
         "conformance.mutations",
         "kit.build",
+        "conformance.product",
         "typescript.guide",
         "verifier.agreement",
         "compatibility.replay",
@@ -300,6 +337,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "grammar.derivation",
         "registry.equality",
         "release.asset",
+        "release.promote",
         "release.candidate"
       ]
     ]

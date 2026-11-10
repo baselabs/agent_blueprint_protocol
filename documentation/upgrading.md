@@ -112,3 +112,6 @@ the two releases' tags; a registry change that alters negotiation
 outcomes for previously-certified artifacts is a verification-semantics
 change and bumps the semantics version (the specification's Evolution
 clause).
+
+The [stability policy](stability.md) defines the supported APIs, deprecations,
+runtimes, and security maintenance lines.

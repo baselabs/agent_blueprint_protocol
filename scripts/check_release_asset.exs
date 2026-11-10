@@ -67,10 +67,31 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
         &{String.replace_prefix(&1, "priv/conformance/", "conformance/"), File.read!(&1)}
       )
 
+    specification =
+      Path.wildcard("spec/**/*", match_dot: true)
+      |> Enum.reject(fn path -> macos_artifact?(path) or File.dir?(path) end)
+      |> Enum.map(&{&1, File.read!(&1)})
+
+    files =
+      Enum.map(files, fn
+        {"RUNNER.md", _} ->
+          {"RUNNER.md",
+           "# Conformance runner\n\nSee [the normative contract](spec/conformance/runner.md).\n"}
+
+        entry ->
+          entry
+      end)
+
     # erl_tar.add wants binaries, not charlists, for name/value pairs
     entries =
       Enum.map(
-        files ++ corpus ++ [{"release-metadata.json", File.read!("priv/release-metadata.json")}],
+        files ++
+          corpus ++
+          specification ++
+          for(
+            name <- ["release-metadata.json", "release-history.json"],
+            do: {name, File.read!("priv/" <> name)}
+          ),
         fn {name, bytes} -> {String.to_charlist(name), bytes} end
       )
 
@@ -172,7 +193,7 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
 
   defp escript_report(dir, corpus_dir) do
     escript = Path.join(dir, @escript)
-    {out, 0} = System.cmd(escript, ["--corpus", corpus_dir], stderr_to_stdout: false)
+    {out, 0} = System.cmd("escript", [escript, "--corpus", corpus_dir], stderr_to_stdout: false)
     String.trim_trailing(out)
   end
 end

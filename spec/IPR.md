@@ -22,7 +22,6 @@ implementation).
 
 ## Steward
 
-The Agent Blueprint Protocol is stewarded by BaseLabs (an unincorporated
-organization) with Russ Palermo as the named maintainer. Decision
+The Agent Blueprint Protocol is stewarded by BaseLabs Holdings with Russ Palermo as the named maintainer. Decision
 rights, the registry process, and the transfer inventory are recorded
 in this tree (see FOUNDATION-TRANSITION.md and registry/OPERATIONS.md).

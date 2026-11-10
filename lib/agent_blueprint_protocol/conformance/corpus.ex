@@ -20,7 +20,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   | zero cases total | `:corpus_empty` |
 
   Applicability totality is enforced against the COMPILED-IN floor (`floor/0`,
-  the protocol's pinned 16×31 table), not merely the index's self-consistency —
+  the protocol's pinned 18×31 table), not merely the index's self-consistency —
   an all-`n_a` corpus cannot load. A required cell's declared count must EQUAL
   the observed executed count (over-counting reds too); an `n_a` cell carries
   `{"n_a" => reason}` with a non-empty reason and zero executed cases.
@@ -61,9 +61,11 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   @typedoc "A loaded corpus for Runner and Report; its fields are implementation details."
   @type t :: %__MODULE__{}
 
-  # --- the pinned floor (spec: Corpus applicability floor, 16 x 31) ----------
+  # --- the pinned floor (spec: Corpus applicability floor, 18 x 31) ----------
 
   @surfaces [
+    "reconcile",
+    "predicate",
     "json.decode",
     "canonicalization.encode",
     "base64url.decode",
@@ -117,6 +119,16 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   ]
 
   @floor %{
+    "reconcile" => %{
+      required:
+        ~w(valid invalid_type digest_mismatch revision_above_max unknown_member forbidden_portable_value signature_invalid binding_stale bound_widening_protected),
+      n_a: "byte codecs, schema and federation checks have their own surfaces"
+    },
+    "predicate" => %{
+      required:
+        ~w(valid invalid_type invalid_constraint invalid_cardinality maximum_plus_one exact_bound),
+      n_a: "artifact, signature, bounds and federation checks do not reach predicates"
+    },
     "json.decode" => %{
       required:
         ~w(valid boundary_near exact_bound maximum_plus_one invalid_encoding invalid_duplicate invalid_type),
@@ -195,11 +207,11 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
     }
   }
 
-  @doc "The 16 floor surfaces (the protocol's pinned applicability floor)."
+  @doc "The 18 floor surfaces (the protocol's pinned applicability floor)."
   @spec surfaces() :: [binary()]
   def surfaces, do: @surfaces
 
-  @doc "The 29 case classes."
+  @doc "The 31 case classes."
   @spec classes() :: [binary()]
   def classes, do: @classes
 

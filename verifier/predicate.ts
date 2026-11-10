@@ -54,7 +54,7 @@ export function validate(predicate: Value, portNames: string[]): VResult {
 
 // ---- shape walk -----------------------------------------------------------------------
 
-function shape(predicate: Value, ports: Set<string>, count: number): { ok: true; v: number } | { ok: false; e: Reason } {
+function shape(predicate: Value, ports: Set<string> | null, count: number): { ok: true; v: number } | { ok: false; e: Reason } {
   if (predicate.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = predicate.v;
 
@@ -110,7 +110,7 @@ function operandsPresent(members: [string, Value][], op: string): VResult {
 function operandShapes(
   members: [string, Value][],
   op: string,
-  ports: Set<string>,
+  ports: Set<string> | null,
   count: number,
 ): { ok: true; v: number } | { ok: false; e: Reason } {
   if (ARG_OPS.includes(op)) {
@@ -137,7 +137,7 @@ function arityOk(op: string, n: number): boolean {
 
 function argShapes(
   items: Value[],
-  ports: Set<string>,
+  ports: Set<string> | null,
   count: number,
 ): { ok: true; v: number } | { ok: false; e: Reason } {
   let acc = count;
@@ -155,14 +155,14 @@ function arrayMember(members: [string, Value][], name: string): { ok: true; v: V
   return { ok: false, e: "invalid_type" };
 }
 
-function pathMember(members: [string, Value][], ports: Set<string>): VResult {
+function pathMember(members: [string, Value][], ports: Set<string> | null): VResult {
   const found = keyfind(members, "path");
   if (found === null || found.t !== "arr") return { ok: false, e: "invalid_type" };
   const segments = found.v;
   if (segments.length === 0) return { ok: false, e: "invalid_type" };
   if (!segments.every((s) => s.t === "str")) return { ok: false, e: "invalid_type" };
   const root = (segments[0] as { t: "str"; v: string }).v;
-  return ports.has(root) ? { ok: true } : { ok: false, e: "predicate_path_unresolved" };
+  return ports === null || ports.has(root) ? { ok: true } : { ok: false, e: "predicate_path_unresolved" };
 }
 
 function valuesMember(members: [string, Value][]): VResult {
@@ -193,3 +193,44 @@ function keyfind(members: [string, Value][], name: string): Value | null {
   const found = members.find(([key]) => key === name);
   return found ? found[1] : null;
 }
+
+export function evaluate(predicate: Value, ports: Map<string, Value>, portNames?: string[]): {ok:true;v:boolean}|{ok:false;e:string} {
+  if (!(ports instanceof Map) || [...ports].some(([k,v])=>typeof k !== 'string'||!isValue(v))) return {ok:false,e:'invalid_type'};
+  if (!isValue(predicate)) return {ok:false,e:"invalid_type"};
+  const checked = portNames === undefined ? shape(predicate, null, 0) : validate(predicate, portNames);
+  if (!checked.ok) return checked;
+  return apply(predicate);
+  function resolve(path: Value): Value | null {
+    if (path.t !== 'arr') return null;
+    const segments = path.v.map(x=>(x as {t:'str';v:string}).v);
+    let found = ports.get(segments[0]!) ?? null;
+    for (const segment of segments.slice(1)) {
+      if (found?.t === 'obj') found = keyfind(found.v,segment);
+      else if (found?.t === 'arr' && /^(0|[1-9][0-9]*)$/.test(segment)) found = found.v[Number(segment)] ?? null;
+      else return null;
+    }
+    return found;
+  }
+  function apply(node: Value): {ok:true;v:boolean}|{ok:false;e:string} {
+    const members = (node as Value & {t:'obj'}).v;
+    const op = (keyfind(members,'op') as Value & {t:'str'}).v;
+    if (ARG_OPS.includes(op)) {
+      const args = (keyfind(members,'args') as Value & {t:'arr'}).v;
+      const values:boolean[]=[];
+      for(const arg of args) {const result=apply(arg);if(!result.ok)return result;values.push(result.v);}
+      return {ok:true,v:op==='not' ? !values[0] : op==='and' ? values.every(Boolean):values.some(Boolean)};
+    }
+    const actual=resolve(keyfind(members,'path')!);
+    if(op==='present'||op==='absent')return {ok:true,v:op==='present'?actual!==null:actual===null};
+    if(actual===null)return {ok:false,e:'predicate_path_unresolved'};
+    if(op==='in')return {ok:true,v:(keyfind(members,'values') as Value & {t:'arr'}).v.some(v=>schemaEqual(actual,v))};
+    const wanted=keyfind(members,'value')!;
+    if(op==='eq'||op==='ne')return {ok:true,v:op==='eq'?schemaEqual(actual,wanted):!schemaEqual(actual,wanted)};
+    let order:number;
+    if((actual.t==='int'||actual.t==='float')&&(wanted.t==='int'||wanted.t==='float')) order=actual.v<wanted.v?-1:actual.v>wanted.v?1:0;
+    else if(actual.t==='str'&&wanted.t==='str') order=Buffer.compare(Buffer.from(actual.v),Buffer.from(wanted.v));
+    else return {ok:false,e:'predicate_path_unresolved'};
+    return {ok:true,v:op==='lt'?order<0:op==='lte'?order<=0:op==='gt'?order>0:order>=0};
+  }
+}
+import { equal as schemaEqual } from './schema.ts';

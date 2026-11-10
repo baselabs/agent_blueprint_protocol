@@ -44,16 +44,9 @@ defmodule AgentBlueprintProtocol.Architecture.CiTriggerFilterTest do
     "conformance.verify" => {:reads, ["mix.exs", "config/**", "lib/**", "priv/**"]},
     "conformance.mutations" =>
       {:reads, ["mix.exs", "mix.lock", "config/**", "lib/**", "priv/**", "scripts/**"]},
-    "kit.build" =>
-      {:reads,
-       [
-         "package.json",
-         "package-lock.json",
-         "tsconfig.json",
-         "verifier/**",
-         "priv/**",
-         "scripts/build_kit.mjs"
-       ]},
+    "kit.build" => {:lean, "mix kit.build"},
+    "conformance.product" => {:lean, "mix conformance.product"},
+    "release.promote" => {:lean, "mix release.promote"},
     "typescript.guide" => {:lean, "mix typescript.guide"},
     "verifier.agreement" =>
       {:reads,
@@ -65,9 +58,7 @@ defmodule AgentBlueprintProtocol.Architecture.CiTriggerFilterTest do
     "spec.extraction" => {:lean, "mix spec.extraction"},
     "grammar.derivation" => {:lean, "mix grammar.derivation"},
     "registry.equality" => {:lean, "mix registry.equality"},
-    "release.asset" =>
-      {:reads, ["mix.exs", "config/**", "lib/**", "priv/**", "scripts/**", "verifier/**"],
-       @archive_note},
+    "release.asset" => {:lean, "mix release.asset"},
     "release.candidate" => {:lean, "mix release.candidate"},
     "ci:workflow-syntax" => {:reads, [".github/workflows/**"]},
     "ci:secret-scan" =>
@@ -77,6 +68,7 @@ defmodule AgentBlueprintProtocol.Architecture.CiTriggerFilterTest do
     # tests are toolchain-independent file reads.
     "ci:compatibility" => {:lean, "mix test"},
     # Its steps are the quality steps above plus the kit build.
+    "ci:platforms" => {:lean, "mix test"},
     "ci:quality" => {:reads, []}
   }
 

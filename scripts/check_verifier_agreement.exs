@@ -88,7 +88,9 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     unless build_status == 0, do: raise("escript build failed:\n#{build_out}")
 
     {out, status} =
-      System.cmd(Path.join(@root, "agent_blueprint_protocol_conformance"), ["--corpus", @corpus],
+      System.cmd(
+        "escript",
+        [Path.join(@root, "agent_blueprint_protocol_conformance"), "--corpus", @corpus],
         cd: @root,
         stderr_to_stdout: false
       )
@@ -253,7 +255,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     npm = System.find_executable("npm") || raise "npm not found for the packed-file check"
 
     {json, 0} =
-      System.cmd(npm, ["pack", "--dry-run", "--json", "--ignore-scripts"],
+      System.cmd(npm, ["pack", "./dist/package", "--dry-run", "--json", "--ignore-scripts"],
         cd: @root,
         stderr_to_stdout: false
       )
@@ -270,7 +272,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       for path <- paths,
           String.starts_with?(path, "dist/"),
           String.starts_with?(path, "dist/verifier/self_checks") or
-            File.read!(Path.join(@root, path)) =~ ~r/testdata|self_checks/,
+            File.read!(Path.join([@root, "dist/package", path])) =~ ~r/testdata|self_checks/,
           do: path
 
     unless offenders == [] do

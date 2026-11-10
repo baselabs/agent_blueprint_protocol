@@ -23,8 +23,8 @@ export type Kind =
   | { array: Spec }
   | { object: { members: Spec[] } };
 
-export type Check = (value: Value) => { ok: true } | { ok: false; e: string };
-export type RootHook = (members: Map<string, Value>) => { ok: true } | { ok: false; e: string };
+export type Check = (value: Value) => { ok: true } | { ok: false; e: string; subject?: (string|number)[] };
+export type RootHook = (members: Map<string, Value>) => { ok: true } | { ok: false; e: string; subject?: (string|number)[] };
 
 // name/required apply to table members (validate() reads them); array-element
 // specs ({array: …} kinds) carry only kind/check — the walk reads those via
@@ -40,7 +40,7 @@ export interface Spec {
   uniqueBy?: string | ":value";
 }
 
-export type VResult = { ok: true } | { ok: false; e: string };
+export type VResult = { ok: true } | { ok: false; e: string; subject?: (string|number)[] };
 
 // The table-builder helper (the twin's field/2): name + kind, required by
 // default, keyword-style options.
@@ -63,23 +63,23 @@ export function validate(table: Spec[], value: Value): VResult {
 
   const tableNames = new Set(table.map((spec) => spec.name));
   for (const [name] of members) {
-    if (!tableNames.has(name)) return { ok: false, e: "unknown_member" };
+    if (!tableNames.has(name)) return { ok: false, e: "unknown_member", subject: [] };
   }
 
   const present = new Set(members.map(([name]) => name));
   for (const spec of table) {
     // Table specs always come from field() (named); the ! mirrors that invariant.
-    if (spec.required && !present.has(spec.name!)) return { ok: false, e: "missing_required_field" };
+    if (spec.required && !present.has(spec.name!)) return { ok: false, e: "missing_required_field", subject: [spec.name!] };
   }
 
   // Every table stage shares one walk: find the first spec (in table order)
   // whose present value fails.
-  const stageFailure = (judge: (spec: Spec, value: Value) => { ok: false; e: string } | null): VResult => {
+  const stageFailure = (judge: (spec: Spec, value: Value) => { ok: false; e: string; subject?: (string|number)[] } | null): VResult => {
     for (const spec of table) {
       const found = keyfind(members, spec.name!);
       if (found === null) continue;
       const failure = judge(spec, found);
-      if (failure !== null) return { ok: false, e: failure.e };
+      if (failure !== null) return { ok: false, e: failure.e, subject: [spec.name!, ...(failure.subject ?? [])] };
     }
     return { ok: true };
   };
@@ -101,7 +101,7 @@ export function validate(table: Spec[], value: Value): VResult {
     if (spec.rootHook === undefined) continue;
     if (!memberMap.has(spec.name!)) continue;
     const result = spec.rootHook(memberMap);
-    if (!result.ok) return result;
+    if (!result.ok) return {...result,subject:[spec.name!,...(result.subject??[])]};
   }
 
   return { ok: true };
@@ -123,18 +123,18 @@ function specShape(spec: Spec, depth = 0): boolean {
 
 // ---- stages --------------------------------------------------------------------------
 
-function specConstraint(spec: Spec, value: Value): { ok: false; e: string } | null {
+function specConstraint(spec: Spec, value: Value): { ok: false; e: string; subject?: (string|number)[] } | null {
   if (typeof spec.kind === "object" && "enum" in spec.kind) {
     if (value.t === "str") return spec.kind.enum.has(value.v) ? null : { ok: false, e: "invalid_constraint" };
   }
   if (spec.check !== undefined) {
     const result = spec.check(value);
-    return result.ok ? null : { ok: false, e: result.e };
+    return result.ok ? null : result;
   }
   return null;
 }
 
-function arrayCardinality(spec: Spec, value: Value): { ok: false; e: string } | null {
+function arrayCardinality(spec: Spec, value: Value): { ok: false; e: string; subject?: (string|number)[] } | null {
   if (value.t !== "arr") return null;
   if (spec.minItems !== undefined && value.v.length < spec.minItems) {
     return { ok: false, e: "invalid_cardinality" };
@@ -162,7 +162,7 @@ function duplicateKeys(uniqueBy: string | ":value" | undefined, items: Value[]):
   return keys.some((key, i) => keys.slice(0, i).some((other) => termEqual(key, other)));
 }
 
-function passNil(result: VResult): { ok: false; e: string } | null {
+function passNil(result: VResult): { ok: false; e: string; subject?: (string|number)[] } | null {
   return result.ok ? null : result;
 }
 
@@ -171,9 +171,9 @@ function passNil(result: VResult): { ok: false; e: string } | null {
 function recurse(kind: Kind, value: Value): VResult {
   if (typeof kind === "object" && "array" in kind) {
     if (value.t !== "arr") return { ok: true };
-    for (const item of value.v) {
+    for (const [index, item] of value.v.entries()) {
       const result = elementOk(kind.array, item);
-      if (!result.ok) return result;
+      if (!result.ok) return {...result,subject:[index,...(result.subject??[])]};
     }
     return { ok: true };
   }
@@ -187,7 +187,7 @@ function recurse(kind: Kind, value: Value): VResult {
 function elementOk(spec: Spec, value: Value): VResult {
   if (!kindOk(spec.kind, value)) return { ok: false, e: "invalid_type" };
   const constraint = specConstraint(spec, value);
-  if (constraint !== null) return { ok: false, e: constraint.e };
+  if (constraint !== null) return constraint;
   return recurse(spec.kind, value);
 }
 

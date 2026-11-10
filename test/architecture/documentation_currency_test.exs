@@ -177,9 +177,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
       |> Enum.map(&hd/1)
 
     vtagged =
-      ~r/v(0\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)\b/
+      ~r/@version\s+"(v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)"/
       |> Regex.scan(content)
-      |> Enum.map(fn [_, v] -> "v" <> v end)
+      |> Enum.map(fn [_, value] -> value end)
 
     bare ++ vtagged
   end

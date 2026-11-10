@@ -119,7 +119,7 @@ Semantics:
   (canonical, digest, negotiation, structure, portability, signatures, bind,
   bounds), reject-or-annotate, never repair, under host-supplied inputs.
 
-Tooling: `mix conformance.verify` executes the shipped 448-case corpus;
+Tooling: `mix conformance.verify` executes the shipped 583-case corpus;
 `mix conformance.mutations` re-proves the corpus catches named implementation
 breaks; `mix verifier.agreement` byte-agrees the Elixir runner with the
 independent TypeScript verifier; `mix compatibility.replay` certifies the
@@ -130,9 +130,9 @@ against its tags' actual trees.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated: 994 tests
+and conformance corpus are implemented and gated: 999 tests
 (64 properties) at 100% coverage, zero Dialyzer errors, `--strict`
-Credo clean, a 448-case conformance corpus with a mutation gate, and a
+Credo clean, a 583-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
 The normative specification, [`spec/protocol.md`](spec/protocol.md),
 ships in the Hex archive. The full gate battery and every gate's
@@ -194,7 +194,7 @@ release identity chain). Every gate carries a recorded red proof — see the req
 
 ### Conformance corpus
 
-The package ships a portable conformance corpus (`priv/conformance/`) — 448
+The package ships a portable conformance corpus (`priv/conformance/`) — 583
 cases covering every required cell of the 16-surface × 31-class applicability
 floor, full-registry golden artifacts, RFC 8785 number vectors, and
 deterministic Ed25519 fixtures. Run it:
@@ -267,3 +267,6 @@ structural evidence only, never an authorization decision.
 ## License
 
 Apache License 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+
+The [stability policy](documentation/stability.md) defines the supported APIs, deprecations,
+runtimes, and security maintenance lines.

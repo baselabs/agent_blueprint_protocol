@@ -1,0 +1,72 @@
+{
+  "type": [
+    "null",
+    "boolean",
+    "object",
+    "array",
+    "number",
+    "string"
+  ],
+  "properties": {
+    "revisions": {
+      "type": [
+        "null",
+        "boolean",
+        "object",
+        "array",
+        "number",
+        "string"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "boolean",
+          "object",
+          "array",
+          "number",
+          "string"
+        ]
+      }
+    },
+    "core_fields": {
+      "type": [
+        "null",
+        "boolean",
+        "object",
+        "array",
+        "number",
+        "string"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "boolean",
+          "object",
+          "array",
+          "number",
+          "string"
+        ]
+      }
+    },
+    "registry": {
+      "type": [
+        "null",
+        "boolean",
+        "object",
+        "array",
+        "number",
+        "string"
+      ]
+    },
+    "schemas": {
+      "type": [
+        "null",
+        "boolean",
+        "object",
+        "array",
+        "number",
+        "string"
+      ]
+    }
+  }
+}

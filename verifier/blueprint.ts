@@ -369,7 +369,7 @@ function checkSignatureIds(value: Value): {ok:true} | {ok:false;e:string} {
 
 function checkSignatureEntry(entry: Value): VResult {
   const attrs = signatureAttributes(entry);
-  if (!attrs.ok) return { ok: false, e: attrs.e };
+  if (!attrs.ok) return attrs;
   return attrs.v.purpose === "blueprint" ? { ok: true } : { ok: false, e: "invalid_constraint" };
 }
 
@@ -587,7 +587,8 @@ function memberArray(members: Map<string, Value>, name: string): Value[] {
 
 // ---- the portability scan -----------------------------------------------------------
 
-function scan(value: Value, authoredNs: Set<string>): VResult {
+export function scan(value: Value, authoredNs: Set<string>): VResult {
+  if (!isValue(value) || value.t !== "obj" || !(authoredNs instanceof Set) || [...authoredNs].some(ns=>typeof ns!=="string")) return {ok:false,e:"invalid_type"};
   if (value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = value.v;
 

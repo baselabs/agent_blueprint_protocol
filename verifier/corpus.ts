@@ -29,6 +29,8 @@ const INDEX_FORMAT = "agent-blueprint-protocol-conformance-corpus-index";
 const CASE_FILE_FORMAT = "agent-blueprint-protocol-conformance-cases";
 
 export const SURFACES = [
+  "reconcile",
+  "predicate",
   "json.decode",
   "canonicalization.encode",
   "base64url.decode",
@@ -81,9 +83,11 @@ export const CLASSES = [
   "terminal_equivocation",
 ] as const;
 
-// The pinned 16×31 floor: per surface, required classes + the falsifiable
+// The pinned 18×31 floor: per surface, required classes + the falsifiable
 // n_a reason covering its complement.
 const FLOOR: Record<string, { required: string[]; n_a: string }> = {
+  reconcile: {required:["valid","invalid_type","digest_mismatch","revision_above_max","unknown_member","forbidden_portable_value","signature_invalid","binding_stale","bound_widening_protected"],n_a:"byte codecs, schema and federation checks have their own surfaces"},
+  predicate: {required:["valid","invalid_type","invalid_constraint","invalid_cardinality","maximum_plus_one","exact_bound"],n_a:"artifact, signature, bounds and federation checks do not reach predicates"},
   "json.decode": {
     required: [
       "valid",

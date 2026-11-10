@@ -32,6 +32,11 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
     refute out =~ path
   end
 
+  @tag skip:
+         if(match?({:win32, _}, :os.type()),
+           do: "Windows symlink creation requires a privilege outside the contributor contract",
+           else: false
+         )
   test "both readers reject symlink files and directories", %{tmp_dir: dir} do
     File.write!(Path.join(dir, "source"), "{}")
     File.ln_s!(Path.join(dir, "source"), Path.join(dir, "linked"))
@@ -53,6 +58,11 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
     denied(dir)
   end
 
+  @tag skip:
+         if(match?({:win32, _}, :os.type()),
+           do: "POSIX FIFO creation is unavailable on Windows",
+           else: false
+         )
   test "both readers reject special files before reading", %{tmp_dir: dir} do
     {_, 0} = System.cmd("mkfifo", [Path.join(dir, "example.json")])
     denied(dir)
@@ -123,6 +133,11 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
       )
   end
 
+  @tag skip:
+         if(match?({:win32, _}, :os.type()),
+           do: "POSIX permission-bit denial is unavailable on Windows",
+           else: false
+         )
   test "missing roots, unreadable directories, and unreadable files return exit 2", %{
     tmp_dir: dir
   } do

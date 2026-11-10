@@ -82,7 +82,10 @@ jobs:
       - name: Build the npm kit
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          npm run build
+          mix kit.build
+          mix conformance.product
+          mix release.asset
+          mix release.promote
 
       - name: TypeScript guide example
         run: mix typescript.guide

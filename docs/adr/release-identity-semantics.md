@@ -92,3 +92,15 @@ The `negotiation-estate-contract-valid` case gains an
 `extension_deprecated` notice. Its valid verdict and previously declared
 projection fields are unchanged, so prior-census claims remain
 `equivalent`; the current census explicitly pins the added notice.
+
+## Candidate promotion
+
+A final tree differs from its candidate only in package versions, the
+manifest's bound package and kit versions, an appended history row, the
+CHANGELOG heading/date, install pins and the site. The promotion check
+rejects every other byte change, including library and verifier sources,
+public API census, specification, corpus, registry and semantics version.
+Final publication compares against the highest candidate tag for that exact
+final version; an absent candidate refuses publication. A source correction
+requires another candidate. Its calibration accepts
+a version-only edit and rejects a seeded library edit in a scratch value.

@@ -6,6 +6,16 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Breaking
 
+- TypeScript imports use the package root. Previous `dist/verifier/blueprint.js`
+  `decode` becomes `decodeBlueprint`; Deployment and federation `decode` become
+  `decodeDeployment` and `decodeFederationEnvelope`. Internal `negotiate`,
+  `intersect`, signature and compatibility `verify`, corpus `load`, runner
+  `run`, and report builders map to root `negotiate`, `intersect`,
+  `verifySignature`, `verifyCompatibility`, `loadCorpus`, `runCorpus`,
+  `buildReport`, and `buildResultsDocument`. Deep paths no longer resolve;
+  public results use `value` and typed `error` members. The TypeScript guide
+  lists the complete migration, including artifact `canonicalBytes`.
+
 - All fallible public Elixir operations return `{:error, %Error{}}`.
   Decoder ceilings carry `{:ceiling, key}` in `Error.code`; value-returning
   helpers retain their success form and declare the failure branch.
@@ -22,6 +32,10 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Changed
 
+- The specification separates protocol requirements from implementation notes
+  and states the byte, grammar, lattice, predicate and schema profiles with
+  pinned normative references.
+
 - Byte-error precedence and malformed conformance inputs agree across the
   implementations. Binding evidence requires every descriptor observation
   and a complete age check before reporting those checks verified.
@@ -36,6 +50,16 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Added
 
+- A conformance product: bounded case schemas, a normative runner contract,
+  reconcile and predicate cases, canonical certified results, an external
+  execution harness and adapters, and unsigned implementation claims.
+- A package-root TypeScript library with typed import evidence, exhaustive
+  errors, isolated consumer declarations, and its own package README.
+- A stability and deprecation policy for both packages and three-platform
+  contributor and published-package lanes on Linux, macOS, and Windows.
+- Candidate promotion checks preserve certified bytes; further publication
+  waits for the staged npm version to be live and byte-verified.
+
 - Mixed-order Ed25519 vectors distinguish the required cofactorless equation
   from cofactored verification, without rejecting mixed-order points.
 - Deterministic test-only signing for new fixtures, preserving every existing
@@ -45,8 +69,8 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   Error descriptions distinguish overlapping conditions; evidence explicitly
   names timestamp, lifecycle, and time-validity facts it does not establish.
 
-The corpus contains 448 cases, digest
-`sha-256:X3V0Y8dB8UkJTBsF7JQkywTHFWGy44zd_M5QQEc2p3k`; registry
+The corpus contains 583 cases, digest
+`sha-256:4QfFYGA7V6GqgN0XF8TuLICznCdoxcL5deU3OT0EScw`; registry
 `sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg`.
 Prior released verdicts remain equivalent. The
 `negotiation-estate-contract-valid` case now projects the

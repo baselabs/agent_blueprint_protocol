@@ -35,6 +35,8 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     Json,
     Negotiation,
     Portability,
+    Predicate,
+    Reconcile,
     Schema,
     Signature
   }
@@ -177,12 +179,138 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp strict_agrees?(_surface, _want, _input), do: false
 
+  @doc false
+  @spec project(map(), map(), map()) :: map()
+  def project(case_obj, data, raws) when is_map(case_obj) and is_map(data) and is_map(raws) do
+    if case_shape?(case_obj), do: project_case(case_obj, data, raws), else: invalid_projection()
+  end
+
+  def project(_, _, _), do: invalid_projection()
+
+  defp invalid_projection, do: %{"verdict" => "invalid", "code" => "invalid_type"}
+
+  defp project_case(case_obj, data, raws) do
+    {actual, _agree} = execute(case_obj, data, raws)
+    result = project_result(actual, case_obj["surface"])
+
+    if case_obj["surface"] == "signature.verify" do
+      with entry_text when is_binary(entry_text) <- case_obj["input"]["entry"],
+           {:ok, {:object, members}} <- Json.decode(entry_text),
+           {"signature", {:string, body}} <- List.keyfind(members, "signature", 0),
+           {:ok, <<_::512>> = bytes} <- Base64Url.decode(body) do
+        Map.put(result, "strict_signature", Signature.strict_signature?(bytes))
+      else
+        _ -> result
+      end
+    else
+      result
+    end
+  end
+
+  defp project_result({:ok, fields}, "base64url.decode"),
+    do: %{"verdict" => "valid", "decoded" => Base64Url.encode(fields["decoded"])}
+
+  defp project_result({:ok, fields}, "canonicalization.encode"),
+    do: %{"verdict" => "valid", "encoded" => Base64Url.encode(fields["encoded"])}
+
+  defp project_result({:ok, %{"canonical" => bytes}}, "federation.decode"),
+    do: %{"verdict" => "valid", "canonical" => Base64Url.encode(bytes)}
+
+  defp project_result({:ok, fields}, _surface), do: Map.put(fields, "verdict", "valid")
+
+  defp project_result({:error, %Error{} = error}, "reconcile"),
+    do: %{"verdict" => "invalid", "code" => project_code(error), "subject" => error.subject}
+
+  defp project_result({:error, error}, _surface),
+    do: %{"verdict" => "invalid", "code" => project_code(error)}
+
+  defp dispatch_predicate(input) do
+    with {:ok, predicate} <- tagged_field(input, "predicate"),
+         ports when is_list(ports) <- input["port_names"],
+         :ok <- Predicate.validate(predicate, ports) do
+      case input["mode"] do
+        "validate" -> {:ok, %{"valid" => true}}
+        "evaluate" -> evaluate_predicate(predicate, input["ports"])
+        _ -> {:error, %Error{code: :invalid_type}}
+      end
+    else
+      {:error, _} = error -> error
+      _ -> {:error, %Error{code: :invalid_type}}
+    end
+  end
+
+  defp evaluate_predicate(predicate, ports) when is_map(ports) do
+    with {:ok, value} <-
+           Predicate.evaluate(predicate, Map.new(ports, fn {k, v} -> {k, to_tagged(v)} end)),
+         do: {:ok, %{"value" => value}}
+  end
+
+  defp evaluate_predicate(_, _), do: {:error, %Error{code: :invalid_type}}
+
+  defp dispatch_reconcile(input) do
+    with {:ok, bp_text} <- fetch_binary(input, "blueprint"),
+         {:ok, dep_text} <- fetch_binary(input, "deployment"),
+         {:ok, bp} <- Canonicalization.verify(bp_text),
+         {:ok, dep} <- Canonicalization.verify(dep_text),
+         host when is_map(host) <- input["inputs"],
+         {:ok, support} <- build_support(host),
+         {:ok, keys} <- build_keys(Map.put_new(host, "keys", [])),
+         {:ok, host_bounds} <- bound_set(host, "host_bounds"),
+         observations when is_map(observations) <- Map.get(host, "observations", %{}),
+         {:ok, now} <- reconcile_time(observations["now"]) do
+      obs = %Deployment.Observations{
+        now: now,
+        max_attestation_age_ms: observations["max_attestation_age_ms"],
+        observed: Map.get(observations, "observed", %{})
+      }
+
+      inputs = %Reconcile.Inputs{
+        host_bounds: host_bounds,
+        support: support,
+        keys: keys,
+        protected_clamp: clamp_posture(host),
+        observations: obs
+      }
+
+      with {:ok, evidence} <-
+             Reconcile.reconcile(%Blueprint{value: bp}, %Deployment{value: dep}, inputs),
+           do: {:ok, %{"evidence" => evidence_plain(evidence)}}
+    else
+      {:error, _} = error -> error
+      _ -> {:error, %Error{code: :invalid_type}}
+    end
+  end
+
+  defp evidence_plain(%Digest{} = value), do: Digest.to_tagged(value)
+
+  defp evidence_plain(%BoundsAlgebra.BoundSet{} = value) do
+    {:ok, values} = BoundsAlgebra.BoundSet.to_map(value)
+    evidence_plain(values)
+  end
+
+  defp evidence_plain(%MapSet{} = values),
+    do: values |> Enum.sort() |> Enum.map(&evidence_plain/1)
+
+  defp evidence_plain(%_{} = value), do: value |> Map.from_struct() |> evidence_plain()
+
+  defp evidence_plain(value) when is_map(value),
+    do: Map.new(value, fn {k, v} -> {to_string(k), evidence_plain(v)} end)
+
+  defp evidence_plain(value) when is_list(value), do: Enum.map(value, &evidence_plain/1)
+  defp evidence_plain(value) when value in [true, false, nil], do: value
+  defp evidence_plain(value) when is_atom(value), do: Atom.to_string(value)
+  defp evidence_plain(value), do: value
+
   # --- agreement ---------------------------------------------------------------
 
   defp agrees?(%{"verdict" => "invalid"} = expected, actual) do
     case actual do
-      {:error, reason} -> project_code(reason) == expected["code"]
-      _ -> false
+      {:error, reason} ->
+        project_code(reason) == expected["code"] and
+          (not Map.has_key?(expected, "subject") or reason.subject == expected["subject"])
+
+      _ ->
+        false
     end
   end
 
@@ -255,6 +383,8 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp dispatch(surface, input, data, raws) do
     cond do
+      surface == "reconcile" -> dispatch_reconcile(input)
+      surface == "predicate" -> dispatch_predicate(input)
       surface in @byte_surfaces -> dispatch_bytes(surface, input, data, raws)
       surface in @artifact_surfaces -> dispatch_artifact(surface, input, data, raws)
       surface in @negotiation_surfaces -> dispatch_negotiation(surface, input, data, raws)
@@ -374,6 +504,15 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   end
 
   defp project_deployment(deployment, _input), do: project_artifact(deployment)
+
+  defp reconcile_time(nil), do: {:ok, nil}
+
+  defp reconcile_time(value) do
+    if is_binary(value) and Regex.match?(~r/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/, value) and
+         parse_time(value) != nil,
+       do: {:ok, parse_time(value)},
+       else: {:error, %Error{code: :invalid_type, subject: ["now"]}}
+  end
 
   defp parse_time(binary) when is_binary(binary) do
     case DateTime.from_iso8601(binary) do

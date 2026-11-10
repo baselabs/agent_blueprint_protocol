@@ -1,0 +1,31 @@
+name: Published package smoke
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published npm package version
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  smoke:
+    name: Published kit — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    steps:
+      - name: Check out smoke script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.19.0"
+          package-manager-cache: false
+      - name: Install the published package and verify its corpus
+        env:
+          ABP_VERSION: ${{ inputs.version }}
+        run: node scripts/postpublish_smoke.mjs "$env:ABP_VERSION"
+        shell: pwsh

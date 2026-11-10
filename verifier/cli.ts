@@ -7,6 +7,9 @@
 // 0/1/2 contract, exactly as an escript crash is — loud, never laundered
 // into "disagreement").
 
+import { resultsDocument, canonical } from "./results.ts";
+import { serve } from "./execution.ts";
+import { runHarness } from "./harness.ts";
 import { readdirSync, readFileSync, lstatSync, openSync, closeSync, readSync, fstatSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { CaseObj } from "./corpus.ts";
@@ -21,7 +24,7 @@ import { decode as decodeDeployment } from "./deployment.ts";
 import { decode as decodeEnvelope } from "./federation.ts";
 import { obj, str } from "./value.ts";
 
-const USAGE = `usage: agent-blueprint-protocol [--corpus <dir> | --prior-corpus <dir> | --artifact <file> | --help | --version]
+const USAGE = `usage: agent-blueprint-protocol [--corpus <dir> | --prior-corpus <dir> | --artifact <file> | --results --corpus <dir> | --serve --corpus <dir> | conformance run <options> -- <command...> | --help | --version]
 No arguments: verify the installed release's embedded corpus.
 --corpus <dir>: verify a corpus and report agreement.
 --prior-corpus <dir>: replay a released corpus under current verification.
@@ -39,7 +42,10 @@ function releaseMetadata(): { package_version: string; corpus_digest: string } {
   throw new Error("release metadata missing");
 }
 
-function main(argv: string[]): number {
+async function main(argv: string[]): Promise<number> {
+  if(argv[0]==="conformance" && argv[1]==="run")return runHarness(argv.slice(2),readCorpus,releaseMetadata());
+  const mode=argv[0]==="--results"?"results":argv[0]==="--serve"?"serve":"report";
+  if(mode!=="report")argv=argv.slice(1);
   if (argv.length === 1 && argv[0] === "--help") { process.stdout.write(USAGE + "\n"); return 0; }
   if (argv.length === 1 && argv[0] === "--version") { process.stdout.write(releaseMetadata().package_version + "\n"); return 0; }
   if (argv.length === 2 && argv[0] === "--artifact" && argv[1] !== "" && typeof argv[1] === "string") {
@@ -79,11 +85,12 @@ function main(argv: string[]): number {
 
   const certified = corpus.v.identity === releaseMetadata().corpus_digest ? "matches" : "does not match";
   process.stderr.write(`corpus digest ${certified} the release-certified corpus\n`);
+  if(mode==="serve")return serve(corpus.v);
   const results = run(corpus.v);
   const bytes = toBytes(corpus.v.identity, results);
 
   // exitCode (not process.exit) so piped stdout drains before exit.
-  process.stdout.write(bytes);
+  process.stdout.write(mode==="results"?canonical(resultsDocument(corpus.v)):bytes);
   const agreed = results.flat().filter((r) => r.agree).length;
   return agreed === results.flat().length && agreed > 0 ? 0 : 1;
 }
@@ -189,7 +196,7 @@ function readCorpus(dir: string): Map<string, Buffer> {
 }
 
 try {
-  process.exitCode = main(process.argv.slice(2));
+  process.exitCode = await main(process.argv.slice(2));
 } catch (error) {
   process.stderr.write("verifier internal error: " + (error as Error).message + "\n");
   process.exitCode = 3;

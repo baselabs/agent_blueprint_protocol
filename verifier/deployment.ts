@@ -26,7 +26,7 @@ export interface Observations {
   observed: Record<string, string>; // logical operation → tagged digest
 }
 
-type VResult = { ok: true } | { ok: false; e: string };
+type VResult = { ok: true } | { ok: false; e: string; subject?: (string|number)[] };
 
 const CEILING_TOOL_BINDINGS = 128;
 const CEILING_DATA_BINDINGS = 64;
@@ -287,7 +287,7 @@ export function table(): Spec[] {
 export function decode(
   bytes: Buffer | string | symbol,
   bounds?: Bounds | Record<string, unknown>,
-): { ok: true; v: Deployment } | { ok: false; e: string } {
+): { ok: true; v: Deployment } | { ok: false; e: string; subject?: (string|number)[] } {
   if (typeof bytes !== "string" && !Buffer.isBuffer(bytes)) return { ok: false, e: "invalid_type" };
   const profile = normalizeBounds(bounds);
   if (!profile.ok) return profile;
@@ -308,7 +308,7 @@ export function decode(
   return { ok: true, v: { value } };
 }
 
-export function fromValue(value: Value, opts: { authoredExtensions?: string[] } = {}): { ok: true; v: Deployment } | { ok: false; e: string } {
+export function fromValue(value: Value, opts: { authoredExtensions?: string[] } = {}): { ok: true; v: Deployment } | { ok: false; e: string; subject?: (string|number)[] } {
   if (opts === null || typeof opts !== "object" || Array.isArray(opts)) return { ok: false, e: "invalid_type" };
   const validated = opts.authoredExtensions ?? [];
   if (!Array.isArray(validated) || validated.some((ns) => typeof ns !== "string")) return { ok: false, e: "invalid_type" };
@@ -326,24 +326,24 @@ export function fromValue(value: Value, opts: { authoredExtensions?: string[] } 
   return { ok: true, v: { value } };
 }
 
-export function toValue(deployment: Deployment): Value | { ok: false; e: string } {
+export function toValue(deployment: Deployment): Value | { ok: false; e: string; subject?: (string|number)[] } {
   return deployment && isValue(deployment.value) ? deployment.value : { ok: false, e: "invalid_type" };
 }
 
 // ---- digest surface --------------------------------------------------------------------
 
-export function digestInput(deployment: Deployment): Value | { ok: false; e: string } {
+export function digestInput(deployment: Deployment): Value | { ok: false; e: string; subject?: (string|number)[] } {
   if (!deployment || !isValue(deployment.value)) return { ok: false, e: "invalid_type" };
   if (deployment.value.t !== "obj") return deployment.value;
   return { t: "obj", v: deployment.value.v.filter(([name]) => !EVIDENCE_MEMBERS.includes(name)) };
 }
 
-export function canonicalBytes(deployment: Deployment): { ok: true; v: string } | { ok: false; e: string } {
+export function canonicalBytes(deployment: Deployment): { ok: true; v: string } | { ok: false; e: string; subject?: (string|number)[] } {
   if (!deployment || typeof deployment !== "object") return { ok: false, e: "invalid_type" };
   return canonical.encode(deployment.value);
 }
 
-export function contentDigest(deployment: Deployment): string | { ok: false; e: string } {
+export function contentDigest(deployment: Deployment): string | { ok: false; e: string; subject?: (string|number)[] } {
   const jcs = canonical.encode(digestInput(deployment));
   if (!jcs.ok) return jcs;
   return digest.toTagged(digest.hash("deployment_content", Buffer.from(jcs.v, "utf8")));
@@ -370,7 +370,7 @@ interface Release {
 // The one total reader every binding stage consumes: duplicate root members,
 // a non-array member, a non-object entry, a non-string operand, or an
 // unparsable descriptor digest is a malformed deployment, never empty.
-function boundToolBindings(deployment: Deployment): { ok: true; v: Value[] } | { ok: false; e: string } {
+function boundToolBindings(deployment: Deployment): { ok: true; v: Value[] } | { ok: false; e: string; subject?: (string|number)[] } {
   if (!deployment || !isValue(deployment.value)) return { ok: false, e: "invalid_type" };
   if (deployment.value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = deployment.value.v;
@@ -399,7 +399,7 @@ function entryJudgment(entry: Value): VResult {
   return digest.fromTagged(descriptor.v);
 }
 
-function boundRelease(deployment: Deployment): { ok: true; v: Release } | { ok: false; e: string } {
+function boundRelease(deployment: Deployment): { ok: true; v: Release } | { ok: false; e: string; subject?: (string|number)[] } {
   const bindings = boundToolBindings(deployment);
   if (!bindings.ok) return bindings;
 
@@ -553,7 +553,7 @@ function stageRugPull(bindings: Value[], obs: Observations): VResult {
   return { ok: true };
 }
 
-function recoveryMode(deployment: Deployment): { ok: true; v: string } | { ok: false; e: string } {
+function recoveryMode(deployment: Deployment): { ok: true; v: string } | { ok: false; e: string; subject?: (string|number)[] } {
   if (!deployment || !isValue(deployment.value)) return { ok: false, e: "invalid_type" };
   if (deployment.value.t !== "obj") return { ok: false, e: "invalid_type" };
   const owner = keyfind(deployment.value.v, "effect_owner");
@@ -711,7 +711,7 @@ function checkSignatureIds(value: Value): {ok:true} | {ok:false;e:string} {
 
 function checkSignatureEntry(entry: Value): VResult {
   const attrs = blueprint.signatureAttributes(entry);
-  if (!attrs.ok) return { ok: false, e: attrs.e };
+  if (!attrs.ok) return attrs;
   return attrs.v.purpose === "deployment" ? { ok: true } : { ok: false, e: "invalid_constraint" };
 }
 
@@ -805,7 +805,8 @@ function checkExactVersion(value: Value): VResult {
 
 // ---- the portability scan ---------------------------------------------------------------
 
-function scan(value: Value, authoredNs: Set<string>): VResult {
+export function scan(value: Value, authoredNs: Set<string>): VResult {
+  if (!isValue(value) || value.t !== "obj" || !(authoredNs instanceof Set) || [...authoredNs].some(ns=>typeof ns!=="string")) return {ok:false,e:"invalid_type"};
   if (value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = value.v;
 
@@ -868,7 +869,7 @@ function scanEvidenceKeyIds(members: [string, Value][]): VResult {
 
 // ---- helpers --------------------------------------------------------------------------------
 
-function normalizeBounds(bounds?: Bounds | Record<string, unknown>): { ok: true; v: Bounds } | { ok: false; e: string } {
+function normalizeBounds(bounds?: Bounds | Record<string, unknown>): { ok: true; v: Bounds } | { ok: false; e: string; subject?: (string|number)[] } {
   if (bounds === undefined) return { ok: true, v: maxBounds() };
   return coerceBounds(bounds as Record<string, unknown>);
 }

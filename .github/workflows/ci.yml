@@ -123,6 +123,12 @@ jobs:
           elixir-version: ${{ matrix.elixir }}
           otp-version: ${{ matrix.otp }}
 
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.19.0"
+          package-manager-cache: false
+
       - name: Install dependencies
         run: mix deps.get
 
@@ -167,3 +173,48 @@ jobs:
         run: mix quality
         # includes release.asset: the standalone verifier kit must run
         # green over the shipped archive's corpus on every push
+
+  platforms:
+    name: Consumer and contributor — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    env:
+      MIX_ENV: test
+    steps:
+      - name: Check out byte-exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.19.0"
+          package-manager-cache: false
+      - name: Verify checkout bytes and paths
+        run: node scripts/check_checkout.mjs
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "29.0.3"
+      - name: Install dependencies and compile
+        run: |
+          mix deps.get
+          mix compile --warnings-as-errors
+      - name: Build and exercise the kit
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          node dist/kit/cli.mjs
+      - name: Run contributor tests and both conformance adapters
+        run: |
+          mix test --seed 42
+          mix conformance.verify
+          mix conformance.product
+          mix typescript.guide

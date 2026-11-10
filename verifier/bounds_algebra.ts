@@ -84,14 +84,14 @@ interface Evidence {
   acknowledged: boolean;
 }
 
-type VResult = { ok: true } | { ok: false; e: string };
+type VResult = { ok: true } | { ok: false; e: string; subject?: (string|number)[] };
 
 export function intersect(
   blueprint: Record<string, unknown>,
   deployment: Record<string, unknown>,
   host: Record<string, unknown>,
   posture: "acknowledge" | "deny",
-): { ok: true; v: { effective: Record<string, unknown>; clamps: Evidence[] } } | { ok: false; e: string } {
+): { ok: true; v: { effective: Record<string, unknown>; clamps: Evidence[] } } | { ok: false; e: string; subject?: (string|number)[] } {
   if (posture !== "acknowledge" && posture !== "deny") {
     return { ok: false, e: "invalid_constraint" };
   }
@@ -114,7 +114,7 @@ export function intersect(
     return cost.currency;
   });
   if (new Set(currencies).size !== 1) {
-    return { ok: false, e: "bound_unit_mismatch" };
+    return { ok: false, e: "bound_unit_mismatch", subject:["max_cost"] };
   }
 
   return compose(sources, posture);
@@ -126,19 +126,19 @@ export function intersect(
 // runner pre-filters unknown member names to :invalid_type at add_bound_entry;
 // here that delegated filter runs first, then BoundSet.new's value checks).
 
-export function buildSet(raw: Record<string, unknown>): { ok: true; v: Record<string, BoundValue> } | { ok: false; e: string } {
+export function buildSet(raw: Record<string, unknown>): { ok: true; v: Record<string, BoundValue> } | { ok: false; e: string; subject?: (string|number)[] } {
   if (!isPlainObject(raw)) return { ok: false, e: "invalid_type" };
   const out: Record<string, BoundValue> = {};
   for (const [name, value] of Object.entries(raw)) {
     if (!Object.hasOwn(TABLE, name)) return { ok: false, e: "invalid_type" };
     const built = buildBound(name, value);
-    if (!built.ok) return built;
+    if (!built.ok) return {...built,subject:[name]};
     out[name] = built.v;
   }
   return { ok: true, v: out };
 }
 
-function buildBound(name: string, raw: unknown): { ok: true; v: BoundValue } | { ok: false; e: string } {
+function buildBound(name: string, raw: unknown): { ok: true; v: BoundValue } | { ok: false; e: string; subject?: (string|number)[] } {
   const def = TABLE[name]!;
   const kind = def.kind;
 
@@ -208,7 +208,7 @@ function totalOf(sources: Record<string, Record<string, BoundValue>>): VResult {
     const present = new Set(Object.keys(set));
     const expected = new Set(NAMES);
     const extra = [...present].filter((name) => !expected.has(name));
-    if (extra.length > 0) return { ok: false, e: "bound_unknown" };
+    if (extra.length > 0) return { ok: false, e: "bound_unknown", subject:["bound_set"] };
 
     if (present.size === expected.size && NAMES.every((n) => present.has(n))) {
       // re-validate present values (bypassed-set parity)
@@ -225,7 +225,7 @@ function totalOf(sources: Record<string, Record<string, BoundValue>>): VResult {
         const rebuilt = rebuild(name, set[name]!);
         if (!rebuilt.ok) return rebuilt;
       } else {
-        return { ok: false, e: TABLE[name]!.cls === "operational" ? "missing_ceiling" : "bound_source_missing" };
+        return { ok: false, e: TABLE[name]!.cls === "operational" ? "missing_ceiling" : "bound_source_missing",subject:[name] };
       }
     }
   }
@@ -244,7 +244,7 @@ function rebuild(name: string, value: BoundValue): VResult {
 function compose(
   sources: Record<string, Record<string, BoundValue>>,
   posture: "acknowledge" | "deny",
-): { ok: true; v: { effective: Record<string, unknown>; clamps: Evidence[] } } | { ok: false; e: string } {
+): { ok: true; v: { effective: Record<string, unknown>; clamps: Evidence[] } } | { ok: false; e: string; subject?: (string|number)[] } {
   const effective: Record<string, unknown> = {};
   const clamps: Evidence[] = [];
 
@@ -259,7 +259,7 @@ function compose(
     }
 
     if (def.cls === "protected" && posture === "deny") {
-      return { ok: false, e: "protected_bound_clamp_denied" };
+      return { ok: false, e: "protected_bound_clamp_denied", subject: [name] };
     }
 
     clamps.push({

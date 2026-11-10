@@ -1,0 +1,102 @@
+{
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "agent-blueprint-protocol-conformance-corpus-index"
+    },
+    "protocol_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "total_cases": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "corpus_digest": {
+      "type": "string"
+    },
+    "registry_digest": {
+      "type": "string"
+    },
+    "bool_extra": {
+      "type": "boolean"
+    },
+    "float_extra": {
+      "type": "number"
+    },
+    "null_extra": {
+      "type": "null"
+    },
+    "public_key_fingerprints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256_base64url": {
+            "type": "string"
+          },
+          "cases": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "path",
+          "sha256_base64url",
+          "cases"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "object",
+              "properties": {
+                "n_a": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "n_a"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  "required": [
+    "format",
+    "protocol_revision",
+    "total_cases",
+    "corpus_digest",
+    "registry_digest",
+    "bool_extra",
+    "float_extra",
+    "null_extra",
+    "public_key_fingerprints",
+    "files",
+    "applicability"
+  ],
+  "additionalProperties": false
+}

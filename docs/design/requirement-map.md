@@ -29,8 +29,9 @@ check re-derives this list, so a step added without a map entry reds):
 `hex.audit → deps.unlock --check-unused → deps.audit → deps.currency →
 format --check-formatted → compile --warnings-as-errors → credo --strict →
 test --cover --seed 42 → conformance.verify → conformance.mutations →
-kit.build → verifier.agreement → dialyzer → docs --warnings-as-errors →
-spec.extraction → grammar.derivation → registry.equality → release.asset →
+kit.build → conformance.product → typescript.guide → verifier.agreement →
+compatibility.replay → dialyzer → docs --warnings-as-errors → spec.extraction →
+grammar.derivation → registry.equality → release.asset → release.promote →
 release.candidate`
 
 > Reconciliation of record: the design spec listed the alias as gaining
@@ -1996,4 +1997,64 @@ $ mix test test/architecture/document_citation_gate_test.exs
 1) test named section citations name a shipped document or a pinned standard
 lib/agent_blueprint_protocol/base64url.ex: "base §…" names no shipped document or standard
 Result: 1/2 passed
+```
+
+### alias: conformance.product
+
+The case schemas, certified per-case document, external adapters, transport
+outcomes, unsigned claims and composed-import mutations are executable gates.
+The document is a required shipped artifact. Removing it on November 10, 2026
+produced this failure:
+
+```red
+$ mix conformance.product
+Error: ENOENT: no such file or directory, open 'spec/conformance/certified-results.json'
+** (RuntimeError) conformance product failed
+EXIT=1
+```
+
+The gate also asserts rejection of eleven transport defects, extra projected members and a process that
+closes stdout without terminating, a claim over
+an unnamed non-certified census, all eight skipped import stages, and an
+exchange of canonical and digest stages. Each mutation must produce a
+disagreement rather than a process failure.
+
+### alias: release.promote
+
+The candidate comparison permits only the documented version and release
+metadata edits. Its calibration runs against a scratch copy; a library
+change produces the following recorded failure:
+
+```red
+$ mix release.promote --prove-source-rejection
+release promotion: forbidden differences: lib/agent_blueprint_protocol.ex
+EXIT=1
+```
+
+### conformance: packed library consumer
+
+`typescript.guide` installs the packed archive into an isolated consumer,
+checks root imports and blocked deep imports, and compiles without Node
+types or skipped declaration checks. The exhaustive error switch compiles;
+removing its first case produced this recorded failure:
+
+```red
+$ node node_modules/typescript/bin/tsc -p tsconfig.json
+error TS2322: Type '"attestation_malformed"' is not assignable to type 'never'.
+EXIT=1
+```
+
+The same consumer exercises every facade function and compares the mapping
+data and error vocabulary with the Elixir facade.
+
+### conformance: checkout bytes and platform paths
+
+Fresh-clone lanes compare every indexed file with its Git blob and reject
+Windows-reserved names, case collisions, symlinks and oversized paths. A
+modified indexed workflow produced this recorded failure:
+
+```red
+$ node scripts/check_checkout.mjs
+AssertionError [ERR_ASSERTION]: checkout byte drift: .github/workflows/ci.yml
+EXIT=1
 ```

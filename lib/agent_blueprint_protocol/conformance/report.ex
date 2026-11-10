@@ -15,7 +15,7 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
   The report states what the corpus agreed; it is not a decision.
   """
 
-  alias AgentBlueprintProtocol.{Canonicalization, Conformance.Corpus}
+  alias AgentBlueprintProtocol.{Canonicalization, Conformance.Corpus, Conformance.Runner}
 
   @format "agent-blueprint-protocol-conformance-report"
 
@@ -82,6 +82,40 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
   end
 
   def to_bytes(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
+
+  @doc false
+  @spec results_bytes(Corpus.t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  def results_bytes(%Corpus{} = corpus) do
+    rows =
+      for {_path, cases} <- corpus.cases, row <- cases do
+        %{
+          "id" => row["id"],
+          "surface" => row["surface"],
+          "result" => Runner.project(row, corpus.data, corpus.raws)
+        }
+      end
+
+    document = %{
+      "format" => "agent-blueprint-protocol-conformance-results",
+      "corpus_digest" => corpus.identity,
+      "registry_digest" => corpus.index["registry_digest"],
+      "results" => Enum.sort_by(rows, & &1["id"])
+    }
+
+    Canonicalization.encode(tagged(document))
+  end
+
+  def results_bytes(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
+
+  defp tagged(nil), do: :null
+  defp tagged(value) when is_boolean(value), do: {:boolean, value}
+  defp tagged(value) when is_integer(value), do: {:integer, value}
+  defp tagged(value) when is_float(value), do: {:float, value}
+  defp tagged(value) when is_binary(value), do: {:string, value}
+  defp tagged(value) when is_list(value), do: {:array, Enum.map(value, &tagged/1)}
+
+  defp tagged(value) when is_map(value),
+    do: {:object, Enum.map(value, fn {k, v} -> {k, tagged(v)} end)}
 
   defp encode_report(identity, report) do
     value =

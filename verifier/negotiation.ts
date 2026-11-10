@@ -19,7 +19,7 @@ export interface RegistryEntryInput {
   criticality: "critical" | "optional";
   state: RegState;
   schemaDigest: string | null;
-  a2aUri: string;
+  a2aUri: string | null;
   promotedAtRevision: number | null;
 }
 
@@ -35,6 +35,7 @@ export interface Outcome {
   criticalExtensions: string[];
   quarantinedExtensions: string[];
   notices: string[];
+  optionalRetained: string[];
 }
 
 type VResult = { ok: true } | { ok: false; e: string };
@@ -148,6 +149,7 @@ export function negotiate(artifact: Value, support: Support): { ok: true; v: Out
       criticalExtensions: extensions.v.critical,
       quarantinedExtensions: extensions.v.quarantined,
       notices: extensions.v.notices,
+      optionalRetained: extensions.v.optionalRetained,
     },
   };
 }
@@ -209,6 +211,7 @@ interface ExtensionFlow {
   critical: string[];
   quarantined: string[];
   notices: string[];
+  optionalRetained: string[];
 }
 
 function extensionsCheck(value: Value, support: Support): { ok: true; v: ExtensionFlow } | { ok: false; e: string } {
@@ -230,7 +233,7 @@ function extensionsCheck(value: Value, support: Support): { ok: true; v: Extensi
   const critical = regionNamespaces(regions, "critical");
   const optional = regionNamespaces(regions, "optional");
 
-  const flow: ExtensionFlow = { critical: [], quarantined: [], notices: [] };
+  const flow: ExtensionFlow = { critical: [], quarantined: [], notices: [], optionalRetained: [] };
 
   for (const ns of critical) {
     const judgment = criticalJudgment(ns, regions, support);
@@ -245,8 +248,9 @@ function extensionsCheck(value: Value, support: Support): { ok: true; v: Extensi
     if (judgment === "quarantine") {
       flow.quarantined.push(ns);
       flow.notices.push("extension_unknown_optional_retained");
-    } else if (judgment.notice !== null) {
-      flow.notices.push(judgment.notice);
+    } else {
+      flow.optionalRetained.push(ns);
+      if (judgment.notice !== null) flow.notices.push(judgment.notice);
     }
   }
 

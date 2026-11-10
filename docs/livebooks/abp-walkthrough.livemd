@@ -553,7 +553,7 @@ Map.take(report, [:agreement, :agreed, :disagreed, :total])
 <!-- livebook:{"output":true} -->
 
 ```
-%{total: 448, agreed: 448, agreement: true, disagreed: 0}
+%{total: 583, agreed: 583, agreement: true, disagreed: 0}
 ```
 
 ## 7. Attacks on the signature and the bytes fail closed

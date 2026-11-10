@@ -303,7 +303,8 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
   test "signatures tamper: bad signature bytes deny :signature_not_verified" do
     deployment = signed_deployment(forged_signature: true)
 
-    assert {:error, %Error{code: :signature_not_verified, subject: ["signatures", 0]}} =
+    assert {:error,
+            %Error{code: :signature_not_verified, subject: ["deployment", "signatures", 0]}} =
              Reconcile.reconcile(golden_blueprint(), deployment, inputs(keys: verifiable_keys()))
   end
 
@@ -315,7 +316,9 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
           :blueprint -> {signed_blueprint(foreign_digest: true), golden_deployment()}
         end
 
-      assert {:error, %Error{code: :digest_mismatch, subject: ["signatures", 0]}} =
+      subject = [Atom.to_string(artifact), "signatures", 0]
+
+      assert {:error, %Error{code: :digest_mismatch, subject: ^subject}} =
                Reconcile.reconcile(blueprint, deployment, inputs(keys: verifiable_keys())),
              "badge attack must deny on the #{artifact} side"
     end

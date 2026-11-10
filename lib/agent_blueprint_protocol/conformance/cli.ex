@@ -10,25 +10,19 @@ defmodule AgentBlueprintProtocol.Conformance.Cli do
                     |> :json.decode()
                     |> Map.fetch!("corpus_digest")
 
-  @usage "usage: agent_blueprint_protocol_conformance --corpus <dir>"
+  @usage "usage: agent_blueprint_protocol_conformance [--results | --serve] --corpus <dir>"
 
   @doc false
   @spec run([binary()]) :: 0 | 1 | 2
   def run(argv) do
-    with {:ok, dir} <- parse(argv),
+    :io.setopts(:standard_io, encoding: :latin1)
+
+    with {:ok, dir, mode} <- parse(argv),
          {:ok, map} <- read_corpus(dir),
          {:ok, corpus} <- Corpus.load(map) do
       certified = if corpus.identity == @certified_digest, do: "matches", else: "does not match"
       IO.puts(:stderr, "corpus digest #{certified} the release-certified corpus")
-      results = Runner.run(corpus)
-      report = Report.build(corpus, results)
-
-      # The report shape is fixed and fully canonicalizable, so encoding
-      # cannot fail; a mismatch here is an internal invariant and escapes
-      # loudly rather than laundering into an exit code.
-      {:ok, bytes} = Report.to_bytes(corpus, results)
-      IO.binwrite(bytes)
-      report.exit_status
+      emit(corpus, mode)
     else
       :usage ->
         IO.puts(:stderr, @usage)
@@ -49,8 +43,93 @@ defmodule AgentBlueprintProtocol.Conformance.Cli do
     end
   end
 
-  defp parse(["--corpus", dir]) when is_binary(dir) and dir != "", do: {:ok, dir}
+  defp parse(["--corpus", dir]) when is_binary(dir) and dir != "", do: {:ok, dir, :report}
+
+  defp parse(["--results", "--corpus", dir]) when is_binary(dir) and dir != "",
+    do: {:ok, dir, :results}
+
+  defp parse(["--serve", "--corpus", dir]) when is_binary(dir) and dir != "",
+    do: {:ok, dir, :serve}
+
   defp parse(_), do: :usage
+
+  defp emit(corpus, :report) do
+    results = Runner.run(corpus)
+    report = Report.build(corpus, results)
+    {:ok, bytes} = Report.to_bytes(corpus, results)
+    IO.binwrite(bytes)
+    report.exit_status
+  end
+
+  defp emit(corpus, :results) do
+    {:ok, bytes} = Report.results_bytes(corpus)
+    IO.binwrite(bytes)
+    Report.build(corpus, Runner.run(corpus)).exit_status
+  end
+
+  defp emit(corpus, :serve) do
+    handshake = %{
+      "protocol" => "agent-blueprint-protocol-conformance-execution",
+      "version" => 1,
+      "corpus_digest" => corpus.identity,
+      "registry_digest" => corpus.index["registry_digest"]
+    }
+
+    case read_line() do
+      {:ok, ^handshake} ->
+        write_line(handshake)
+        serve(corpus)
+
+      _ ->
+        2
+    end
+  end
+
+  defp serve(corpus) do
+    case read_line() do
+      :eof ->
+        0
+
+      {:ok, %{"id" => id, "surface" => surface, "input" => input} = request}
+      when map_size(request) == 3 and is_binary(id) and is_binary(surface) and is_map(input) ->
+        row = %{"id" => id, "surface" => surface, "input" => input, "expected" => %{}}
+        write_line(%{"id" => id, "result" => Runner.project(row, corpus.data, corpus.raws)})
+        serve(corpus)
+
+      _ ->
+        2
+    end
+  end
+
+  defp read_line do
+    case :io.request(:standard_io, {:get_line, :latin1, ""}) do
+      :eof ->
+        :eof
+
+      line when is_binary(line) and byte_size(line) <= 5_000_000 ->
+        with true <- String.ends_with?(line, "\n"),
+             {:ok, value} <- AgentBlueprintProtocol.Json.decode(line),
+             do: {:ok, plain(value)}
+
+      _ ->
+        :invalid
+    end
+  end
+
+  defp plain(:null), do: nil
+  defp plain({:object, members}), do: Map.new(members, fn {k, v} -> {k, plain(v)} end)
+  defp plain({:array, values}), do: Enum.map(values, &plain/1)
+  defp plain({_tag, value}), do: value
+
+  defp write_line(value) do
+    bytes = IO.iodata_to_binary(:json.encode(value, &encode_value/2))
+    {:ok, tagged} = AgentBlueprintProtocol.Json.decode(bytes)
+    {:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode(tagged)
+    IO.binwrite(bytes <> "\n")
+  end
+
+  defp encode_value(nil, _encoder), do: "null"
+  defp encode_value(value, encoder), do: :json.encode_value(value, encoder)
 
   # Reads EVERY file under the corpus directory — dotfiles included — so the
   # loader's file-set equality sees exactly what the directory carries.

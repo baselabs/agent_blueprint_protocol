@@ -16,8 +16,9 @@ native, 5 partial, 15 carried via the registered
 `io.github.baselabs/federation` extension in A2A `Task.metadata` / MCP
 `_meta`. Zero native wire fields; no native transport. A2A is the
 primary lane; the MCP Tasks mapping ships flagged draft-tracking —
-outside core's deprecation guarantee, revisited on the first tagged
-ext-tasks release.
+outside core's deprecation guarantee, revisited when the MCP tasks extension
+leaves Beta. The extension has released tags; v0.2.3 carries the dated
+2026-07-28 contract. A2A v1.0.1 is the released baseline.
 
 The protocol's federation surface enforces the lossy boundaries:
 `REJECTED`/`AUTH_REQUIRED` deny crossing into MCP, `UNSPECIFIED` is

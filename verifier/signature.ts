@@ -38,11 +38,11 @@ export interface Attributes {
   purpose: "blueprint" | "deployment" | "federation-envelope";
 }
 
-type Failure = { ok: false; e: string };
+type Failure = { ok: false; e: string; subject?: (string|number)[] };
 type VerifyResult = { ok: true; v: Attributes } | Failure;
 
-function malformed(): { ok: false; e: string } {
-  return { ok: false, e: "signature_malformed" };
+function malformed(subject: string[] = []): Failure {
+  return { ok: false, e: "signature_malformed", subject };
 }
 
 export function verify(entry: Value, keys: PublicKey[]): VerifyResult {
@@ -81,7 +81,7 @@ interface Parts {
   keyId: string;
 }
 
-function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: string } {
+function parseParts(entry: Value): { ok: true; v: Parts } | Failure {
   const shaped = encode(entry);
   if (!shaped.ok) return shaped.e === "invalid_type" ? shaped : malformed();
   if (entry.t !== "obj") return malformed();
@@ -101,18 +101,18 @@ function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: stri
   // Header: exactly {alg, b64, crit, kid}; alg is EdDSA or Ed25519 (the twin's
   // algorithm-unsupported denial in the header), b64 exactly false, crit
   // exactly ["b64"], kid a non-empty string.
-  if (header.t !== "obj") return malformed();
+  if (header.t !== "obj") return malformed(["protected"]);
   const headerNames = header.v.map(([k]) => k).sort();
   if (headerNames.length !== 4 || headerNames.join() !== "alg,b64,crit,kid") {
-    return malformed();
+    return malformed(["protected"]);
   }
   const alg = member(header, "alg");
   if (alg !== null && alg.t === "str" && !HEADER_ALGORITHMS.has(alg.v)) {
-    return { ok: false, e: "signature_algorithm_unsupported" };
+    return { ok: false, e: "signature_algorithm_unsupported", subject: ["protected"] };
   }
-  if (alg === null || alg.t !== "str") return malformed();
+  if (alg === null || alg.t !== "str") return malformed(["protected"]);
   const b64Flag = member(header, "b64");
-  if (b64Flag === null || b64Flag.t !== "bool" || b64Flag.v !== false) return malformed();
+  if (b64Flag === null || b64Flag.t !== "bool" || b64Flag.v !== false) return malformed(["protected"]);
   const crit = member(header, "crit");
   if (
     crit === null ||
@@ -121,48 +121,48 @@ function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: stri
     crit.v[0]!.t !== "str" ||
     crit.v[0]!.v !== "b64"
   ) {
-    return malformed();
+    return malformed(["protected"]);
   }
   const kid = member(header, "kid");
-  if (kid === null || kid.t !== "str" || kid.v === "") return malformed();
+  if (kid === null || kid.t !== "str" || kid.v === "") return malformed(["protected"]);
 
   // Attributes: exactly the five closed members.
-  if (attrs.t !== "obj") return malformed();
+  if (attrs.t !== "obj") return malformed(["signed_attributes"]);
   const attrNames = attrs.v.map(([k]) => k).sort();
   if (
     attrNames.length !== 5 ||
     attrNames.join() !== "algorithm,content_digest,created_at,key_id,purpose"
   ) {
-    return malformed();
+    return malformed(["signed_attributes"]);
   }
   const algorithm = member(attrs, "algorithm");
   if (algorithm !== null && algorithm.t === "str" && algorithm.v !== "Ed25519") {
-    return { ok: false, e: "signature_algorithm_unsupported" };
+    return { ok: false, e: "signature_algorithm_unsupported", subject: ["signed_attributes"] };
   }
-  if (algorithm === null || algorithm.t !== "str") return malformed();
+  if (algorithm === null || algorithm.t !== "str") return malformed(["signed_attributes"]);
 
   const contentDigest = memberString(attrs, "content_digest");
-  if (contentDigest === null) return malformed();
+  if (contentDigest === null) return malformed(["signed_attributes"]);
   const parsedDigest = digest.fromTagged(contentDigest);
-  if (!parsedDigest.ok) return malformed();
+  if (!parsedDigest.ok) return malformed(["signed_attributes"]);
 
   const createdAt = memberString(attrs, "created_at");
   if (createdAt === null || !CREATED_AT.test(createdAt) || !validZFormDate(createdAt)) {
-    return malformed();
+    return malformed(["signed_attributes"]);
   }
 
   const keyId = memberString(attrs, "key_id");
-  if (keyId === null || keyId === "" || keyId.includes(".")) return malformed();
+  if (keyId === null || keyId === "" || keyId.includes(".")) return malformed(["signed_attributes"]);
 
   const purpose = memberString(attrs, "purpose");
-  if (purpose === null || !PURPOSES.has(purpose)) return malformed();
+  if (purpose === null || !PURPOSES.has(purpose)) return malformed(["signed_attributes"]);
 
   if (kid.v !== keyId) return malformed();
 
   const signatureBody = member(entry, "signature");
-  if (signatureBody === null || signatureBody.t !== "str") return malformed();
+  if (signatureBody === null || signatureBody.t !== "str") return malformed(["signature"]);
   const decodedSignature = b64.decodeStrict(signatureBody.v);
-  if (!decodedSignature.ok || decodedSignature.v.length !== 64) return malformed();
+  if (!decodedSignature.ok || decodedSignature.v.length !== 64) return malformed(["signature"]);
 
   const headerJson = encode(header);
   const attrsJson = encode(attrs);

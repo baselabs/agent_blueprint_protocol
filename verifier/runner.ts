@@ -1,3 +1,7 @@
+import * as reconcile from "./reconcile.ts";
+import * as predicate from "./predicate.ts";
+import { plain, jsonValue } from "./plain.ts";
+import * as canonical from "./canonical.ts";
 import { isValue } from "./value.ts";
 // The case executor — the mirror of AgentBlueprintProtocol.Conformance.Runner:
 // dispatches each corpus case against the verifier's own surface twins and
@@ -79,7 +83,7 @@ function strictAgrees(surface: string, want: Value | null, input: Value): boolea
   return signature.strictSignature(bytes.v) === want.v;
 }
 
-export type SurfaceResult = { ok: true; v: Record<string, unknown> } | { ok: false; e: string };
+export type SurfaceResult = { ok: true; v: Record<string, unknown> } | { ok: false; e: string; subject?: (string|number)[] };
 
 // --- agreement -------------------------------------------------------------------
 
@@ -88,6 +92,8 @@ function agrees(expected: Value, actual: SurfaceResult): boolean {
   const verdict = memberString(expected, "verdict");
 
   if (verdict === "invalid") {
+    const subject=member(expected,"subject");
+    if(!actual.ok&&subject!==null&&!deepEqual(subject,actual.subject??[]))return false;
     if (!actual.ok) return actual.e === memberString(expected, "code");
     return false;
   }
@@ -227,6 +233,30 @@ function dispatch(
       const encoded = encode(decoded.v, overrides.v);
       if (!encoded.ok) return encoded;
       return { ok: true, v: { encoded: encoded.v } };
+    }
+    case "reconcile": {
+      const b=memberString(input,"blueprint"), d=memberString(input,"deployment");
+      if(b===null||d===null)return {ok:false,e:"invalid_type"};
+      const bp=canonical.verify(b),dep=canonical.verify(d);
+      if(!bp.ok)return bp;if(!dep.ok)return dep;
+      const host=member(input,"inputs");if(host?.t!=="obj")return {ok:false,e:"invalid_type"};
+      const support=buildSupport(host);if(!support.ok)return support;
+      const raw=plain(host);
+      const observations=member(host,"observations");if(observations!==null&&observations.t!=="obj")return {ok:false,e:"invalid_type"};
+      const hostBounds=boundSet(host,"host_bounds");if(!hostBounds.ok)return hostBounds;
+      const keys=buildKeys({t:"obj",v:[["keys",member(host,"keys")??{t:"arr",v:[]}]]});if(!keys.ok)return keys;
+      const now=raw.observations?.now??null;
+      if(now!==null&&(typeof now!=="string"||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(now)||deployment.parseTimestamp(now)===null))return {ok:false,e:"invalid_type",subject:["now"]};
+      const result=reconcile.reconcile({value:bp.v},{value:dep.v},{hostBounds:hostBounds.v,support:support.v,keys:keys.v,protectedClamp:raw.protected_clamp==="acknowledge"?"acknowledge":"deny",observations:{now,maxAttestationAgeMs:raw.observations?.max_attestation_age_ms??null,observed:raw.observations&&Object.hasOwn(raw.observations,"observed")?raw.observations.observed:{}}});
+      return result.ok?{ok:true,v:{evidence:result.v}}:result;
+    }
+    case "predicate": {
+      const p=member(input,"predicate"), names=member(input,"port_names");
+      if(!p||names?.t!=="arr")return {ok:false,e:"invalid_type"};
+      const validated=predicate.validate(p,plain(names));if(!validated.ok)return validated;
+      if(memberString(input,"mode")==="validate")return {ok:true,v:{valid:true}};
+      const ports=member(input,"ports");if(memberString(input,"mode")!=="evaluate"||ports?.t!=="obj")return {ok:false,e:"invalid_type"};
+      const result=predicate.evaluate(p,new Map(ports.v),plain(names));return result.ok?{ok:true,v:{value:result.v}}:result;
     }
     case "base64url.decode": {
       const segment = memberString(input, "base64url");
@@ -814,3 +844,16 @@ function toPlainValue(value: Value): unknown {
 }
 
 export { str, int, float, nil };
+
+export function project(caseObj:CaseObj,data:Map<string,Value>,raws:Map<string,Buffer>):Record<string,unknown> {
+  if(!caseObj||typeof caseObj.surface!=="string"||!isValue(caseObj.input)||!isValue(caseObj.expected)||!(data instanceof Map)||!(raws instanceof Map))return {verdict:"invalid",code:"invalid_type"};
+  const result=execute(caseObj,data,raws).actual;
+  const output:Record<string,unknown>=result.ok?{verdict:'valid',...jsonValue(result.v)}:{verdict:'invalid',code:result.e,...(caseObj.surface==='reconcile'?{subject:result.subject??[]}: {})};
+  if(result.ok && caseObj.surface==='federation.decode' && typeof result.v.canonical==='string')output.canonical=Buffer.from(result.v.canonical).toString('base64url');
+  if(result.ok && caseObj.surface==='canonicalization.encode')output.encoded=Buffer.from(result.v.encoded as string).toString('base64url');
+  if(caseObj.surface==='signature.verify') {
+    const text=memberString(caseObj.input,'entry');const entry=text===null?null:decode(text);
+    if(entry?.ok) {const body=memberString(entry.v,'signature');const bytes=body===null?null:b64.decodeStrict(body);if(bytes?.ok&&bytes.v.length===64)output.strict_signature=signature.strictSignature(bytes.v);}
+  }
+  return output;
+}

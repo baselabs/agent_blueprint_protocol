@@ -30,6 +30,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -58,11 +59,33 @@ jobs:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
 
+      - name: Require a release tag
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Run publishing on a release tag"
+            exit 1
+          fi
+
       - name: Install dependencies and build the kit
         run: |
           mix deps.get
           npm ci --ignore-scripts --no-audit --no-fund
           npm run build
+
+      - name: Check final-release promotion against its candidate
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "Candidate publication: final promotion does not apply"
+          else
+            mapfile -t CANDIDATES < <(git tag --list "v${VERSION}-rc.*" --sort=-version:refname)
+            CANDIDATE="${CANDIDATES[0]:-}"
+            if [ -z "$CANDIDATE" ]; then
+              echo "::error::A final release requires a candidate tag"
+              exit 1
+            fi
+            mix release.promote --check "$CANDIDATE"
+          fi
 
       - name: Run the complete quality battery on the tagged tree
         run: mix quality
@@ -71,7 +94,8 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir verified-release
-          npm pack --ignore-scripts --pack-destination verified-release
+          cp spec/conformance/certified-results.json verified-release/certified-results.json
+          npm pack ./dist/package --ignore-scripts --pack-destination verified-release
           env MIX_ENV=test mix release.asset --write
           mv "verifier-${VERSION}.tar.gz" verified-release/
           mix hex.build --output "verified-release/agent_blueprint_protocol-${VERSION}.tar"
@@ -82,9 +106,9 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir "$RUNNER_TEMP/packed-kit"
           tar -xzf "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" -C "$RUNNER_TEMP/packed-kit"
-          diff --recursive --brief --exclude='self_checks.*' --exclude='.DS_Store' --exclude='._*' dist "$RUNNER_TEMP/packed-kit/package/dist"
+          diff --recursive --brief --exclude='package' --exclude='self_checks.*' --exclude='.DS_Store' --exclude='._*' dist "$RUNNER_TEMP/packed-kit/package/dist"
           node "$RUNNER_TEMP/packed-kit/package/dist/kit/cli.mjs" > "$RUNNER_TEMP/packed-report.json"
-          ./agent_blueprint_protocol_conformance --corpus priv/conformance > "$RUNNER_TEMP/verified-report.json"
+          escript agent_blueprint_protocol_conformance --corpus priv/conformance > "$RUNNER_TEMP/verified-report.json"
           cmp "$RUNNER_TEMP/packed-report.json" "$RUNNER_TEMP/verified-report.json"
 
       - name: Upload the verified release artifacts
@@ -93,6 +117,7 @@ jobs:
           name: verified-release
           path: verified-release/
           if-no-files-found: error
+          overwrite: true
 
   npm-publish:
     name: Stage the npm package
@@ -101,6 +126,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      live: ${{ steps.live.outputs.live }}
     environment: GH TP for ABP
     env:
       NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
@@ -135,12 +162,32 @@ jobs:
             npm --version
             NPM_TAG=latest
             if [[ "${VERSION%%+*}" == *-* ]]; then NPM_TAG=rc; fi
-            npm stage publish "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" --ignore-scripts --access public --provenance --tag "$NPM_TAG"
+            if npm stage publish "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" --ignore-scripts --access public --provenance --tag "$NPM_TAG" > "$RUNNER_TEMP/npm-stage.log" 2>&1; then
+              cat "$RUNNER_TEMP/npm-stage.log"
+            elif grep -Eq 'E409|already.*staged|cannot publish over' "$RUNNER_TEMP/npm-stage.log"; then
+              echo "::notice::The version already occupies a staging slot. Its staged bytes are not verified by this run."
+            else
+              cat "$RUNNER_TEMP/npm-stage.log"
+              exit 1
+            fi
+          fi
+
+      - name: Report live or pending npm state
+        id: live
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+            echo "live=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "live=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::npm version is staged, not yet approved. Hex and the GitHub release did not run."
+            echo "Approve the reviewed staged package on npmjs.com, then rerun this workflow on the same tag."
           fi
 
   publish:
     name: Publish Hex and the release
     needs: npm-publish
+    if: needs.npm-publish.outputs.live == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -181,13 +228,32 @@ jobs:
           mix hex.build --output rebuilt.tar
           cmp rebuilt.tar "verified-release/agent_blueprint_protocol-${VERSION}.tar"
 
+      - name: Verify the live npm version before further publication
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null
+          LIVE_INTEGRITY=$(npm view "${NPM_PACKAGE}@${VERSION}" dist.integrity)
+          VERIFIED_INTEGRITY=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; import {createHash} from "node:crypto"; process.stdout.write("sha512-" + createHash("sha512").update(readFileSync(process.argv[1])).digest("base64"));' "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
+          if [ "$LIVE_INTEGRITY" != "$VERIFIED_INTEGRITY" ]; then
+            echo "::error::Live npm bytes differ from the verified archive"
+            exit 1
+          fi
+          mkdir "$RUNNER_TEMP/postpublish"
+          cd "$RUNNER_TEMP/postpublish"
+          npm init -y > /dev/null
+          npm install --ignore-scripts --no-audit --no-fund "${NPM_PACKAGE}@${VERSION}"
+          npx --no-install verifier > "$RUNNER_TEMP/kit-report.json"
+          cd "$GITHUB_WORKSPACE"
+          escript agent_blueprint_protocol_conformance --corpus priv/conformance > "$RUNNER_TEMP/escript-report.json"
+          cmp "$RUNNER_TEMP/kit-report.json" "$RUNNER_TEMP/escript-report.json"
+
       - name: Publish the Hex package and docs
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: |
           if [ -z "$HEX_API_KEY" ]; then
-            echo "::warning::Hex publish skipped: HEX_API_KEY absent"
-            exit 0
+            echo "::error::HEX_API_KEY absent; further publication stopped"
+            exit 1
           fi
           VERSION="${GITHUB_REF_NAME#v}"
           # The releases LIST lives on the package object (the /releases
@@ -210,26 +276,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           PRERELEASE_ARGS=()
           if [[ "${VERSION%%+*}" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi
-          gh release create "$GITHUB_REF_NAME" "verified-release/verifier-${VERSION}.tar.gz" \
+          gh release create "$GITHUB_REF_NAME" "verified-release/verifier-${VERSION}.tar.gz" "verified-release/certified-results.json" \
             --repo "$GITHUB_REPOSITORY" \
             --title "${VERSION} — installable verifier" \
             --generate-notes "${PRERELEASE_ARGS[@]}"
-
-      - name: Post-publish verification (registry install vs the tag)
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          if ! npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
-            echo "[staged-publish] ${NPM_PACKAGE}@${VERSION} is STAGED and not yet live."
-            echo "A maintainer approves it (2FA) under the package's Staged Packages"
-            echo "settings on npmjs.com; the install-vs-tag byte verification runs"
-            echo "after approval. This is the designed flow — nothing verified here yet."
-            exit 0
-          fi
-          mkdir /tmp/postpublish
-          cd /tmp/postpublish
-          npm init -y > /dev/null
-          npm install --ignore-scripts --no-audit --no-fund "${NPM_PACKAGE}@${VERSION}"
-          npx --no-install verifier > /tmp/kit-report.json
-          cd "$GITHUB_WORKSPACE"
-          ./agent_blueprint_protocol_conformance --corpus priv/conformance > /tmp/escript-report.json
-          cmp /tmp/kit-report.json /tmp/escript-report.json

@@ -16,15 +16,20 @@
     "verifier": "dist/kit/cli.mjs"
   },
   "files": [
-    "dist",
+    "dist/verifier",
     "!dist/verifier/self_checks.*",
+    "dist/kit",
+    "dist/corpus",
+    "dist/spec",
+    "dist/release-metadata.json",
+    "dist/release-history.json",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
     "NOTICE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/build_kit.mjs",
+    "build": "node scripts/build_kit.mjs --clean && tsc -p tsconfig.json && node scripts/build_kit.mjs",
     "prepack": "npm run build"
   },
   "devDependencies": {
@@ -39,5 +44,13 @@
     "interoperability",
     "mcp",
     "a2a"
-  ]
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/verifier/index.d.ts",
+      "import": "./dist/verifier/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/verifier/index.d.ts"
 }

@@ -105,4 +105,4 @@ Deployment's Blueprint release reference. `extension_schema_digest_mismatch`
 names a supplied schema versus its registry pin.
 
 Notices are not errors: `extension_deprecated`,
-`extension_unknown_optional_retained`, and `clamp_applied`.
+`extension_retired`, `extension_unknown_optional_retained`, and `clamp_applied`.

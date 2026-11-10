@@ -1,0 +1,318 @@
+{
+  "type": "object",
+  "properties": {
+    "surface": {
+      "const": "federation.decode"
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "base64url": {
+          "type": "string"
+        },
+        "raw_file": {
+          "type": "string"
+        },
+        "non_binary": {
+          "type": "boolean"
+        },
+        "bounds": {
+          "type": [
+            "null",
+            "boolean",
+            "object",
+            "array",
+            "number",
+            "string"
+          ],
+          "properties": {
+            "bytes": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            },
+            "depth": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            },
+            "members": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            },
+            "items": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            },
+            "nodes": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            },
+            "string": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            },
+            "key": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            },
+            "number_lexeme": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            }
+          }
+        },
+        "from_a2a_state": {
+          "type": "string"
+        },
+        "to_a2a_state": {
+          "type": "string"
+        },
+        "from_mcp_state": {
+          "type": "string"
+        },
+        "to_mcp_state": {
+          "type": "string"
+        },
+        "from_a2a_carrier": {
+          "type": [
+            "null",
+            "boolean",
+            "object",
+            "array",
+            "number",
+            "string"
+          ]
+        },
+        "from_mcp_carrier": {
+          "type": [
+            "null",
+            "boolean",
+            "object",
+            "array",
+            "number",
+            "string"
+          ]
+        },
+        "sha256_base64url": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "expected": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "const": "valid"
+            },
+            "canonical": {
+              "type": "string"
+            },
+            "decoded": {
+              "type": "boolean"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "verdict"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "const": "invalid"
+            },
+            "code": {
+              "enum": [
+                "attestation_malformed",
+                "audience_mismatch",
+                "base64url_invalid",
+                "base64url_padded",
+                "binding_attestation_stale",
+                "binding_descriptor_mismatch",
+                "binding_incomplete",
+                "bound_source_missing",
+                "bound_unit_mismatch",
+                "bound_unknown",
+                "bound_value_invalid",
+                "ceiling:bytes",
+                "ceiling:depth",
+                "ceiling:items",
+                "ceiling:key",
+                "ceiling:members",
+                "ceiling:nodes",
+                "ceiling:number_lexeme",
+                "ceiling:string",
+                "compatibility_duplicate_entry",
+                "compatibility_entry_missing",
+                "compatibility_identity_inexact",
+                "corpus_applicability_incomplete",
+                "corpus_case_id_duplicate",
+                "corpus_case_invalid",
+                "corpus_count_mismatch",
+                "corpus_empty",
+                "corpus_file_set_mismatch",
+                "corpus_hash_mismatch",
+                "corpus_index_invalid",
+                "deployment_digest_mismatch",
+                "digest_algorithm_unsupported",
+                "digest_encoding_invalid",
+                "digest_mismatch",
+                "duplicate_member",
+                "extension_criticality_conflict",
+                "extension_duplicate",
+                "extension_namespace_invalid",
+                "extension_payload_forbidden",
+                "extension_retired",
+                "extension_schema_digest_mismatch",
+                "extension_schema_unavailable",
+                "extension_unknown_critical",
+                "federation_mapping_conflict",
+                "federation_state_unmappable",
+                "federation_terminal_conflict",
+                "forbidden_portable_value",
+                "integer_magnitude",
+                "invalid_cardinality",
+                "invalid_constraint",
+                "invalid_encoding",
+                "invalid_number",
+                "invalid_syntax",
+                "invalid_type",
+                "lifecycle_state_invalid",
+                "missing_ceiling",
+                "missing_required_field",
+                "no_authoritative_recovery",
+                "non_canonical_bytes",
+                "nonportable_content",
+                "number_not_double_expressible",
+                "predicate_nodes_exceeded",
+                "predicate_op_unknown",
+                "predicate_path_unresolved",
+                "protected_bound_clamp_denied",
+                "protocol_revision_unsupported",
+                "required_core_field_not_digest_covered",
+                "required_core_field_unsupported",
+                "schema_complexity_exceeded",
+                "schema_dialect_unknown",
+                "schema_invalid_shape",
+                "schema_keyword_not_allowed",
+                "schema_keyword_value_invalid",
+                "schema_ref_cycle",
+                "schema_ref_unresolvable",
+                "signature_algorithm_unsupported",
+                "signature_key_unsupported",
+                "signature_malformed",
+                "signature_not_verified",
+                "trailing_bytes",
+                "unknown_bound",
+                "unknown_member"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "code"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "class": {
+      "enum": [
+        "valid",
+        "boundary_near",
+        "exact_bound",
+        "maximum_plus_one",
+        "invalid_encoding",
+        "invalid_duplicate",
+        "invalid_type",
+        "invalid_constraint",
+        "invalid_cardinality",
+        "unknown_member",
+        "tamper_meaningful_byte",
+        "digest_mismatch",
+        "signature_invalid",
+        "revision_above_max",
+        "revision_below_min",
+        "required_field_unsupported",
+        "required_field_not_covered",
+        "extension_unknown_critical",
+        "extension_unknown_optional_roundtrip",
+        "extension_criticality_conflict",
+        "extension_schema_unavailable",
+        "extension_deprecated_retained",
+        "bound_widening_operational",
+        "bound_widening_protected",
+        "forbidden_portable_value",
+        "compatibility_range_rejected",
+        "binding_stale",
+        "federation_state_unmappable",
+        "federation_terminal_conflict",
+        "audience_mismatch",
+        "terminal_equivocation"
+      ]
+    }
+  },
+  "required": [
+    "surface",
+    "input",
+    "expected"
+  ]
+}

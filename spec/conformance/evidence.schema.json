@@ -1,0 +1,249 @@
+{
+  "type": "object",
+  "properties": {
+    "protocol_revision": {
+      "type": "integer"
+    },
+    "blueprint_digest": {
+      "type": "string"
+    },
+    "deployment_digest": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "surface": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            }
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "detail": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/clamp"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "key_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "key_ids"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "checked": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "not_verified": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "checked",
+                  "not_verified"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "surface",
+          "subject",
+          "verified",
+          "detail"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "effective_bounds": {
+      "type": "object",
+      "properties": {
+        "max_attempts": {
+          "type": "integer"
+        },
+        "max_concurrency": {
+          "type": "integer"
+        },
+        "max_depth": {
+          "type": "integer"
+        },
+        "max_descendants": {
+          "type": "integer"
+        },
+        "max_elapsed_ms": {
+          "type": "integer"
+        },
+        "max_fan_out": {
+          "type": "integer"
+        },
+        "max_tokens": {
+          "type": "integer"
+        },
+        "max_cost": {
+          "type": "object",
+          "properties": {
+            "amount": {
+              "type": "integer"
+            },
+            "currency": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "amount",
+            "currency"
+          ],
+          "additionalProperties": false
+        },
+        "classification_ceiling": {
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "type": "string"
+            },
+            "markers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "ordinal",
+            "markers"
+          ],
+          "additionalProperties": false
+        },
+        "disclosure_ceiling": {
+          "type": "string"
+        },
+        "effect_impact_ceiling": {
+          "type": "string"
+        },
+        "authority_trait": {
+          "type": "string"
+        },
+        "approval_trait": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "clamps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/clamp"
+      }
+    },
+    "optional_extensions_retained": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "not_verified": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "protocol_revision",
+    "blueprint_digest",
+    "deployment_digest",
+    "checks",
+    "effective_bounds",
+    "clamps",
+    "optional_extensions_retained",
+    "not_verified"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "clamp": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "class": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "requested": {
+          "type": [
+            "null",
+            "boolean",
+            "object",
+            "array",
+            "number",
+            "string"
+          ]
+        },
+        "effective": {
+          "type": [
+            "null",
+            "boolean",
+            "object",
+            "array",
+            "number",
+            "string"
+          ]
+        },
+        "source": {
+          "type": "string"
+        },
+        "acknowledged": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "field",
+        "class",
+        "unit",
+        "requested",
+        "effective",
+        "source",
+        "acknowledged"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -61,3 +61,12 @@ decoding retains its revision 1 namespace grammar.
 It retains the schema pin of `com.example/federation`. Producers SHOULD
 use the active namespace; both are supported. The deprecated spelling
 emits `extension_deprecated` and is never retired in the 1.x line.
+
+## Review and disputes
+
+The maintainer evaluates namespace control, public owner identity, grammar,
+criticality, schema digest reproducibility, compatibility, and test coverage.
+Requests are reviewed in the order received. An applicant can
+request reconsideration in the same public discussion; unresolved disputes
+go to the steward, BaseLabs Holdings, with the evidence and requested change.
+A dispute does not change a released registry entry.

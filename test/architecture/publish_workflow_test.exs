@@ -1,6 +1,11 @@
 defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
   use ExUnit.Case, async: true
 
+  @tag skip:
+         if(match?({:win32, _}, :os.type()),
+           do: "Publishing shell evaluation runs in the Linux maintainer lane",
+           else: false
+         )
   test "publishing stops after any failed preceding step and preserves registry skip guards" do
     workflow = File.read!(".github/workflows/publish.yml")
     steps = String.split(workflow, "      - name: ") |> tl()
@@ -24,6 +29,16 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     token_scope()
     verified_artifacts()
     prerelease_versions(workflow)
+    assert workflow =~ "if: needs.npm-publish.outputs.live == 'true'"
+    assert workflow =~ "live=false"
+    assert workflow =~ "Hex and the GitHub release did not run"
+
+    {live_check, _} =
+      :binary.match(workflow, "name: Verify the live npm version before further publication")
+
+    {hex_publish, _} = :binary.match(workflow, "name: Publish the Hex package and docs")
+    assert live_check < hex_publish
+    refute workflow =~ "/tmp/"
   end
 
   defp prerelease_versions(workflow) do
@@ -51,7 +66,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     workflow = File.read!(".github/workflows/publish.yml")
     [_, verify, npm, publish] = Regex.split(~r/^  (?:verify|npm-publish|publish):\n/m, workflow)
 
-    assert verify =~ "npm pack --ignore-scripts --pack-destination verified-release"
+    assert verify =~
+             "npm pack ./dist/package --ignore-scripts --pack-destination verified-release"
+
     assert verify =~ "MIX_ENV=test mix release.asset --write"
     assert verify =~ "mix hex.build --output"
 
@@ -62,14 +79,15 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert verify =~ "Verify the packed npm artifact"
 
     assert verify =~
-             "diff --recursive --brief --exclude='self_checks.*' --exclude='.DS_Store' --exclude='._*' dist"
+             "diff --recursive --brief --exclude='package' --exclude='self_checks.*' --exclude='.DS_Store' --exclude='._*' dist"
 
     assert verify =~ ~s(node "$RUNNER_TEMP/packed-kit/package/dist/kit/cli.mjs")
     assert verify =~ ~s(cmp "$RUNNER_TEMP/packed-report.json" "$RUNNER_TEMP/verified-report.json")
     assert verify =~ "if-no-files-found: error"
+    assert verify =~ "overwrite: true"
     assert String.split(verify, "run: mix quality") |> length() == 2
     [_, produced] = String.split(verify, "run: mix quality")
-    assert produced =~ "npm pack --ignore-scripts"
+    assert produced =~ "npm pack ./dist/package --ignore-scripts"
 
     for job <- [npm, publish] do
       assert job =~ "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
@@ -88,6 +106,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
              ~s(cmp rebuilt.tar "verified-release/agent_blueprint_protocol-${VERSION}.tar")
 
     assert publish =~ ~s("verified-release/verifier-${VERSION}.tar.gz")
+    assert publish =~ ~s(npm view "${NPM_PACKAGE}@${VERSION}" dist.integrity)
+    assert publish =~ ~s|createHash("sha512")|
+    assert publish =~ ~s(if [ "$LIVE_INTEGRITY" != "$VERIFIED_INTEGRITY" ]; then)
   end
 
   defp locked_installs do

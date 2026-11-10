@@ -1,107 +1,140 @@
-# The TypeScript quickstart
+# Agent Blueprint Protocol for TypeScript
 
-The verifier ships as an installable npm kit,
-`@agent-blueprint-protocol/verifier@rc`: the compiled verifier, its
-embedded conformance corpus (byte-identical to the release-certified
-copy), the release-identity manifest, and one bin installed under two
-names (`verifier` and `agent-blueprint-protocol`). Node 24 or newer; zero
-runtime dependencies. The kit carries the same version number as the
-Hex package, but a kit release goes live on npm only after a maintainer
-approves its staged publish, so it can trail the Hex release. npx runs the latest published kit; `npm view @agent-blueprint-protocol/verifier@rc version` shows which.
+A typed, non-authorizing verifier library and conformance CLI. Node 24 or
+newer; zero runtime dependencies. The npm and Hex packages share one version.
+The specification is [published with the project](https://github.com/baselabs/agent_blueprint_protocol/blob/main/spec/protocol.md).
 
-## Verify the kit (one command)
-
-```bash
-npx @agent-blueprint-protocol/verifier@rc
-```
-
-With no arguments the kit runs its EMBEDDED corpus over every protocol
-surface (448 cases in the 1.0.0-rc.1 kit) and prints the single-line report.
-Green is `"agreement":true` and exit 0; the report names the corpus
-digest, so what you verified is an exact, identified byte set. A separate
-stderr line states whether that digest matches the release-certified corpus:
-
-```json
-{"agreed":199,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":199}
-```
-
-`--help` prints usage for `agent-blueprint-protocol`, every mode, and the
-exit codes; `--version` prints the package version. Both exit 0. Unknown
-arguments exit 2. Exit 3 indicates an internal error.
-
-## Verify any corpus
-
-`--corpus <dir>` points the kit at
-any conformance corpus directory — a copy extracted from a git release
-tag's verification kit, or one you built yourself — and the same
-integrity-first rules apply (missing files, hash mismatches, and empty
-corpora are typed failures, exit 2; a tampered corpus cannot verify
-green). The reader rejects symlinks and special files and limits the
-whole tree to 1,000 entries and 5,000,000 bytes. A corpus whose digest differs
-from the release-certified digest is labeled on stderr, including prior-corpus
-replay; stdout retains the same report format.
-
-```bash
-npx @agent-blueprint-protocol/verifier@rc --corpus ./conformance
-```
-
-`--prior-corpus <dir>` replays a previously released corpus under the
-current verifier; the release gates use it to certify each release's
-compatibility claims.
-
-## Verify one artifact file
-
-`--artifact <file>` verifies a single JSON artifact — a Blueprint, a
-Deployment Manifest, or a federation TaskEnvelope — against all three
-kinds; valid iff any kind decodes. Green names the kind; a denial names
-each kind's typed code, so the file's shape is legible from the report
-alone:
-
-```bash
-$ npx @agent-blueprint-protocol/verifier@rc --artifact echo-blueprint.json
-{"format":"agent-blueprint-protocol-artifact-report","kind":"blueprint","verdict":"valid"}
-```
-
-Exit 0 is a verified artifact (evidence, never authority); exit 1 is a
-typed denial; exit 2 is a usage or readability failure. The mode's
-verdicts are gated: the release agreement check replays every
-text-only decode-surface corpus case through `--artifact` and requires
-each case's own expected verdict (companion-input cases stay with the
-full corpus run).
-
-## As a dependency
-
-```bash
+```sh
 npm install @agent-blueprint-protocol/verifier@rc
+npx @agent-blueprint-protocol/verifier@rc --help
 ```
 
-The package carries the compiled verifier modules under
-`dist/verifier/` with `.d.ts` declarations (it declares no `exports` map,
-so import them by file path, for example
-`@agent-blueprint-protocol/verifier/dist/verifier/runner.js`); the corpus
-loader, runner, and every verification surface (decode, canonicalization,
-digests, signatures, negotiation, bounds algebra, federation) are
-importable. The embedded corpus is under `dist/corpus/` and the release
-manifest at `dist/release-metadata.json`.
+The candidate uses `rc`; stable releases use `latest`. A staged version is
+installable only after its npm approval. `npm view
+@agent-blueprint-protocol/verifier@rc version` identifies the live candidate.
+
+## CLI
+
+| Mode | Behavior |
+|---|---|
+| no arguments | run the embedded certified corpus |
+| `--corpus <dir>` | run an integrity-checked corpus, emit the aggregate report |
+| `--prior-corpus <dir>` | replay the prior census under current semantics |
+| `--results --corpus <dir>` | emit canonical per-case results |
+| `--serve --corpus <dir>` | speak the external execution protocol |
+| `--artifact <file>` | decode a Blueprint, Deployment, or federation envelope |
+| `--help`, `--version` | usage or package version |
+| `conformance run --corpus <dir> --results <file> -- <command...>` | drive and judge another implementation |
+
+Runner exits: 0 agreement/valid/help/version, 1 disagreement/invalid artifact,
+2 usage/readability/integrity failure, 3 internal invariant failure. Corpus
+stderr states whether the digest matches the release-certified corpus.
+Readers reject symlinks and nonregular files and cap a tree at 1,000 entries
+and 5,000,000 bytes. Stdout reports and results are JCS without a trailing LF.
+Harness exits 10–19 identify handshake mismatch, duplicate, missing, extra,
+reordered, malformed, oversized, timeout, early-exit and disagreement outcomes
+in that order. The execution contract in the specification defines each.
+
+## Library
+
+The package is ESM-only; `require()` is not supported.
+Only the package root and `package.json` are exported. Import has no command
+or filesystem side effects. Every function returns `Result<T>`:
+`{ok:true,value}` or `{ok:false,error:{code,subject}}`. Public types use
+`Uint8Array` and strings; consumers need no Node global declarations.
+`ErrorCode` is exhaustive, including `ceiling:<key>` denials.
 
 ```js
-// verify.mjs — run with: node verify.mjs (beside echo-blueprint.json)
+// verify.mjs — run beside echo-blueprint.json
 import { readFileSync } from "node:fs";
-import { decode } from "@agent-blueprint-protocol/verifier/dist/verifier/blueprint.js";
-
-const result = decode(readFileSync("echo-blueprint.json"));
-console.log(result.ok ? "valid" : result.e); // valid
+import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
+const result = decodeBlueprint(readFileSync("echo-blueprint.json"));
+console.log(result.ok ? "valid" : result.error.code); // valid
 ```
 
-A denial is `{ ok: false, e: "<code>" }`, with the same codes as the
-Elixir package (see the [error guide](errors.md)).
+The following examples use canonical example bytes `blueprintBytes`,
+`deploymentBytes`, `envelopeBytes`, caller-supplied `keys` and `observed`,
+and integrity-checked corpus files `files`. They return evidence, never
+permission. Check `ok` before reading `value`.
 
-The Elixir reference implementation and this kit byte-agree on every
-corpus verdict — that agreement is a release gate, not a claim.
+```ts
+import {
+  decodeBlueprint, decodeDeployment, decodeFederationEnvelope, canonicalBytes,
+  negotiate, intersect, verifyCompatibility, reconcile, federationMapping,
+  verifySignature, loadCorpus, runCorpus, buildReport, buildResultsDocument
+} from "@agent-blueprint-protocol/verifier";
 
-## What verification means
+const bp = decodeBlueprint(blueprintBytes, {bounds: {depth: 32}});
+const dep = decodeDeployment(deploymentBytes);
+const envelope = decodeFederationEnvelope(envelopeBytes);
+if (bp.ok) canonicalBytes(bp.value);
 
-A typed fact about bytes and structure. Nothing is authorized, nothing
-executes, no key material is held. See [what a blueprint is](what-a-blueprint-is.md), the [error
-guide](errors.md), and — for how this kit's identity relates to
-discovery-side trust manifests — the [ARD mapping](../docs/ard-mapping.md).
+const support = {revisions: new Set([1]), coreFields: new Set<string>(),
+  registry: {}, schemas: {}};
+if (bp.ok) negotiate(bp.value, support);
+
+// Each source supplies all thirteen bounds; classification uses
+// {ordinal: "internal", markers: []}, cost uses {amount, currency}.
+intersect({blueprint: requestedBounds, deployment: deploymentBounds,
+  host: hostBounds, protectedClamp: "acknowledge"});
+if (dep.ok) verifyCompatibility(dep.value, observed);
+if (bp.ok && dep.ok) reconcile(bp.value, dep.value, {
+  hostBounds, support, keys, protectedClamp: "deny",
+  observations: {now: null, maxAttestationAgeMs: null, observed: {}}
+});
+federationMapping();
+verifySignature(signatureEntry, keys);
+
+const corpus = loadCorpus(files);
+if (corpus.ok) {
+  const run = runCorpus(corpus.value);
+  if (run.ok) buildReport(corpus.value, run.value);
+  buildResultsDocument(corpus.value);
+}
+```
+
+Decoded views expose read-only JSON `value`, `canonicalBytes`, and
+`contentDigest` (null for a federation envelope, whose commitment is a
+separate identity). `Support`, `Inputs`, `Observations`, `Observed`,
+`Context`, `PublicKey`, `BoundSet`, and decoder `Bounds` describe the
+caller-supplied facts. `Evidence` includes typed checks, effective bounds,
+clamps, and a nonempty `not_verified` list. Unsigned artifacts succeed with
+signature verification explicitly unestablished; absent descriptor and
+freshness observations remain unverified.
+
+## External implementations and claims
+
+```sh
+agent-blueprint-protocol conformance run --corpus ./conformance --results results.json -- ./example-adapter
+```
+
+After a pass, add `--claim claim.json --implementation example-verifier
+--implementation-version 1 --source https://example.com/source
+--platform example-platform --date 2026-11-10` before `--`. A claim is unsigned
+and identifies the implementation, corpus, registry and results bytes. A
+non-certified corpus requires `--prior-corpus-digest <exact-digest>` to name
+the prior census explicitly. Publish the claim and exact results document
+beside source and the reproducible command. A public corpus pass proves
+neither honest computation nor behavior outside the census nor any host
+behavior. The kit includes the runner and execution contracts under `dist/spec/`.
+
+## Import migration
+
+| Previous internal import and symbol | Package-root replacement |
+|---|---|
+| `dist/verifier/blueprint.js`: `decode` | `decodeBlueprint` |
+| `dist/verifier/deployment.js`: `decode` | `decodeDeployment` |
+| `dist/verifier/federation.js`: `decode` | `decodeFederationEnvelope` |
+| artifact modules: `canonicalBytes` | `canonicalBytes` |
+| `dist/verifier/negotiation.js`: `negotiate` | `negotiate` |
+| `dist/verifier/bounds_algebra.js`: `intersect` | `intersect` with a Sources object |
+| `dist/verifier/compatibility.js`: `verify` | `verifyCompatibility` |
+| `dist/verifier/signature.js`: `verify` | `verifySignature` |
+| `dist/verifier/corpus.js`: `load` | `loadCorpus` |
+| `dist/verifier/runner.js`: `run` | `runCorpus` |
+| `dist/verifier/report.js`: `build`, `toBytes` | `buildReport`, `buildResultsDocument` |
+
+Deep imports no longer resolve. Internal `{ok,v,e}` records become public
+`{ok,value,error}` results. `reconcile` and `federationMapping` are new root
+operations. Internal byte, schema and codec helpers have no supported deep
+import replacement. The package-root surface is the supported TypeScript API.

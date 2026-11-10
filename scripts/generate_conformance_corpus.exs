@@ -2997,6 +2997,688 @@ closed_purpose_cases =
 
 all_cases = all_cases ++ artifact_purpose_cases ++ receipt_purpose_cases ++ closed_purpose_cases
 
+# The composed import and predicate surfaces use the same immutable fixture seed.
+defmodule ImportCases do
+  alias AgentBlueprintProtocol.{BlueprintFixture, DeploymentFixture, Digest}
+
+  def redigest(map, domain, field) do
+    input = Map.drop(map, [field, "signatures", "attestations"])
+    Map.put(map, field, CorpusGen.tagged_digest(domain, CorpusGen.json_text!(input)))
+  end
+
+  def expectation(bp, dep, host) do
+    check = fn surface, subject, verified, detail ->
+      %{"surface" => surface, "subject" => [subject], "verified" => verified, "detail" => detail}
+    end
+
+    basic = fn surface ->
+      for name <- ["blueprint", "deployment"], do: check.(surface, name, true, nil)
+    end
+
+    signatures =
+      for {name, value} <- [{"blueprint", bp}, {"deployment", dep}] do
+        entries = Map.get(value, "signatures", [])
+
+        check.(
+          "signatures",
+          name,
+          entries != [],
+          if(entries == [],
+            do: "no_signatures_present",
+            else: %{"key_ids" => Enum.map(entries, & &1["signed_attributes"]["key_id"])}
+          )
+        )
+      end
+
+    bindings = dep["tool_bindings"]
+    observations = Map.get(host, "observations", %{})
+
+    staleness =
+      bindings != [] and observations["now"] != nil and
+        observations["max_attestation_age_ms"] != nil
+
+    descriptors =
+      bindings != [] and
+        Enum.all?(
+          bindings,
+          &Map.has_key?(Map.get(observations, "observed", %{}), &1["logical_operation"])
+        )
+
+    gates = [{"binding_staleness", staleness}, {"binding_descriptors", descriptors}]
+    skipped = for {name, false} <- gates, do: name
+
+    bind_detail = %{
+      "checked" =>
+        ["release_binding", "binding_completeness", "effect_recovery"] ++
+          for({name, true} <- gates, do: name),
+      "not_verified" => skipped
+    }
+
+    effective =
+      Map.put(dep["host_bounds"], "classification_ceiling", %{
+        "ordinal" => "internal",
+        "markers" => []
+      })
+
+    clamps =
+      if dep["host_bounds"]["disclosure_ceiling"] == "full",
+        do: [],
+        else: [
+          %{
+            "field" => "disclosure_ceiling",
+            "class" => "protected",
+            "unit" => "ordinal",
+            "requested" => "full",
+            "effective" => "summary",
+            "source" => "deployment",
+            "acknowledged" => true
+          }
+        ]
+
+    optional =
+      for artifact <- [bp, dep], do: Map.keys(artifact["extensions"]["optional"]) |> Enum.sort()
+
+    retained =
+      optional |> List.flatten() |> Enum.reject(&(&1 == "com.example.z/y")) |> Enum.uniq()
+
+    extension_checks =
+      for namespaces <- optional,
+          ns <- namespaces,
+          do:
+            check.(
+              "extensions",
+              ns,
+              false,
+              if(ns == "com.example.z/y", do: "quarantined", else: "retained")
+            )
+
+    checks =
+      basic.("canonical") ++
+        [
+          check.("digest", "blueprint", true, bp["content_digest"]),
+          check.("digest", "deployment", true, dep["deployment_digest"])
+        ] ++
+        basic.("negotiation") ++
+        extension_checks ++
+        basic.("structure") ++
+        basic.("portability") ++
+        signatures ++
+        [
+          check.("bind", "deployment", skipped == [], bind_detail),
+          check.("bounds", "bounds", true, nil)
+        ] ++ Enum.map(clamps, &check.("bounds", &1["field"], true, &1))
+
+    unchecked =
+      [
+        "tenancy",
+        "live_policy",
+        "authority",
+        "effect_ownership",
+        "execution",
+        "billing",
+        "evaluation_truth",
+        "signature_created_at",
+        "lifecycle_state",
+        "key_time_validity",
+        "signature_time_validity"
+      ] ++ for(c <- checks, c["verified"] == false, do: c["surface"]) ++ skipped
+
+    %{
+      "verdict" => "valid",
+      "evidence" => %{
+        "protocol_revision" => 1,
+        "blueprint_digest" => bp["content_digest"],
+        "deployment_digest" => dep["deployment_digest"],
+        "checks" => checks,
+        "effective_bounds" => effective,
+        "clamps" => clamps,
+        "optional_extensions_retained" => retained,
+        "not_verified" => Enum.uniq(unchecked)
+      }
+    }
+  end
+
+  def cases do
+    bp = BlueprintFixture.fixture_value() |> CorpusGen.plain()
+    dep = DeploymentFixture.fixture_value() |> CorpusGen.plain()
+
+    dep =
+      put_in(dep, ["host_bounds", "disclosure_ceiling"], "full")
+      |> redigest(:deployment_content, "deployment_digest")
+
+    host = %{
+      "host_bounds" =>
+        Map.put(dep["host_bounds"], "classification_ceiling", %{
+          "ordinal" => "internal",
+          "markers" => []
+        }),
+      "support" => %{},
+      "keys" => [],
+      "protected_clamp" => "deny",
+      "observations" => %{}
+    }
+
+    row = fn id, class, b, d, h, expected ->
+      %{
+        "id" => "reconcile-" <> id,
+        "surface" => "reconcile",
+        "class" => class,
+        "input" => %{
+          "blueprint" => CorpusGen.json_text!(b),
+          "deployment" => CorpusGen.json_text!(d),
+          "inputs" => h
+        },
+        "expected" => expected
+      }
+    end
+
+    deny = fn code, subject -> %{"verdict" => "invalid", "code" => code, "subject" => subject} end
+    honest = fn b -> redigest(b, :blueprint_content, "content_digest") end
+
+    stale_host =
+      Map.put(host, "observations", %{
+        "now" => "2026-08-21T00:00:00Z",
+        "max_attestation_age_ms" => 1
+      })
+
+    partial_host =
+      Map.put(host, "observations", %{"now" => "2026-08-20T00:00:00Z", "observed" => %{}})
+
+    full_host =
+      Map.put(host, "observations", %{
+        "now" => "2026-08-20T00:00:00Z",
+        "max_attestation_age_ms" => 1,
+        "observed" =>
+          Map.new(dep["tool_bindings"], &{&1["logical_operation"], &1["descriptor_digest"]})
+      })
+
+    clamped =
+      put_in(dep, ["host_bounds", "disclosure_ceiling"], "summary")
+      |> redigest(:deployment_content, "deployment_digest")
+
+    optional =
+      put_in(bp, ["extensions", "optional"], %{
+        "com.example.platform/estate" => %{"label" => "example"}
+      })
+      |> honest.()
+
+    optional_dep =
+      put_in(dep, ["blueprint_release", "content_digest"], optional["content_digest"])
+      |> redigest(:deployment_content, "deployment_digest")
+
+    signed =
+      for algorithm <- ["EdDSA", "Ed25519"] do
+        {text, pub} =
+          CorpusGen.signature_entry(
+            "example conformance import seed",
+            "example-import-key",
+            bp["content_digest"],
+            algorithm,
+            "blueprint"
+          )
+
+        entry = :json.decode(text)
+        b = Map.put(bp, "signatures", [entry])
+
+        h =
+          Map.put(host, "keys", [%{"key_id" => "example-import-key", "key" => CorpusGen.b64(pub)}])
+
+        row.(String.downcase(algorithm), "valid", b, dep, h, expectation(b, dep, h))
+      end
+
+    bad_signature =
+      signed
+      |> hd()
+      |> get_in(["input", "blueprint"])
+      |> :json.decode()
+      |> put_in(["signatures", Access.at(0), "signature"], CorpusGen.b64(<<0::512>>))
+
+    signed_host = get_in(hd(signed), ["input", "inputs"])
+
+    cases = [
+      row.("unsigned", "valid", bp, dep, host, expectation(bp, dep, host)),
+      row.(
+        "partial-observations",
+        "valid",
+        bp,
+        dep,
+        partial_host,
+        expectation(bp, dep, partial_host)
+      ),
+      row.("observed", "valid", bp, dep, full_host, expectation(bp, dep, full_host)),
+      row.("root", "invalid_type", nil, dep, host, deny.("invalid_type", ["blueprint"])),
+      row.(
+        "digest",
+        "digest_mismatch",
+        put_in(bp, ["ceilings", "max_attempts"], 4),
+        dep,
+        host,
+        deny.("digest_mismatch", ["blueprint"])
+      ),
+      row.(
+        "revision",
+        "revision_above_max",
+        Map.put(bp, "protocol_revision", 2) |> honest.(),
+        dep,
+        host,
+        deny.("protocol_revision_unsupported", ["blueprint", "protocol_revision"])
+      ),
+      row.(
+        "structure",
+        "unknown_member",
+        Map.put(bp, "example", true) |> honest.(),
+        dep,
+        host,
+        deny.("unknown_member", ["blueprint"])
+      ),
+      row.(
+        "portability",
+        "forbidden_portable_value",
+        put_in(bp, ["extensions", "optional"], %{
+          "com.example.unknown/data" => %{"api_key" => "example"}
+        })
+        |> honest.(),
+        dep,
+        host,
+        deny.("forbidden_portable_value", ["blueprint"])
+      ),
+      row.(
+        "signature",
+        "signature_invalid",
+        bad_signature,
+        dep,
+        signed_host,
+        deny.("signature_not_verified", ["blueprint", "signatures", 0])
+      ),
+      row.(
+        "binding",
+        "binding_stale",
+        bp,
+        dep,
+        stale_host,
+        deny.("binding_attestation_stale", ["deployment"])
+      ),
+      row.(
+        "protected-deny",
+        "bound_widening_protected",
+        bp,
+        clamped,
+        host,
+        deny.("protected_bound_clamp_denied", ["disclosure_ceiling"])
+      ),
+      row.(
+        "protected-acknowledge",
+        "valid",
+        bp,
+        clamped,
+        Map.put(host, "protected_clamp", "acknowledge"),
+        expectation(bp, clamped, Map.put(host, "protected_clamp", "acknowledge"))
+      ),
+      row.(
+        "deprecated-optional",
+        "valid",
+        optional,
+        optional_dep,
+        host,
+        expectation(optional, optional_dep, host)
+      )
+    ]
+
+    namespace = "com.example/federation"
+    schema = AgentBlueprintProtocol.ExtensionRegistry.federation_schema() |> CorpusGen.plain()
+
+    federated =
+      put_in(bp, ["extensions", "critical"], %{
+        namespace => %{
+          "issuer" => "example.sender",
+          "subject" => "example.agent",
+          "audience" => "example.receiver"
+        }
+      })
+      |> honest.()
+
+    federated_dep =
+      put_in(dep, ["blueprint_release", "content_digest"], federated["content_digest"])
+      |> redigest(:deployment_content, "deployment_digest")
+
+    federated_host = Map.put(host, "support", %{"schemas" => %{namespace => schema}})
+
+    deprecated =
+      row.(
+        "deprecated-federation",
+        "valid",
+        federated,
+        federated_dep,
+        federated_host,
+        expectation(federated, federated_dep, federated_host)
+      )
+
+    notice = %{
+      "id" => "negotiation-import-deprecated-federation",
+      "surface" => "negotiation.negotiate",
+      "class" => "extension_deprecated_retained",
+      "input" => %{"artifact" => federated, "support" => federated_host["support"]},
+      "expected" => %{
+        "verdict" => "valid",
+        "revision" => 1,
+        "critical" => [namespace],
+        "quarantined" => [],
+        "notices" => ["extension_deprecated"]
+      }
+    }
+
+    unknown_optional =
+      for side <- ["blueprint", "deployment", "both"] do
+        b =
+          if side in ["blueprint", "both"],
+            do:
+              put_in(bp, ["extensions", "optional"], %{"com.example.z/y" => %{"a" => 1}})
+              |> honest.(),
+            else: bp
+
+        d =
+          if side in ["deployment", "both"],
+            do: put_in(dep, ["extensions", "optional"], %{"com.example.z/y" => %{"a" => 1}}),
+            else: dep
+
+        d =
+          put_in(d, ["blueprint_release", "content_digest"], b["content_digest"])
+          |> redigest(:deployment_content, "deployment_digest")
+
+        [
+          row.(
+            "unknown-optional-" <> side,
+            "extension_unknown_optional_roundtrip",
+            b,
+            d,
+            host,
+            expectation(b, d, host)
+          )
+          | for {name, artifact} <- [{"blueprint", b}, {"deployment", d}],
+                side == "both" or name == side do
+              %{
+                "id" => "negotiation-unknown-optional-" <> side <> "-" <> name,
+                "surface" => "negotiation.negotiate",
+                "class" => "extension_unknown_optional_roundtrip",
+                "input" => %{"artifact" => artifact, "support" => %{}},
+                "expected" => %{
+                  "verdict" => "valid",
+                  "revision" => 1,
+                  "critical" => [],
+                  "quarantined" => ["com.example.z/y"],
+                  "notices" => ["extension_unknown_optional_retained"]
+                }
+              }
+            end
+        ]
+      end
+      |> List.flatten()
+
+    timestamps =
+      for {name, now} <- [
+            {"space", "2026-08-20 00:00:00Z"},
+            {"fraction", "2026-08-20T00:00:00.1Z"},
+            {"offset", "2026-08-20T00:00:00+00:00"},
+            {"number", 1},
+            {"boolean", true},
+            {"object", %{}},
+            {"impossible", "2026-02-31T00:00:00Z"},
+            {"null", nil},
+            {"valid", "2026-08-20T00:00:00Z"}
+          ] do
+        h = put_in(host, ["observations", "now"], now)
+        valid = name in ["null", "valid"]
+
+        row.(
+          "now-" <> name,
+          if(valid, do: "valid", else: "invalid_type"),
+          bp,
+          dep,
+          h,
+          if(valid, do: expectation(bp, dep, h), else: deny.("invalid_type", ["now"]))
+        )
+      end
+
+    signature_cases =
+      for side <- ["blueprint", "deployment"] do
+        artifact = if side == "blueprint", do: bp, else: dep
+        field = if side == "blueprint", do: "content_digest", else: "deployment_digest"
+
+        {text, _} =
+          CorpusGen.signature_entry(
+            "example conformance import seed",
+            "example-import-key",
+            artifact[field],
+            "EdDSA",
+            side
+          )
+
+        entry = :json.decode(text)
+
+        changes =
+          for(
+            alg <- ["Ed448", "none", "eddsa", "ES256"],
+            do: {"alg-" <> alg, ["protected", "alg"], alg, "signature_algorithm_unsupported"}
+          ) ++
+            [
+              {"purpose-unknown", ["signed_attributes", "purpose"], "unknown",
+               "signature_malformed"},
+              {"purpose-empty", ["signed_attributes", "purpose"], "", "signature_malformed"},
+              {"algorithm", ["signed_attributes", "algorithm"], "Ed448",
+               "signature_algorithm_unsupported"},
+              {"created-text", ["signed_attributes", "created_at"], "yesterday",
+               "signature_malformed"},
+              {"created-offset", ["signed_attributes", "created_at"], "2026-08-20T00:00:00+00:00",
+               "signature_malformed"},
+              {"extra-attribute", ["signed_attributes", "extra"], true, "signature_malformed"},
+              {"extra-header", ["protected", "extra"], true, "signature_malformed"},
+              {"b64", ["protected", "b64"], true, "signature_malformed"},
+              {"digest", ["signed_attributes", "content_digest"], "sha-256:bad",
+               "signature_malformed"},
+              {"key-id", ["signed_attributes", "key_id"], "example.forbidden",
+               "signature_malformed"}
+            ]
+
+        malformed =
+          for {name, path, value, code} <- changes do
+            changed = Map.put(artifact, "signatures", [put_in(entry, path, value)])
+            {b, d} = if side == "blueprint", do: {changed, dep}, else: {bp, changed}
+
+            [
+              row.(
+                "signature-" <> side <> "-" <> name,
+                "invalid_constraint",
+                b,
+                d,
+                signed_host,
+                deny.(code, [side, "signatures", 0, hd(path)])
+              ),
+              %{
+                "id" => side <> "-decode-signature-" <> name,
+                "surface" => side <> ".decode",
+                "class" => "invalid_constraint",
+                "input" => %{"text" => CorpusGen.json_text!(changed)},
+                "expected" => %{"verdict" => "invalid", "code" => code}
+              }
+            ]
+          end
+
+        bad =
+          Map.put(artifact, "signatures", [
+            put_in(entry, ["signature"], CorpusGen.b64(<<0::512>>))
+          ])
+
+        {b, d} = if side == "blueprint", do: {bad, dep}, else: {bp, bad}
+
+        malformed ++
+          [
+            row.(
+              "signature-" <> side <> "-invalid",
+              "signature_invalid",
+              b,
+              d,
+              signed_host,
+              deny.("signature_not_verified", [side, "signatures", 0])
+            )
+          ]
+      end
+      |> List.flatten()
+
+    retired_host =
+      put_in(host, ["support", "registry"], %{
+        "com.example.platform/estate" => %{"criticality" => "optional", "state" => "retired"}
+      })
+
+    retired_notice = %{
+      "id" => "negotiation-retired-optional-notice",
+      "surface" => "negotiation.negotiate",
+      "class" => "extension_deprecated_retained",
+      "input" => %{"artifact" => optional, "support" => retired_host["support"]},
+      "expected" => %{
+        "verdict" => "valid",
+        "revision" => 1,
+        "critical" => [],
+        "quarantined" => [],
+        "notices" => ["extension_retired"]
+      }
+    }
+
+    cases ++
+      signed ++
+      [deprecated, notice, retired_notice] ++ unknown_optional ++ timestamps ++ signature_cases
+  end
+end
+
+predicate_cases =
+  for {name, predicate, expected, class} <-
+        [
+          {"and", %{"op" => "and", "args" => [%{"op" => "present", "path" => ["request"]}]},
+           %{"value" => true}, "valid"},
+          {"or",
+           %{"op" => "or", "args" => [%{"op" => "absent", "path" => ["request", "missing"]}]},
+           %{"value" => true}, "valid"},
+          {"not", %{"op" => "not", "args" => [%{"op" => "present", "path" => ["request"]}]},
+           %{"value" => false}, "valid"},
+          {"in", %{"op" => "in", "path" => ["request", "count"], "values" => [1, 2, 3]},
+           %{"value" => true}, "valid"},
+          {"present", %{"op" => "present", "path" => ["request"]}, %{"value" => true}, "valid"},
+          {"absent", %{"op" => "absent", "path" => ["request", "missing"]}, %{"value" => true},
+           "valid"},
+          {"arity", %{"op" => "not", "args" => []}, %{"code" => "invalid_cardinality"},
+           "invalid_cardinality"},
+          {"type", true, %{"code" => "invalid_type"}, "invalid_type"},
+          {"unknown", %{"op" => "unknown"}, %{"code" => "predicate_op_unknown"},
+           "invalid_constraint"},
+          {"exact",
+           %{
+             "op" => "and",
+             "args" => List.duplicate(%{"op" => "present", "path" => ["request"]}, 255)
+           }, %{"value" => true}, "exact_bound"},
+          {"overflow",
+           %{
+             "op" => "and",
+             "args" => List.duplicate(%{"op" => "present", "path" => ["request"]}, 256)
+           }, %{"code" => "predicate_nodes_exceeded"}, "maximum_plus_one"}
+        ] ++
+          for(
+            op <- ["eq", "ne", "lt", "lte", "gt", "gte"],
+            do:
+              {op, %{"op" => op, "path" => ["request", "count"], "value" => 2},
+               %{"value" => op in ["eq", "lte", "gte"]}, "valid"}
+          ) ++
+          for(
+            op <- ["__proto__", "constructor", "toString", "hasOwnProperty"],
+            do: {op, %{"op" => op}, %{"code" => "predicate_op_unknown"}, "invalid_constraint"}
+          ) do
+    verdict = if Map.has_key?(expected, "code"), do: "invalid", else: "valid"
+
+    %{
+      "id" => "predicate-" <> name,
+      "surface" => "predicate",
+      "class" => class,
+      "input" => %{
+        "mode" => "evaluate",
+        "predicate" => predicate,
+        "port_names" => ["request"],
+        "ports" => %{"request" => %{"count" => 2}}
+      },
+      "expected" => Map.put(expected, "verdict", verdict)
+    }
+  end
+
+unicode_case_ids =
+  for suffix <- ["Ｚ", "𐀀"] do
+    %{
+      "id" => "json-decode-order-" <> suffix,
+      "surface" => "json.decode",
+      "class" => "valid",
+      "input" => %{"text" => "null"},
+      "expected" => %{"verdict" => "valid", "value" => nil}
+    }
+  end
+
+absent_root_cases =
+  for op <- ~w(present absent eq ne lt lte gt gte in and or not) do
+    predicate =
+      cond do
+        op in ~w(and or not) ->
+          %{"op" => op, "args" => [%{"op" => "present", "path" => ["request"]}]}
+
+        op == "in" ->
+          %{"op" => op, "path" => ["request"], "values" => [1]}
+
+        op in ~w(present absent) ->
+          %{"op" => op, "path" => ["request"]}
+
+        true ->
+          %{"op" => op, "path" => ["request"], "value" => 1}
+      end
+
+    valid = op in ~w(present absent and or not)
+
+    %{
+      "id" => "predicate-absent-root-" <> op,
+      "surface" => "predicate",
+      "class" => if(valid, do: "valid", else: "invalid_constraint"),
+      "input" => %{
+        "mode" => "evaluate",
+        "port_names" => ["request"],
+        "ports" => %{},
+        "predicate" => predicate
+      },
+      "expected" =>
+        if(valid,
+          do: %{"verdict" => "valid", "value" => op in ~w(absent not)},
+          else: %{"verdict" => "invalid", "code" => "predicate_path_unresolved"}
+        )
+    }
+  end
+
+large_number_cases =
+  for {text, value, name} <- [
+        {"1e300", 1.0e300, "exponent"},
+        {"1.7976931348623157e308", 1.7976931348623157e308, "maximum"},
+        {"100000000000000000000", 1.0e20, "decimal"},
+        {"9007199254740992", 9_007_199_254_740_992.0, "unsafe"}
+      ],
+      nested <- [false, true] do
+    %{
+      "id" => "json-decode-large-" <> name <> if(nested, do: "-nested", else: ""),
+      "surface" => "json.decode",
+      "class" => "valid",
+      "input" => %{"text" => if(nested, do: "{\"values\":[" <> text <> "]}", else: text)},
+      "expected" => %{
+        "verdict" => "valid",
+        "value" => if(nested, do: %{"values" => [value]}, else: value)
+      }
+    }
+  end
+
+all_cases =
+  all_cases ++
+    ImportCases.cases() ++
+    predicate_cases ++ unicode_case_ids ++ absent_root_cases ++ large_number_cases
+
 # --- vectors + schemas (hash-bound non-case data) ----------------------------
 
 # Track-A goldens exercise EVERY registry member, evidence members
@@ -3076,8 +3758,10 @@ defmodule GenMain do
   end
 
   defp preserve_case_signatures(bytes, committed) do
-    with {:ok, %{"cases" => previous}} <- Jason.decode(committed),
-         {:ok, %{"cases" => fresh} = body} <- Jason.decode(bytes) do
+    with {:ok, prior_value} <- AgentBlueprintProtocol.Json.decode(committed),
+         {:ok, fresh_value} <- AgentBlueprintProtocol.Json.decode(bytes),
+         %{"cases" => previous} <- CorpusGen.plain(prior_value),
+         %{"cases" => fresh} = body <- CorpusGen.plain(fresh_value) do
       by_id = Map.new(previous, &{&1["id"], &1})
 
       cases =

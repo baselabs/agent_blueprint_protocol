@@ -87,3 +87,22 @@ regenerate `priv/release-metadata.json` (`mix run --no-start
 scripts/generate_release_metadata.exs`) so the release identity chain
 stays honest. Fenced specification examples are corpus cases — bind
 them (`corpus:<case-id>`) or they red.
+
+## Platform lanes and maintainer tools
+
+Contributor CI checks fresh clone bytes and paths, dependency installation,
+compilation, the tests, both corpus runners, the external harness, and the
+packed consumer on Linux, macOS, and Windows. `.gitattributes` preserves
+bytes even with automatic line-ending conversion enabled. Use the `escript`
+launcher when running the built Elixir corpus executable on any platform.
+Coverage at 100% is enforced by the Linux quality lane. Platform lanes run
+without coverage instrumentation. The POSIX FIFO and permission-bit probes, and symlink creation requiring
+Windows privileges, skip on Windows with their reasons printed by ExUnit.
+
+Publishing, gitleaks, actionlint, and the filtered specification extraction
+are maintainer tools run on Linux. These do not narrow consumer support.
+`mix conformance.product` checks the schemas, certified results, both external
+adapters and transport failures. `mix release.promote --check <rc-tag>` checks
+a final tree against its candidate; its no-argument mode calibrates the gate.
+The npm assembly root is `dist/package`; `npm pack ./dist/package
+--ignore-scripts` produces the reviewed package with its own README.

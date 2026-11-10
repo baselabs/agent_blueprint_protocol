@@ -445,8 +445,8 @@ defmodule AgentBlueprintProtocol.Reconcile do
   defp stage_signatures(blueprint, deployment, keys, bp_digest, dep_digest) do
     with {:ok, bp_entries} <- signature_entries(blueprint),
          {:ok, dep_entries} <- signature_entries(deployment),
-         :ok <- verify_entries(bp_entries, keys, bp_digest),
-         :ok <- verify_entries(dep_entries, keys, dep_digest) do
+         :ok <- verify_entries(bp_entries, keys, bp_digest, "blueprint"),
+         :ok <- verify_entries(dep_entries, keys, dep_digest, "deployment") do
       {:ok,
        [
          signatures_check("blueprint", bp_entries),
@@ -492,31 +492,35 @@ defmodule AgentBlueprintProtocol.Reconcile do
     end
   end
 
-  defp verify_entries(entries, keys, artifact_digest) do
+  defp verify_entries(entries, keys, artifact_digest, side) do
     entries
     |> Enum.with_index()
     |> Enum.reduce_while(:ok, fn {entry, index}, :ok ->
-      verify_one(entry, index, keys, artifact_digest)
+      verify_one(entry, index, keys, artifact_digest, side)
     end)
   end
 
-  defp verify_one(entry, index, keys, artifact_digest) do
-    case Signature.verify(entry, keys) |> typed_signature(index) do
+  defp verify_one(entry, index, keys, artifact_digest, side) do
+    case Signature.verify(entry, keys) |> typed_signature(index, side) do
       {:ok, %Signature.Attributes{content_digest: %Digest{} = signed}} ->
         if Digest.equal?(signed, artifact_digest),
           do: {:cont, :ok},
-          else: {:halt, {:error, %Error{code: :digest_mismatch, subject: ["signatures", index]}}}
+          else:
+            {:halt,
+             {:error, %Error{code: :digest_mismatch, subject: [side, "signatures", index]}}}
 
       error ->
         {:halt, error}
     end
   end
 
-  defp typed_signature({:ok, value}, _index), do: {:ok, value}
-  defp typed_signature({:error, reason}, index), do: {:error, signature_error(reason, index)}
+  defp typed_signature({:ok, value}, _index, _side), do: {:ok, value}
 
-  defp signature_error(reason, index),
-    do: %{reason | subject: ["signatures", index] ++ reason.subject}
+  defp typed_signature({:error, reason}, index, side),
+    do: {:error, signature_error(reason, index, side)}
+
+  defp signature_error(reason, index, side),
+    do: %{reason | subject: [side, "signatures", index] ++ reason.subject}
 
   defp stage_bind(deployment, blueprint, observations) do
     case Deployment.verify_binding(deployment, blueprint, observations) do

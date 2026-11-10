@@ -106,6 +106,39 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     lib/agent_blueprint_protocol/signature.ex
     mix.exs
     usage-rules.md
+    docs/adr/conformance-product.md
+    docs/adr/public-surface-privacy.md
+    docs/adr/stability-policy.md
+    docs/adr/three-platform-support.md
+    docs/adr/typescript-library-surface.md
+    docs/adr/verification-results.md
+    documentation/stability.md
+    spec/conformance/base64url-decode.schema.json
+    spec/conformance/blueprint-decode.schema.json
+    spec/conformance/bounds-new.schema.json
+    spec/conformance/bounds_algebra-intersect.schema.json
+    spec/conformance/canonicalization-encode.schema.json
+    spec/conformance/case-file.schema.json
+    spec/conformance/certified-results.json
+    spec/conformance/claim.schema.json
+    spec/conformance/compatibility-verify.schema.json
+    spec/conformance/deployment-decode.schema.json
+    spec/conformance/digest-tagged.schema.json
+    spec/conformance/execution.md
+    spec/conformance/evidence.schema.json
+    spec/conformance/extension-resolve.schema.json
+    spec/conformance/federation-decode.schema.json
+    spec/conformance/federation-verify_commitment.schema.json
+    spec/conformance/index.schema.json
+    spec/conformance/json-decode.schema.json
+    spec/conformance/negotiation-negotiate.schema.json
+    spec/conformance/portability-scan.schema.json
+    spec/conformance/predicate.schema.json
+    spec/conformance/reconcile.schema.json
+    spec/conformance/runner.md
+    spec/conformance/schema-validate_instance.schema.json
+    spec/conformance/signature-verify.schema.json
+    spec/conformance/support.schema.json
   )
 
   # The exact, ordered `package.files` allowlist declared in mix.exs. A planted
@@ -129,12 +162,19 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/producer-surface.md
     docs/adr/product-extension-registration.md
     docs/adr/supported-otp-set.md
+    docs/adr/conformance-product.md
+    docs/adr/typescript-library-surface.md
+    docs/adr/three-platform-support.md
+    docs/adr/stability-policy.md
+    docs/adr/verification-results.md
+    docs/adr/public-surface-privacy.md
     docs/adr/two-consumer-amendment.md
     spec/protocol.md
     spec/README.md
     spec/LICENSE
     spec/NOTICE
     spec/grammar
+    spec/conformance
     spec/registry/registry.json
     spec/IPR.md
     spec/FOUNDATION-TRANSITION.md
@@ -178,6 +218,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     "grammar.derivation",
     "registry.equality",
     "release.asset",
+    "release.promote",
     "release.candidate"
   ]
 
