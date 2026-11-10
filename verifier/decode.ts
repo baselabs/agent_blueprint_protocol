@@ -88,7 +88,7 @@ class Scanner {
     if (this.eof()) throw new SyntaxFail();
     const value = this.parseValue();
     this.skipWs();
-    if (!this.eof()) throw new SyntaxFail(); // trailing bytes
+    if (!this.eof()) throw new CodeFail("trailing_bytes");
     this.bumpNodes();
     return this.sink(value);
   }
@@ -116,8 +116,10 @@ class Scanner {
 
   // Containers guard depth at ENTRY (live depth, root container = 1).
   private parseArray(): Value {
-    this.enter();
     this.pos++; // '['
+    this.skipWs();
+    if (this.eof()) throw new SyntaxFail();
+    this.enter();
     const items: Value[] = [];
     this.skipWs();
     if (!this.eof() && this.peek() === 0x5d) {
@@ -128,6 +130,8 @@ class Scanner {
     for (;;) {
       this.skipWs();
       const element = this.parseValue();
+      this.skipWs();
+      if (this.eof() || (this.peek() !== 0x2c && this.peek() !== 0x5d)) throw new SyntaxFail();
       this.guard(items.length + 1, this.bounds.items, "items");
       this.bumpNodes();
       items.push(this.sink(element));
@@ -147,8 +151,10 @@ class Scanner {
   }
 
   private parseObject(): Value {
-    this.enter();
     this.pos++; // '{'
+    this.skipWs();
+    if (this.eof()) throw new SyntaxFail();
+    this.enter();
     const members: [string, Value][] = [];
     this.skipWs();
     if (!this.eof() && this.peek() === 0x7d) {
@@ -165,6 +171,8 @@ class Scanner {
       this.pos++;
       this.skipWs();
       const value = this.parseValue();
+      this.skipWs();
+      if (this.eof() || (this.peek() !== 0x2c && this.peek() !== 0x7d)) throw new SyntaxFail();
       this.guard(members.length + 1, this.bounds.members, "members");
       if (Buffer.byteLength(key, "utf8") > this.bounds.key) {
         throw new CodeFail("ceiling:key");

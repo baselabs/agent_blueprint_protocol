@@ -23,6 +23,28 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     locked_installs()
     token_scope()
     verified_artifacts()
+    prerelease_versions(workflow)
+  end
+
+  defp prerelease_versions(workflow) do
+    [npm] = Regex.run(~r/NPM_TAG=latest\n[^\n]*if \[\[ [^\n]*NPM_TAG=rc; fi/, workflow)
+
+    [release] =
+      Regex.run(~r/PRERELEASE_ARGS=\(\)\n[^\n]*if \[\[ [^\n]*--prerelease[^\n]*/, workflow)
+
+    assert workflow =~ ~s(--tag "$NPM_TAG")
+    assert workflow =~ ~s("${PRERELEASE_ARGS[@]}")
+
+    for {version, tag, flag} <- [
+          {"1.0.0-rc.1", "rc", "--prerelease"},
+          {"1.0.0-rc.2+build", "rc", "--prerelease"},
+          {"1.0.0", "latest", ""},
+          {"1.0.0+build-with-hyphen", "latest", ""}
+        ] do
+      script = npm <> "\n" <> release <> ~s(\nprintf '%s\\n%s' "$NPM_TAG" "${PRERELEASE_ARGS[*]}")
+      assert {output, 0} = System.cmd("bash", ["-c", script], env: [{"VERSION", version}])
+      assert output == tag <> "\n" <> flag
+    end
   end
 
   defp verified_artifacts do
@@ -58,7 +80,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     end
 
     assert npm =~
-             ~s(npm stage publish "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
+             ~s(npm stage publish "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
 
     assert publish =~ "tar -xzf verified-release/kit-dist.tar.gz"
 

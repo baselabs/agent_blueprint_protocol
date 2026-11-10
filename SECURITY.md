@@ -4,6 +4,7 @@
 
 | Version | Supported |
 | --- | --- |
+| 1.0.0-rc.1 | yes |
 | 0.8.x | yes |
 | 0.7.x | no — upgrade to the current line |
 | 0.6.x | no — upgrade to the current line |
@@ -13,7 +14,7 @@
 | 0.2.x | no — upgrade to the current line |
 | 0.1.x | no — upgrade to the current line |
 
-Use 0.8.3 or later for the current security fixes.
+The release candidate is unreleased. The stable 0.8 line includes the current security fixes.
 
 ## Reporting a vulnerability
 

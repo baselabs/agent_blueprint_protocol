@@ -210,24 +210,8 @@ defmodule AgentBlueprintProtocol.Negotiation do
           }
   end
 
-  @type reason ::
-          :protocol_revision_unsupported
-          | :missing_required_field
-          | :invalid_type
-          | :invalid_constraint
-          | :required_core_field_unsupported
-          | :required_core_field_not_digest_covered
-          | :extension_unknown_critical
-          | :extension_criticality_conflict
-          | :extension_retired
-          | :extension_schema_unavailable
-          | :extension_schema_digest_mismatch
-          | :extension_payload_forbidden
-          | Schema.schema_reason()
-          | Schema.instance_reason()
-
   @spec negotiate(Blueprint.t() | Deployment.t() | Json.value(), Support.t()) ::
-          {:ok, Outcome.t()} | {:error, reason()}
+          {:ok, Outcome.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def negotiate(%Blueprint{} = blueprint, support),
     do: negotiate(Blueprint.to_value(blueprint), support)
 
@@ -256,7 +240,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
     end
   end
 
-  def negotiate(_, _), do: {:error, :invalid_type}
+  def negotiate(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp support_shape(%Support{
          revisions: %MapSet{},
@@ -266,7 +250,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
        })
        when is_map(registry) and is_map(schemas), do: :ok
 
-  defp support_shape(_), do: {:error, :invalid_type}
+  defp support_shape(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # The artifact kind resolves through MACHINERY only (content
   # digests are protocol machinery): which digest member the value carries
@@ -278,7 +262,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
     cond do
       tagged_string?(deployment) and tagged_string?(blueprint) ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
       tagged_string?(deployment) ->
         {:ok, {@deployment_core_members, @deployment_evidence_members}}
@@ -290,10 +274,10 @@ defmodule AgentBlueprintProtocol.Negotiation do
       # same wrong-tag convention as every other machinery member), and an
       # absent one is the missing-machinery deny.
       deployment != nil or blueprint != nil ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
       true ->
-        {:error, :missing_required_field}
+        {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}}
     end
   end
 
@@ -304,16 +288,25 @@ defmodule AgentBlueprintProtocol.Negotiation do
   defp revision_check(value, support) do
     case member_of(value, "protocol_revision") do
       {:integer, revision} when is_integer(revision) -> revision_verdict(revision, support)
-      nil -> {:error, :missing_required_field}
-      _malformed_tag -> {:error, :invalid_type}
+      nil -> {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}}
+      _malformed_tag -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp revision_verdict(revision, support) do
     cond do
-      revision < 1 -> {:error, :invalid_constraint}
-      not MapSet.member?(support.revisions, revision) -> {:error, :protocol_revision_unsupported}
-      true -> {:ok, revision}
+      revision < 1 ->
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
+
+      not MapSet.member?(support.revisions, revision) ->
+        {:error,
+         %AgentBlueprintProtocol.Error{
+           code: :protocol_revision_unsupported,
+           subject: ["protocol_revision"]
+         }}
+
+      true ->
+        {:ok, revision}
     end
   end
 
@@ -324,7 +317,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
       {:array, items} ->
         Enum.find_value(items, :ok, fn
           {:string, name} -> field_judgment(name, support, vocabulary)
-          _malformed -> {:error, :invalid_type}
+          _malformed -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
         end)
         |> case do
           :ok -> :ok
@@ -332,19 +325,38 @@ defmodule AgentBlueprintProtocol.Negotiation do
         end
 
       nil ->
-        {:error, :missing_required_field}
+        {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}}
 
       _malformed ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp field_judgment(name, support, {core_members, evidence_members}) do
     cond do
-      name not in core_members -> {:error, :required_core_field_unsupported}
-      name in evidence_members -> {:error, :required_core_field_not_digest_covered}
-      not MapSet.member?(support.core_fields, name) -> {:error, :required_core_field_unsupported}
-      true -> nil
+      name not in core_members ->
+        {:error,
+         %AgentBlueprintProtocol.Error{
+           code: :required_core_field_unsupported,
+           subject: ["required_core_fields"]
+         }}
+
+      name in evidence_members ->
+        {:error,
+         %AgentBlueprintProtocol.Error{
+           code: :required_core_field_not_digest_covered,
+           subject: ["required_core_fields"]
+         }}
+
+      not MapSet.member?(support.core_fields, name) ->
+        {:error,
+         %AgentBlueprintProtocol.Error{
+           code: :required_core_field_unsupported,
+           subject: ["required_core_fields"]
+         }}
+
+      true ->
+        nil
     end
   end
 
@@ -365,10 +377,10 @@ defmodule AgentBlueprintProtocol.Negotiation do
         end
 
       nil ->
-        {:error, :missing_required_field}
+        {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}}
 
       _malformed ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -382,7 +394,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
          Enum.all?(regions, fn {_n, v} -> match?({:object, _}, v) end) do
       :ok
     else
-      {:error, :invalid_type}
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -470,7 +482,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
   defp critical_judgment(ns, regions, support) do
     case resolve_entry(ns, support) do
       :error ->
-        {:error, :extension_unknown_critical}
+        {:error, %AgentBlueprintProtocol.Error{code: :extension_unknown_critical}}
 
       {:ok, entry} ->
         critical_body_judgment(ns, entry, regions, support)
@@ -557,13 +569,13 @@ defmodule AgentBlueprintProtocol.Negotiation do
   defp criticality_check(entry, position) do
     if entry.criticality == position,
       do: :ok,
-      else: {:error, :extension_criticality_conflict}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :extension_criticality_conflict}}
   end
 
   defp critical_state_check(entry) do
     case entry.state do
-      :retired -> {:error, :extension_retired}
-      :reserved -> {:error, :extension_unknown_critical}
+      :retired -> {:error, %AgentBlueprintProtocol.Error{code: :extension_retired}}
+      :reserved -> {:error, %AgentBlueprintProtocol.Error{code: :extension_unknown_critical}}
       _live -> :ok
     end
   end
@@ -579,13 +591,13 @@ defmodule AgentBlueprintProtocol.Negotiation do
   defp schema_available(entry) do
     if entry.schema_digest != nil,
       do: :ok,
-      else: {:error, :extension_schema_unavailable}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :extension_schema_unavailable}}
   end
 
   defp schema_of(support, namespace) do
     case Map.fetch(support.schemas, namespace) do
       {:ok, schema} -> {:ok, schema}
-      :error -> {:error, :extension_schema_unavailable}
+      :error -> {:error, %AgentBlueprintProtocol.Error{code: :extension_schema_unavailable}}
     end
   end
 
@@ -599,7 +611,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
       if tagged == entry.schema_digest,
         do: :ok,
-        else: {:error, :extension_schema_digest_mismatch}
+        else: {:error, %AgentBlueprintProtocol.Error{code: :extension_schema_digest_mismatch}}
     end
   end
 
@@ -610,7 +622,11 @@ defmodule AgentBlueprintProtocol.Negotiation do
     |> Enum.any?(fn {_name, {:object, namespaces}} ->
       Enum.any?(namespaces, fn {_ns, body} -> bound_shaped_name?(body) end)
     end)
-    |> then(fn found -> if found, do: {:error, :extension_payload_forbidden}, else: :ok end)
+    |> then(fn found ->
+      if found,
+        do: {:error, %AgentBlueprintProtocol.Error{code: :extension_payload_forbidden}},
+        else: :ok
+    end)
   end
 
   defp bound_shaped_name?(value), do: bound_shaped_walk(value)

@@ -17,6 +17,19 @@ defmodule AgentBlueprintProtocol.RegistryEqualityGate do
   @index_path "priv/conformance/index.json"
 
   def run do
+    for invalid <- [
+          "1example.org/name",
+          "com.example-/name",
+          "com.mcp/name",
+          "org.modelcontextprotocol.api/name",
+          "com.example/-name",
+          "com.example/name_",
+          "com.example/name/other"
+        ] do
+      if valid_namespace?(invalid),
+        do: raise("registry namespace validation accepted an invalid key")
+    end
+
     findings =
       case json_findings() do
         [] -> elixir_findings() ++ typescript_findings() ++ index_findings() ++ shape_findings()
@@ -111,8 +124,31 @@ defmodule AgentBlueprintProtocol.RegistryEqualityGate do
         "entry #{inspect(row["namespace"])} carries undeclared members: #{inspect(Enum.sort(extra))}"
       end
 
-    top ++ format ++ rows
+    namespaces =
+      for row <- entry_rows(),
+          not valid_namespace?(row["namespace"]),
+          do: "registered namespace violates the MCP metadata key grammar"
+
+    top ++ format ++ rows ++ namespaces
   end
+
+  # MCP revision 2026-07-28, Basic protocol / General fields / _meta.
+  # Registration is stricter than artifact decoding so existing signed bytes stay valid.
+  def valid_namespace?(namespace) when is_binary(namespace) do
+    case String.split(namespace, "/") do
+      [prefix, name] ->
+        labels = String.split(prefix, ".")
+
+        length(labels) >= 2 and Enum.at(labels, 1) not in ["mcp", "modelcontextprotocol"] and
+          Enum.all?(labels, &Regex.match?(~r/\A[a-z](?:[a-z0-9-]*[a-z0-9])?\z/, &1)) and
+          Regex.match?(~r/\A[a-z0-9](?:[a-z0-9_.-]*[a-z0-9])?\z/, name)
+
+      _ ->
+        false
+    end
+  end
+
+  def valid_namespace?(_), do: false
 
   defp elixir_findings do
     digest = canonical_digest()

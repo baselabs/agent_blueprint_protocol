@@ -41,7 +41,8 @@ defmodule AgentBlueprintProtocol.Base64UrlPropertyTest do
             suffix <- StreamData.string(:alphanumeric),
             pad <- StreamData.member_of(["=", "==", "==="])
           ) do
-      assert Base64Url.decode(prefix <> pad <> suffix) == {:error, :base64url_padded}
+      assert Base64Url.decode(prefix <> pad <> suffix) ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_padded}}
     end
   end
 

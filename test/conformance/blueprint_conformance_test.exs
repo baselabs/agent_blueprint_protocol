@@ -35,17 +35,23 @@ defmodule AgentBlueprintProtocol.Conformance.BlueprintTest do
 
   test "invalid: required member absent" do
     members = Enum.reject(base_members([]), fn {n, _} -> n == "producer" end)
-    assert {:error, :missing_required_field} = Blueprint.decode(bytes(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Blueprint.decode(bytes(members))
   end
 
   test "invalid: unknown member" do
     members = base_members([]) ++ [{"mystery", {:integer, 1}}]
-    assert {:error, :unknown_member} = Blueprint.decode(bytes(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Blueprint.decode(bytes(members))
   end
 
   test "invalid: enum boundary" do
     members = replace(base_members([]), "classification_ceiling", {:string, "topsecret"})
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes(members))
   end
 
   test "invalid: cardinality plus-one" do
@@ -55,12 +61,16 @@ defmodule AgentBlueprintProtocol.Conformance.BlueprintTest do
       end)
 
     members = replace(base_members([]), "input_ports", {:array, ports})
-    assert {:error, :invalid_cardinality} = Blueprint.decode(bytes(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Blueprint.decode(bytes(members))
   end
 
   test "invalid_type: window float in an integer-typed core field" do
     members = replace(base_members([]), "release_number", @window_float)
-    assert {:error, :invalid_type} = Blueprint.decode(bytes(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Blueprint.decode(bytes(members))
   end
 
   test "digest_mismatch: tamper_meaningful_byte on a covered member" do
@@ -76,7 +86,9 @@ defmodule AgentBlueprintProtocol.Conformance.BlueprintTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(tampered)
-    assert {:error, :digest_mismatch} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+             Blueprint.decode(bytes)
   end
 
   test "forbidden_portable_value: never-portable class in a core position" do
@@ -85,7 +97,8 @@ defmodule AgentBlueprintProtocol.Conformance.BlueprintTest do
         toolchain: "-----" <> "BEGIN PRIVATE KEY-----\nMIIEvQ\n-----" <> "END PRIVATE KEY-----"
       )
 
-    assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes(members))
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Blueprint.decode(bytes(members))
   end
 
   test "non_canonical_bytes: reordered serialization of an honestly digested artifact" do
@@ -100,6 +113,7 @@ defmodule AgentBlueprintProtocol.Conformance.BlueprintTest do
         k <> ":" <> v
       end)
 
-    assert {:error, :non_canonical_bytes} = Blueprint.decode("{" <> inner <> "}")
+    assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+             Blueprint.decode("{" <> inner <> "}")
   end
 end

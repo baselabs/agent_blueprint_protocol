@@ -10,9 +10,8 @@ defmodule AgentBlueprintProtocol.Signature do
 
       ASCII(BASE64URL(JCS(protected_header))) || "." || JCS(signed_attributes)
 
-  so a standard, `b64=false`-aware JOSE tooling stack can verify the same
-  bytes (the ratified preimage form,
-  byte-disjoint from the design's earlier sketch). **Producer contract:** the
+  so a standard, `b64=false`-aware JOSE implementation can verify the same
+  bytes. **Producer contract:** the
   protected header segment must be the JCS serialization of the exact
   four-member header; a producer using any other member order produces a
   legitimately-signed JWS this verifier denies `:signature_not_verified`.
@@ -20,7 +19,7 @@ defmodule AgentBlueprintProtocol.Signature do
 
   The envelope shape (closed world, value-free denials):
 
-      {"protected":        {"alg":"EdDSA","b64":false,"crit":["b64"],"kid":"…"},
+      {"protected":        {"alg":"Ed25519","b64":false,"crit":["b64"],"kid":"…"},
        "signed_attributes":{"algorithm":"Ed25519","content_digest":"sha-256:…",
                             "created_at":"2026-08-20T00:00:00Z","key_id":"…",
                             "purpose":"blueprint"},
@@ -77,13 +76,6 @@ defmodule AgentBlueprintProtocol.Signature do
           }
   end
 
-  @type reason ::
-          :signature_algorithm_unsupported
-          | :signature_key_unsupported
-          | :signature_malformed
-          | :signature_not_verified
-          | :attestation_malformed
-
   @purposes %{
     "blueprint" => :blueprint,
     "deployment" => :deployment,
@@ -110,7 +102,8 @@ defmodule AgentBlueprintProtocol.Signature do
   JCS(signed_attributes)`. Envelope violations deny with their
   `verify/2` reason.
   """
-  @spec signing_input(Json.value()) :: {:ok, binary()} | {:error, reason()}
+  @spec signing_input(Json.value()) ::
+          {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def signing_input(entry) do
     with {:ok, parts} <- parts(entry, :signature) do
       {:ok, parts.header_b64 <> "." <> parts.payload}
@@ -123,7 +116,8 @@ defmodule AgentBlueprintProtocol.Signature do
   establishes the signature fact. Do not consume attributes from an
   envelope that has not verified.
   """
-  @spec attributes(Json.value()) :: {:ok, Attributes.t()} | {:error, reason()}
+  @spec attributes(Json.value()) ::
+          {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def attributes(entry) do
     with {:ok, parts} <- parts(entry, :signature) do
       {:ok, parts.attributes}
@@ -131,30 +125,31 @@ defmodule AgentBlueprintProtocol.Signature do
   end
 
   @doc """
-  Verify a signature entry against host-supplied trusted keys. Returns
-  facts, never authorization: `{:ok, :verified}` when any key supplied for
-  the entry's `key_id` verifies the envelope; `{:error,
-  :signature_key_unsupported}` when no supplied key carries that id;
-  `{:error, :signature_algorithm_unsupported}` when the header names a
-  non-EdDSA algorithm or no matched key is usable Ed25519;
-  `{:error, :signature_malformed}` for envelope violations;
-  `{:error, :signature_not_verified}` when the bytes do not verify.
+  Verify a signature entry against host-supplied trusted keys. Success is
+  `{:ok, %Attributes{}}`, including the verified purpose and content digest.
+  Failures are `{:error, %AgentBlueprintProtocol.Error{code: code}}`:
+  `:signature_key_unsupported` for no matching key id;
+  `:signature_algorithm_unsupported` for an unsupported identifier or no
+  usable matching Ed25519 key; `:signature_malformed` for envelope shape;
+  `:signature_not_verified` for failed cryptographic verification.
+  These are facts, never authorization.
   """
-  @spec verify(Json.value(), [PublicKey.t()]) :: {:ok, :verified} | {:error, reason()}
+  @spec verify(Json.value(), [PublicKey.t()]) ::
+          {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def verify(entry, keys) when is_list(keys) do
-    with true <- keys_shape?(keys) or {:error, :invalid_type},
+    with true <- keys_shape?(keys) or {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}},
          {:ok, parts} <- parts(entry, :signature) do
       check(parts, parts.header_b64 <> "." <> parts.payload, keys)
     end
   end
 
-  def verify(_, _), do: {:error, :invalid_type}
+  def verify(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Verify an attestation entry (identical envelope; `kind` and
   `statement_digest` replace `purpose` and `content_digest`). The kind
   registry is empty, so a well-formed attestation denies
-  `{:error, :attestation_malformed}` today — the fail-closed posture, not
+  `{:error, %AgentBlueprintProtocol.Error{code: :attestation_malformed}}` today — the fail-closed posture, not
   a defect. Shape errors use `:attestation_malformed`; algorithm denials
   (`alg`/`algorithm` not EdDSA/Ed25519) share the signature vocabulary by
   design — the envelope's algorithm posture is one concern. When the first
@@ -163,21 +158,22 @@ defmodule AgentBlueprintProtocol.Signature do
   `verify/2` is added deliberately; the envelope machinery (`parts/2`) is
   already shared.
   """
-  @spec verify_attestation(Json.value(), [PublicKey.t()]) :: {:ok, :verified} | {:error, reason()}
+  @spec verify_attestation(Json.value(), [PublicKey.t()]) ::
+          {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def verify_attestation(entry, keys) when is_list(keys) do
     case parts(entry, :attestation) do
       {:error, reason} -> {:error, reason}
     end
   end
 
-  def verify_attestation(_, _), do: {:error, :invalid_type}
+  def verify_attestation(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   The RFC 7515 detached compact serialization
   (`BASE64URL(JCS(protected)) .. BASE64URL(signature)`, empty payload
   segment per Appendix F) for standard-tooling cross-checks.
   """
-  @spec to_compact(Json.value()) :: {:ok, binary()} | {:error, reason()}
+  @spec to_compact(Json.value()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def to_compact(entry) do
     with {:ok, parts} <- parts(entry, :signature) do
       {:ok, parts.header_b64 <> "." <> "." <> Base64Url.encode(parts.signature)}
@@ -192,18 +188,24 @@ defmodule AgentBlueprintProtocol.Signature do
 
   defp parts(entry, shape) do
     case Canonicalization.encode(entry) do
-      {:ok, _} -> parsed_parts(entry, shape)
-      {:error, :invalid_type} -> {:error, :invalid_type}
-      {:error, _} -> {:error, malformed(shape)}
+      {:ok, _} ->
+        parsed_parts(entry, shape)
+
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} ->
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
+
+      {:error, _} ->
+        {:error, malformed(shape)}
     end
   end
 
   defp parsed_parts(entry, shape) do
     with {:ok, members} <- entry_members(entry, shape),
-         {:ok, header} <- parse_header(members["protected"], shape),
-         {:ok, attrs} <- parse_attrs(members["signed_attributes"], shape),
+         {:ok, header} <- parse_header(members["protected"], shape) |> at(["protected"]),
+         {:ok, attrs} <-
+           parse_attrs(members["signed_attributes"], shape) |> at(["signed_attributes"]),
          :ok <- kid_matches(attrs, header, shape),
-         {:ok, signature} <- parse_signature(members["signature"], shape),
+         {:ok, signature} <- parse_signature(members["signature"], shape) |> at(["signature"]),
          {:ok, header_b64, payload} <-
            canonical_input(members["protected"], members["signed_attributes"]) do
       attributes = if shape == :signature, do: attributes_struct(attrs), else: nil
@@ -217,8 +219,8 @@ defmodule AgentBlueprintProtocol.Signature do
          attributes: attributes
        }}
     else
-      {:error, reason}
-      when reason in [
+      {:error, %AgentBlueprintProtocol.Error{code: code} = reason}
+      when code in [
              :signature_malformed,
              :attestation_malformed,
              :signature_algorithm_unsupported
@@ -226,6 +228,9 @@ defmodule AgentBlueprintProtocol.Signature do
         {:error, reason}
     end
   end
+
+  defp at({:error, error}, path), do: {:error, %{error | subject: path ++ error.subject}}
+  defp at(other, _path), do: other
 
   defp entry_members({:object, members}, shape) do
     names = Enum.map(members, &elem(&1, 0))
@@ -237,8 +242,8 @@ defmodule AgentBlueprintProtocol.Signature do
 
   defp entry_members(_not_an_object, shape), do: {:error, malformed(shape)}
 
-  defp malformed(:signature), do: :signature_malformed
-  defp malformed(:attestation), do: :attestation_malformed
+  defp malformed(:signature), do: %AgentBlueprintProtocol.Error{code: :signature_malformed}
+  defp malformed(:attestation), do: %AgentBlueprintProtocol.Error{code: :attestation_malformed}
 
   defp parse_header({:object, members}, shape) do
     names = Enum.map(members, &elem(&1, 0))
@@ -252,8 +257,12 @@ defmodule AgentBlueprintProtocol.Signature do
            {:ok, _kid} <- nonempty_string(header["kid"]) do
         {:ok, header}
       else
-        {:error, :signature_algorithm_unsupported} = unsupported -> unsupported
-        _other -> {:error, malformed(shape)}
+        {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+            unsupported ->
+          unsupported
+
+        _other ->
+          {:error, malformed(shape)}
       end
     else
       {:error, malformed(shape)}
@@ -262,8 +271,11 @@ defmodule AgentBlueprintProtocol.Signature do
 
   defp parse_header(_not_an_object, shape), do: {:error, malformed(shape)}
 
-  defp alg_eddsa({:string, "EdDSA"}), do: :ok
-  defp alg_eddsa({:string, _other}), do: {:error, :signature_algorithm_unsupported}
+  defp alg_eddsa({:string, alg}) when alg in ["EdDSA", "Ed25519"], do: :ok
+
+  defp alg_eddsa({:string, _other}),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}}
+
   defp alg_eddsa(_), do: :error
 
   defp exact_false({:boolean, false}), do: :ok
@@ -291,8 +303,12 @@ defmodule AgentBlueprintProtocol.Signature do
            :ok <- closed_member(attrs["purpose"] || attrs["kind"], shape) do
         {:ok, attrs}
       else
-        {:error, :signature_algorithm_unsupported} = unsupported -> unsupported
-        _other -> {:error, malformed(shape)}
+        {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+            unsupported ->
+          unsupported
+
+        _other ->
+          {:error, malformed(shape)}
       end
     else
       {:error, malformed(shape)}
@@ -302,7 +318,10 @@ defmodule AgentBlueprintProtocol.Signature do
   defp parse_attrs(_not_an_object, shape), do: {:error, malformed(shape)}
 
   defp algorithm_ed25519({:string, "Ed25519"}), do: :ok
-  defp algorithm_ed25519({:string, _other}), do: {:error, :signature_algorithm_unsupported}
+
+  defp algorithm_ed25519({:string, _other}),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}}
+
   defp algorithm_ed25519(_), do: :error
 
   defp tagged_digest({:string, tagged}) do
@@ -392,21 +411,21 @@ defmodule AgentBlueprintProtocol.Signature do
 
     cond do
       candidates == [] ->
-        {:error, :signature_key_unsupported}
+        {:error, %AgentBlueprintProtocol.Error{code: :signature_key_unsupported}}
 
       ed25519_keys == [] ->
-        {:error, :signature_algorithm_unsupported}
+        {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}}
 
       not strict_signature?(parts.signature) ->
-        {:error, :signature_not_verified}
+        {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}
 
       Enum.any?(ed25519_keys, fn key ->
         :crypto.verify(:eddsa, :none, input, parts.signature, [key.key, :ed25519])
       end) ->
-        {:ok, :verified}
+        {:ok, parts.attributes}
 
       true ->
-        {:error, :signature_not_verified}
+        {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}
     end
   end
 

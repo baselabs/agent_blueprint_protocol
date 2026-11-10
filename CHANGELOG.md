@@ -2,6 +2,56 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.0.0-rc.1] — unreleased
+
+### Breaking
+
+- All fallible public Elixir operations return `{:error, %Error{}}`.
+  Decoder ceilings carry `{:ceiling, key}` in `Error.code`; value-returning
+  helpers retain their success form and declare the failure branch.
+  Denial details are `nil`, including protected-clamp denials; acknowledged
+  clamp results retain their typed evidence.
+- Evidence marks unsigned artifacts and skipped observations unverified.
+  Typed signature details identify distinct verifying keys; binding details
+  list checks performed and skipped. Unverified surfaces are explicit.
+- `Signature.verify/2` returns verified signed attributes in both languages.
+  Repeated signer key identifiers deny `invalid_constraint` during structure validation.
+- Implementation modules and helper functions are hidden from the public API.
+- The registry digest changes for the controlled federation registration.
+  Verification-semantics version is 2; protocol revision remains 1.
+
+### Changed
+
+- Byte-error precedence and malformed conformance inputs agree across the
+  implementations. Binding evidence requires every descriptor observation
+  and a complete age check before reporting those checks verified.
+- Revision 1 accepts `EdDSA` and `Ed25519` protected-header identifiers;
+  producers SHOULD emit `Ed25519`. Existing signed bytes remain valid.
+- `io.github.baselabs/federation` is active with the existing schema pin.
+  `com.example/federation` is deprecated and remains supported throughout
+  1.x. Both carrier spellings verify; ambiguous double carriage denies.
+- Registration checks MCP metadata key syntax. Artifact namespace decoding
+  remains unchanged. Prerelease versions retain their complete identity
+  across Hex, npm, release metadata, comparisons, and install instructions.
+
+### Added
+
+- Mixed-order Ed25519 vectors distinguish the required cofactorless equation
+  from cofactored verification, without rejecting mixed-order points.
+- Deterministic test-only signing for new fixtures, preserving every existing
+  fixture signature. Corpus cases pin algorithm spellings, duplicate signers,
+  both federation namespaces, and effect impact as an obligation.
+- A public module and function declaration prevents silent API expansion.
+  Error descriptions distinguish overlapping conditions; evidence explicitly
+  names timestamp, lifecycle, and time-validity facts it does not establish.
+
+The corpus contains 448 cases, digest
+`sha-256:X3V0Y8dB8UkJTBsF7JQkywTHFWGy44zd_M5QQEc2p3k`; registry
+`sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg`.
+Prior released verdicts remain equivalent. The
+`negotiation-estate-contract-valid` case now projects the
+`extension_deprecated` notice for the legacy federation namespace.
+
 ## [0.8.4] — 2026-11-10
 
 ### Fixed

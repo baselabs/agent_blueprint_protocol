@@ -9,7 +9,7 @@ dependencies.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.8.4"}
+    {:agent_blueprint_protocol, "~> 1.0.0-rc.1"}
   ]
 end
 ```
@@ -33,7 +33,7 @@ And the denial side — a value that is not a Blueprint at all:
 
 AgentBlueprintProtocol.Json.decode(bytes) # => {:ok, {:object, [{"a", {:integer, 1}}]}}
 
-AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, :unknown_member}
+AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
 ```
 
 ## Run the shipped conformance corpus

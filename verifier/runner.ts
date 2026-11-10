@@ -295,6 +295,8 @@ function dispatch(
       if (!schemaInput.ok) return schemaInput;
       const instance = taggedField(input, "instance");
       if (!instance.ok) return instance;
+      const dialectRaw = member(input, "dialect");
+      if (dialectRaw !== null && dialectRaw.t !== "null" && dialectRaw.t !== "str") return {ok: false, e: "invalid_type"};
       const dialect = memberString(input, "dialect") ?? schema.dialect();
       const validated = schema.validateInstance(schemaInput.v, instance.v, dialect);
       if ("ok" in validated && !validated.ok) return validated;
@@ -428,7 +430,7 @@ function inputBytes(input: Value, raws: Map<string, Buffer>): { ok: true; v: Buf
 
 function boundsOverrides(input: Value): { ok: true; v: Record<string, unknown> } | { ok: false; e: string } {
   const overrides = member(input, "bounds");
-  if (overrides === null) return { ok: true, v: {} };
+  if (overrides === null || overrides.t === "null") return { ok: true, v: {} };
   if (overrides.t !== "obj") return { ok: false, e: "invalid_type" };
   // Null prototype: a corpus-carried "__proto__" key stays a plain member
   // (Elixir denies it as unknown_bound; a plain object would silently drop it).
@@ -498,27 +500,31 @@ function buildKeys(input: Value): { ok: true; v: signature.PublicKey[] } | { ok:
 }
 
 function buildSupport(input: Value): { ok: true; v: negotiation.Support } | { ok: false; e: string } {
-  const support = member(input, "support");
+  const supportRaw = member(input, "support");
+  const support = supportRaw?.t === "null" ? null : supportRaw;
   const supportInput = support === null ? null : support.t === "obj" ? support : null;
   if (support !== null && support.t !== "obj") return { ok: false, e: "invalid_type" };
   const source = supportInput ?? ({ t: "obj", v: [] } as Value);
 
   const revisionsRaw = member(source, "revisions");
+  if (revisionsRaw !== null && revisionsRaw.t !== "arr") return {ok: false, e: "invalid_type"};
   const revisions =
     revisionsRaw !== null && revisionsRaw.t === "arr"
       ? revisionsRaw.v.map((r) => (r.t === "int" ? r.v : plainOf(r) as number))
       : [1];
   const coreFieldsRaw = member(source, "core_fields");
+  if (coreFieldsRaw !== null && coreFieldsRaw.t !== "arr") return {ok: false, e: "invalid_type"};
   const coreFields =
     coreFieldsRaw !== null && coreFieldsRaw.t === "arr"
-      ? coreFieldsRaw.v.map((r) => (r.t === "str" ? r.v : String(plainOf(r))))
+      ? coreFieldsRaw.v.map((r) => (r.t === "str" ? r.v : plainOf(r) as string))
       : [];
 
   const registryRaw = member(source, "registry");
+  if (registryRaw !== null && registryRaw.t !== "obj") return {ok: false, e: "invalid_type"};
   const registry: Record<string, negotiation.RegistryEntryInput> = Object.create(null);
   if (registryRaw !== null && registryRaw.t === "obj") {
     for (const [ns, entryValue] of registryRaw.v) {
-      if (entryValue.t !== "obj") continue;
+      if (entryValue.t !== "obj") return {ok: false, e: "invalid_type"};
       const criticality = memberString(entryValue, "criticality") ?? "optional";
       const state = memberString(entryValue, "state") ?? "active";
       registry[ns] = {
@@ -538,6 +544,7 @@ function buildSupport(input: Value): { ok: true; v: negotiation.Support } | { ok
   }
 
   const schemasRaw = member(source, "schemas");
+  if (schemasRaw !== null && schemasRaw.t !== "obj") return {ok: false, e: "invalid_type"};
   const schemas: Record<string, Value> = Object.create(null);
   if (schemasRaw !== null && schemasRaw.t === "obj") {
     for (const [ns, schemaValue] of schemasRaw.v) schemas[ns] = schemaValue;
@@ -569,7 +576,8 @@ function boundSet(
     }
     out[name] = descopeValue(value);
   }
-  return { ok: true, v: out };
+  const validated = boundsAlgebra.buildSet(out);
+  return validated.ok ? { ok: true, v: out } : validated;
 }
 
 // The 13-bound vocabulary (BoundsAlgebra.names()): every protected bound
@@ -605,8 +613,8 @@ function descopeValue(value: Value): unknown {
         ordinal,
         markers:
           markersRaw !== null && markersRaw.t === "arr"
-            ? markersRaw.v.map((m) => (m.t === "str" ? m.v : String(plainOf(m))))
-            : [],
+            ? markersRaw.v.map(plainOf)
+            : markersRaw === null ? [] : plainOf(markersRaw),
       };
     }
     const amount = memberNumber(value, "amount");
@@ -647,7 +655,7 @@ function buildObserved(input: Value): { ok: true; v: compatibility.Observed } | 
 
 function buildContext(input: Value): { ok: true; v: federation.Context } | { ok: false; e: string } {
   const ctxValue = member(input, "context");
-  if (ctxValue === null) {
+  if (ctxValue === null || ctxValue.t === "null") {
     return { ok: true, v: { keys: [], issuerKeySets: null, priorReceipts: [] } };
   }
   if (ctxValue.t !== "obj") return { ok: false, e: "invalid_type" };
@@ -658,6 +666,7 @@ function buildContext(input: Value): { ok: true; v: federation.Context } | { ok:
   if (!keys.ok) return keys;
 
   const issuerKeySetsRaw = member(ctx, "issuer_key_sets");
+  if (issuerKeySetsRaw !== null && issuerKeySetsRaw.t !== "null" && issuerKeySetsRaw.t !== "obj") return {ok: false, e: "invalid_type"};
   let issuerKeySets: Record<string, signature.PublicKey[]> | null = null;
   if (issuerKeySetsRaw !== null && issuerKeySetsRaw.t === "obj") {
     issuerKeySets = Object.create(null) as Record<string, signature.PublicKey[]>;
@@ -694,30 +703,41 @@ function buildContext(input: Value): { ok: true; v: federation.Context } | { ok:
       // Pins ride as RAW tagged values: the twin compares members[m] against
       // {:string, pin} exactly, so a present non-string pin DENIES (the
       // audience constraint is enforced, never silently dropped).
-      issuer: member(ctx, "issuer"),
-      subject: member(ctx, "subject"),
-      audience: member(ctx, "audience"),
+      issuer: nullableMember(ctx, "issuer"),
+      subject: nullableMember(ctx, "subject"),
+      audience: nullableMember(ctx, "audience"),
       issuerKeySets,
-      createdAfter: memberString(ctx, "created_after") ?? undefined,
-      createdBefore: memberString(ctx, "created_before") ?? undefined,
+      createdAfter: plainOptional(ctx, "created_after"),
+      createdBefore: plainOptional(ctx, "created_before"),
       priorReceipts,
     },
   };
 }
 
+function plainOptional(input: Value, name: string): unknown {
+  const value = nullableMember(input, name);
+  return value === null ? null : plainOf(value);
+}
+
+function nullableMember(input: Value, name: string): Value | null {
+  const value = member(input, name);
+  return value?.t === "null" ? null : value;
+}
+
 function projectDeployment(deploymentValue: deployment.Deployment, input: Value): SurfaceResult {
   const binding = member(input, "binding");
+  if (binding !== null && binding.t !== "obj") return {ok: false, e: "invalid_type"};
   if (binding !== null && binding.t === "obj") {
     const blueprintBytes = memberString(binding, "blueprint");
     if (blueprintBytes === null) return { ok: false, e: "invalid_type" };
     const decoded = blueprint.decode(Buffer.from(blueprintBytes, "utf8"));
     if (!decoded.ok) return decoded;
-    const now = memberString(binding, "now");
-    const observations: deployment.Observations = {
-      now: now !== null ? now : null,
-      maxAttestationAgeMs: memberNumber(binding, "max_attestation_age_ms"),
+    const now = plainOptional(binding, "now");
+    const observations = {
+      now: typeof now === "string" || now === false ? now : null,
+      maxAttestationAgeMs: plainOptional(binding, "max_attestation_age_ms"),
       observed: {},
-    };
+    } as deployment.Observations;
     const verified = deployment.verifyBinding(deploymentValue, decoded.v, observations);
     if (!verified.ok) return verified;
   }

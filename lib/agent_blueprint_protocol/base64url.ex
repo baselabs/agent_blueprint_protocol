@@ -27,39 +27,44 @@ defmodule AgentBlueprintProtocol.Base64Url do
 
   @alphabet ~r/\A[A-Za-z0-9_-]*\z/
 
-  @type reason :: :base64url_invalid | :base64url_padded
-
   @doc """
   Encode `data` as unpadded base64url. The empty binary encodes to the
   empty string (RFC 7515 §2).
   """
-  @spec encode(binary()) :: binary()
+  @spec encode(binary()) :: binary() | {:error, AgentBlueprintProtocol.Error.t()}
   def encode(data) when is_binary(data), do: Base.url_encode64(data, padding: false)
 
-  def encode(_), do: {:error, :invalid_type}
+  def encode(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Decode strict unpadded base64url. Never raises on binary input; errors
   are value-free.
   """
-  @spec decode(binary()) :: {:ok, binary()} | {:error, reason()}
+  @spec decode(binary()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def decode(input) when is_binary(input) do
     cond do
-      String.contains?(input, "=") -> {:error, :base64url_padded}
-      not Regex.match?(@alphabet, input) -> {:error, :base64url_invalid}
-      true -> decode_canonical(input)
+      String.contains?(input, "=") ->
+        {:error, %AgentBlueprintProtocol.Error{code: :base64url_padded}}
+
+      not Regex.match?(@alphabet, input) ->
+        {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
+
+      true ->
+        decode_canonical(input)
     end
   end
 
-  def decode(_), do: {:error, :invalid_type}
+  def decode(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp decode_canonical(input) do
     case Base.url_decode64(input, padding: false) do
       {:ok, bytes} ->
-        if encode(bytes) == input, do: {:ok, bytes}, else: {:error, :base64url_invalid}
+        if encode(bytes) == input,
+          do: {:ok, bytes},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
 
       :error ->
-        {:error, :base64url_invalid}
+        {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
     end
   end
 end

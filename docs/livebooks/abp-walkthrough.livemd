@@ -6,7 +6,7 @@ livebook:{"persist_outputs":true}
 
 ```elixir
 Mix.install([
-  {:agent_blueprint_protocol, "~> 0.8.4"}
+  {:agent_blueprint_protocol, "~> 1.0.0-rc.1"}
 ])
 ```
 
@@ -127,10 +127,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-%{
-  canonical_byte_size: 1395,
-  content_digest: "sha-256:b6eDtmqmJ_Da-9KkC8LwmC4EukZPTQS3URlqH6aYX0M"
-}
+%{content_digest: "sha-256:b6eDtmqmJ_Da-9KkC8LwmC4EukZPTQS3URlqH6aYX0M", canonical_byte_size: 1395}
 ```
 
 ## 2. Decode the bytes and read them back
@@ -152,10 +149,7 @@ Blueprint gives back the exact bytes, because the bytes are the artifact's ident
 <!-- livebook:{"output":true} -->
 
 ```
-%{
-  recomputed_digest: "sha-256:b6eDtmqmJ_Da-9KkC8LwmC4EukZPTQS3URlqH6aYX0M",
-  round_trip_exact?: true
-}
+%{round_trip_exact?: true, recomputed_digest: "sha-256:b6eDtmqmJ_Da-9KkC8LwmC4EukZPTQS3URlqH6aYX0M"}
 ```
 
 ## 3. Sign the Blueprint
@@ -179,7 +173,7 @@ alias AgentBlueprintProtocol.Signature.PublicKey
 protected =
   {:object,
    [
-     {"alg", {:string, "EdDSA"}},
+     {"alg", {:string, "Ed25519"}},
      {"b64", {:boolean, false}},
      {"crit", {:array, [{:string, "b64"}]}},
      {"kid", {:string, "library-producer-1"}}
@@ -233,7 +227,21 @@ producer_key = %PublicKey{key_id: "library-producer-1", algorithm: :ed25519, key
 <!-- livebook:{"output":true} -->
 
 ```
-%{signed_digest_unchanged?: true, verify: {:ok, :verified}}
+%{
+  verify: {:ok,
+   %AgentBlueprintProtocol.Signature.Attributes{
+     algorithm: "Ed25519",
+     content_digest: %AgentBlueprintProtocol.Digest{
+       algorithm: :sha256,
+       bytes: <<111, 167, 131, 182, 106, 166, 39, 240, 218, 251, 210, 164, 11, 194, 240, 152, 46, 4,
+         186, 70, 79, 77, 4, 183, 81, 25, 106, 31, 166, 152, 95, 67>>
+     },
+     created_at: "2026-10-01T09:05:00Z",
+     key_id: "library-producer-1",
+     purpose: :blueprint
+   }},
+  signed_digest_unchanged?: true
+}
 ```
 
 ## 4. Negotiate, and handle extensions
@@ -311,16 +319,22 @@ critical_map =
      quarantined_extensions: [],
      notices: []
    }},
-  revision_unsupported: {:error, :protocol_revision_unsupported},
-  unknown_critical: {:error, :extension_unknown_critical},
   weather: %{
-    critical_extensions: [],
-    notices: [:extension_deprecated, :extension_unknown_optional_retained],
-    optional_retained: ["com.example.platform/estate"],
     protocol_revision: 1,
+    required_core_fields: [],
+    critical_extensions: [],
+    optional_retained: ["com.example.platform/estate"],
     quarantined_extensions: ["org.example.weather/units"],
-    required_core_fields: []
-  }
+    notices: [:extension_deprecated, :extension_unknown_optional_retained]
+  },
+  unknown_critical: {:error,
+   %AgentBlueprintProtocol.Error{code: :extension_unknown_critical, detail: nil, subject: []}},
+  revision_unsupported: {:error,
+   %AgentBlueprintProtocol.Error{
+     code: :protocol_revision_unsupported,
+     detail: nil,
+     subject: ["protocol_revision"]
+   }}
 }
 ```
 
@@ -492,21 +506,22 @@ acknowledged = %{inputs | protected_clamp: :acknowledge}
 
 ```
 %{
+  not_verified: [:tenancy, :live_policy, :authority, :effect_ownership, :execution, :billing,
+   :evaluation_truth, :signature_created_at, :lifecycle_state, :key_time_validity,
+   :signature_time_validity, :signatures, :bind, :binding_descriptors],
+  binds?: true,
+  deny_posture: :protected_bound_clamp_denied,
+  without_the_producer_key: :signature_key_unsupported,
   acknowledged_clamps: [
     {:disclosure_ceiling, :full, :summary},
     {:max_attempts, 3, 2},
-    {:max_cost, %{amount: 200, currency: "EUR"}, %{amount: 150, currency: "EUR"}},
+    {:max_cost, %{currency: "EUR", amount: 200}, %{currency: "EUR", amount: 150}},
     {:max_elapsed_ms, 30000, 20000}
   ],
-  binds?: true,
-  deny_posture: :protected_bound_clamp_denied,
-  not_verified: [:tenancy, :live_policy, :authority, :effect_ownership, :execution, :billing,
-   :evaluation_truth],
   signature_checks: [
-    {"blueprint", "1 signature(s) verified"},
-    {"deployment", "no signatures present"}
-  ],
-  without_the_producer_key: :signature_key_unsupported
+    {"blueprint", %AgentBlueprintProtocol.Evidence.Signatures{key_ids: ["library-producer-1"]}},
+    {"deployment", :no_signatures_present}
+  ]
 }
 ```
 
@@ -538,7 +553,7 @@ Map.take(report, [:agreement, :agreed, :disagreed, :total])
 <!-- livebook:{"output":true} -->
 
 ```
-%{agreed: 199, agreement: true, disagreed: 0, total: 199}
+%{total: 448, agreed: 448, agreement: true, disagreed: 0}
 ```
 
 ## 7. Attacks on the signature and the bytes fail closed
@@ -600,12 +615,18 @@ respelled_bytes = String.replace(library_bytes, ~s(":), ~s(": ), global: false)
 %{
   backend_accepts_small_order_forgery: true,
   rejections: %{
-    edited_member: {:error, :digest_mismatch},
-    respelled_bytes: {:error, :non_canonical_bytes},
-    small_order_key: {:error, :signature_algorithm_unsupported},
-    tampered_signature: {:error, :signature_not_verified},
-    unknown_key_id: {:error, :signature_key_unsupported},
-    wrong_key: {:error, :signature_not_verified}
+    small_order_key: {:error,
+     %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported, detail: nil, subject: []}},
+    respelled_bytes: {:error,
+     %AgentBlueprintProtocol.Error{code: :non_canonical_bytes, detail: nil, subject: []}},
+    tampered_signature: {:error,
+     %AgentBlueprintProtocol.Error{code: :signature_not_verified, detail: nil, subject: []}},
+    wrong_key: {:error,
+     %AgentBlueprintProtocol.Error{code: :signature_not_verified, detail: nil, subject: []}},
+    edited_member: {:error,
+     %AgentBlueprintProtocol.Error{code: :digest_mismatch, detail: nil, subject: []}},
+    unknown_key_id: {:error,
+     %AgentBlueprintProtocol.Error{code: :signature_key_unsupported, detail: nil, subject: []}}
   }
 }
 ```
@@ -652,9 +673,31 @@ package = fn bytes -> Signature.verify(envelope_with.(bytes), [producer_key]) en
 
 ```
 %{
-  honest: %{backend: true, package: {:ok, :verified}},
-  identity_r: %{backend: true, package: {:error, :signature_not_verified}},
-  s_plus_l: %{backend: false, package: {:error, :signature_not_verified}}
+  identity_r: %{
+    package: {:error,
+     %AgentBlueprintProtocol.Error{code: :signature_not_verified, detail: nil, subject: []}},
+    backend: true
+  },
+  honest: %{
+    package: {:ok,
+     %AgentBlueprintProtocol.Signature.Attributes{
+       algorithm: "Ed25519",
+       content_digest: %AgentBlueprintProtocol.Digest{
+         algorithm: :sha256,
+         bytes: <<111, 167, 131, 182, 106, 166, 39, 240, 218, 251, 210, 164, 11, 194, 240, 152, 46,
+           4, 186, 70, 79, 77, 4, 183, 81, 25, 106, 31, 166, 152, 95, 67>>
+       },
+       created_at: "2026-10-01T09:05:00Z",
+       key_id: "library-producer-1",
+       purpose: :blueprint
+     }},
+    backend: true
+  },
+  s_plus_l: %{
+    package: {:error,
+     %AgentBlueprintProtocol.Error{code: :signature_not_verified, detail: nil, subject: []}},
+    backend: false
+  }
 }
 ```
 

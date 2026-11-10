@@ -1503,32 +1503,6 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
      end)}
   end
 
-  defp put_in_receipt_inner(envelope_value, name, value) do
-    {:object, members} = envelope_value
-
-    {:object,
-     Enum.map(members, fn
-       {"evidence_receipt", {:object, receipt}} ->
-         inner =
-           Enum.map(receipt, fn
-             {"jws", {:object, jws_members}} ->
-               {"jws",
-                {:object,
-                 Enum.map(jws_members, fn {n, v} ->
-                   {n, if(n == name, do: {:string, value}, else: v)}
-                 end)}}
-
-             {n, v} ->
-               {n, v}
-           end)
-
-         {"evidence_receipt", {:object, inner}}
-
-       other ->
-         other
-     end)}
-  end
-
   defp commitment_of(envelope_value) do
     {:ok, digest} =
       AgentBlueprintProtocol.Federation.terminal_commitment(%AgentBlueprintProtocol.Federation{

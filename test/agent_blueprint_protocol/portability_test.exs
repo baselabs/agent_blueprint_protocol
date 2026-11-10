@@ -56,7 +56,7 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
     ]
 
     for name <- names do
-      assert {:error, :forbidden_portable_value} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
                Portability.scan({:object, [{name, {:integer, 1}}]}),
              "name #{inspect(name)} must deny"
     end
@@ -69,7 +69,8 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
          {"outer", {:array, [{:object, [{"inner", {:object, [{"engine_id", {:string, "x"}}]}}]}]}}
        ]}
 
-    assert {:error, :forbidden_portable_value} = Portability.scan(deep)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan(deep)
   end
 
   test "benign member names pass" do
@@ -87,10 +88,11 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
         "BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n-----" <>
         "END PRIVATE KEY-----"
 
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan({:object, [{"note", {:string, pem}}]})
 
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, pem})
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, pem})
   end
 
   test "compact-JWS shape denies, but a dotted producer identity does not" do
@@ -99,7 +101,8 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
         "eyJpc3MiOiJmb28iLCJleHAiOjEzMDA4MTkzODAsImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ." <>
         "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, jws})
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, jws})
 
     # Three b64url segments, but the last is a producer label, not a
     # signature: the final-segment length discriminates.
@@ -108,19 +111,19 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
   end
 
   test "absolute URI with network authority denies; scheme-less forms pass" do
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, "https://internal.acme.io/db"})
 
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, "postgres://db-host.internal:5432/prod"})
 
     # The scheme-relative network-path reference carries the same host
     # disclosure — anchored at string start only,
     # so mid-string double slashes stay identifier-shaped.
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, "//internal.svc/api"})
 
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, "//db-host.internal:5432/prod"})
 
     assert :ok = Portability.scan_value({:string, "com.example.commerce/graph"})
@@ -143,7 +146,9 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
       input = Enum.join(parts)
 
       expected =
-        if Regex.match?(original, input), do: {:error, :forbidden_portable_value}, else: :ok
+        if Regex.match?(original, input),
+          do: {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}},
+          else: :ok
 
       assert Portability.scan_value({:string, input}) == expected
     end
@@ -159,7 +164,8 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
           "a://é",
           "a://" <> <<0xA0::utf8>>
         ] do
-      assert Portability.scan_value({:string, input}) == {:error, :forbidden_portable_value}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+               Portability.scan_value({:string, input})
     end
 
     for input <- [
@@ -183,7 +189,8 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
     # Both unsuccessful authority and repeated delimiter searches must be bounded.
     for {input, expected} <- [
           {String.duplicate("a", 99_996) <> "://#", :ok},
-          {String.duplicate("a", 100_000), {:error, :forbidden_portable_value}},
+          {String.duplicate("a", 100_000),
+           {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}}},
           {String.duplicate("a://#", 20_000), :ok},
           {String.duplicate("1.", 49_998) <> "://x", :ok}
         ] do
@@ -198,11 +205,15 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
     # 67 mixed-case b64url chars = 50 decoded bytes (synthetic, two parts so
     # no scanner mistakes the fixture for a real key).
     material = "cGFzdGhldGljYWxseV9sb25nX" <> "3NlY3JldF9rZXlfbWF0ZXJpYWxIZEVGSU5JVEVMT05ORVNN"
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, material})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, material})
 
     # 64-char hex (32 bytes) has no identifier separator and still denies.
     hex = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, hex})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, hex})
   end
 
   test "identifier-style strings: exempt in identifier mode, strict everywhere else" do
@@ -212,18 +223,28 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
     # [a-z0-9_], so the exemption is position-scoped, never a default).
     slug = "fetch_grounding_dataset_with_citations_and_full_sources_list"
     assert :ok = Portability.scan_identifier({:string, slug})
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, slug})
-    assert {:error, :forbidden_portable_value} = Portability.scan({:string, slug})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, slug})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan({:string, slug})
 
     # Mixed case WITH an underscore is outside every exemption.
     mixed = "Fetch_GroundingDataset_WithCitations_AndFullSourcesList"
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, mixed})
-    assert {:error, :forbidden_portable_value} = Portability.scan_identifier({:string, mixed})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, mixed})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_identifier({:string, mixed})
 
     # A single-case 43+ char secret-shaped string denies in strict mode even
     # with underscores (the adversarial-encoding probe).
     packed = "a3f9c2b8d4e1f6a0b7c39d2e1f4a0b5c8d7e2f1a4b6c9d0"
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, packed})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, packed})
   end
 
   test "a hyphenated UUID stays green (the honest-limit calibration)" do
@@ -238,7 +259,8 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
          {"also_fine", {:object, [{"hidden", {:string, "https://relay.internal/ingest"}}]}}
        ]}
 
-    assert {:error, :forbidden_portable_value} = Portability.scan(deep)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan(deep)
   end
 
   # ---- scan_value does not check member names --------------------------------------
@@ -248,22 +270,26 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
   end
 
   test "a one-byte prefix does not defeat the URI or PEM classes" do
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, " https://internal.example.com/db"})
 
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, "note:https://relay.internal/x"})
 
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, "id:-----BEGIN PRIVATE KEY-----"})
   end
 
   test "padded standard base64 keys and detached JWS forms deny" do
     padded = "cGFzdGhldGljYWxseV9sb25nX3NlY3JldF9rZXlfbWF0ZXJpYWw="
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, padded})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, padded})
 
     detached = "eyJhbGciOiJFZERTQSJ9..dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, detached})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, detached})
   end
 
   test "camelCase denylist twins deny" do
@@ -276,7 +302,7 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
           "engineId",
           "billingAccount"
         ] do
-      assert {:error, :forbidden_portable_value} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
                Portability.scan({:object, [{name, {:integer, 1}}]}),
              name
     end
@@ -285,27 +311,32 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
   test "named encoding gaps: padded base32, colon-chunked hex, sub-threshold keys deny" do
     # base32 with 4-6 pad chars (the padded class capped at two).
     base32 = "ZY4R3ZJFJMM5CJLGEKV7R2JTCQZRQKTZ3ZXI2LMV2F4SCUXNZ4XA===="
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, base32})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, base32})
 
     # colon-chunked hex: SSH-fingerprint shape, 1-2 hex digits per chunk,
     # 24+ decoded bytes total.
     colon_hex =
       "9f:86:d0:81:88:4c:7d:65:9a:2f:ea:a0:c5:5a:d0:15:a3:bf:4f:1b:2b:0b:82:2c:d1:5d:6c:15:b0:f0:0a:08"
 
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, colon_hex})
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, colon_hex})
 
     # sub-threshold key: 32-char hex (24 decoded bytes) now denies.
     aes128_hex = "9f86d081884c7d659a2feaa0c55ad015"
-    assert {:error, :forbidden_portable_value} = Portability.scan_value({:string, aes128_hex})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Portability.scan_value({:string, aes128_hex})
   end
 
   test "T1-review findings: zero-stripped chunks, kebab identifiers, and slash paths" do
     # Both peers' finding: one-digit (zero-stripped) chunks count fully —
     # the threshold is CHUNKS, not digit sum.
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, Enum.join(List.duplicate("1", 24), ":")})
 
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value(
                {:string, "f:86:d0:81:88:4c:7d:65:9a:2f:ea:a0:c5:5a:d0:15:a3:bf:4f:1b:2b:0b:82:2c"}
              )
@@ -321,7 +352,7 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
     assert :ok = Portability.scan_identifier({:string, long_kebab})
 
     # A separator-bearing secret still denies at the 32-byte calibration.
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value(
                {:string, "a3f9c2_b8d4e1_f6a0b7c_39d2e1f_4a0b5c8d7e2f1a4b6c9d0"}
              )

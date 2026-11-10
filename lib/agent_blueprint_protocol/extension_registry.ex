@@ -19,7 +19,8 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   `Digest.hash(:extension_schema, JCS(parsed_document))` — JCS of the
   PARSED document, never raw file bytes — and the schema must lie inside
   `Schema`'s bounded 2020-12 dialect (the digest pins that too). This
-  package owns `com.example/federation`'s schema and ships it authored
+  package owns `io.github.baselabs/federation`'s schema, shared with the
+  deprecated `com.example/federation` registration, and ships it authored
   (`federation_schema/0`); the estate-contract product registration carries
   the FIRST product-owned pin, bound to its corpus-resident document
   (`priv/conformance/schemas/estate-contract.schema.json`); the remaining
@@ -140,9 +141,18 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
         namespace: "com.example/federation",
         owner: "Agent Blueprint Protocol",
         criticality: :critical,
-        state: :active,
+        state: :deprecated,
         schema_digest: tagged_federation_digest(),
         a2a_uri: "https://example.com/extensions/federation",
+        promoted_at_revision: nil
+      },
+      %__MODULE__{
+        namespace: "io.github.baselabs/federation",
+        owner: "Agent Blueprint Protocol",
+        criticality: :critical,
+        state: :active,
+        schema_digest: tagged_federation_digest(),
+        a2a_uri: "https://baselabs.github.io/agent_blueprint_protocol/extensions/federation",
         promoted_at_revision: nil
       }
     ]
@@ -152,16 +162,16 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
     Map.new(entries(), fn entry -> {entry.namespace, entry} end)
   end
 
-  @doc "The compiled registry entries (the six registered rows; one deprecated)."
+  @doc "The compiled registry entries (the registered namespaces and their lifecycle states)."
   @spec registered_extensions() :: [t()]
   def registered_extensions, do: entries()
 
-  @doc "Resolve a namespace; `:error` for the unregistered."
-  @spec entry(binary()) :: {:ok, t()} | :error
+  @doc false
+  @spec entry(binary()) :: {:ok, t()} | :error | {:error, AgentBlueprintProtocol.Error.t()}
   def entry(namespace) when is_binary(namespace),
     do: Map.fetch(by_namespace(), namespace)
 
-  def entry(_), do: {:error, :invalid_type}
+  def entry(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   The registry's content digest (the corpus-registry binding):

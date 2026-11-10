@@ -108,7 +108,7 @@ defmodule AgentBlueprintProtocol.Compatibility do
   defp deployment_shape(deployment) do
     case Deployment.canonical_bytes(deployment) do
       {:ok, bytes} -> {:ok, bytes}
-      {:error, reason} -> {:error, %Error{code: reason, subject: ["deployment"]}}
+      {:error, reason} -> {:error, %{reason | subject: ["deployment"] ++ reason.subject}}
     end
   end
 
@@ -264,7 +264,8 @@ defmodule AgentBlueprintProtocol.Compatibility do
            ]}, MapSet.put(seen, name)}}
 
       {:error, reason} ->
-        {:halt, {{:error, %Error{code: reason, subject: ["build_identities", index]}}, seen}}
+        {:halt,
+         {{:error, %{reason | subject: ["build_identities", index] ++ reason.subject}}, seen}}
     end
   end
 

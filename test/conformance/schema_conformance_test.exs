@@ -54,45 +54,58 @@ defmodule AgentBlueprintProtocol.Conformance.SchemaConformanceTest do
     end
 
     test "mutation red: breaking any keyword flips the verdict (corpus floor)" do
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                validate(@corpus_schema, ~s({"revisions":3,"labels":["a"]}))
 
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                validate(@corpus_schema, ~s({"name":5,"revisions":3}))
 
-      assert {:error, :invalid_constraint} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
                validate(@corpus_schema, ~s({"name":"x","revisions":101}))
 
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                validate(@corpus_schema, ~s({"name":"x","revisions":3,"labels":[]}))
 
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                validate(@corpus_schema, ~s({"name":"x","revisions":3,"extra":1}))
     end
   end
 
   describe "class: invalid_type" do
     test "type mismatch denies; the reason is the type class" do
-      assert {:error, :invalid_type} = validate(~s({"type":"string"}), ~s(5))
-      assert {:error, :invalid_type} = validate(@corpus_schema, ~s([1,2]))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(~s({"type":"string"}), ~s(5))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(@corpus_schema, ~s([1,2]))
     end
   end
 
   describe "class: invalid_constraint" do
     test "value bounds (enum/const/minimum/maximum/minLength/maxLength)" do
-      assert {:error, :invalid_constraint} = validate(~s({"enum":[1,2]}), ~s(3))
-      assert {:error, :invalid_constraint} = validate(~s({"const":null}), ~s(1))
-      assert {:error, :invalid_constraint} = validate(~s({"minimum":2}), ~s(1))
-      assert {:error, :invalid_constraint} = validate(~s({"maxLength":1}), ~s("ab"))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(~s({"enum":[1,2]}), ~s(3))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(~s({"const":null}), ~s(1))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(~s({"minimum":2}), ~s(1))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(~s({"maxLength":1}), ~s("ab"))
     end
   end
 
   describe "class: invalid_cardinality" do
     test "member/item set shape (required/minItems/maxItems/oneOf/additionalProperties)" do
-      assert {:error, :invalid_cardinality} = validate(~s({"required":["a"]}), ~s({}))
-      assert {:error, :invalid_cardinality} = validate(~s({"minItems":2}), ~s([1]))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(~s({"required":["a"]}), ~s({}))
 
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(~s({"minItems":2}), ~s([1]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                validate(~s({"oneOf":[{"type":"string"}]}), ~s(null))
     end
   end
@@ -109,7 +122,9 @@ defmodule AgentBlueprintProtocol.Conformance.SchemaConformanceTest do
       over = chain(46)
       assert Schema.complexity(over) == 11 * 46 + 11
       assert Schema.complexity(over) > Schema.ceiling()
-      assert {:error, :schema_complexity_exceeded} = Schema.parse(over, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_complexity_exceeded}} =
+               Schema.parse(over, @dialect)
     end
   end
 
@@ -121,7 +136,7 @@ defmodule AgentBlueprintProtocol.Conformance.SchemaConformanceTest do
       assert :ok = validate(schema, ~s(null))
       assert :ok = validate(schema, ~s("short"))
 
-      assert {:error, :invalid_constraint} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
                validate(schema, {:string, String.duplicate("a", 256)})
     end
 
@@ -135,8 +150,12 @@ defmodule AgentBlueprintProtocol.Conformance.SchemaConformanceTest do
       })
 
       assert :ok = validate(schema, ~s([1,2,3]))
-      assert {:error, :invalid_constraint} = validate(schema, ~s([1,0]))
-      assert {:error, :invalid_constraint} = validate(schema, ~s([1,-5]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s([1,0]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s([1,-5]))
     end
 
     test "core §12.4 (adapted): the polygon schema — three error positions, three classes" do
@@ -163,17 +182,18 @@ defmodule AgentBlueprintProtocol.Conformance.SchemaConformanceTest do
                validate(schema, ~s([{"x":2.5,"y":1.3},{"x":1,"y":2},{"x":3,"y":4}]))
 
       # spec error 1: second point missing "y" — cardinality
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                validate(schema, ~s([{"x":2.5,"y":1.3},{"x":1,"z":6.7},{"x":3,"y":4}]))
 
       # spec error 2 (folded into the same vector by the spec): disallowed
       # "z" — cardinality (closure)
       # spec error 3: only two points — cardinality
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                validate(schema, ~s([{"x":1,"y":2},{"x":3,"y":4}]))
 
       # adapted: type class — a point that is not an object
-      assert {:error, :invalid_type} = validate(schema, ~s([1,2,3]))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s([1,2,3]))
 
       # adapted: constraint class — a coordinate out of a bound added to
       # the adapted schema's point coordinates
@@ -188,23 +208,29 @@ defmodule AgentBlueprintProtocol.Conformance.SchemaConformanceTest do
         "minItems":3
       })
 
-      assert {:error, :invalid_constraint} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
                validate(bounded, ~s([{"x":11,"y":1},{"x":1,"y":2},{"x":3,"y":4}]))
     end
 
     test "validation §6.1.1: 1.0 is an integer; 1.5 is not" do
       schema = ~s({"type":"integer"})
       assert :ok = validate(schema, ~s(1.0))
-      assert {:error, :invalid_type} = validate(schema, ~s(1.5))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s(1.5))
     end
 
     test "validation §6.2.2: maximum is inclusive" do
       assert :ok = validate(~s({"maximum":5}), ~s(5))
-      assert {:error, :invalid_constraint} = validate(~s({"maximum":5}), ~s(5.0001))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(~s({"maximum":5}), ~s(5.0001))
     end
 
     test "validation §6.5.3: required demands every named member" do
-      assert {:error, :invalid_cardinality} = validate(~s({"required":["a","b"]}), ~s({"a":1}))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(~s({"required":["a","b"]}), ~s({"a":1}))
+
       assert :ok = validate(~s({"required":["a","b"]}), ~s({"a":1,"b":2}))
     end
   end

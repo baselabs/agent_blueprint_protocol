@@ -30,8 +30,11 @@ defmodule AgentBlueprintProtocol.CanonicalizationTest do
     test "a constructed integer above the I-JSON magnitude bound is denied" do
       over = @ijson_max + 1
 
-      assert Canonicalization.encode({:integer, over}) == {:error, :integer_magnitude}
-      assert Canonicalization.encode({:integer, -over}) == {:error, :integer_magnitude}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :integer_magnitude}} =
+               Canonicalization.encode({:integer, over})
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :integer_magnitude}} =
+               Canonicalization.encode({:integer, -over})
     end
 
     test "arrays keep item order; no whitespace between tokens" do
@@ -70,13 +73,14 @@ defmodule AgentBlueprintProtocol.CanonicalizationTest do
     end
 
     test "invalid UTF-8 and lone surrogates deny on the encode path" do
-      assert Canonicalization.encode({:string, <<0xFF, 0xFE>>}) == {:error, :invalid_encoding}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}} =
+               Canonicalization.encode({:string, <<0xFF, 0xFE>>})
 
-      assert Canonicalization.encode({:string, <<0xED, 0xA0, 0x80>>}) ==
-               {:error, :invalid_encoding}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}} =
+               Canonicalization.encode({:string, <<0xED, 0xA0, 0x80>>})
 
-      assert Canonicalization.encode({:object, [{<<0xED, 0xA0, 0x80>>, :null}]}) ==
-               {:error, :invalid_encoding}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}} =
+               Canonicalization.encode({:object, [{<<0xED, 0xA0, 0x80>>, :null}]})
     end
   end
 
@@ -109,12 +113,16 @@ defmodule AgentBlueprintProtocol.CanonicalizationTest do
   describe "duplicate members on the encode path" do
     test "a constructed object with duplicate names denies" do
       value = {:object, [{"a", {:integer, 1}}, {"a", {:integer, 2}}]}
-      assert Canonicalization.encode(value) == {:error, :duplicate_member}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :duplicate_member}} =
+               Canonicalization.encode(value)
     end
 
     test "duplicates nested inside arrays deny as well" do
       value = {:array, [{:object, [{"a", :null}, {"a", :null}]}]}
-      assert Canonicalization.encode(value) == {:error, :duplicate_member}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :duplicate_member}} =
+               Canonicalization.encode(value)
     end
   end
 
@@ -125,12 +133,15 @@ defmodule AgentBlueprintProtocol.CanonicalizationTest do
                {:ok, ~s({"a":1})}
 
       assert Canonicalization.encode({:object, [{"a", {:integer, 1}}]}, %{bytes: 6}) ==
-               {:error, {:ceiling, :bytes}}
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :bytes}}}
     end
 
     test "bounds coercion errors pass through" do
-      assert Canonicalization.encode(:null, %{bogus: 1}) == {:error, :unknown_bound}
-      assert Canonicalization.encode(:null, %{bytes: 9_999_999}) == {:error, {:ceiling, :bytes}}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_bound}} =
+               Canonicalization.encode(:null, %{bogus: 1})
+
+      assert Canonicalization.encode(:null, %{bytes: 9_999_999}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :bytes}}}
     end
 
     test "accepts an explicit Bounds struct" do
@@ -149,18 +160,34 @@ defmodule AgentBlueprintProtocol.CanonicalizationTest do
     end
 
     test "non-canonical bytes deny with :non_canonical_bytes" do
-      assert Canonicalization.verify("{ \"a\" : 1 }") == {:error, :non_canonical_bytes}
-      assert Canonicalization.verify(~s({"b":2,"a":1})) == {:error, :non_canonical_bytes}
-      assert Canonicalization.verify(~s({"a":4.50})) == {:error, :non_canonical_bytes}
-      assert Canonicalization.verify(~s({"a":1E30})) == {:error, :non_canonical_bytes}
-      assert Canonicalization.verify(~s({"\\u0041":1})) == {:error, :non_canonical_bytes}
-      assert Canonicalization.verify(" 1 ") == {:error, :non_canonical_bytes}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify("{ \"a\" : 1 }")
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(~s({"b":2,"a":1}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(~s({"a":4.50}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(~s({"a":1E30}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(~s({"\\u0041":1}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(" 1 ")
     end
 
     test "decode errors pass through unchanged" do
-      assert Canonicalization.verify("{") == {:error, :invalid_syntax}
-      assert Canonicalization.verify(~s({"a":1,"a":2})) == {:error, :duplicate_member}
-      assert Canonicalization.verify("[1] x") == {:error, :trailing_bytes}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_syntax}} =
+               Canonicalization.verify("{")
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :duplicate_member}} =
+               Canonicalization.verify(~s({"a":1,"a":2}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :trailing_bytes}} =
+               Canonicalization.verify("[1] x")
     end
 
     test "former false-reject class: pure digits above the I-JSON bound round-trip" do
@@ -172,12 +199,13 @@ defmodule AgentBlueprintProtocol.CanonicalizationTest do
     end
 
     test "window deny rows pass the decode error through verify unchanged" do
-      assert Canonicalization.verify(~s({"n":9007199254740993})) ==
-               {:error, :number_not_double_expressible}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :number_not_double_expressible}} =
+               Canonicalization.verify(~s({"n":9007199254740993}))
     end
 
     test "bounds thread through decode and encode" do
-      assert Canonicalization.verify(~s({"a":1}), %{bytes: 6}) == {:error, {:ceiling, :bytes}}
+      assert Canonicalization.verify(~s({"a":1}), %{bytes: 6}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :bytes}}}
     end
   end
 end

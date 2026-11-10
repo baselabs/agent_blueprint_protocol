@@ -1,16 +1,5 @@
 defmodule AgentBlueprintProtocol.Extension do
-  @moduledoc """
-  The positional extension envelope shared by BOTH artifact tables:
-  `{"critical": {namespace → payload}, "optional": {namespace → payload}}`,
-  digest-covered, with namespace form and total cardinality. Extracted from
-  Blueprint so the Deployment table carries the same judgment as
-  DATA instead of a copy of it — one envelope, one definition, two tables.
-
-  Negotiation keeps its own region walk (its judgments — lifecycle states,
-  schema pins — are different from the table's shape checks); this module is
-  the TABLE-check and scan-walk surface only.
-  Extension envelopes are inert data — an extension never authorizes an operation.
-  """
+  @moduledoc false
 
   alias AgentBlueprintProtocol.{Canonicalization, Json}
 
@@ -19,11 +8,8 @@ defmodule AgentBlueprintProtocol.Extension do
 
   @namespace ~r/\A[a-z0-9][a-z0-9.-]*\/[a-z0-9][a-z0-9.-]*\z/
 
-  @doc """
-  The envelope shape check a table carries: exactly critical + optional
-  regions, namespace form, total cardinality, no namespace in both.
-  """
-  @spec envelope_ok?(Json.value()) :: :ok | {:error, term()}
+  @doc false
+  @spec envelope_ok?(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def envelope_ok?({:object, members}) do
     with {:ok, _} <- Canonicalization.encode({:object, members}),
          :ok <- shape(members),
@@ -33,13 +19,12 @@ defmodule AgentBlueprintProtocol.Extension do
     end
   end
 
-  def envelope_ok?(_not_an_object), do: {:error, :invalid_type}
+  def envelope_ok?(_not_an_object),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Every `{namespace, body}` pair in the envelope, both regions, in document
-  order — the scan's walk over the open region.
-  """
-  @spec bodies(list() | map()) :: [{binary(), Json.value()}]
+  @doc false
+  @spec bodies(list() | map()) ::
+          [{binary(), Json.value()}] | {:error, AgentBlueprintProtocol.Error.t()}
   def bodies(members) when is_list(members) or is_map(members) do
     with {:ok, regions} <- regions_of(members) do
       for {_criticality, {:object, namespaces}} <- regions,
@@ -48,13 +33,11 @@ defmodule AgentBlueprintProtocol.Extension do
     end
   end
 
-  def bodies(_), do: {:error, :invalid_type}
+  def bodies(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  The critical region's namespace set for THIS value — the authored-channel
-  tie (a validated-critical list must sit inside this set).
-  """
-  @spec critical_namespaces(list() | map()) :: MapSet.t()
+  @doc false
+  @spec critical_namespaces(list() | map()) ::
+          MapSet.t() | {:error, AgentBlueprintProtocol.Error.t()}
   def critical_namespaces(members) when is_list(members) or is_map(members) do
     with {:ok, regions} <- regions_of(members) do
       for {"critical", {:object, namespaces}} <- regions,
@@ -64,7 +47,7 @@ defmodule AgentBlueprintProtocol.Extension do
     end
   end
 
-  def critical_namespaces(_), do: {:error, :invalid_type}
+  def critical_namespaces(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp regions_of(members) do
     case member_value(members, "extensions") do
@@ -75,7 +58,7 @@ defmodule AgentBlueprintProtocol.Extension do
         with {:ok, _} <- Canonicalization.encode(value), do: {:ok, regions}
 
       _ ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -87,8 +70,8 @@ defmodule AgentBlueprintProtocol.Extension do
     if Enum.sort(names) != ["critical", "optional"] do
       # A single missing half is a missing member; anything else unknown.
       if names == ["critical"] or names == ["optional"],
-        do: {:error, :missing_required_field},
-        else: {:error, :unknown_member}
+        do: {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}},
+        else: {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
     else
       :ok
     end
@@ -101,7 +84,7 @@ defmodule AgentBlueprintProtocol.Extension do
           Enum.map(ns_members, fn {ns, body} -> namespace_entry(ns, body) end)
 
         {_region, _not_an_object} ->
-          [{:error, :invalid_type}]
+          [{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}]
       end)
 
     first_error = Enum.find(entries, &match?({:error, _}, &1))
@@ -112,7 +95,9 @@ defmodule AgentBlueprintProtocol.Extension do
   end
 
   defp namespace_entry(ns, body) do
-    if namespace_form?(ns), do: {:ok, ns, body}, else: {:error, :extension_namespace_invalid}
+    if namespace_form?(ns),
+      do: {:ok, ns, body},
+      else: {:error, %AgentBlueprintProtocol.Error{code: :extension_namespace_invalid}}
   end
 
   defp namespace_form?(ns) do
@@ -122,13 +107,13 @@ defmodule AgentBlueprintProtocol.Extension do
   defp cardinality(namespaces) do
     if length(namespaces) <= @ceiling_extensions,
       do: :ok,
-      else: {:error, :invalid_cardinality}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}}
   end
 
   defp no_duplicates(namespaces) do
     if length(namespaces) == length(Enum.uniq(namespaces)),
       do: :ok,
-      else: {:error, :extension_duplicate}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :extension_duplicate}}
   end
 
   # Root member lists only: both artifact call sites run against the ordered

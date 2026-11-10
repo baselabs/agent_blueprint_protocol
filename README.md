@@ -31,7 +31,7 @@ and evidence retention.
 ```elixir
 def deps do
   [
-    {:agent_blueprint_protocol, "~> 0.8.4"}
+    {:agent_blueprint_protocol, "~> 1.0.0-rc.1"}
   ]
 end
 ```
@@ -50,7 +50,7 @@ bytes = File.read!("examples/echo-blueprint.json")
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
 AgentBlueprintProtocol.canonical_bytes(blueprint) == {:ok, bytes} # => true
 {:ok, other} = AgentBlueprintProtocol.Canonicalization.encode({:object, [{"a", {:integer, 1}}]})
-AgentBlueprintProtocol.decode_blueprint(other) # => {:error, :unknown_member}
+AgentBlueprintProtocol.decode_blueprint(other) # => {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
 ```
 
 The quickstart runs this from a new Mix project, and the
@@ -61,16 +61,16 @@ fail closed.
 ## Installation (TypeScript)
 
 The verifier ships as an installable npm kit,
-`@agent-blueprint-protocol/verifier`: the compiled verifier, its
+`@agent-blueprint-protocol/verifier@rc`: the compiled verifier, its
 declarations, and the conformance corpus embedded byte-identically to
 the release-certified copy. Zero runtime dependencies; Node 24+.
 
 ```bash
-npx @agent-blueprint-protocol/verifier                        # verify the embedded corpus
-npx @agent-blueprint-protocol/verifier --artifact <file.json> # verify one artifact
+npx @agent-blueprint-protocol/verifier@rc                        # verify the embedded corpus
+npx @agent-blueprint-protocol/verifier@rc --artifact <file.json> # verify one artifact
 ```
 
-npx runs the latest published kit; `npm view @agent-blueprint-protocol/verifier version` shows which.
+npx selects the published release candidate; `npm view @agent-blueprint-protocol/verifier@rc version` shows which.
 
 See the [TypeScript quickstart](documentation/typescript.md) and the
 [examples gallery](documentation/examples.md).
@@ -119,7 +119,7 @@ Semantics:
   (canonical, digest, negotiation, structure, portability, signatures, bind,
   bounds), reject-or-annotate, never repair, under host-supplied inputs.
 
-Tooling: `mix conformance.verify` executes the shipped 199-case corpus;
+Tooling: `mix conformance.verify` executes the shipped 448-case corpus;
 `mix conformance.mutations` re-proves the corpus catches named implementation
 breaks; `mix verifier.agreement` byte-agrees the Elixir runner with the
 independent TypeScript verifier; `mix compatibility.replay` certifies the
@@ -130,9 +130,9 @@ against its tags' actual trees.
 ## Status
 
 The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated: 985 tests
+and conformance corpus are implemented and gated: 994 tests
 (64 properties) at 100% coverage, zero Dialyzer errors, `--strict`
-Credo clean, a 199-case conformance corpus with a mutation gate, and a
+Credo clean, a 448-case conformance corpus with a mutation gate, and a
 byte-agreement gate against an independent second-language verifier.
 The normative specification, [`spec/protocol.md`](spec/protocol.md),
 ships in the Hex archive. The full gate battery and every gate's
@@ -194,7 +194,7 @@ release identity chain). Every gate carries a recorded red proof — see the req
 
 ### Conformance corpus
 
-The package ships a portable conformance corpus (`priv/conformance/`) — 199
+The package ships a portable conformance corpus (`priv/conformance/`) — 448
 cases covering every required cell of the 16-surface × 31-class applicability
 floor, full-registry golden artifacts, RFC 8785 number vectors, and
 deterministic Ed25519 fixtures. Run it:

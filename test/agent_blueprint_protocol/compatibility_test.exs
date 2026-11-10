@@ -195,7 +195,7 @@ defmodule AgentBlueprintProtocol.CompatibilityTest do
                )
              )
 
-    assert reason == :compatibility_identity_inexact
+    assert reason.code == :compatibility_identity_inexact
   end
 
   # ---- rim probes (typed denials on every malformed shape) --------------------------

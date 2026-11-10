@@ -29,9 +29,7 @@ defmodule AgentBlueprintProtocol.Federation do
   a request, never a terminal receipt: no codec path synthesizes a terminal
   member from a cancel request or acknowledgment.
 
-  This is a NEW surface, so failures are `%Error{}` records from day one
-  ("the only failure shape"; the older decode
-  surfaces' bare atoms are the recorded migration).
+  Failures are typed `%Error{}` records.
   Federation receipts are evidence records — verification never authorizes anything.
   """
 
@@ -244,7 +242,7 @@ defmodule AgentBlueprintProtocol.Federation do
     end)
   end
 
-  @doc "The envelope's closed world: the 23 wire member names, table order."
+  @doc false
   @spec envelope_members() :: [binary()]
   def envelope_members, do: Enum.map(table(), & &1.name)
 
@@ -282,8 +280,11 @@ defmodule AgentBlueprintProtocol.Federation do
       # The components are engine-validated tagged values; encode cannot
       # fail here (an impossible match would raise loudly, not silently).
       case Canonicalization.encode({:object, ordered}) do
-        {:ok, jcs} -> {:ok, Digest.hash(:federation_envelope, jcs)}
-        {:error, reason} -> {:error, %Error{code: reason, subject: ["federation_envelope"]}}
+        {:ok, jcs} ->
+          {:ok, Digest.hash(:federation_envelope, jcs)}
+
+        {:error, reason} ->
+          {:error, %{reason | subject: ["federation_envelope"] ++ reason.subject}}
       end
     end
   end
@@ -381,18 +382,18 @@ defmodule AgentBlueprintProtocol.Federation do
 
   defp signature_check(signature, pool, attributed?) do
     case Signature.verify(signature, pool) do
-      {:ok, :verified} ->
+      {:ok, %Signature.Attributes{}} ->
         :ok
 
       # The key-miss class under attribution names the issuer (WHERE
       # attribution failed), so the operator looks at the key sets.
       # Envelope and algorithm failures keep the signature subject —
       # they are not attribution outcomes, whatever the pool size.
-      {:error, :signature_key_unsupported} when attributed? ->
+      {:error, %AgentBlueprintProtocol.Error{code: :signature_key_unsupported}} when attributed? ->
         {:error, %Error{code: :signature_key_unsupported, subject: ["issuer"]}}
 
       {:error, reason} ->
-        {:error, %Error{code: reason, subject: ["evidence_receipt", "signature"]}}
+        {:error, %{reason | subject: ["evidence_receipt", "signature"] ++ reason.subject}}
     end
   end
 
@@ -526,9 +527,6 @@ defmodule AgentBlueprintProtocol.Federation do
     else
       {:error, %Error{} = error} ->
         {:error, error}
-
-      {:error, reason} ->
-        {:error, %Error{code: reason, subject: ["evidence_receipt", "terminal_commitment"]}}
     end
   end
 
@@ -736,7 +734,7 @@ defmodule AgentBlueprintProtocol.Federation do
   defp check_identifier({:string, s}) do
     if byte_size(s) <= @identifier_bytes and Regex.match?(@segment, s),
       do: :ok,
-      else: {:error, :invalid_constraint}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_nonempty({:string, s}) when s != "", do: :ok
@@ -745,26 +743,27 @@ defmodule AgentBlueprintProtocol.Federation do
   # value on a hand-built envelope) denies typed, never raises. Found by
   # the second-language verifier's parity battery — the missing clause
   # crashed decode on `{"value": ""}` (probed live 2026-08-23).
-  defp check_nonempty(_empty_or_mistyped), do: {:error, :invalid_constraint}
+  defp check_nonempty(_empty_or_mistyped),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
 
   defp check_positive({:integer, n}) when n >= 1, do: :ok
-  defp check_positive(_), do: {:error, :invalid_constraint}
+  defp check_positive(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
 
   defp check_tagged_digest({:string, tagged}) do
     case Digest.from_tagged(tagged) do
       {:ok, _digest} -> :ok
-      {:error, _reason} -> {:error, :invalid_constraint}
+      {:error, _reason} -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
     end
   end
 
-  defp check_tagged_digest(_), do: {:error, :invalid_type}
+  defp check_tagged_digest(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # The receipt's JWS entry must at least parse as the §8.3 envelope; its
   # cryptographic facts are verify_commitment's to establish.
   defp check_signature_shape(entry) do
     case Signature.signing_input(entry) do
       {:ok, _input} -> :ok
-      {:error, _reason} -> {:error, :invalid_constraint}
+      {:error, _reason} -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
     end
   end
 
@@ -773,7 +772,7 @@ defmodule AgentBlueprintProtocol.Federation do
   defp hook_parent(members) do
     if Map.has_key?(members, "parent_execution_reference") and
          not Map.has_key?(members, "initiating_subject"),
-       do: {:error, :invalid_constraint},
+       do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}},
        else: :ok
   end
 
@@ -782,9 +781,14 @@ defmodule AgentBlueprintProtocol.Federation do
     commitment = Map.has_key?(members, "checkpoint_commitment")
 
     cond do
-      status != commitment -> {:error, :invalid_constraint}
-      status and Map.has_key?(members, "terminal_state") -> {:error, :invalid_constraint}
-      true -> :ok
+      status != commitment ->
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
+
+      status and Map.has_key?(members, "terminal_state") ->
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
+
+      true ->
+        :ok
     end
   end
 
@@ -792,7 +796,9 @@ defmodule AgentBlueprintProtocol.Federation do
     terminal = Map.has_key?(members, "terminal_state")
     receipt = Map.has_key?(members, "evidence_receipt")
 
-    if terminal != receipt, do: {:error, :invalid_constraint}, else: :ok
+    if terminal != receipt,
+      do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}},
+      else: :ok
   end
 
   # ---- decode -------------------------------------------------------------------
@@ -812,7 +818,6 @@ defmodule AgentBlueprintProtocol.Federation do
       {:ok, %__MODULE__{value: value}}
     else
       {:error, %Error{} = error} -> {:error, error}
-      {:error, reason} -> {:error, %Error{code: reason, subject: []}}
     end
   end
 
@@ -831,7 +836,6 @@ defmodule AgentBlueprintProtocol.Federation do
       {:ok, %__MODULE__{value: value}}
     else
       {:error, %Error{} = error} -> {:error, error}
-      {:error, reason} -> {:error, %Error{code: reason, subject: []}}
     end
   end
 
@@ -847,7 +851,7 @@ defmodule AgentBlueprintProtocol.Federation do
   defp bounded_shape(value) do
     case Canonicalization.encode(value) do
       {:ok, _bytes} -> :ok
-      {:error, reason} -> {:error, %Error{code: reason, subject: ["federation_envelope"]}}
+      {:error, reason} -> {:error, %{reason | subject: ["federation_envelope"] ++ reason.subject}}
     end
   end
 
@@ -856,12 +860,12 @@ defmodule AgentBlueprintProtocol.Federation do
   result, matching `Blueprint.canonical_bytes/1` — the encode-error shape
   is that layer's to report).
   """
-  @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, term()}
+  @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
-  def canonical_bytes(_), do: {:error, :invalid_type}
+  def canonical_bytes(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc "The envelope's members as a map (wire names → tagged values)."
-  @spec member_map(t()) :: %{optional(binary()) => Json.value()}
+  @doc false
+  @spec member_map(t()) :: %{optional(binary()) => Json.value()} | {:error, Error.t()}
   def member_map(%__MODULE__{value: {:object, members} = value}) do
     with :ok <- bounded_shape(value), do: Map.new(members)
   end
@@ -1074,7 +1078,7 @@ defmodule AgentBlueprintProtocol.Federation do
   def mcp_carrier_key, do: registered_entry().namespace
 
   defp registered_entry do
-    {:ok, entry} = ExtensionRegistry.entry("com.example/federation")
+    {:ok, entry} = ExtensionRegistry.entry("io.github.baselabs/federation")
     entry
   end
 
@@ -1120,7 +1124,11 @@ defmodule AgentBlueprintProtocol.Federation do
          {:ok, id} <- carrier_string(carrier, "id", ["id"]),
          {:ok, state_raw} <- carrier_state(carrier, "state", ["status", "state"]),
          {:ok, logical} <- from_a2a_state(state_raw),
-         {:ok, body} <- carrier_body(carrier, "metadata", a2a_carrier_key()),
+         {:ok, body} <-
+           carrier_body(carrier, "metadata", [
+             a2a_carrier_key(),
+             "https://example.com/extensions/federation"
+           ]),
          :ok <- no_double_placement(body) do
       rebuild(id, logical, body)
     end
@@ -1163,7 +1171,8 @@ defmodule AgentBlueprintProtocol.Federation do
          {:ok, id} <- carrier_string(carrier, "taskId", ["taskId"]),
          {:ok, state_raw} <- carrier_string(carrier, "status", ["status"]),
          {:ok, logical} <- from_mcp_state(state_raw),
-         {:ok, body} <- carrier_body(carrier, "_meta", mcp_carrier_key()),
+         {:ok, body} <-
+           carrier_body(carrier, "_meta", [mcp_carrier_key(), "com.example/federation"]),
          :ok <- no_double_placement(body) do
       rebuild(id, logical, body)
     end
@@ -1264,20 +1273,34 @@ defmodule AgentBlueprintProtocol.Federation do
     end
   end
 
-  defp carrier_body({:object, members}, envelope_member, key) do
+  defp carrier_body({:object, members}, envelope_member, keys) do
     case List.keyfind(members, envelope_member, 0) do
       {^envelope_member, {:object, inner}} ->
-        case List.keyfind(inner, key, 0) do
-          {^key, {:object, _} = body} -> {:ok, body}
-          {^key, _} -> {:error, %Error{code: :invalid_type, subject: [envelope_member, key]}}
-          nil -> {:error, %Error{code: :missing_required_field, subject: [envelope_member, key]}}
-        end
+        supported_body(inner, keys, envelope_member)
 
       {^envelope_member, _} ->
         {:error, %Error{code: :invalid_type, subject: [envelope_member]}}
 
       nil ->
         {:error, %Error{code: :missing_required_field, subject: [envelope_member]}}
+    end
+  end
+
+  defp supported_body(inner, keys, envelope_member) do
+    key = hd(keys)
+
+    case Enum.filter(inner, fn {name, _} -> name in keys end) do
+      [{_key, {:object, _} = body}] ->
+        {:ok, body}
+
+      [{_key, _}] ->
+        {:error, %Error{code: :invalid_type, subject: [envelope_member, key]}}
+
+      [] ->
+        {:error, %Error{code: :missing_required_field, subject: [envelope_member, key]}}
+
+      _both ->
+        {:error, %Error{code: :federation_mapping_conflict, subject: [envelope_member]}}
     end
   end
 

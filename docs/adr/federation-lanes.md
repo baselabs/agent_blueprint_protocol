@@ -13,7 +13,7 @@ required to carry the protocol's evidence semantics natively.
 
 Field-by-field mapping (23 rows) with an honest verdict per row: 3
 native, 5 partial, 15 carried via the registered
-`com.example/federation` extension in A2A `Task.metadata` / MCP
+`io.github.baselabs/federation` extension in A2A `Task.metadata` / MCP
 `_meta`. Zero native wire fields; no native transport. A2A is the
 primary lane; the MCP Tasks mapping ships flagged draft-tracking —
 outside core's deprecation guarantee, revisited on the first tagged
@@ -38,3 +38,5 @@ task/receipt surfaces of the consuming hosts (owner-side work). The
 untyped metadata channel is safe only because the extension body is
 itself registry-validated — that is why the federation namespace is a
 critical registration.
+
+The deprecated `com.example/federation` spelling remains supported throughout 1.x.

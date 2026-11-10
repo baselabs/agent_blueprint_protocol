@@ -28,7 +28,7 @@ defmodule AgentBlueprintProtocol.InputLimitsTest do
           fn -> Deployment.from_value(:x) end,
           fn -> Bounds.new(nil) end
         ] do
-      assert {:error, :invalid_type} = call.()
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = call.()
     end
   end
 
@@ -55,7 +55,7 @@ defmodule AgentBlueprintProtocol.InputLimitsTest do
       assertion =
         BlueprintFixture.assertion(kind: "deterministic_predicate", predicate: predicate)
 
-      assert {:error, :forbidden_portable_value} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
                Blueprint.decode(BlueprintFixture.fixture_bytes(assertions: [assertion]))
     end
   end
@@ -116,10 +116,10 @@ defmodule AgentBlueprintProtocol.InputLimitsTest do
     value = Enum.reduce(1..20_000, :null, fn _, acc -> {:array, [acc]} end)
 
     for scan <- [:scan, :scan_authored, :scan_identifier, :scan_value] do
-      assert {:error, {:ceiling, :depth}} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}} =
                apply(AgentBlueprintProtocol.Portability, scan, [value])
 
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                apply(AgentBlueprintProtocol.Portability, scan, [{:array, [:null | :x]}])
     end
   end

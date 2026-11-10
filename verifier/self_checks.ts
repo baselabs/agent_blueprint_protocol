@@ -25,8 +25,10 @@ import {
   keyObjectCacheSize,
 } from "./signature.ts";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
 import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 
 const failures: string[] = [];
@@ -35,6 +37,24 @@ let checks = 0;
 function check(name: string, got: unknown, want: unknown): void {
   checks++;
   if (got !== want) failures.push(`${name}: got ${String(got)} want ${String(want)}`);
+}
+
+// The installable CLI accepts a signed artifact through the shared parser.
+{
+  const directory = mkdtempSync(join(tmpdir(), "abp-artifact-"));
+  try {
+    const cases = JSON.parse(readFileSync("priv/conformance/cases/blueprint-decode.json", "utf8")).cases;
+    const fixture = cases.find((c: {id: string}) => c.id === "blueprint-decode-header-Ed25519");
+    const path = join(directory, "blueprint.json");
+    writeFileSync(path, fixture.input.text);
+    const result = spawnSync(process.execPath, [resolve("dist/kit/cli.mjs"), "--artifact", path], {
+      encoding: "utf8", env: {...process.env, TMPDIR: directory},
+    });
+    check("kit artifact: Ed25519 protected header", result.status, 0);
+    check("kit artifact: valid blueprint", JSON.parse(result.stdout).verdict, "valid");
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
 }
 
 // ---- RFC 8785 Appendix B (transcribed from the RFC, verbatim) -------------------
@@ -308,9 +328,16 @@ check(
       check(`jose byte-array key verifies (${purpose})`, byteArrayResult.ok, true);
       check(
         `jose entry verifies (${purpose})`,
-        verified.ok && verified.v === "verified",
+        verified.ok && verified.v.algorithm === "Ed25519",
         true,
       );
+      if (verified.ok) {
+        const signed = member(entry, "signed_attributes")!;
+        check(`jose verified purpose (${purpose})`, verified.v.purpose, purpose);
+        check(`jose verified key (${purpose})`, verified.v.keyId, memberString(signed, "key_id"));
+        check(`jose verified timestamp (${purpose})`, verified.v.createdAt, memberString(signed, "created_at"));
+        check(`jose verified digest (${purpose})`, digest.toTagged(verified.v.contentDigest), memberString(signed, "content_digest"));
+      }
 
       const mine = toCompact(entry);
       check("jose compact matches", mine.ok ? mine.v : "err", compact);
@@ -563,7 +590,7 @@ function edEncode(point: EdPoint): Buffer {
       check(`strict: S = ${label} denied`, denied(Buffer.concat([honestR, leBytes(s)])), true);
     }
     const honestResult = sigVerify(withSignature(honest), keys);
-    check("strict: honest signature verifies", honestResult.ok && honestResult.v === "verified", true);
+    check("strict: honest signature verifies", honestResult.ok && honestResult.v.algorithm === "Ed25519", true);
     check("strict: honest signature passes the strict predicate", strictSignature(honest), true);
   }
 }
@@ -591,7 +618,7 @@ function edEncode(point: EdPoint): Buffer {
     });
     const verdict = (signature: Buffer | null, keys: { keyId: string; key: Buffer }[]): string => {
       const result = sigVerify(signature === null ? entry : withSignature(signature), keys);
-      return result.ok ? result.v : result.e;
+      return result.ok ? "verified" : result.e;
     };
     const P = 2n ** 255n - 19n;
     const leBytes = (n: bigint): Buffer => {

@@ -41,7 +41,13 @@ defmodule AgentBlueprintProtocol.Architecture.SpecMemberGrammarTest do
 
   test "the error semantics table covers exactly the closed error vocabulary" do
     spec = File.read!(@spec_path)
-    table = table_members(spec, "## 12. Error vocabulary")
+
+    table =
+      table_members(
+        spec |> String.split("Non-error notices", parts: 2) |> hd(),
+        "## 12. Error vocabulary"
+      )
+
     compiled = AgentBlueprintProtocol.Error.codes() |> Enum.map(&to_string/1) |> Enum.sort()
 
     duplicated = table -- Enum.uniq(table)

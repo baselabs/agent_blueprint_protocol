@@ -20,8 +20,8 @@ defmodule AgentBlueprintProtocol.Reconcile do
   3. `negotiation` — both artifacts against `Inputs.support`. Extension
      facts land as checks: a quarantined optional namespace is
      `%{surface: :extensions, verified: false}` (the unscanned
-     honesty), a retained one `%{surface: :extensions, verified: true,
-     detail: "retained"}`. Notices stay in the `Negotiation.Outcome` for
+     honesty), a retained one `%{surface: :extensions, verified: false,
+     detail: :retained}`. Notices stay in the `Negotiation.Outcome` for
      standalone callers — the frozen Evidence struct has no notices field.
   4. `structure` — `Registry` validation against each artifact's table
      (the closed world, cardinalities, member checks).
@@ -75,14 +75,9 @@ defmodule AgentBlueprintProtocol.Reconcile do
     @moduledoc """
     The host inputs reconcile needs: host policy bounds, negotiation
     support, trusted public keys, the protected-clamp posture, and the
-    bind-time observations (host clock, max attestation age, observed
-    descriptor digests — the binding-surface delta
-    kept for parity). Observed BUILD IDENTITIES are deliberately
-    NOT an input: the pinned eight-stage order has no
-    compatibility stage, so carrying the field would manufacture false
-    assurance — hosts call `verify_compatibility/2` for that surface (a
-    recorded contract delta: its descriptive Inputs list names observed
-    identities).
+    bind-time observations (host clock, maximum attestation age, and observed
+    descriptor digests). Build-identity compatibility is a separate check
+    through `verify_compatibility/2`.
     Reconcile inputs are caller-supplied facts that carry no authority.
     """
 
@@ -175,6 +170,12 @@ defmodule AgentBlueprintProtocol.Reconcile do
             digest ++ negotiation ++ structure ++ portability ++ signatures ++ bind ++ bounds,
         effective_bounds: effective,
         clamps: clamps,
+        not_verified: [
+          :signature_created_at,
+          :lifecycle_state,
+          :key_time_validity,
+          :signature_time_validity
+        ],
         optional_extensions_retained:
           Enum.uniq(bp_outcome.optional_retained ++ dep_outcome.optional_retained)
       )
@@ -227,12 +228,12 @@ defmodule AgentBlueprintProtocol.Reconcile do
   defp extension_checks(outcome) do
     quarantined =
       Enum.map(outcome.quarantined_extensions, fn ns ->
-        %{surface: :extensions, subject: [ns], verified: false, detail: nil}
+        %{surface: :extensions, subject: [ns], verified: false, detail: :quarantined}
       end)
 
     retained =
       Enum.map(outcome.optional_retained, fn ns ->
-        %{surface: :extensions, subject: [ns], verified: true, detail: "retained"}
+        %{surface: :extensions, subject: [ns], verified: false, detail: :retained}
       end)
 
     quarantined ++ retained
@@ -454,11 +455,9 @@ defmodule AgentBlueprintProtocol.Reconcile do
     end
   end
 
-  # The check is vacuously true over zero entries ("every entry
-  # verifies") — the detail says so, so a surface-level reader cannot
-  # mistake an unsigned artifact for a verified one.
+  # An empty signature list establishes no signature fact.
   defp signatures_check(subject, []) do
-    %{surface: :signatures, subject: [subject], verified: true, detail: "no signatures present"}
+    %{surface: :signatures, subject: [subject], verified: false, detail: :no_signatures_present}
   end
 
   defp signatures_check(subject, entries) do
@@ -466,7 +465,14 @@ defmodule AgentBlueprintProtocol.Reconcile do
       surface: :signatures,
       subject: [subject],
       verified: true,
-      detail: "#{length(entries)} signature(s) verified"
+      detail: %Evidence.Signatures{
+        key_ids:
+          Enum.map(entries, fn entry ->
+            {:ok, attrs} = Signature.attributes(entry)
+            attrs.key_id
+          end)
+          |> Enum.uniq()
+      }
     }
   end
 
@@ -495,14 +501,14 @@ defmodule AgentBlueprintProtocol.Reconcile do
   end
 
   defp verify_one(entry, index, keys, artifact_digest) do
-    with {:ok, :verified} <- Signature.verify(entry, keys) |> typed_signature(index),
-         {:ok, %Signature.Attributes{content_digest: %Digest{} = signed}} <-
-           Signature.attributes(entry) |> typed_signature(index) do
-      if Digest.equal?(signed, artifact_digest),
-        do: {:cont, :ok},
-        else: {:halt, {:error, %Error{code: :digest_mismatch, subject: ["signatures", index]}}}
-    else
-      error -> {:halt, error}
+    case Signature.verify(entry, keys) |> typed_signature(index) do
+      {:ok, %Signature.Attributes{content_digest: %Digest{} = signed}} ->
+        if Digest.equal?(signed, artifact_digest),
+          do: {:cont, :ok},
+          else: {:halt, {:error, %Error{code: :digest_mismatch, subject: ["signatures", index]}}}
+
+      error ->
+        {:halt, error}
     end
   end
 
@@ -510,12 +516,38 @@ defmodule AgentBlueprintProtocol.Reconcile do
   defp typed_signature({:error, reason}, index), do: {:error, signature_error(reason, index)}
 
   defp signature_error(reason, index),
-    do: %Error{code: reason, subject: ["signatures", index]}
+    do: %{reason | subject: ["signatures", index] ++ reason.subject}
 
   defp stage_bind(deployment, blueprint, observations) do
     case Deployment.verify_binding(deployment, blueprint, observations) do
-      :ok -> {:ok, [check(:bind, "deployment")]}
-      {:error, reason} -> {:error, %Error{code: reason, subject: ["deployment"]}}
+      :ok ->
+        {:object, members} = Deployment.to_value(deployment)
+        {"tool_bindings", {:array, bindings}} = List.keyfind(members, "tool_bindings", 0)
+
+        names =
+          for {:object, entry} <- bindings,
+              {"logical_operation", {:string, name}} <- entry,
+              do: name
+
+        staleness? =
+          bindings != [] and observations.now != nil and
+            observations.max_attestation_age_ms != nil
+
+        descriptors? = names != [] and Enum.all?(names, &Map.has_key?(observations.observed, &1))
+        checks = [{:binding_staleness, staleness?}, {:binding_descriptors, descriptors?}]
+        checked = for {surface, true} <- checks, do: surface
+        skipped = for {surface, false} <- checks, do: surface
+
+        detail = %Evidence.Binding{
+          checked: [:release_binding, :binding_completeness, :effect_recovery] ++ checked,
+          not_verified: skipped
+        }
+
+        {:ok,
+         [%{surface: :bind, subject: ["deployment"], verified: skipped == [], detail: detail}]}
+
+      {:error, reason} ->
+        {:error, %{reason | subject: ["deployment"] ++ reason.subject}}
     end
   end
 
@@ -545,7 +577,9 @@ defmodule AgentBlueprintProtocol.Reconcile do
 
   defp typed(:ok, _subject), do: :ok
   defp typed({:ok, value}, _subject), do: {:ok, value}
-  defp typed({:error, reason}, subject), do: {:error, %Error{code: reason, subject: [subject]}}
+
+  defp typed({:error, reason}, subject),
+    do: {:error, %{reason | subject: [subject] ++ reason.subject}}
 
   defp digest_of(%Digest{} = digest, _subject), do: digest
 

@@ -31,12 +31,15 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
         }
 
   @doc "Builds the agreement report from the loaded corpus and runner results."
-  @spec build(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) :: t()
+  @spec build(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) ::
+          t() | {:error, AgentBlueprintProtocol.Error.t()}
   def build(%Corpus{}, results) when is_list(results) do
-    if results_ok?(results), do: build_results(results), else: {:error, :invalid_type}
+    if results_ok?(results),
+      do: build_results(results),
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
-  def build(_, _), do: {:error, :invalid_type}
+  def build(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp results_ok?([]), do: true
 
@@ -71,14 +74,14 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
 
   @doc "Emits deterministic JCS-canonical report bytes, identity-bound."
   @spec to_bytes(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) ::
-          {:ok, binary()} | {:error, term()}
+          {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def to_bytes(%Corpus{identity: identity} = corpus, results) do
     with %__MODULE__{} = report <- build(corpus, results) do
       encode_report(identity, report)
     end
   end
 
-  def to_bytes(_, _), do: {:error, :invalid_type}
+  def to_bytes(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp encode_report(identity, report) do
     value =

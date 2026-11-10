@@ -37,8 +37,8 @@ export interface Context {
   subject?: unknown;
   audience?: unknown;
   issuerKeySets: Record<string, signature.PublicKey[]> | null;
-  createdAfter?: string;
-  createdBefore?: string;
+  createdAfter?: unknown;
+  createdBefore?: unknown;
   priorReceipts: PriorReceipt[];
 }
 
@@ -454,12 +454,12 @@ export function toMcpState(spelling: string): CodecResult {
 
 // The A2A-side carrier key: the registry entry's a2a_uri.
 export function a2aCarrierKey(): string {
-  return compiledEntry("com.example/federation")!.a2a_uri;
+  return compiledEntry("io.github.baselabs/federation")!.a2a_uri;
 }
 
 // The MCP-side carrier key: the registry namespace.
 export function mcpCarrierKey(): string {
-  return "com.example/federation";
+  return "io.github.baselabs/federation";
 }
 
 export function fromA2aCarrier(carrier: Value): CodecResult {
@@ -470,7 +470,7 @@ export function fromA2aCarrier(carrier: Value): CodecResult {
   if (!stateRaw.ok) return stateRaw;
   const logical = fromA2aState(stateRaw.v);
   if (!logical.ok) return logical;
-  const body = carrierBody(carrier.v, "metadata", a2aCarrierKey());
+  const body = carrierBody(carrier.v, "metadata", [a2aCarrierKey(), "https://example.com/extensions/federation"]);
   if (!body.ok) return body;
   const placed = noDoublePlacement(body.v);
   if (!placed.ok) return placed;
@@ -486,7 +486,7 @@ export function fromMcpCarrier(carrier: Value): CodecResult {
   if (!stateRaw.ok) return stateRaw;
   const logical = fromMcpState(stateRaw.v);
   if (!logical.ok) return logical;
-  const body = carrierBody(carrier.v, "_meta", mcpCarrierKey());
+  const body = carrierBody(carrier.v, "_meta", [mcpCarrierKey(), "com.example/federation"]);
   if (!body.ok) return body;
   const placed = noDoublePlacement(body.v);
   if (!placed.ok) return placed;
@@ -511,13 +511,15 @@ function carrierState(members: [string, Value][]): { ok: true; v: string } | { o
 function carrierBody(
   members: [string, Value][],
   envelopeMember: string,
-  key: string,
+  keys: string[],
 ): { ok: true; v: [string, Value][] } | { ok: false; e: string } {
   const found = keyfind(members, envelopeMember);
   if (found === null) return { ok: false, e: "missing_required_field" };
   if (found.t !== "obj") return { ok: false, e: "invalid_type" };
-  const inner = keyfind(found.v, key);
-  if (inner === null) return { ok: false, e: "missing_required_field" };
+  const entries = found.v.filter(([key]) => keys.includes(key));
+  if (entries.length === 0) return { ok: false, e: "missing_required_field" };
+  if (entries.length > 1) return { ok: false, e: "federation_mapping_conflict" };
+  const inner = entries[0]![1];
   if (inner.t !== "obj") return { ok: false, e: "invalid_type" };
   return { ok: true, v: inner.v };
 }
@@ -795,7 +797,7 @@ function freshnessCheck(signatureEntry: Value, context: Context): VResult {
 
 // The SAME double gate as the signed member: the Z-form regex rejects
 // offsets and fractions that a lenient parser alone accepts.
-function pin(value: string | undefined): { ok: true; v: number | null } | { ok: false; e: string } {
+function pin(value: unknown): { ok: true; v: number | null } | { ok: false; e: string } {
   if (value === undefined || value === null) return { ok: true, v: null };
   if (typeof value !== "string" || !Z_FORM.test(value) || parseTimestampMs(value) === null) {
     return { ok: false, e: "invalid_type" };

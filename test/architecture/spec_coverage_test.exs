@@ -188,16 +188,18 @@ defmodule AgentBlueprintProtocol.Architecture.SpecCoverageTest do
   defp head_arity(_), do: nil
 
   defp direct_moduledoc(stmts) do
-    Enum.find_value(stmts, fn
+    case Enum.find(stmts, &match?({:@, _, [{:moduledoc, _, [_]}]}, &1)) do
       {:@, _, [{:moduledoc, _, [doc]}]} -> doc
-      _ -> nil
-    end)
+      nil -> nil
+    end
   end
 
   defp block_statements({:__block__, _, stmts}), do: stmts
   defp block_statements([{:do, _} | _] = wrapped), do: block_statements(wrapped[:do])
   defp block_statements(other) when is_list(other), do: other
   defp block_statements(other), do: [other]
+
+  defp missing_stance?(false), do: false
 
   defp missing_stance?(doc) do
     case doc_text(doc) do

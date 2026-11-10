@@ -87,17 +87,6 @@ defmodule AgentBlueprintProtocol.Schema do
           complexity: non_neg_integer()
         }
 
-  @type schema_reason ::
-          :schema_dialect_unknown
-          | :schema_keyword_not_allowed
-          | :schema_keyword_value_invalid
-          | :schema_complexity_exceeded
-          | :schema_ref_unresolvable
-          | :schema_ref_cycle
-          | :schema_invalid_shape
-
-  @type instance_reason :: :invalid_type | :invalid_constraint | :invalid_cardinality
-
   @doc """
   The single accepted dialect identifier — the 2020-12 dialect meta-schema
   URI (validation §5). 2020-12 is the only published dialect; the
@@ -134,7 +123,7 @@ defmodule AgentBlueprintProtocol.Schema do
   `$ref` resolution, application-edge acyclicity, and the complexity
   ceiling. Accepts only the exact 2020-12 dialect URI.
   """
-  @spec parse(Json.value(), binary()) :: {:ok, t()} | {:error, schema_reason()}
+  @spec parse(Json.value(), binary()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def parse(value, dialect) do
     with :ok <- check_dialect(dialect),
          :ok <- root_shape(value),
@@ -160,7 +149,7 @@ defmodule AgentBlueprintProtocol.Schema do
   `:invalid_type`, malformed schemas deny a `:schema_*` reason.
   """
   @spec validate_instance(t() | Json.value(), Json.value(), binary()) ::
-          :ok | {:error, instance_reason() | schema_reason()}
+          :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def validate_instance(schema, instance, dialect) do
     with :ok <- check_dialect(dialect),
          {:ok, parsed} <- coerce(schema),
@@ -177,7 +166,9 @@ defmodule AgentBlueprintProtocol.Schema do
   # non-schema root would otherwise crash the evaluator. The metered
   # re-parse is sub-millisecond at the 512 ceiling.
   defp coerce(%__MODULE__{dialect: @dialect, root: root}), do: parse(root, @dialect)
-  defp coerce(%__MODULE__{}), do: {:error, :schema_dialect_unknown}
+
+  defp coerce(%__MODULE__{}),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :schema_dialect_unknown}}
 
   defp coerce(raw) do
     case parse(raw, @dialect) do
@@ -187,17 +178,19 @@ defmodule AgentBlueprintProtocol.Schema do
   end
 
   defp check_dialect(@dialect), do: :ok
-  defp check_dialect(_other), do: {:error, :schema_dialect_unknown}
+
+  defp check_dialect(_other),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :schema_dialect_unknown}}
 
   defp root_shape({:object, _members}), do: :ok
   defp root_shape({:boolean, _}), do: :ok
-  defp root_shape(_), do: {:error, :schema_invalid_shape}
+  defp root_shape(_), do: {:error, %AgentBlueprintProtocol.Error{code: :schema_invalid_shape}}
 
   # The tagged-value well-formedness gate. The decoder guarantees every one
   # of these properties; hand-built terms do not, and the totality contract
   # turns each violation into the caller's `reason` instead of a crash.
   defp tagged_well_formed(value, reason) do
-    if well_formed?(value), do: :ok, else: {:error, reason}
+    if well_formed?(value), do: :ok, else: {:error, %AgentBlueprintProtocol.Error{code: reason}}
   end
 
   defp well_formed?(:null), do: true
@@ -239,7 +232,7 @@ defmodule AgentBlueprintProtocol.Schema do
     case term do
       {:object, members} ->
         if mode == :validate and meter_sum(acc) > @ceiling do
-          {:error, :schema_complexity_exceeded}
+          {:error, %AgentBlueprintProtocol.Error{code: :schema_complexity_exceeded}}
         else
           walk_members(members, path, acc, Map.put(pointers, path, term), edges, mode)
         end
@@ -261,7 +254,7 @@ defmodule AgentBlueprintProtocol.Schema do
          :ok <- validate_value(key, value, mode),
          {:ok, acc, pointers, edges} <- descend(key, value, path, acc, pointers, edges, mode) do
       if mode == :validate and meter_sum(acc) > @ceiling do
-        {:error, :schema_complexity_exceeded}
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_complexity_exceeded}}
       else
         walk_members(tail, path, acc, pointers, edges, mode)
       end
@@ -269,29 +262,34 @@ defmodule AgentBlueprintProtocol.Schema do
   end
 
   defp allow_key(key, :validate) when key in @keyword_order or key == "$defs", do: :ok
-  defp allow_key(_key, :validate), do: {:error, :schema_keyword_not_allowed}
+
+  defp allow_key(_key, :validate),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}}
+
   defp allow_key(_key, :meter), do: :ok
 
   # Keyword-value syntax (design decision 10 — spec prose + meta-schema
   # floors, read first-hand). `:meter` mode accepts any shape and lets
   # `descend/7` fall through to data metering.
   defp validate_value("type", {:string, name}, :validate) do
-    if MapSet.member?(@type_names, name), do: :ok, else: {:error, :schema_keyword_value_invalid}
+    if MapSet.member?(@type_names, name),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
   end
 
   defp validate_value("type", {:array, names}, :validate) do
     cond do
       not match_strings(names) ->
-        {:error, :schema_keyword_value_invalid}
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
 
       names == [] ->
-        {:error, :schema_keyword_value_invalid}
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
 
       names != Enum.uniq(names) ->
-        {:error, :schema_keyword_value_invalid}
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
 
       not Enum.all?(names, fn {:string, name} -> MapSet.member?(@type_names, name) end) ->
-        {:error, :schema_keyword_value_invalid}
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
 
       true ->
         :ok
@@ -302,7 +300,9 @@ defmodule AgentBlueprintProtocol.Schema do
   defp validate_value("const", _value, :validate), do: :ok
 
   defp validate_value(key, value, :validate) when key in ["minimum", "maximum"] do
-    if number_tag?(value), do: :ok, else: {:error, :schema_keyword_value_invalid}
+    if number_tag?(value),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
   end
 
   defp validate_value(key, value, :validate)
@@ -310,34 +310,41 @@ defmodule AgentBlueprintProtocol.Schema do
     case value do
       {:integer, n} when n >= 0 -> :ok
       {:float, f} when f >= 0 and f == trunc(f) -> :ok
-      _ -> {:error, :schema_keyword_value_invalid}
+      _ -> {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
     end
   end
 
   defp validate_value("required", {:array, names}, :validate) do
     cond do
-      not match_strings(names) -> {:error, :schema_keyword_value_invalid}
-      names != Enum.uniq(names) -> {:error, :schema_keyword_value_invalid}
-      true -> :ok
+      not match_strings(names) ->
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
+
+      names != Enum.uniq(names) ->
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
+
+      true ->
+        :ok
     end
   end
 
   defp validate_value(key, {:object, _subs}, :validate) when key in @name_map_valued, do: :ok
 
   defp validate_value(key, value, :validate) when key in @schema_valued do
-    if schema_shape?(value), do: :ok, else: {:error, :schema_keyword_value_invalid}
+    if schema_shape?(value),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
   end
 
   defp validate_value("oneOf", {:array, branches}, :validate) do
     if branches != [] and Enum.all?(branches, &schema_shape?/1),
       do: :ok,
-      else: {:error, :schema_keyword_value_invalid}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
   end
 
   defp validate_value("$ref", {:string, _ref}, :validate), do: :ok
 
   defp validate_value(_key, _value, :validate),
-    do: {:error, :schema_keyword_value_invalid}
+    do: {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
 
   defp validate_value(_key, _value, :meter), do: :ok
 
@@ -357,7 +364,7 @@ defmodule AgentBlueprintProtocol.Schema do
   defp descend("$ref", {:string, ref}, path, acc, pointers, edges, :validate) do
     case ref_tokens(ref) do
       {:ok, tokens} -> {:ok, acc, pointers, [{path, tokens} | edges]}
-      :not_allowed -> {:error, :schema_keyword_not_allowed}
+      :not_allowed -> {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}}
     end
   end
 
@@ -406,7 +413,7 @@ defmodule AgentBlueprintProtocol.Schema do
       end
     else
       if mode == :validate do
-        {:error, :schema_keyword_value_invalid}
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
       else
         walk_indexed(
           tail,
@@ -432,7 +439,7 @@ defmodule AgentBlueprintProtocol.Schema do
       end
     else
       if mode == :validate do
-        {:error, :schema_keyword_value_invalid}
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}}
       else
         walk_named(tail, key, path, meter_data(sub, length(path) + 2, acc), pointers, edges, mode)
       end
@@ -503,7 +510,7 @@ defmodule AgentBlueprintProtocol.Schema do
     if Map.has_key?(pointers, tokens) do
       resolve_edges(tail, pointers)
     else
-      {:error, :schema_ref_unresolvable}
+      {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_unresolvable}}
     end
   end
 
@@ -521,7 +528,7 @@ defmodule AgentBlueprintProtocol.Schema do
   defp dfs(path, visiting, visited, pointers) do
     cond do
       Map.has_key?(visiting, path) ->
-        {:error, :schema_ref_cycle}
+        {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_cycle}}
 
       Map.has_key?(visited, path) ->
         {:ok, visited}
@@ -584,7 +591,7 @@ defmodule AgentBlueprintProtocol.Schema do
   defp evaluate({:boolean, true}, _instance, _loc, memo, _pointers), do: {:ok, memo}
 
   defp evaluate({:boolean, false}, _instance, _loc, memo, _pointers),
-    do: {{:error, :invalid_type}, memo}
+    do: {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, memo}
 
   defp evaluate({:object, _} = schema, instance, loc, memo, {_index, path} = pointers) do
     key = {path, loc}
@@ -648,27 +655,38 @@ defmodule AgentBlueprintProtocol.Schema do
     if Enum.any?(type_names(value), &type_matches?(&1, instance)) do
       {:ok, memo}
     else
-      {:error, :invalid_type, memo}
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}, memo}
     end
   end
 
   defp eval_keyword("enum", _schema, {:array, elements}, instance, _loc, memo, _pointers) do
     if Enum.any?(elements, &equal?(&1, instance)),
       do: {:ok, memo},
-      else: {:error, :invalid_constraint, memo}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}, memo}
   end
 
   defp eval_keyword("const", _schema, value, instance, _loc, memo, _pointers) do
-    if equal?(value, instance), do: {:ok, memo}, else: {:error, :invalid_constraint, memo}
+    if equal?(value, instance),
+      do: {:ok, memo},
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}, memo}
   end
 
   defp eval_keyword("minimum", _schema, bound, instance, _loc, memo, _pointers) do
     limit = bound_number(bound)
 
     case instance do
-      {:integer, n} -> if n >= limit, do: {:ok, memo}, else: {:error, :invalid_constraint, memo}
-      {:float, f} -> if f >= limit, do: {:ok, memo}, else: {:error, :invalid_constraint, memo}
-      _non_number -> {:ok, memo}
+      {:integer, n} ->
+        if n >= limit,
+          do: {:ok, memo},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}, memo}
+
+      {:float, f} ->
+        if f >= limit,
+          do: {:ok, memo},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}, memo}
+
+      _non_number ->
+        {:ok, memo}
     end
   end
 
@@ -676,9 +694,18 @@ defmodule AgentBlueprintProtocol.Schema do
     limit = bound_number(bound)
 
     case instance do
-      {:integer, n} -> if n <= limit, do: {:ok, memo}, else: {:error, :invalid_constraint, memo}
-      {:float, f} -> if f <= limit, do: {:ok, memo}, else: {:error, :invalid_constraint, memo}
-      _non_number -> {:ok, memo}
+      {:integer, n} ->
+        if n <= limit,
+          do: {:ok, memo},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}, memo}
+
+      {:float, f} ->
+        if f <= limit,
+          do: {:ok, memo},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}, memo}
+
+      _non_number ->
+        {:ok, memo}
     end
   end
 
@@ -687,7 +714,9 @@ defmodule AgentBlueprintProtocol.Schema do
 
     case instance do
       {:string, s} ->
-        if length_string(s) >= limit, do: {:ok, memo}, else: {:error, :invalid_constraint, memo}
+        if length_string(s) >= limit,
+          do: {:ok, memo},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}, memo}
 
       _non_string ->
         {:ok, memo}
@@ -699,7 +728,9 @@ defmodule AgentBlueprintProtocol.Schema do
 
     case instance do
       {:string, s} ->
-        if length_string(s) <= limit, do: {:ok, memo}, else: {:error, :invalid_constraint, memo}
+        if length_string(s) <= limit,
+          do: {:ok, memo},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}, memo}
 
       _non_string ->
         {:ok, memo}
@@ -711,7 +742,9 @@ defmodule AgentBlueprintProtocol.Schema do
 
     case instance do
       {:array, items} ->
-        if length(items) >= limit, do: {:ok, memo}, else: {:error, :invalid_cardinality, memo}
+        if length(items) >= limit,
+          do: {:ok, memo},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}, memo}
 
       _non_array ->
         {:ok, memo}
@@ -723,7 +756,9 @@ defmodule AgentBlueprintProtocol.Schema do
 
     case instance do
       {:array, items} ->
-        if length(items) <= limit, do: {:ok, memo}, else: {:error, :invalid_cardinality, memo}
+        if length(items) <= limit,
+          do: {:ok, memo},
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}, memo}
 
       _non_array ->
         {:ok, memo}
@@ -735,7 +770,7 @@ defmodule AgentBlueprintProtocol.Schema do
       {:object, members} ->
         if all_required?(names, members),
           do: {:ok, memo},
-          else: {:error, :invalid_cardinality, memo}
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}, memo}
 
       _non_object ->
         {:ok, memo}
@@ -780,8 +815,11 @@ defmodule AgentBlueprintProtocol.Schema do
            child_pointer(pointers, "oneOf"),
            0
          ) do
-      {1, memo2} -> {:ok, memo2}
-      {_other, memo2} -> {:error, :invalid_cardinality, memo2}
+      {1, memo2} ->
+        {:ok, memo2}
+
+      {_other, memo2} ->
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}, memo2}
     end
   end
 
@@ -806,7 +844,7 @@ defmodule AgentBlueprintProtocol.Schema do
         {:ok, memo}
 
       {:boolean, false} ->
-        {:error, :invalid_cardinality, memo}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}, memo}
 
       _schema_value ->
         eval_additional(

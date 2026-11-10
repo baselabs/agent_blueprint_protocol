@@ -40,3 +40,24 @@ The steward (named in IPR.md) accepts registrations; the two-consumer
 rule governs promotion into shared surfaces: a member or helper earns
 a shared seat only when two independently verified consumers use it.
 The registry carries published facts, never authority.
+
+## MCP metadata registrations
+
+A namespace carried as an MCP `_meta` key follows the grammar in
+[MCP revision 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta).
+This registry requires at least two prefix labels. Each begins with a
+lowercase letter, ends with a lowercase letter or digit, and permits
+lowercase letters, digits, and hyphens inside. The nonempty name begins and
+ends with a lowercase letter or digit; its interior also permits lowercase
+letters, digits, hyphens, underscores, and dots. These lowercase and
+two-label restrictions are stricter than the MCP grammar. A prefix whose second label is `mcp` or `modelcontextprotocol` is
+reserved. The registry equality gate checks registrations; artifact
+decoding retains its revision 1 namespace grammar.
+
+## Federation namespace
+
+`io.github.baselabs/federation` is active and critical, with A2A URI
+`https://baselabs.github.io/agent_blueprint_protocol/extensions/federation`.
+It retains the schema pin of `com.example/federation`. Producers SHOULD
+use the active namespace; both are supported. The deprecated spelling
+emits `extension_deprecated` and is never retired in the 1.x line.

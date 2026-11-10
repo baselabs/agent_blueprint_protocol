@@ -149,6 +149,8 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   defp version_sync_compare! do
     expected = Mix.Project.config()[:version]
     actual = package_json_version()
+    Version.parse!(actual)
+    Version.parse!(expected)
 
     unless actual == expected do
       raise "version drift: npm package.json #{inspect(actual)} != protocol #{inspect(expected)} " <>
@@ -220,6 +222,16 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   # exclusion MUST be named here or the breadth guard reds — coverage
   # cannot erode silently.
   @sweep_excluded_cases [
+    "deployment-binding-type-max_attestation_age_ms-array",
+    "deployment-binding-type-max_attestation_age_ms-false",
+    "deployment-binding-type-max_attestation_age_ms-object",
+    "deployment-binding-type-max_attestation_age_ms-string",
+    "deployment-binding-type-now-false",
+    "deployment-decode-binding-type-array",
+    "deployment-decode-binding-type-false",
+    "deployment-decode-binding-type-null",
+    "deployment-decode-binding-type-number",
+    "deployment-decode-binding-type-string",
     "blueprint-decode-maximum-plus-one",
     "deployment-decode-maximum-plus-one",
     "deployment-decode-binding-stale",
@@ -382,11 +394,17 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
               inspect(unlisted)
     end
 
-    floor = 18
+    floor = 79
 
     if length(swept) < floor do
       raise "artifact sweep shrank to #{length(swept)} cases (floor #{floor})"
     end
+  end
+
+  # Null bounds select the same profile as omitted bounds.
+  defp single_artifact_input?(input) do
+    input = if input["bounds"] == nil, do: Map.delete(input, "bounds"), else: input
+    Map.keys(input) == ["text"]
   end
 
   defp sweep_partition do
@@ -397,7 +415,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
           @artifact_surfaces[entry["surface"]] != nil,
           text = entry["input"]["text"],
           text != nil do
-        {entry["id"], Map.keys(entry["input"]) == ["text"]}
+        {entry["id"], single_artifact_input?(entry["input"])}
       end
 
     swept = for {id, true} <- cases, do: id
@@ -438,7 +456,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
           # ceiling override, a companion artifact for the binding stage)
           # exercises multi-input semantics the single-file mode does not
           # claim — those cases stay covered by the corpus run itself.
-          Map.keys(entry["input"]) == ["text"],
+          single_artifact_input?(entry["input"]),
           text = entry["input"]["text"] do
         {entry["id"], kind, text, entry["expected"]}
       end

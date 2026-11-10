@@ -7,7 +7,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   Expectations are CODE-LEVEL and shape-agnostic: an invalid case names the
   expected error code (`"ceiling:<key>"` renders the parameterized family),
-  and every failure — bare atom or `%Error{}` — projects to the same code
+  and every `%Error{}` failure projects to the same code
   string before comparison. A valid case names per-surface projection fields;
   byte-bearing projections compare by base64url fallback (the expected value
   decodes to the actual bytes).
@@ -81,14 +81,16 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   @type result :: %{case_id: binary(), agree: boolean()}
 
   @doc "Executes every loaded case; `%{case_id, agree}` per case, per file."
-  @spec run(Corpus.t()) :: [{binary(), [result()]}]
+  @spec run(Corpus.t()) :: [{binary(), [result()]}] | {:error, Error.t()}
   def run(%Corpus{cases: cases, data: data, raws: raws})
       when is_list(cases) and is_map(data) and not is_struct(data) and is_map(raws) and
              not is_struct(raws) do
-    if cases_ok?(cases), do: run_cases(cases, data, raws), else: {:error, :invalid_type}
+    if cases_ok?(cases),
+      do: run_cases(cases, data, raws),
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
-  def run(_), do: {:error, :invalid_type}
+  def run(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp cases_ok?([]), do: true
 
@@ -112,21 +114,17 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     end)
   end
 
-  @doc """
-  Executes one case and returns `{actual, agree?}` — the same dispatch and
-  agreement machinery `run/1` uses. Tooling surface (the corpus generator,
-  the second-language mirror's cross-checks); hosts use `run/1`.
-  """
+  @doc false
   @spec execute(map(), map(), map()) :: {term(), boolean()}
   def execute(case_obj, data, raws)
       when is_map(case_obj) and is_map(data) and not is_struct(data) and is_map(raws) and
              not is_struct(raws) do
     if case_shape?(case_obj),
       do: execute_case(case_obj, data, raws),
-      else: {{:error, :invalid_type}, false}
+      else: {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false}
   end
 
-  def execute(_, _, _), do: {{:error, :invalid_type}, false}
+  def execute(_, _, _), do: {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false}
 
   defp case_shape?(case_obj) when is_map(case_obj) and not is_struct(case_obj),
     do:
@@ -212,8 +210,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp valid_projections_agree?(_projections, _actual), do: false
 
-  # Every failure shape projects to one code string: bare atoms, %Error{}
-  # records, and the parameterized ceiling family.
+  # Typed failures project to one code string, including the ceiling family.
   defp project_code(%Error{} = error), do: project_code(error.code)
   defp project_code({:ceiling, key}), do: "ceiling:" <> Atom.to_string(key)
   defp project_code(code) when is_atom(code), do: Atom.to_string(code)
@@ -263,7 +260,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
       surface in @negotiation_surfaces -> dispatch_negotiation(surface, input, data, raws)
       surface in @bound_surfaces -> dispatch_bounds(surface, input, data, raws)
       surface in @late_surfaces -> dispatch_late(surface, input, data, raws)
-      true -> {:error, :invalid_type}
+      true -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -303,7 +300,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         verify_tagged_content(input, raws)
 
       true ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -340,7 +337,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
          {:ok, entry} <- Json.decode(entry_text),
          {:ok, keys} <- build_keys(input) do
       case Signature.verify(entry, keys) do
-        {:ok, :verified} -> {:ok, %{"verified" => true}}
+        {:ok, %Signature.Attributes{}} -> {:ok, %{"verified" => true}}
         error -> error
       end
     end
@@ -477,7 +474,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         dispatch_federation_codec(input)
 
       true ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -513,7 +510,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         Federation.from_mcp_carrier(to_tagged(input["from_mcp_carrier"]))
 
       true ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
     |> project_codec()
   end
@@ -540,7 +537,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   defp to_logical_state(codec, spelling) do
     case Map.fetch(@logical_states, spelling) do
       {:ok, logical} -> codec.(logical)
-      :error -> {:error, :invalid_type}
+      :error -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -563,29 +560,29 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
       is_binary(input["raw_file"]) ->
         case Map.get(raws, input["raw_file"]) do
           bytes when is_binary(bytes) -> {:ok, bytes}
-          _ -> {:error, :invalid_type}
+          _ -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
         end
 
       true ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp decode_input_b64(encoded) do
     case Base.url_decode64(encoded, padding: false) do
       {:ok, bytes} -> {:ok, bytes}
-      :error -> {:error, :invalid_type}
+      :error -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp fetch_binary(input, key) when is_map(input) and not is_struct(input) do
     case Map.get(input, key) do
       bytes when is_binary(bytes) -> {:ok, bytes}
-      _ -> {:error, :invalid_type}
+      _ -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  defp fetch_binary(_, _), do: {:error, :invalid_type}
+  defp fetch_binary(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp bounds_overrides(input) do
     case Map.get(input, "bounds") do
@@ -604,14 +601,14 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
          end)}
 
       _ ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp fetch_domain(input) do
     case Map.fetch(@digest_domains, input["domain"]) do
       {:ok, domain} -> {:ok, domain}
-      :error -> {:error, :invalid_type}
+      :error -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -624,14 +621,16 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         {:ok, to_tagged(input["schema"])}
 
       true ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  defp stored_schema(nil), do: {:error, :invalid_type}
+  defp stored_schema(nil), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp stored_schema(schema) when is_map(schema) do
-    if plain_map?(schema), do: {:ok, to_tagged(schema)}, else: {:error, :invalid_type}
+    if plain_map?(schema),
+      do: {:ok, to_tagged(schema)},
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
   defp stored_schema(schema), do: {:ok, schema}
@@ -640,21 +639,21 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     case input["dialect"] do
       nil -> {:ok, Schema.dialect()}
       dialect when is_binary(dialect) -> {:ok, dialect}
-      _ -> {:error, :invalid_type}
+      _ -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp tagged_field(input, key) do
-    case Map.get(input, key) do
-      nil -> {:error, :invalid_type}
-      value -> {:ok, to_tagged(value)}
+    case Map.fetch(input, key) do
+      :error -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
+      {:ok, value} -> {:ok, to_tagged(value)}
     end
   end
 
   defp build_keys(input) do
     case Map.get(input, "keys") do
       keys when is_list(keys) -> build_key_list(keys)
-      _ -> {:error, :invalid_type}
+      _ -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -679,11 +678,11 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         {:ok, %Signature.PublicKey{key_id: id, algorithm: :ed25519, key: key}}
 
       _ ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  defp build_key(_), do: {:error, :invalid_type}
+  defp build_key(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp build_support(input) do
     # A malformed nested member denies typed — a non-map "support" must not
@@ -692,7 +691,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     case Map.get(input, "support") do
       nil -> do_build_support(%{})
       support_input when is_map(support_input) -> do_build_support(support_input)
-      _ -> {:error, :invalid_type}
+      _ -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -735,7 +734,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
          schemas: schemas
        }}
     else
-      {:error, :invalid_type}
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -761,14 +760,14 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         end
 
       _ ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp add_bound_entry(name, value, acc) do
     case Map.fetch(@bound_name_atoms, name) do
       {:ok, atom} -> {:cont, {:ok, Map.put(acc, atom, descope_value(value))}}
-      :error -> {:halt, {:error, :invalid_type}}
+      :error -> {:halt, {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}}
     end
   end
 
@@ -826,7 +825,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         observed_identities(identities)
 
       _ ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -844,7 +843,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp finalize_observed(mapped) do
     if :invalid in mapped do
-      {:error, :invalid_type}
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     else
       {:ok, %Compatibility.Observed{identities: mapped}}
     end
@@ -876,8 +875,8 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
          prior_receipts: receipts
        }}
     else
-      :invalid -> {:error, :invalid_type}
-      _ -> {:error, :invalid_type}
+      :invalid -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
+      _ -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -893,7 +892,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         end)
 
       _ ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -913,7 +912,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         list |> Enum.map(&parse_receipt/1) |> finalize_receipts()
 
       _not_a_list ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -929,7 +928,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp finalize_receipts(receipts) do
     if :invalid in receipts do
-      {:error, :invalid_type}
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     else
       {:ok, receipts}
     end

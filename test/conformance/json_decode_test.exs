@@ -30,62 +30,84 @@ defmodule AgentBlueprintProtocol.Conformance.JsonDecodeTest do
     end
 
     test "depth one past the ceiling is rejected" do
-      assert Json.decode("[[[[[1]]]]]", %{depth: 4}) == {:error, {:ceiling, :depth}}
+      assert Json.decode("[[[[[1]]]]]", %{depth: 4}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}}
     end
   end
 
   describe "class: maximum_plus_one (every other parse ceiling)" do
     test "total input bytes" do
-      assert Json.decode("[1,2,3]", %{bytes: 3}) == {:error, {:ceiling, :bytes}}
+      assert Json.decode("[1,2,3]", %{bytes: 3}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :bytes}}}
     end
 
     test "items in one array" do
-      assert Json.decode("[1,2,3]", %{items: 2}) == {:error, {:ceiling, :items}}
+      assert Json.decode("[1,2,3]", %{items: 2}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :items}}}
+
       assert {:ok, _} = Json.decode("[1,2]", %{items: 2})
     end
 
     test "members in one object" do
-      assert Json.decode(~s({"a":1,"b":2,"c":3}), %{members: 2}) == {:error, {:ceiling, :members}}
+      assert Json.decode(~s({"a":1,"b":2,"c":3}), %{members: 2}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :members}}}
     end
 
     test "total value nodes, counted exactly including the root" do
       assert Json.decode("1", %{nodes: 1}) == {:ok, {:integer, 1}}
-      assert Json.decode("[1]", %{nodes: 1}) == {:error, {:ceiling, :nodes}}
+
+      assert Json.decode("[1]", %{nodes: 1}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :nodes}}}
+
       assert {:ok, _} = Json.decode("[1]", %{nodes: 2})
-      assert Json.decode("[1,[2,3]]", %{nodes: 2}) == {:error, {:ceiling, :nodes}}
+
+      assert Json.decode("[1,[2,3]]", %{nodes: 2}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :nodes}}}
     end
 
     test "string value byte length (nested and root)" do
-      assert Json.decode(~s(["abcd"]), %{string: 3}) == {:error, {:ceiling, :string}}
-      assert Json.decode(~s("abcd"), %{string: 3}) == {:error, {:ceiling, :string}}
+      assert Json.decode(~s(["abcd"]), %{string: 3}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :string}}}
+
+      assert Json.decode(~s("abcd"), %{string: 3}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :string}}}
+
       assert {:ok, _} = Json.decode(~s("abc"), %{string: 3})
     end
 
     test "object key byte length" do
-      assert Json.decode(~s({"abcd":1}), %{key: 3}) == {:error, {:ceiling, :key}}
+      assert Json.decode(~s({"abcd":1}), %{key: 3}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :key}}}
     end
 
     test "number lexeme byte length (integer and float paths)" do
-      assert Json.decode("123456", %{number_lexeme: 3}) == {:error, {:ceiling, :number_lexeme}}
-      assert Json.decode("1.234", %{number_lexeme: 3}) == {:error, {:ceiling, :number_lexeme}}
+      assert Json.decode("123456", %{number_lexeme: 3}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :number_lexeme}}}
+
+      assert Json.decode("1.234", %{number_lexeme: 3}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :number_lexeme}}}
     end
   end
 
   describe "class: invalid_encoding" do
     test "a bad UTF-8 byte inside a string is rejected" do
-      assert Json.decode(<<?", 0xFF, ?">>) == {:error, :invalid_encoding}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}} =
+               Json.decode(<<?", 0xFF, ?">>)
     end
   end
 
   describe "class: invalid_duplicate" do
     test "duplicate object members are rejected" do
-      assert Json.decode(~s({"a":1,"a":2})) == {:error, :duplicate_member}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :duplicate_member}} =
+               Json.decode(~s({"a":1,"a":2}))
     end
 
     test "the divergence: stdlib :json silently collapses the duplicate this gate rejects" do
       # A decoder delegating to the stdlib would WRONGLY accept, keeping the first.
       assert :json.decode(~s({"a":1,"a":2})) == %{"a" => 1}
-      assert Json.decode(~s({"a":1,"a":2})) == {:error, :duplicate_member}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :duplicate_member}} =
+               Json.decode(~s({"a":1,"a":2}))
     end
   end
 
@@ -97,8 +119,12 @@ defmodule AgentBlueprintProtocol.Conformance.JsonDecodeTest do
     end
 
     test "binary64 adjacency: silently-lossy lexemes deny, exactly-representable ones admit" do
-      assert Json.decode("-9007199254740993") == {:error, :number_not_double_expressible}
-      assert Json.decode("9007199254740993") == {:error, :number_not_double_expressible}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :number_not_double_expressible}} =
+               Json.decode("-9007199254740993")
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :number_not_double_expressible}} =
+               Json.decode("9007199254740993")
+
       assert Json.decode("9007199254740994") == {:ok, {:float, 9.007_199_254_740_994e15}}
     end
   end
@@ -111,7 +137,8 @@ defmodule AgentBlueprintProtocol.Conformance.JsonDecodeTest do
     end
 
     test "the exact-value (non-canonical) spelling of the same double denies" do
-      assert Json.decode("295147905179352825856") == {:error, :number_not_double_expressible}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :number_not_double_expressible}} =
+               Json.decode("295147905179352825856")
     end
 
     test "a lexeme whose bignum * 1.0 conversion mis-rounds still admits at the correct double" do
@@ -125,18 +152,23 @@ defmodule AgentBlueprintProtocol.Conformance.JsonDecodeTest do
     end
 
     test "pure digits at 1e21 and beyond deny — the canonical form is exponential" do
-      assert Json.decode("1000000000000000000000") == {:error, :number_not_double_expressible}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :number_not_double_expressible}} =
+               Json.decode("1000000000000000000000")
     end
   end
 
   describe "class: boundary — lexeme ceiling fires before window adjudication" do
     test "63- and 64-byte digit lexemes pass the length guard and deny in the window" do
-      assert Json.decode(String.duplicate("9", 63)) == {:error, :number_not_double_expressible}
-      assert Json.decode(String.duplicate("9", 64)) == {:error, :number_not_double_expressible}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :number_not_double_expressible}} =
+               Json.decode(String.duplicate("9", 63))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :number_not_double_expressible}} =
+               Json.decode(String.duplicate("9", 64))
     end
 
     test "a 65-byte lexeme hits the ceiling, never the window rule" do
-      assert Json.decode(String.duplicate("9", 65)) == {:error, {:ceiling, :number_lexeme}}
+      assert Json.decode(String.duplicate("9", 65)) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :number_lexeme}}}
     end
   end
 
@@ -145,8 +177,11 @@ defmodule AgentBlueprintProtocol.Conformance.JsonDecodeTest do
       for lexeme <-
             ~w(-9007199254740993 9007199254740993 295147905179352825856 1000000000000000000000) ++
               [String.duplicate("9", 63)] do
-        assert Json.decode(lexeme) == {:error, :number_not_double_expressible}
-        assert Json.decode(lexeme) != {:error, :integer_magnitude}
+        assert {:error, %AgentBlueprintProtocol.Error{code: :number_not_double_expressible}} =
+                 Json.decode(lexeme)
+
+        assert Json.decode(lexeme) !=
+                 {:error, %AgentBlueprintProtocol.Error{code: :integer_magnitude}}
       end
     end
   end

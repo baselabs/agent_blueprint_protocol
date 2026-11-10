@@ -15,11 +15,10 @@ used a bespoke preimage form.
 Real detached JWS: RFC 7515 compact serialization + RFC 7797 `b64=false`
 unencoded detached payload. Payload = JCS(signed_attributes) carrying
 `algorithm`, `content_digest`, `created_at`, `key_id`, `purpose`;
-protected header `{alg: EdDSA, kid, crit: ["b64"], b64: false}` —
+protected header `{alg: Ed25519, kid, crit: ["b64"], b64: false}` —
 A2A §8.4-aligned, verifiable by stock JOSE libraries.
 
-Ed25519 only. Algorithm succession is a data change plus a revision
-increment, not a crypto-agility subsystem. The package verifies only:
+Ed25519 only. The normative algorithm succession rule is protocol §6. The package verifies only:
 never signs, never accepts a private key on any public function
 (three-way architecture gate: banned parameter names, banned
 `:crypto.sign` call sites, plus a beam census that resolves every remote
@@ -35,3 +34,12 @@ blocks key substitution. Small-order Ed25519 keys reject. The sign-path
 ban makes the package structurally unusable as a signing oracle. Red
 proofs: the verify-only gate reds on each banned form (parameter,
 source call, beam census).
+
+## Identifier compatibility
+
+Revision 1 accepts both `EdDSA` and `Ed25519`; producers SHOULD emit
+`Ed25519` ([RFC 9864](https://www.rfc-editor.org/rfc/rfc9864.html)).
+`EdDSA` remains valid throughout revision 1. The signing input uses the
+header as presented, so changing the spelling requires a signature over
+those bytes. This spelling compatibility follows protocol §6;
+algorithm succession follows that section's single rule.

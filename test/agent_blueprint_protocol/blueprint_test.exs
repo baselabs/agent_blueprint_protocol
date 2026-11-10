@@ -51,7 +51,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     value = with_signatures(signatures: [wrong])
     {:ok, bytes} = Canonicalization.encode(value)
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   # ---- the 15 required members ---------------------------------------------------
@@ -61,7 +63,8 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       members = Enum.reject(base_members([]), fn {n, _} -> n == name end)
       {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
 
-      assert {:error, :missing_required_field} = Blueprint.decode(bytes),
+      assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+               Blueprint.decode(bytes),
              "#{name} must be required"
     end
   end
@@ -79,19 +82,25 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
   test "unknown members deny :unknown_member at the root and in nested objects" do
     root = base_members([]) ++ [{"mystery", {:integer, 1}}]
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(root))
-    assert {:error, :unknown_member} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Blueprint.decode(bytes)
 
     bad_port = {:object, [{"name", {:string, "request"}}, {"surprise", {:integer, 1}}]}
     nested = base_members([]) |> replace("input_ports", {:array, [bad_port]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(nested))
-    assert {:error, :unknown_member} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Blueprint.decode(bytes)
 
     bad_ceiling =
       {:object, [{"max_depth", {:integer, 8}}, {"extra", {:integer, 1}}]}
 
     nested = base_members([]) |> replace("ceilings", bad_ceiling)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(nested))
-    assert {:error, :unknown_member} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Blueprint.decode(bytes)
   end
 
   # ---- the window-float obligation ----------------------------------------------
@@ -103,7 +112,10 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
         ] do
       members = base_members([]) |> replace_elem(swap)
       {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-      assert {:error, :invalid_type} = Blueprint.decode(bytes), inspect(elem(swap, 0))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Blueprint.decode(bytes),
+             inspect(elem(swap, 0))
     end
 
     bad_ceiling =
@@ -111,14 +123,14 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       |> replace("ceilings", replace_ceiling("max_attempts", @window_float))
 
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(bad_ceiling))
-    assert {:error, :invalid_type} = Blueprint.decode(bytes)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = Blueprint.decode(bytes)
 
     bad_cost =
       base_members([])
       |> replace("ceilings", replace_cost_amount(@window_float))
 
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(bad_cost))
-    assert {:error, :invalid_type} = Blueprint.decode(bytes)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = Blueprint.decode(bytes)
   end
 
   test "the integer forms of the same fields stay green at the boundary" do
@@ -139,7 +151,10 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
         ] do
       members = base_members([]) |> replace_elem(swap)
       {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-      assert {:error, :invalid_constraint} = Blueprint.decode(bytes), inspect(elem(swap, 0))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               Blueprint.decode(bytes),
+             inspect(elem(swap, 0))
     end
 
     bad_port =
@@ -147,7 +162,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("input_ports", {:array, [bad_port]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   defp with_digest(members) do
@@ -160,23 +177,31 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     oversized = Enum.map(1..65, &port("p#{&1}"))
     members = base_members([]) |> replace("input_ports", {:array, oversized})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_cardinality} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Blueprint.decode(bytes)
 
     members = base_members([]) |> replace("triggers", {:array, []})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_cardinality} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Blueprint.decode(bytes)
 
     dup_triggers = {:array, [{:string, "manual"}, {:string, "manual"}]}
     members = base_members([]) |> replace("triggers", dup_triggers)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_cardinality} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Blueprint.decode(bytes)
   end
 
   test "duplicate identity members deny :invalid_cardinality" do
     dup_ports = {:array, [port("same"), port("same")]}
     members = base_members([]) |> replace("input_ports", dup_ports)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_cardinality} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Blueprint.decode(bytes)
   end
 
   # ---- canonicality (the carried obligation) ---------------------------------------------------
@@ -188,14 +213,18 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     # normalized re-encoded bytes would PASS the digest on this input.
     {:object, members} = fixture_value([])
     bytes = raw_object(Enum.reverse(members))
-    assert {:error, :non_canonical_bytes} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+             Blueprint.decode(bytes)
 
     # Non-canonical number spelling: 1.0 where JCS emits 1.
     patched =
       String.replace(fixture_bytes([]), ~s("release_number":1,), ~s("release_number":1.0,))
 
     assert patched != fixture_bytes([])
-    assert {:error, :non_canonical_bytes} = Blueprint.decode(patched)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+             Blueprint.decode(patched)
 
     # Escaped unicode where JCS emits the literal character.
     patched =
@@ -206,11 +235,15 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       )
 
     assert patched != fixture_bytes([])
-    assert {:error, :non_canonical_bytes} = Blueprint.decode(patched)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+             Blueprint.decode(patched)
 
     # Whitespace between tokens.
     spaced = String.replace(fixture_bytes([]), ~s({"blueprint_id"), ~s({ "blueprint_id"))
-    assert {:error, :non_canonical_bytes} = Blueprint.decode(spaced)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+             Blueprint.decode(spaced)
   end
 
   # A hand-rolled object serializer that does NOT sort members — the only
@@ -244,7 +277,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(tampered)
-    assert {:error, :digest_mismatch} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+             Blueprint.decode(bytes)
   end
 
   test "a tampered digest member (still well-formed) denies :digest_mismatch" do
@@ -266,7 +301,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       |> AgentBlueprintProtocol.BlueprintFixture.with_digest(declared_digest: swapped)
 
     {:ok, bytes} = Canonicalization.encode(members)
-    assert {:error, :digest_mismatch} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+             Blueprint.decode(bytes)
   end
 
   test "mutating the signatures member leaves the digest comparison green" do
@@ -312,7 +349,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
   test "any non-empty attestations array denies :attestation_malformed (kind registry empty)" do
     members = base_members([]) ++ [{"attestations", {:array, [{:object, []}]}}]
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :attestation_malformed} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :attestation_malformed}} =
+             Blueprint.decode(bytes)
   end
 
   test "a malformed signature entry denies :signature_malformed" do
@@ -328,7 +367,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) ++ [{"signatures", {:array, [{:object, broken}]}}]
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :signature_malformed} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+             Blueprint.decode(bytes)
   end
 
   # ---- assertion kinds ----------------------------------------------------------------------------
@@ -337,29 +378,39 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     bad = {:object, [{"kind", {:string, "output_schema"}}, {"port", {:string, "result"}}]}
     members = base_members([]) |> replace("evaluation_assertions", {:array, [bad]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :missing_required_field} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Blueprint.decode(bytes)
 
     unknown_kind = {:object, [{"kind", {:string, "rubric"}}]}
     members = base_members([]) |> replace("evaluation_assertions", {:array, [unknown_kind]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
 
     no_bound = {:object, [{"kind", {:string, "parameter_bound"}}, {"parameter", {:string, "x"}}]}
     members = base_members([]) |> replace("evaluation_assertions", {:array, [no_bound]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   test "cross-field assertion references are enforced" do
     tie_out_bad = assertion(kind: "provenance_tie_out", member: "signatures")
     members = base_members([]) |> replace("evaluation_assertions", {:array, [tie_out_bad]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
 
     use_bad = assertion(kind: "required_capability_use", family: "no.such.family")
     members = base_members([]) |> replace("evaluation_assertions", {:array, [use_bad]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
 
     pred_bad =
       assertion(
@@ -375,7 +426,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("evaluation_assertions", {:array, [pred_bad]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :predicate_path_unresolved} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
+             Blueprint.decode(bytes)
   end
 
   test "output_contract.port must name an output port" do
@@ -384,7 +437,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       |> replace("output_ports", {:array, []})
 
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   # ---- required_core_fields -------------------------------------------------------------------------
@@ -393,12 +448,17 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     for value <- ["bogus", "signatures", "attestations", "content_digest"] do
       members = base_members(required_core_fields: [value])
       {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-      assert {:error, :invalid_constraint} = Blueprint.decode(bytes), value
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               Blueprint.decode(bytes),
+             value
     end
 
     members = base_members(required_core_fields: ["blueprint_id", "blueprint_id"])
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_cardinality} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Blueprint.decode(bytes)
   end
 
   # ---- extensions --------------------------------------------------------------------------------------
@@ -407,12 +467,16 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     missing_optional = {:object, [{"critical", {:object, []}}]}
     members = base_members([]) |> replace("extensions", missing_optional)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :missing_required_field} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Blueprint.decode(bytes)
 
     extra = {:object, [{"critical", {:object, []}}, {"optional", {:object, []}}, {"x", :null}]}
     members = base_members([]) |> replace("extensions", extra)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :unknown_member} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Blueprint.decode(bytes)
 
     dup =
       extensions(
@@ -422,19 +486,26 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("extensions", dup)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :extension_duplicate} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_duplicate}} =
+             Blueprint.decode(bytes)
 
     for bad_ns <- ["example.demo/a/b", "Example.Demo/x", "example.demo"] do
       bad = extensions(critical: %{bad_ns => {:object, []}})
       members = base_members([]) |> replace("extensions", bad)
       {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-      assert {:error, :extension_namespace_invalid} = Blueprint.decode(bytes), bad_ns
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :extension_namespace_invalid}} =
+               Blueprint.decode(bytes),
+             bad_ns
     end
 
     many = Map.new(1..33, &{"example.demo/ns#{&1}", {:object, []}})
     members = base_members([]) |> replace("extensions", extensions(optional: many))
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_cardinality} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Blueprint.decode(bytes)
   end
 
   # ---- portability ----------------------------------------------------------------------------------------
@@ -443,7 +514,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     pem = "-----" <> "BEGIN PRIVATE KEY-----\nMIIEvQ\n-----" <> "END PRIVATE KEY-----"
     members = base_members(toolchain: pem)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Blueprint.decode(bytes)
 
     # Tripwire: a PEM inside a signature entry's free key_id string.
     entry =
@@ -454,7 +527,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     value = fixture_value(extra_members: [{"signatures", {:array, [entry]}}])
     {:ok, bytes} = Canonicalization.encode(value)
-    assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Blueprint.decode(bytes)
   end
 
   test "never-portable member names deny :forbidden_portable_value in the open regions" do
@@ -462,7 +537,10 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       bad = extensions(optional: %{"example.demo/x" => {:object, [{name, {:integer, 1}}]}})
       members = base_members([]) |> replace("extensions", bad)
       {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-      assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes), name
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+               Blueprint.decode(bytes),
+             name
     end
 
     schema_with_bad_name =
@@ -477,7 +555,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("input_ports", {:array, [bad_port]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Blueprint.decode(bytes)
   end
 
   test "an endpoint value inside an extension body denies" do
@@ -490,7 +570,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("extensions", bad)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Blueprint.decode(bytes)
   end
 
   test "the honest-limit calibration: UUID green, identifier convention position-scoped" do
@@ -519,7 +601,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("extensions", smug)
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Blueprint.decode(bytes)
 
     # The same string as a logical operation name (an identifier position)
     # stays green.
@@ -542,7 +626,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     members = base_members([]) ++ [{"mystery", {:integer, 1}}]
     {:object, sorted} = with_digest_fake(members)
     bytes = raw_object(Enum.reverse(sorted))
-    assert {:error, :non_canonical_bytes} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+             Blueprint.decode(bytes)
   end
 
   test "structural failures outrank the portability scan" do
@@ -552,7 +638,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       base_members(toolchain: pem) |> replace("classification_ceiling", {:string, "topsecret"})
 
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   # ---- from_value + the artifact API ---------------------------------------------------------------------------
@@ -562,7 +650,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     assert {:ok, %Blueprint{}} = Blueprint.from_value({:object, Enum.reverse(members)})
 
     bad = base_members([]) |> replace("classification_ceiling", {:string, "topsecret"})
-    assert {:error, :invalid_constraint} = Blueprint.from_value(with_digest_fake(bad))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.from_value(with_digest_fake(bad))
   end
 
   test "to_value is the decoded value; digest_input drops exactly the three evidence members" do
@@ -634,12 +724,16 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       |> replace("extensions", {:string, "x"})
 
     value = digested(members)
-    assert {:error, :invalid_type} = Blueprint.from_value(value)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Blueprint.from_value(value)
 
     # F3: a non-string required_core_fields element (constraint stage runs
     # before element recursion).
     members = base_members([]) |> replace("required_core_fields", {:array, [{:integer, 1}]})
-    assert {:error, :invalid_constraint} = Blueprint.from_value(digested(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.from_value(digested(members))
   end
 
   test "review F5: impossible calendar timestamps deny" do
@@ -653,7 +747,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("producer", bad_producer)
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   test "review F6: predicate operand member names are denylist-scanned" do
@@ -672,7 +768,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("evaluation_assertions", {:array, [smuggle]})
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Blueprint.decode(bytes)
   end
 
   test "review F7: output_schema assertions must name a declared port" do
@@ -686,7 +784,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("evaluation_assertions", {:array, [bad]})
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   test "a PEM as a port name denies (identifier position, exemption bypassed by the marker)" do
@@ -701,7 +801,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("input_ports", {:array, [bad_port]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :forbidden_portable_value} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Blueprint.decode(bytes)
   end
 
   defp put_member({:object, members}, name, value),
@@ -718,7 +820,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       |> replace("output_ports", {:array, [port("request"), port("result")]})
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_cardinality} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Blueprint.decode(bytes)
   end
 
   defp digested(members), do: AgentBlueprintProtocol.BlueprintFixture.with_digest(members)
@@ -767,12 +871,16 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     # release_number 0: the positive floor.
     members = base_members([]) |> replace("release_number", {:integer, 0})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
 
     # malformed digest tag: from_tagged's reason passes through.
     members = base_members([]) ++ [{"content_digest", {:string, "sha-256:short"}}]
     {:ok, bytes} = Canonicalization.encode({:object, Enum.sort(members)})
-    assert {:error, :digest_encoding_invalid} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+             Blueprint.decode(bytes)
 
     # malformed port schema: Schema's reason passes through.
     bad_port =
@@ -782,23 +890,29 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("input_ports", {:array, [bad_port]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :schema_keyword_value_invalid} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
+             Blueprint.decode(bytes)
 
     # assertion element that is not an object (not encodable — from_value).
     members = base_members([]) |> replace("evaluation_assertions", {:array, [5]})
-    assert {:error, :invalid_type} = Blueprint.from_value(with_digest_fake(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Blueprint.from_value(with_digest_fake(members))
 
     # assertion kind member with a malformed-tagged value (from_value).
     bad_kind = {:object, [{"kind", 5}]}
     members = base_members([]) |> replace("evaluation_assertions", {:array, [bad_kind]})
-    assert {:error, :invalid_type} = Blueprint.from_value(with_digest_fake(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Blueprint.from_value(with_digest_fake(members))
 
     # extensions region that is not an object denies :invalid_type (the
     # total-walk fallback; the envelope member names themselves are fine).
     bad_ext = {:object, [{"critical", {:array, []}}, {"optional", {:object, []}}]}
     members = base_members([]) |> replace("extensions", bad_ext)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_type} = Blueprint.decode(bytes)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = Blueprint.decode(bytes)
   end
 
   test "sweep: assertion operand type fallbacks" do
@@ -806,7 +920,7 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     bad = assertion(kind: "grounding_presence", dataset: "")
     members = base_members([]) |> replace("evaluation_assertions", {:array, [bad]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_type} = Blueprint.decode(bytes)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = Blueprint.decode(bytes)
 
     # parameter_bound with float bounds, integer bounds, and rich values.
     good =
@@ -868,7 +982,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     bad = assertion(kind: "approval_expected", family: "no.such.family")
     members = base_members([]) |> replace("evaluation_assertions", {:array, [bad]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
 
     bad_trait =
       {:object,
@@ -880,19 +996,25 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("evaluation_assertions", {:array, [bad_trait]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
 
     # forbidden_capability_use with a malformed-tagged family operand
     # (not encodable — validate through from_value).
     bad = {:object, [{"kind", {:string, "forbidden_capability_use"}}, {"operation_family", 5}]}
     members = base_members([]) |> replace("evaluation_assertions", {:array, [bad]})
-    assert {:error, :invalid_type} = Blueprint.from_value(with_digest_fake(members))
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Blueprint.from_value(with_digest_fake(members))
 
     # ceiling assertion naming max_cost (excluded from the seven-name enum).
     bad = assertion(kind: "ceiling", ceiling: "max_cost")
     members = base_members([]) |> replace("evaluation_assertions", {:array, [bad]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   test "sweep: producer/currency/namespace constraint fallbacks" do
@@ -919,7 +1041,10 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
     {:object, _} = AgentBlueprintProtocol.BlueprintFixture.ceilings()
     members = base_members([]) |> replace("ceilings", {:object, ceilings})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
+
     _ = bad_cost
 
     # created_at not in Z whole-second form.
@@ -933,7 +1058,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("producer", bad_producer)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
 
     # blueprint_id with a bad segment form.
     members =
@@ -941,7 +1068,9 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
       |> replace("blueprint_id", {:string, "Example.Demo/echo"})
 
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
 
     # producer identity with a slash (not the dotted form).
     bad_producer =
@@ -954,14 +1083,18 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("producer", bad_producer)
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :invalid_constraint} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Blueprint.decode(bytes)
   end
 
   test "sweep: assertion shape fallbacks and verify_content_digest totality" do
     # assertion with no kind member at all.
     members = base_members([]) |> replace("evaluation_assertions", {:array, [{:object, []}]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :missing_required_field} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Blueprint.decode(bytes)
 
     # assertion with an unknown extra member.
     extra =
@@ -975,11 +1108,13 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
 
     members = base_members([]) |> replace("evaluation_assertions", {:array, [extra]})
     {:ok, bytes} = Canonicalization.encode(with_digest_fake(members))
-    assert {:error, :unknown_member} = Blueprint.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Blueprint.decode(bytes)
 
     # verify_content_digest on a struct whose value lacks the member: the
     # public function's own totality branch.
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Blueprint.verify_content_digest(%Blueprint{value: {:object, []}})
 
     # rich :any operand values exercising well_formed?'s numeric positives.
@@ -1017,14 +1152,19 @@ defmodule AgentBlueprintProtocol.BlueprintTest do
          ]}
 
       members = base_members([]) |> replace("evaluation_assertions", {:array, [bad]})
-      assert {:error, :invalid_type} = Blueprint.from_value(with_digest_fake(members))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Blueprint.from_value(with_digest_fake(members))
     end
   end
 
   describe "decode catch-all (the never-raising posture at the API type boundary)" do
     test "a non-binary input denies with a typed error, never raises" do
-      assert Blueprint.decode(:atom) == {:error, :invalid_type}
-      assert Blueprint.decode(123, %{}) == {:error, :invalid_type}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Blueprint.decode(:atom)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Blueprint.decode(123, %{})
     end
   end
 end

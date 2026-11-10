@@ -40,24 +40,28 @@ defmodule AgentBlueprintProtocol.Conformance.DigestTaggedTest do
 
   describe "class: invalid_encoding" do
     test "unknown algorithm tags (inexact spellings included)" do
-      assert Digest.from_tagged("SHA-256:" <> @abc_body) ==
-               {:error, :digest_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}} =
+               Digest.from_tagged("SHA-256:" <> @abc_body)
 
-      assert Digest.from_tagged("sha256:" <> @abc_body) == {:error, :digest_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}} =
+               Digest.from_tagged("sha256:" <> @abc_body)
 
-      assert Digest.from_tagged("sha-512:" <> @abc_body) ==
-               {:error, :digest_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}} =
+               Digest.from_tagged("sha-512:" <> @abc_body)
     end
 
     test "malformed tagged strings" do
-      assert Digest.from_tagged("not-a-tagged-digest") == {:error, :digest_encoding_invalid}
-      assert Digest.from_tagged("sha-256:") == {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("not-a-tagged-digest")
 
-      assert Digest.from_tagged("sha-256:" <> String.slice(@abc_body, 0, 42)) ==
-               {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256:")
 
-      assert Digest.from_tagged("sha-256:" <> @abc_body <> "==") ==
-               {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256:" <> String.slice(@abc_body, 0, 42))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256:" <> @abc_body <> "==")
     end
   end
 
@@ -68,8 +72,8 @@ defmodule AgentBlueprintProtocol.Conformance.DigestTaggedTest do
 
       mutated = flip_bit(bytes, 0, 0)
 
-      assert Digest.verify_content(:blueprint_content, mutated, tagged) ==
-               {:error, :digest_mismatch}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+               Digest.verify_content(:blueprint_content, mutated, tagged)
     end
 
     test "a covered member's value changed (recomputed digest differs)" do
@@ -80,16 +84,16 @@ defmodule AgentBlueprintProtocol.Conformance.DigestTaggedTest do
 
       tagged = Digest.to_tagged(Digest.hash(:blueprint_content, covered()))
 
-      assert Digest.verify_content(:blueprint_content, other, tagged) ==
-               {:error, :digest_mismatch}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+               Digest.verify_content(:blueprint_content, other, tagged)
     end
 
     test "cross-domain transplant of an honest digest" do
       bytes = covered()
       tagged = Digest.to_tagged(Digest.hash(:conformance_report, bytes))
 
-      assert Digest.verify_content(:blueprint_content, bytes, tagged) ==
-               {:error, :digest_mismatch}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+               Digest.verify_content(:blueprint_content, bytes, tagged)
     end
   end
 
@@ -101,14 +105,16 @@ defmodule AgentBlueprintProtocol.Conformance.DigestTaggedTest do
       tampered = swap_mid_char(tagged)
       assert tampered != tagged
 
-      assert Digest.verify_content(:blueprint_content, bytes, tampered) ==
-               {:error, :digest_mismatch}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+               Digest.verify_content(:blueprint_content, bytes, tampered)
     end
 
     test "a body character swapped for a non-alphabet character" do
       tagged = "sha-256:" <> @abc_body
       tampered = swap_mid_char(tagged, ?.)
-      assert Digest.from_tagged(tampered) == {:error, :digest_encoding_invalid}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged(tampered)
     end
   end
 

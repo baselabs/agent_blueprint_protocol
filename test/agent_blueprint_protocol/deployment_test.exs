@@ -1,6 +1,6 @@
 defmodule AgentBlueprintProtocol.DeploymentTest do
   @moduledoc """
-  The Deployment artifact (base §7, re-derived 2026-08-22): the 19-member
+  The Deployment artifact (protocol §2, re-derived 2026-08-22): the 19-member
   table through the SAME generic engine, the decode pipeline (canonical
   verify → registry validation → portability scan → digest comparison), and
   the binding surface — `binds?/2` (digest equality only) and the six-stage
@@ -53,7 +53,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
   end
 
   test "decode rejects non-canonical bytes before any semantic read" do
-    assert {:error, :non_canonical_bytes} = Deployment.decode(~s( {"authority_requirement": 1} ))
+    assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+             Deployment.decode(~s( {"authority_requirement": 1} ))
   end
 
   # ---- the 16 required members ----------------------------------------------------
@@ -63,7 +64,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       members = Enum.reject(base_members([]), fn {n, _} -> n == name end)
       {:ok, bytes} = Canonicalization.encode(with_digest(members))
 
-      assert {:error, :missing_required_field} = Deployment.decode(bytes),
+      assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+               Deployment.decode(bytes),
              "#{name} must be required"
     end
   end
@@ -80,7 +82,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     members = replace(base_members([]), "blueprint_release", release)
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :missing_required_field} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Deployment.decode(bytes)
   end
 
   test "blueprint_release with a malformed digest denies :digest_encoding_invalid" do
@@ -90,7 +94,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     members = replace(base_members([]), "blueprint_release", release)
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :digest_encoding_invalid} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+             Deployment.decode(bytes)
   end
 
   # ---- tripwire 2: digest integrity, position pinned (corpus commitment) -----------
@@ -103,7 +109,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       |> element_replace_in("blueprint_release", "release_number", {:integer, 2})
 
     {:ok, bytes} = Canonicalization.encode(tampered)
-    assert {:error, :digest_mismatch} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+             Deployment.decode(bytes)
   end
 
   test "a blueprint-domain digest transplanted into deployment_digest denies :digest_mismatch" do
@@ -112,7 +120,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     blueprint_tagged = Digest.to_tagged(Digest.hash(:blueprint_content, jcs))
     {:ok, bytes} = Canonicalization.encode(fixture_value(declared_digest: blueprint_tagged))
-    assert {:error, :digest_mismatch} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+             Deployment.decode(bytes)
   end
 
   # ---- tripwire 3: build_identities exactness (ticket + admitted exacts) -----------
@@ -141,7 +151,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
       {:ok, bytes} = Canonicalization.encode(with_digest(members))
 
-      assert {:error, :compatibility_identity_inexact} = Deployment.decode(bytes),
+      assert {:error, %AgentBlueprintProtocol.Error{code: :compatibility_identity_inexact}} =
+               Deployment.decode(bytes),
              "version #{inspect(bad)} must deny as inexact"
     end
   end
@@ -161,7 +172,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
   test "an empty build_identities array denies :invalid_cardinality (min 1)" do
     members = replace(base_members([]), "build_identities", {:array, []})
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_cardinality} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+             Deployment.decode(bytes)
   end
 
   # ---- tripwire 15: as_of shapes, with codes ----------------------------------------
@@ -183,7 +196,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     for {bad, reason} <- bad_modes do
       members = replace(base_members([]), "data_bindings", {:array, [data_binding(as_of: bad)]})
       {:ok, bytes} = Canonicalization.encode(with_digest(members))
-      assert {:error, ^reason} = Deployment.decode(bytes), "as_of #{inspect(bad)}"
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: ^reason}} = Deployment.decode(bytes),
+             "as_of #{inspect(bad)}"
     end
   end
 
@@ -208,7 +223,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     for bad <- bad_states do
       members = replace(base_members([]), "lifecycle", bad)
       {:ok, bytes} = Canonicalization.encode(with_digest(members))
-      assert {:error, :lifecycle_state_invalid} = Deployment.decode(bytes)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :lifecycle_state_invalid}} =
+               Deployment.decode(bytes)
     end
   end
 
@@ -236,12 +253,16 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     missing = {:object, Enum.reject(bounds, fn {n, _} -> n == "disclosure_ceiling" end)}
     members = replace(base_members([]), "host_bounds", missing)
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :missing_required_field} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Deployment.decode(bytes)
 
     bad = {:object, replace(bounds, "disclosure_ceiling", {:string, "everything"})}
     members = replace(base_members([]), "host_bounds", bad)
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_constraint} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Deployment.decode(bytes)
   end
 
   # ---- tripwires 11 + 12: never-portable in deployment positions, closed world ------
@@ -256,7 +277,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :forbidden_portable_value} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Deployment.decode(bytes)
 
     # adapter_identity as a raw endpoint (scope_projection)
     members =
@@ -267,7 +290,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :forbidden_portable_value} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Deployment.decode(bytes)
 
     # PEM armour inside an extension body
     pem = "-----" <> "BEGIN PRIVATE KEY-----"
@@ -282,7 +307,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :forbidden_portable_value} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Deployment.decode(bytes)
 
     # JWS-shape string in profile_identity (final segment ≥ the detector's
     # 43-char signature floor)
@@ -300,19 +327,25 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       })
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :forbidden_portable_value} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Deployment.decode(bytes)
   end
 
   test "unknown members deny :unknown_member at the root and in nested objects" do
     members = base_members([]) ++ [{"mystery", {:integer, 1}}]
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :unknown_member} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Deployment.decode(bytes)
 
     {:object, release} = release_member()
     bad_release = {:object, release ++ [{"surprise", {:integer, 1}}]}
     members = replace(base_members([]), "blueprint_release", bad_release)
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :unknown_member} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Deployment.decode(bytes)
   end
 
   # ---- tripwire 12 (design): signature purpose is the artifact's fact ----------------
@@ -323,7 +356,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     value = with_signatures(signatures: [wrong])
     {:ok, bytes} = Canonicalization.encode(value)
-    assert {:error, :invalid_constraint} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Deployment.decode(bytes)
   end
 
   # ---- eligibility expressions fail closed --------------------------------------------
@@ -331,7 +366,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
   test "absent or empty eligibility expressions deny" do
     members = replace(base_members([]), "eligibility", eligibility(owner: {:object, []}))
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_constraint} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Deployment.decode(bytes)
 
     absent =
       {:object,
@@ -342,7 +379,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     members = replace(base_members([]), "eligibility", absent)
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :missing_required_field} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Deployment.decode(bytes)
   end
 
   # ---- the authored-extensions channel mirrors Blueprint ------------------------------
@@ -358,13 +397,14 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
           )
       )
 
-    assert {:error, :forbidden_portable_value} = Deployment.from_value(value)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Deployment.from_value(value)
 
     assert {:ok, %Deployment{}} =
              Deployment.from_value(value, %{authored_extensions: ["example.demo/x"]})
 
     # The channel is tied to THIS artifact's critical region.
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.from_value(value, %{authored_extensions: ["example.other/y"]})
   end
 
@@ -394,7 +434,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     {:ok, deployment} = Deployment.decode(fixture_bytes([]))
     other = paired_blueprint(ceilings: other_ceilings())
 
-    assert {:error, :deployment_digest_mismatch} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :deployment_digest_mismatch}} =
              Deployment.verify_binding(deployment, other, %Deployment.Observations{})
   end
 
@@ -408,7 +448,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     {:ok, deployment} = decode_value(value)
     other = paired_blueprint(ceilings: other_ceilings())
 
-    assert {:error, :deployment_digest_mismatch} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :deployment_digest_mismatch}} =
              Deployment.verify_binding(deployment, other, %Deployment.Observations{})
   end
 
@@ -420,7 +460,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     {:ok, deployment} = decode_value(value)
 
-    assert {:error, :binding_incomplete} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :binding_incomplete}} =
              Deployment.verify_binding(deployment, blueprint, %Deployment.Observations{})
   end
 
@@ -429,7 +469,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     {:ok, deployment} = decode_value(value)
     blueprint = paired_blueprint()
 
-    assert {:error, :binding_incomplete} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :binding_incomplete}} =
              Deployment.verify_binding(deployment, blueprint, %Deployment.Observations{})
 
     value = fixture_value(tool_bindings: [tool_binding(operation: "record_summary")])
@@ -458,7 +498,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     {:ok, deployment} = decode_value(value)
 
-    assert {:error, :no_authoritative_recovery} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :no_authoritative_recovery}} =
              Deployment.verify_binding(deployment, blueprint, %Deployment.Observations{})
 
     honest =
@@ -498,7 +538,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     {:ok, deployment} = decode_value(value)
 
-    assert {:error, :no_authoritative_recovery} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :no_authoritative_recovery}} =
              Deployment.verify_binding(deployment, blueprint, %Deployment.Observations{})
   end
 
@@ -518,7 +558,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     stale = %Deployment.Observations{now: now, max_attestation_age_ms: 86_400_000}
 
-    assert {:error, :binding_attestation_stale} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :binding_attestation_stale}} =
              Deployment.verify_binding(deployment, blueprint, stale)
 
     fresh = %Deployment.Observations{
@@ -539,7 +579,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     {:ok, deployment} = decode_value(future_value)
     future = %Deployment.Observations{now: now, max_attestation_age_ms: 86_400_000}
 
-    assert {:error, :binding_attestation_stale} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :binding_attestation_stale}} =
              Deployment.verify_binding(deployment, blueprint, future)
   end
 
@@ -556,7 +596,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       observed: %{"example.demo.read_shape" => tagged("mutated-descriptor")}
     }
 
-    assert {:error, :binding_descriptor_mismatch} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :binding_descriptor_mismatch}} =
              Deployment.verify_binding(deployment, blueprint, rug_pull)
 
     honest = %Deployment.Observations{observed: %{"example.demo.read_shape" => descriptor}}
@@ -582,7 +622,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     lying = replace(honest, "content_digest", {:string, tagged("lie")})
     {:ok, blueprint} = Blueprint.from_value(lying)
 
-    assert {:error, :digest_mismatch} = Blueprint.verify_content_digest(blueprint)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+             Blueprint.verify_content_digest(blueprint)
 
     {:ok, deployment} = Deployment.decode(fixture_bytes([]))
     assert Deployment.binds?(deployment, blueprint)
@@ -599,7 +640,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
                support
              )
 
-    assert {:error, :required_core_field_unsupported} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :required_core_field_unsupported}} =
              Negotiation.negotiate(fixture_value(required_core_fields: ["blueprint_id"]), support)
   end
 
@@ -612,7 +653,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
           {:object, Enum.reject(members, fn {n, _} -> n == "deployment_digest" end)}
       end
 
-    assert {:error, :missing_required_field} = Negotiation.negotiate(stripped, support)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Negotiation.negotiate(stripped, support)
 
     both =
       case fixture_value([]) do
@@ -620,7 +662,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
           {:object, Enum.sort([{"content_digest", {:string, tagged("both")}} | members])}
       end
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(both, support)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(both, support)
   end
 
   test "a Deployment struct negotiates through its own vocabulary" do
@@ -669,12 +712,13 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
   end
 
   test "verify_content_digest denies a value without the digest member" do
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.verify_content_digest(%Deployment{value: {:object, []}})
   end
 
   test "bound_release is total over malformed input" do
-    assert {:error, :invalid_type} = Deployment.bound_release(%Deployment{value: {:object, []}})
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.bound_release(%Deployment{value: {:object, []}})
 
     bad_digest =
       hand_built(
@@ -687,7 +731,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
            ]}
       )
 
-    assert {:error, :digest_encoding_invalid} = Deployment.bound_release(bad_digest)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+             Deployment.bound_release(bad_digest)
 
     bad_number =
       hand_built(
@@ -700,7 +745,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
            ]}
       )
 
-    assert {:error, :invalid_type} = Deployment.bound_release(bad_number)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.bound_release(bad_number)
   end
 
   test "verify_binding is total over hand-built garbage" do
@@ -711,7 +757,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     no_idempotency =
       hand_built(effect_owner: {:object, [{"adapter_identity", {:string, "example.a"}}]})
 
-    assert {:error, :invalid_type} = Deployment.verify_binding(no_idempotency, blueprint, none)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.verify_binding(no_idempotency, blueprint, none)
 
     # idempotency with a malformed recovery tag
     bad_recovery =
@@ -725,7 +772,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
            ]}
       )
 
-    assert {:error, :invalid_type} = Deployment.verify_binding(bad_recovery, blueprint, none)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.verify_binding(bad_recovery, blueprint, none)
 
     # an EMPTY tool_bindings array binds zero operations — green, no raise
     no_tools = hand_built(tool_bindings: {:array, []})
@@ -733,28 +781,36 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     # a non-array tool_bindings member DENIES (fail-closed, never absent)
     string_tools = hand_built(tool_bindings: {:string, "garbage"})
-    assert {:error, :invalid_type} = Deployment.verify_binding(string_tools, blueprint, none)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.verify_binding(string_tools, blueprint, none)
 
     # a PRESENT-BUT-NULL tool_bindings member denies (only a truly absent
     # member or an empty array is the honest zero-binding case)
     null_tools = hand_built(tool_bindings: :null)
-    assert {:error, :invalid_type} = Deployment.verify_binding(null_tools, blueprint, none)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.verify_binding(null_tools, blueprint, none)
 
     # a non-object effect_owner member
     bad_owner = hand_built(effect_owner: {:string, "x"})
-    assert {:error, :invalid_type} = Deployment.verify_binding(bad_owner, blueprint, none)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.verify_binding(bad_owner, blueprint, none)
 
     # a malformed attested_at with a supplied clock
     bad_time = hand_built(tool_bindings: {:array, [garbage_time_binding()]})
     now = %Deployment.Observations{now: ~U[2026-08-22T00:00:00Z]}
-    assert {:error, :invalid_type} = Deployment.verify_binding(bad_time, blueprint, now)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.verify_binding(bad_time, blueprint, now)
 
     # an observed value that is not a tagged digest
     {:ok, deployment} = Deployment.decode(fixture_bytes([]))
 
     bad_observed = %Deployment.Observations{observed: %{"example.demo.read_shape" => "nope"}}
 
-    assert {:error, :digest_encoding_invalid} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
              Deployment.verify_binding(deployment, blueprint, bad_observed)
   end
 
@@ -762,7 +818,7 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     {:ok, deployment} = Deployment.decode(fixture_bytes([]))
     blueprint = paired_blueprint()
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.verify_binding(deployment, blueprint, %Deployment.Observations{now: :nope})
   end
 
@@ -784,22 +840,22 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     unparsable = hand_built(tool_bindings: {:array, [binding]})
     observed = %Deployment.Observations{observed: %{"example.demo.read_shape" => tagged("x")}}
 
-    assert {:error, :digest_encoding_invalid} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
              Deployment.verify_binding(unparsable, blueprint, observed)
 
     # and even with NO observations: the malformed binding denies on its own
-    assert {:error, :digest_encoding_invalid} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
              Deployment.verify_binding(unparsable, blueprint, %Deployment.Observations{})
 
     faceless_garbage = hand_built(tool_bindings: {:array, [faceless]})
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.verify_binding(faceless_garbage, blueprint, observed)
 
     # a non-object element denies at stage 0
     null_element = hand_built(tool_bindings: {:array, [:null]})
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.verify_binding(null_element, blueprint, observed)
   end
 
@@ -808,21 +864,29 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
   test "a zero protocol_revision and an empty attestations member and unknown required fields deny" do
     members = replace(base_members([]), "protocol_revision", {:integer, 0})
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_constraint} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Deployment.decode(bytes)
 
     members =
       base_members([]) ++ [{"attestations", {:array, [{:object, [{"kind", {:string, "x"}}]}]}}]
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :attestation_malformed} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :attestation_malformed}} =
+             Deployment.decode(bytes)
 
     members = replace(base_members([]), "required_core_fields", {:array, [{:string, "mystery"}]})
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_constraint} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Deployment.decode(bytes)
 
     members = replace(base_members([]), "required_core_fields", {:array, [{:integer, 1}]})
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_constraint} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Deployment.decode(bytes)
   end
 
   test "as_of mode none shapes: null green, absent missing, wrong tag typed" do
@@ -852,7 +916,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :missing_required_field} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Deployment.decode(bytes)
 
     # (none, string) is a typed defect
     members =
@@ -868,20 +934,22 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_type} = Deployment.decode(bytes)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = Deployment.decode(bytes)
 
     # a non-object as_of denies its own type
     members =
       replace(base_members([]), "data_bindings", {:array, [data_binding(as_of: {:string, "x"})]})
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_type} = Deployment.decode(bytes)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = Deployment.decode(bytes)
   end
 
   test "an unknown lifecycle state defers to the enum; a malformed entry denies its own reason" do
     members = replace(base_members([]), "lifecycle", {:object, [{"state", {:string, "zombie"}}]})
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :invalid_constraint} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Deployment.decode(bytes)
 
     broken =
       signature_entry(
@@ -910,7 +978,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     value = with_signatures(signatures: [entry])
     {:ok, bytes} = Canonicalization.encode(value)
-    assert {:error, :forbidden_portable_value} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Deployment.decode(bytes)
   end
 
   test "an adapter_identity inside a tool_binding is strict-scanned (the nested position)" do
@@ -925,14 +995,16 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :forbidden_portable_value} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Deployment.decode(bytes)
   end
 
   test "the authored channel is total over values with no extensions member" do
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.from_value({:object, []}, %{authored_extensions: ["example.demo/x"]})
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.from_value({:array, []}, %{authored_extensions: ["example.demo/x"]})
   end
 
@@ -947,7 +1019,9 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       )
 
     {:ok, bytes} = Canonicalization.encode(with_digest(members))
-    assert {:error, :forbidden_portable_value} = Deployment.decode(bytes)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
+             Deployment.decode(bytes)
   end
 
   test "a non-integer max_attestation_age_ms denies when now is supplied" do
@@ -959,7 +1033,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
       max_attestation_age_ms: "86400000"
     }
 
-    assert {:error, :invalid_type} = Deployment.verify_binding(deployment, blueprint, bad)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.verify_binding(deployment, blueprint, bad)
   end
 
   test "non-object roots answer false/deny, never raise" do
@@ -967,9 +1042,11 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
     garbage = %Deployment{value: :null}
 
     refute Deployment.binds?(garbage, blueprint)
-    assert {:error, :invalid_type} = Deployment.bound_release(garbage)
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.bound_release(garbage)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.verify_binding(garbage, blueprint, %Deployment.Observations{})
   end
 
@@ -979,7 +1056,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
     bad = %Deployment.Observations{observed: %{"example.demo.read_shape" => 5}}
 
-    assert {:error, :invalid_type} = Deployment.verify_binding(deployment, blueprint, bad)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.verify_binding(deployment, blueprint, bad)
   end
 
   test "duplicate root members deny at the binding surface (first-wins reads must not decide)" do
@@ -994,10 +1072,12 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
              [{"effect_owner", DeploymentFixture.effect_owner(recovery: "none")}] ++ members}
       }
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.verify_binding(duplicated, blueprint, %Deployment.Observations{})
 
-    assert {:error, :invalid_type} = Deployment.bound_release(duplicated)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Deployment.bound_release(duplicated)
+
     refute Deployment.binds?(duplicated, blueprint)
   end
 
@@ -1011,7 +1091,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
            Enum.map(ms, fn {n, v} -> if n == "deployment_digest", do: {n, :null}, else: {n, v} end)}
       end
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(malformed, support)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(malformed, support)
   end
 
   test "revision stays first: an unsupported revision reports before an undecidable kind" do
@@ -1023,7 +1104,8 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
         {:object, ms} -> {:object, Enum.reject(ms, fn {n, _} -> n == "content_digest" end)}
       end
 
-    assert {:error, :protocol_revision_unsupported} = Negotiation.negotiate(stripped, support)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :protocol_revision_unsupported}} =
+             Negotiation.negotiate(stripped, support)
   end
 
   # ---- helpers ---------------------------------------------------------------------------
@@ -1119,8 +1201,11 @@ defmodule AgentBlueprintProtocol.DeploymentTest do
 
   describe "decode catch-all (the never-raising posture at the API type boundary)" do
     test "a non-binary input denies with a typed error, never raises" do
-      assert Deployment.decode(:atom) == {:error, :invalid_type}
-      assert Deployment.decode(123, %{}) == {:error, :invalid_type}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Deployment.decode(:atom)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Deployment.decode(123, %{})
     end
   end
 end

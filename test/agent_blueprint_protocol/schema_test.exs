@@ -57,14 +57,14 @@ defmodule AgentBlueprintProtocol.SchemaTest do
             "https://example.com/v1",
             ""
           ] do
-        assert {:error, :schema_dialect_unknown} =
+        assert {:error, %AgentBlueprintProtocol.Error{code: :schema_dialect_unknown}} =
                  Schema.validate_instance(schema, {:object, []}, bad),
                "expected #{inspect(bad)} to be unknown"
       end
     end
 
     test "parse enforces the same dialect gate" do
-      assert {:error, :schema_dialect_unknown} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_dialect_unknown}} =
                Schema.parse(schema!(~s({"type":"object"})), "other")
 
       assert {:ok, %Schema{}} = Schema.parse(schema!(~s({"type":"object"})), @dialect)
@@ -73,18 +73,29 @@ defmodule AgentBlueprintProtocol.SchemaTest do
 
   describe "root shape" do
     test "a non-schema root denies :schema_invalid_shape" do
-      assert {:error, :schema_invalid_shape} = Schema.parse({:string, "x"}, @dialect)
-      assert {:error, :schema_invalid_shape} = Schema.parse({:integer, 5}, @dialect)
-      assert {:error, :schema_invalid_shape} = Schema.parse(:null, @dialect)
-      assert {:error, :schema_invalid_shape} = Schema.parse({:array, []}, @dialect)
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_invalid_shape}} =
+               Schema.parse({:string, "x"}, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_invalid_shape}} =
+               Schema.parse({:integer, 5}, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_invalid_shape}} =
+               Schema.parse(:null, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_invalid_shape}} =
+               Schema.parse({:array, []}, @dialect)
     end
 
     test "boolean schemas are valid roots (core §4.3.2)" do
       assert {:ok, %Schema{}} = Schema.parse({:boolean, true}, @dialect)
       assert {:ok, %Schema{}} = Schema.parse({:boolean, false}, @dialect)
       assert :ok = validate({:boolean, true}, {:integer, 5})
-      assert {:error, :invalid_type} = validate({:boolean, false}, {:integer, 5})
-      assert {:error, :invalid_type} = validate({:boolean, false}, :null)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate({:boolean, false}, {:integer, 5})
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate({:boolean, false}, :null)
     end
   end
 
@@ -104,24 +115,25 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       for keyword <- @rejected do
         schema = {:object, [{keyword, {:string, "x"}}]}
 
-        assert {:error, :schema_keyword_not_allowed} = Schema.parse(schema, @dialect),
+        assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
+                 Schema.parse(schema, @dialect),
                "expected #{keyword} to be rejected"
       end
     end
 
     test "ticket acceptance trio: pattern, remote $ref, allOf" do
-      assert {:error, :schema_keyword_not_allowed} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
                Schema.parse(schema!(~s({"pattern":"^a"})), @dialect)
 
-      assert {:error, :schema_keyword_not_allowed} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
                Schema.parse(schema!(~s({"$ref":"https://example.com/schema.json"})), @dialect)
 
-      assert {:error, :schema_keyword_not_allowed} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
                Schema.parse(schema!(~s({"allOf":[{"type":"string"}]})), @dialect)
     end
 
     test "rejected keywords deny at ANY schema depth, not just the root" do
-      assert {:error, :schema_keyword_not_allowed} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
                Schema.parse(
                  schema!(~s({"properties":{"a":{"items":{"format":"uri"}}}})),
                  @dialect
@@ -129,7 +141,7 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     end
 
     test "unknown arbitrary keywords deny too (closed world)" do
-      assert {:error, :schema_keyword_not_allowed} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
                Schema.parse(schema!(~s({"zzz_custom":1})), @dialect)
     end
   end
@@ -139,7 +151,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema = schema!(~s({"enum":[{"pattern":"x","allOf":true}]}))
       assert {:ok, %Schema{}} = Schema.parse(schema, @dialect)
       assert :ok = validate(schema, ~s({"pattern":"x","allOf":true}))
-      assert {:error, :invalid_constraint} = validate(schema, ~s({"pattern":"y"}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s({"pattern":"y"}))
     end
 
     test "const values are DATA too" do
@@ -170,18 +184,18 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     test "each single type name matches its tag and nothing else" do
       matrix = [
         {"null", :null, :ok},
-        {"null", {:boolean, true}, {:error, :invalid_type}},
+        {"null", {:boolean, true}, {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}},
         {"boolean", {:boolean, false}, :ok},
-        {"boolean", {:integer, 1}, {:error, :invalid_type}},
+        {"boolean", {:integer, 1}, {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}},
         {"object", {:object, []}, :ok},
-        {"object", {:array, []}, {:error, :invalid_type}},
+        {"object", {:array, []}, {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}},
         {"array", {:array, []}, :ok},
-        {"array", {:object, []}, {:error, :invalid_type}},
+        {"array", {:object, []}, {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}},
         {"string", {:string, "s"}, :ok},
-        {"string", {:integer, 1}, {:error, :invalid_type}},
+        {"string", {:integer, 1}, {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}},
         {"number", {:integer, 1}, :ok},
         {"number", {:float, 1.5}, :ok},
-        {"number", {:string, "1"}, {:error, :invalid_type}}
+        {"number", {:string, "1"}, {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}}
       ]
 
       for {name, instance, expected} <- matrix do
@@ -194,7 +208,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema = schema!(~s({"type":["string","null"]}))
       assert :ok = validate(schema, ~s("s"))
       assert :ok = validate(schema, ~s(null))
-      assert {:error, :invalid_type} = validate(schema, ~s(5))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s(5))
     end
 
     test "FROZEN: integer matches zero-fraction numbers tag-blind (validation §6.1.1; design decision 4)" do
@@ -202,7 +218,10 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       assert :ok = validate(schema, ~s(1))
       assert :ok = validate(schema, ~s(1.0))
       assert :ok = validate(schema, ~s(1e2))
-      assert {:error, :invalid_type} = validate(schema, ~s(1.5))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s(1.5))
+
       # window-admitted doubles (integer-window decode) pass by spec;
       # the artifact layer owns the core-field deny.
       window_double = 9_007_199_254_740_992.0 * 10_000
@@ -215,16 +234,16 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     end
 
     test "meta-schema floors: empty type array, duplicates, unknown names, non-strings deny" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"type":[]})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"type":["string","string"]})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"type":"strang"})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"type":[1]})), @dialect)
     end
   end
@@ -238,8 +257,12 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       assert :ok = validate(schema, ~s(false))
       assert :ok = validate(schema, ~s({"a":1}))
       assert :ok = validate(schema, ~s([1,2]))
-      assert {:error, :invalid_constraint} = validate(schema, ~s(2))
-      assert {:error, :invalid_constraint} = validate(schema, ~s([2,1]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(2))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s([2,1]))
     end
 
     test "FROZEN: numbers compare by mathematical value across tags" do
@@ -248,57 +271,80 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       assert :ok = validate(schema, ~s(1.0))
       schema20 = schema!(~s({"const":1.0}))
       assert :ok = validate(schema20, ~s(1))
-      assert {:error, :invalid_constraint} = validate(schema, ~s(1.5))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(1.5))
     end
 
     test "FROZEN: object equality is order-blind with equal member counts" do
       schema = schema!(~s({"const":{"a":1,"b":2}}))
       assert :ok = validate(schema, ~s({"b":2,"a":1}))
-      assert {:error, :invalid_constraint} = validate(schema, ~s({"a":1}))
-      assert {:error, :invalid_constraint} = validate(schema, ~s({"a":1,"b":2,"c":3}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s({"a":1}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s({"a":1,"b":2,"c":3}))
     end
 
     test "nested equality is recursive (arrays order-sensitive, core §4.2.2)" do
       schema = schema!(~s({"const":{"x":[1,{"y":null}]}}))
       assert :ok = validate(schema, ~s({"x":[1,{"y":null}]}))
-      assert {:error, :invalid_constraint} = validate(schema, ~s({"x":[{"y":null},1]}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s({"x":[{"y":null},1]}))
     end
 
     test "empty enum parses and matches nothing (live meta-schema has no minItems)" do
       schema = schema!(~s({"enum":[]}))
       assert {:ok, %Schema{}} = Schema.parse(schema, @dialect)
-      assert {:error, :invalid_constraint} = validate(schema, ~s(1))
-      assert {:error, :invalid_constraint} = validate(schema, ~s(null))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(1))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(null))
     end
 
     test "enum applies to every instance type (no target-type auto-pass)" do
       schema = schema!(~s({"enum":["a"]}))
-      assert {:error, :invalid_constraint} = validate(schema, ~s({"a":1}))
-      assert {:error, :invalid_constraint} = validate(schema, ~s(null))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s({"a":1}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(null))
     end
 
     test "enum value syntax violations deny :schema_keyword_value_invalid" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"enum":5})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"enum":"a"})), @dialect)
     end
 
     test "const accepts any single value including null" do
       schema = schema!(~s({"const":null}))
       assert :ok = validate(schema, ~s(null))
-      assert {:error, :invalid_constraint} = validate(schema, ~s(1))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(1))
     end
   end
 
   describe "numeric bounds (validation §6.2)" do
     test "minimum and maximum are inclusive" do
       schema = schema!(~s({"minimum":2,"maximum":5}))
-      assert {:error, :invalid_constraint} = validate(schema, ~s(1))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(1))
+
       assert :ok = validate(schema, ~s(2))
       assert :ok = validate(schema, ~s(5))
-      assert {:error, :invalid_constraint} = validate(schema, ~s(6))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(6))
     end
 
     test "FROZEN: cross-tag comparisons are exact (probe-proven semantics)" do
@@ -310,7 +356,7 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       # conversion would equate them (pass).
       schema = schema!(~s({"maximum":9007199254740992.0}))
 
-      assert {:error, :invalid_constraint} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
                Schema.validate_instance(schema, {:integer, 9_007_199_254_740_993}, @dialect)
 
       assert :ok = Schema.validate_instance(schema, {:integer, 9_007_199_254_740_991}, @dialect)
@@ -319,7 +365,7 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema_min = schema!(~s({"minimum":9007199254740992.0}))
       assert :ok = validate(schema_min, ~s(9007199254740992.0))
 
-      assert {:error, :invalid_constraint} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
                Schema.validate_instance(schema_min, {:integer, 9_007_199_254_740_991}, @dialect)
     end
 
@@ -331,10 +377,10 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     end
 
     test "bound value syntax violations deny" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"minimum":"2"})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"maximum":null})), @dialect)
     end
   end
@@ -344,7 +390,7 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema = schema!(~s({"maxLength":1}))
 
       # combining sequence: 2 codepoints (1 grapheme, 3 bytes) — over budget
-      assert {:error, :invalid_constraint} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
                Schema.validate_instance(schema, decode!(@combining_json), @dialect)
 
       # astral plane: 1 codepoint (2 UTF-16 units in a TS peer) — within budget
@@ -359,8 +405,12 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     test "exact codepoint boundary is green, plus one is red" do
       schema = schema!(~s({"minLength":2,"maxLength":2}))
       assert :ok = Schema.validate_instance(schema, decode!(@combining_json), @dialect)
-      assert {:error, :invalid_constraint} = validate(schema, ~s("a"))
-      assert {:error, :invalid_constraint} = validate(schema, ~s("abc"))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s("a"))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s("abc"))
     end
 
     test "lengths auto-pass non-string instances (the dialect's own example)" do
@@ -373,10 +423,10 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     end
 
     test "negative or fractional lengths deny; zero-fraction floats admit (meta-schema integer typing)" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"maxLength":-1})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"minLength":1.5})), @dialect)
 
       # 2.0 is an "integer" per validation §6.1.1 — the meta-schema types
@@ -388,10 +438,15 @@ defmodule AgentBlueprintProtocol.SchemaTest do
   describe "array cardinality (validation §6.4)" do
     test "minItems/maxItems bounds with exact boundaries" do
       schema = schema!(~s({"minItems":2,"maxItems":3}))
-      assert {:error, :invalid_cardinality} = validate(schema, ~s([1]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s([1]))
+
       assert :ok = validate(schema, ~s([1,2]))
       assert :ok = validate(schema, ~s([1,2,3]))
-      assert {:error, :invalid_cardinality} = validate(schema, ~s([1,2,3,4]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s([1,2,3,4]))
     end
 
     test "cardinalities auto-pass non-array instances" do
@@ -405,7 +460,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     test "required: every name must be present; empty array is valid-and-vacuous" do
       schema = schema!(~s({"required":["a","b"]}))
       assert :ok = validate(schema, ~s({"a":1,"b":2,"c":3}))
-      assert {:error, :invalid_cardinality} = validate(schema, ~s({"a":1}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s({"a":1}))
 
       empty = schema!(~s({"required":[]}))
       assert {:ok, %Schema{}} = Schema.parse(empty, @dialect)
@@ -419,13 +476,13 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     end
 
     test "required value syntax: duplicates and non-strings deny" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"required":["a","a"]})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"required":[1]})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"required":"a"})), @dialect)
     end
 
@@ -433,21 +490,29 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema = schema!(~s({"properties":{"a":{"type":"string"}}}))
       assert :ok = validate(schema, ~s({}))
       assert :ok = validate(schema, ~s({"a":"s"}))
-      assert {:error, :invalid_type} = validate(schema, ~s({"a":1}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s({"a":1}))
+
       assert :ok = validate(schema, ~s({"b":1}))
     end
 
     test "child reasons propagate unchanged (design decision 9)" do
       schema = schema!(~s({"properties":{"a":{"type":"string"},"b":{"minimum":4}}}))
 
-      assert {:error, :invalid_type} = validate(schema, ~s({"a":1,"b":5}))
-      assert {:error, :invalid_constraint} = validate(schema, ~s({"a":"s","b":1}))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s({"a":1,"b":5}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s({"a":"s","b":1}))
     end
 
     test "additionalProperties: false closes the struct against adjacent properties only" do
       schema = schema!(~s({"properties":{"a":{}},"additionalProperties":false}))
       assert :ok = validate(schema, ~s({"a":1}))
-      assert {:error, :invalid_cardinality} = validate(schema, ~s({"a":1,"z":2}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s({"a":1,"z":2}))
     end
 
     test "FROZEN adjacency trap: oneOf-branch properties do NOT feed additionalProperties (core §10.3.2.3)" do
@@ -459,14 +524,18 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       # The "a" member is matched only inside the oneOf branch; adjacent
       # properties is absent, so "a" IS additional and false denies it. The
       # EMPTY object carries no additional member and stays valid.
-      assert {:error, :invalid_cardinality} = validate(schema, ~s({"a":"s"}))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s({"a":"s"}))
+
       assert :ok = validate(schema, ~s({}))
     end
 
     test "additionalProperties as a schema validates the complement" do
       schema = schema!(~s({"properties":{"a":{}},"additionalProperties":{"type":"number"}}))
       assert :ok = validate(schema, ~s({"a":"s","z":1}))
-      assert {:error, :invalid_type} = validate(schema, ~s({"a":"s","z":"x"}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s({"a":"s","z":"x"}))
     end
 
     test "additionalProperties boolean true is the empty-schema pass" do
@@ -480,7 +549,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema = schema!(~s({"items":{"type":"string"}}))
       assert :ok = validate(schema, ~s([]))
       assert :ok = validate(schema, ~s(["a","b"]))
-      assert {:error, :invalid_type} = validate(schema, ~s(["a",1]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s(["a",1]))
     end
 
     test "items auto-passes non-array instances; items:false propagates the child reason" do
@@ -488,14 +559,15 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       assert :ok = validate(schema, ~s({"a":[1]}))
       # child-descent failures propagate unchanged (design decision 9):
       # the false boolean schema is a type-family always-fail
-      assert {:error, :invalid_type} = validate(schema, ~s([1]))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s([1]))
     end
 
     test "items value must be a schema (object or boolean)" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"items":"string"})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"items":[]})), @dialect)
     end
   end
@@ -505,22 +577,26 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema = schema!(~s({"oneOf":[{"type":"string"},{"type":"number"}]}))
       assert :ok = validate(schema, ~s("s"))
       assert :ok = validate(schema, ~s(1))
-      assert {:error, :invalid_cardinality} = validate(schema, ~s(null))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s(null))
     end
 
     test "two branches passing denies (exactly-one, not at-least-one)" do
       schema = schema!(~s({"oneOf":[{"type":"string"},{"minLength":1}]}))
-      assert {:error, :invalid_cardinality} = validate(schema, ~s("both"))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s("both"))
     end
 
     test "oneOf must be a non-empty array of schemas" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"oneOf":[]})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"oneOf":{"type":"string"}})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"oneOf":[5]})), @dialect)
     end
   end
@@ -528,13 +604,19 @@ defmodule AgentBlueprintProtocol.SchemaTest do
   describe "multi-failure reason precedence (design decision 9 — fixed canonical order)" do
     test "type outranks constraint when both fail" do
       schema = schema!(~s({"type":["string","number"],"minLength":5,"minimum":100}))
-      assert {:error, :invalid_type} = validate(schema, ~s(null))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s(null))
     end
 
     test "constraint and cardinality auto-pass rules compose (each class reachable)" do
       nested = schema!(~s({"properties":{"a":{"minimum":10,"minItems":5}}}))
-      assert {:error, :invalid_constraint} = validate(nested, ~s({"a":1}))
-      assert {:error, :invalid_cardinality} = validate(nested, ~s({"a":[1]}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(nested, ~s({"a":1}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(nested, ~s({"a":[1]}))
     end
 
     test "precedence is independent of schema member order" do
@@ -542,7 +624,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       reversed = schema!(~s({"minimum":10,"type":"string"}))
 
       assert validate(forward, ~s(null)) == validate(reversed, ~s(null))
-      assert {:error, :invalid_type} = validate(forward, ~s(null))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(forward, ~s(null))
     end
   end
 
@@ -556,7 +640,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
         }))
 
       assert :ok = validate(schema, ~s([1,2]))
-      assert {:error, :invalid_constraint} = validate(schema, ~s([1,0]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s([1,0]))
     end
 
     test "siblings apply alongside $ref (2020-12, not draft-07)" do
@@ -570,9 +656,13 @@ defmodule AgentBlueprintProtocol.SchemaTest do
 
       assert {:ok, %Schema{}} = Schema.parse(schema, @dialect)
       # $ref is first in canonical order: a non-number reports the ref'd type.
-      assert {:error, :invalid_type} = validate(schema, ~s("s"))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(schema, ~s("s"))
+
       # the sibling still applies: 2 is a number below the sibling minimum.
-      assert {:error, :invalid_constraint} = validate(schema, ~s(2))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(schema, ~s(2))
+
       assert :ok = validate(schema, ~s(3))
     end
 
@@ -583,7 +673,8 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     end
 
     test "self-referential root denies :schema_ref_cycle" do
-      assert {:error, :schema_ref_cycle} = Schema.parse(schema!(~s({"$ref":"#"})), @dialect)
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_cycle}} =
+               Schema.parse(schema!(~s({"$ref":"#"})), @dialect)
     end
 
     test "application-reachable mutual ref cycle denies" do
@@ -593,7 +684,8 @@ defmodule AgentBlueprintProtocol.SchemaTest do
           "$ref":"#/$defs/a"
         }))
 
-      assert {:error, :schema_ref_cycle} = Schema.parse(schema, @dialect)
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_cycle}} =
+               Schema.parse(schema, @dialect)
     end
 
     test "deep alternation chain over distinct acyclic terms parses" do
@@ -647,7 +739,7 @@ defmodule AgentBlueprintProtocol.SchemaTest do
 
     test "non-document-local ref string forms deny :schema_keyword_not_allowed" do
       for ref <- ["https://example.com/s.json", "other.json", "#anchor", "a/b", ""] do
-        assert {:error, :schema_keyword_not_allowed} =
+        assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
                  Schema.parse({:object, [{"$ref", {:string, ref}}]}, @dialect),
                "expected #{inspect(ref)} to be not-allowed"
       end
@@ -666,38 +758,40 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     end
 
     test "non-string $ref value denies :schema_keyword_value_invalid (adversarial finding 6)" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse({:object, [{"$ref", {:integer, 5}}]}, @dialect)
     end
 
     test "dangling pointer denies :schema_ref_unresolvable" do
-      assert {:error, :schema_ref_unresolvable} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_unresolvable}} =
                Schema.parse(schema!(~s({"$ref":"#/$defs/missing"})), @dialect)
 
-      assert {:error, :schema_ref_unresolvable} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_unresolvable}} =
                Schema.parse(schema!(~s({"$ref":"#/nope"})), @dialect)
     end
 
     test "pointer landing on a non-schema value denies :schema_ref_unresolvable" do
-      assert {:error, :schema_ref_unresolvable} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_unresolvable}} =
                Schema.parse(schema!(~s({"type":"object","$ref":"#/type"})), @dialect)
     end
 
     test "pointer into enum DATA denies :schema_ref_unresolvable even when object-shaped (adversarial finding 7)" do
       schema = schema!(~s({"enum":[{"type":"object"}],"$ref":"#/enum/0"}))
-      assert {:error, :schema_ref_unresolvable} = Schema.parse(schema, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_unresolvable}} =
+               Schema.parse(schema, @dialect)
     end
 
     test "$defs entries are schema-validated even when unreferenced" do
-      assert {:error, :schema_keyword_not_allowed} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
                Schema.parse(schema!(~s({"$defs":{"dead":{"pattern":"x"}}})), @dialect)
     end
 
     test "$defs value must be an object of schemas" do
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"$defs":[]})), @dialect)
 
-      assert {:error, :schema_keyword_value_invalid} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
                Schema.parse(schema!(~s({"$defs":{"a":5}})), @dialect)
     end
   end
@@ -729,7 +823,8 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema = schema!(~s({}))
 
       for value <- @malformed do
-        assert {:error, :invalid_type} = Schema.validate_instance(schema, value, @dialect),
+        assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+                 Schema.validate_instance(schema, value, @dialect),
                "expected malformed #{inspect(value)} to deny, not raise"
       end
     end
@@ -737,19 +832,23 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     test "as the SCHEMA: deny, never raise" do
       for value <- @malformed do
         assert {:error, reason} = Schema.validate_instance(value, {:integer, 1}, @dialect)
-        assert reason in [:schema_invalid_shape, :schema_keyword_value_invalid]
+        assert reason.code in [:schema_invalid_shape, :schema_keyword_value_invalid]
       end
     end
 
     test "duplicate members in a hand-built instance object deny :invalid_type" do
       schema = schema!(~s({"type":"object"}))
       dup = {:object, [{"a", {:integer, 1}}, {"a", {:integer, 2}}]}
-      assert {:error, :invalid_type} = Schema.validate_instance(schema, dup, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Schema.validate_instance(schema, dup, @dialect)
     end
 
     test "duplicate members in a hand-built schema object deny" do
       dup = {:object, [{"type", {:string, "object"}}, {"type", {:string, "array"}}]}
-      assert {:error, :schema_keyword_value_invalid} = Schema.parse(dup, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_value_invalid}} =
+               Schema.parse(dup, @dialect)
     end
   end
 
@@ -788,17 +887,17 @@ defmodule AgentBlueprintProtocol.SchemaTest do
           complexity: 1
         )
 
-      assert {:error, :schema_ref_unresolvable} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_ref_unresolvable}} =
                Schema.validate_instance(forged_ref, {:integer, 1}, d)
 
       forged_null = struct!(Schema, dialect: d, root: :null, pointers: %{}, complexity: 1)
 
-      assert {:error, :schema_invalid_shape} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_invalid_shape}} =
                Schema.validate_instance(forged_null, {:integer, 1}, d)
     end
 
     test "a '~' not followed by 0/1 is not an RFC 6901 escape: not-allowed" do
-      assert {:error, :schema_keyword_not_allowed} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_keyword_not_allowed}} =
                Schema.parse({:object, [{"$ref", {:string, "#/a~2b"}}]}, @dialect)
     end
 
@@ -821,14 +920,16 @@ defmodule AgentBlueprintProtocol.SchemaTest do
          ]}
 
       assert {:ok, %Schema{}} = Schema.parse(false_schema, @dialect)
-      assert {:error, :invalid_type} = validate(false_schema, ~s(1))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               validate(false_schema, ~s(1))
     end
 
     test "a struct carrying a foreign dialect denies :schema_dialect_unknown" do
       foreign =
         struct!(Schema, dialect: "other", root: {:object, []}, pointers: %{}, complexity: 5)
 
-      assert {:error, :schema_dialect_unknown} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_dialect_unknown}} =
                Schema.validate_instance(foreign, {:object, []}, @dialect)
     end
   end
@@ -870,7 +971,8 @@ defmodule AgentBlueprintProtocol.SchemaTest do
 
       assert :ok = Schema.validate_instance(arr, {:array, []}, @dialect)
 
-      assert {:error, :invalid_cardinality} = validate(~s({"maxItems":1}), ~s([1,2]))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(~s({"maxItems":1}), ~s([1,2]))
 
       # a number instance: minLength/maxItems/required/properties auto-pass
       num =
@@ -884,7 +986,7 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     end
 
     test "an {:array, non-list} tagged shape reaches the improper-tail catch-all" do
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                Schema.validate_instance(schema!(~s({"type":"array"})), {:array, 5}, @dialect)
     end
 
@@ -892,10 +994,10 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       schema = schema!(~s({"minLength":2.0,"maxItems":2.0}))
       assert :ok = Schema.validate_instance(schema, {:string, "abc"}, @dialect)
 
-      assert {:error, :invalid_constraint} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
                Schema.validate_instance(schema, {:string, "a"}, @dialect)
 
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                Schema.validate_instance(
                  schema,
                  {:array, [{:integer, 1}, {:integer, 2}, {:integer, 3}]},
@@ -905,9 +1007,15 @@ defmodule AgentBlueprintProtocol.SchemaTest do
 
     test "equality corners: float/float, array length mismatch, disjoint same-size objects" do
       assert :ok = validate(~s({"const":1.5}), ~s(1.5))
-      assert {:error, :invalid_constraint} = validate(~s({"const":[1]}), ~s([1,2]))
-      assert {:error, :invalid_constraint} = validate(~s({"const":{"a":1}}), ~s({"b":1}))
-      assert {:error, :invalid_constraint} = validate(~s({"const":1.5}), ~s(2.5))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(~s({"const":[1]}), ~s([1,2]))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(~s({"const":{"a":1}}), ~s({"b":1}))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+               validate(~s({"const":1.5}), ~s(2.5))
     end
   end
 
@@ -915,7 +1023,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
     test "a parsed Schema struct validates identically to the raw path" do
       {:ok, parsed} = Schema.parse(schema!(~s({"type":"string"})), @dialect)
       assert :ok = Schema.validate_instance(parsed, {:string, "s"}, @dialect)
-      assert {:error, :invalid_type} = Schema.validate_instance(parsed, {:integer, 1}, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Schema.validate_instance(parsed, {:integer, 1}, @dialect)
     end
 
     test "struct carries complexity and the dialect" do
@@ -966,7 +1076,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       over = complexity_chain(44, 9)
       assert 11 * 44 + 2 * 9 + 11 == 513
       assert Schema.complexity(over) == 513
-      assert {:error, :schema_complexity_exceeded} = Schema.parse(over, @dialect)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :schema_complexity_exceeded}} =
+               Schema.parse(over, @dialect)
     end
 
     test "nested oneOf meters the materialized document (duplication costs)" do
@@ -1013,8 +1125,11 @@ defmodule AgentBlueprintProtocol.SchemaTest do
       # both branches reference the same target, so an integer passes TWO
       # branches — exactly-one denies. The assertion that matters is that
       # both evaluations COMPLETE (memoized) inside the timeout budget.
-      assert {:error, :invalid_cardinality} = validate(schema, ~s(7))
-      assert {:error, :invalid_cardinality} = validate(schema, ~s("no"))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s(7))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s("no"))
     end
 
     @tag timeout: 2_000
@@ -1048,7 +1163,9 @@ defmodule AgentBlueprintProtocol.SchemaTest do
 
       assert Schema.complexity(schema) < 512
       assert {:ok, %Schema{}} = Schema.parse(schema, @dialect)
-      assert {:error, :invalid_cardinality} = validate(schema, ~s(5))
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, ~s(5))
     end
 
     # The first `m` levels carry an extra const member; the chain must be a

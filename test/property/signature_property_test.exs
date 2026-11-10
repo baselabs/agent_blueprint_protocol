@@ -22,9 +22,10 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
       {pub, priv} = :crypto.generate_key(:eddsa, :ed25519, seed)
       entry = signed_entry(priv, key_id, purpose, digest_input)
 
-      assert Signature.verify(entry, [
-               %Signature.PublicKey{key_id: key_id, algorithm: :ed25519, key: pub}
-             ]) == {:ok, :verified}
+      assert {:ok, %Signature.Attributes{}} =
+               Signature.verify(entry, [
+                 %Signature.PublicKey{key_id: key_id, algorithm: :ed25519, key: pub}
+               ])
     end
   end
 
@@ -37,9 +38,10 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
       entry = signed_entry(priv, "prop-key", "blueprint", "x")
       flipped = flip_first_member_byte(entry, bit)
 
-      assert Signature.verify(flipped, [
-               %Signature.PublicKey{key_id: "prop-key", algorithm: :ed25519, key: pub}
-             ]) == {:error, :signature_not_verified}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}} =
+               Signature.verify(flipped, [
+                 %Signature.PublicKey{key_id: "prop-key", algorithm: :ed25519, key: pub}
+               ])
     end
   end
 
@@ -62,8 +64,13 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
       backend = :crypto.verify(:eddsa, :none, input, sig, [pub, :ed25519])
       verdict = Signature.verify(with_signature(honest, sig), prop_keys(pub))
 
-      assert verdict == if(backend, do: {:ok, :verified}, else: {:error, :signature_not_verified})
-      if replacement == :honest, do: assert(verdict == {:ok, :verified})
+      assert verdict ==
+               if(backend,
+                 do: Signature.attributes(honest),
+                 else: {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}
+               )
+
+      if replacement == :honest, do: assert(match?({:ok, %Signature.Attributes{}}, verdict))
     end
   end
 
@@ -99,8 +106,8 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
             r <> <<rem(s, StrictFixture.l())::little-unsigned-256>>
         end
 
-      assert Signature.verify(with_signature(honest, sig), prop_keys(pub)) ==
-               {:error, :signature_not_verified}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}} =
+               Signature.verify(with_signature(honest, sig), prop_keys(pub))
     end
   end
 
@@ -120,11 +127,11 @@ defmodule AgentBlueprintProtocol.SignaturePropertyTest do
       <<o::little-unsigned-256>> = offset
       s = l + rem(o, Bitwise.bsl(1, 256) - l)
 
-      assert Signature.verify(
-               with_signature(honest, r <> <<s::little-unsigned-256>>),
-               prop_keys(pub)
-             ) ==
-               {:error, :signature_not_verified}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}} =
+               Signature.verify(
+                 with_signature(honest, r <> <<s::little-unsigned-256>>),
+                 prop_keys(pub)
+               )
     end
   end
 

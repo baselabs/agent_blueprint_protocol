@@ -20,6 +20,20 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   alias AgentBlueprintProtocol.{BoundsAlgebra, Digest, Error}
 
+  defmodule Signatures do
+    @moduledoc "Verified signer identities, supplied as evidence carrying no authority."
+    @enforce_keys [:key_ids]
+    defstruct [:key_ids]
+    @type t :: %__MODULE__{key_ids: [binary()]}
+  end
+
+  defmodule Binding do
+    @moduledoc "Binding checks performed and skipped; this evidence grants no authority."
+    @enforce_keys [:checked, :not_verified]
+    defstruct [:checked, :not_verified]
+    @type t :: %__MODULE__{checked: [atom()], not_verified: [atom()]}
+  end
+
   @host_owned ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth)a
 
   defstruct [
@@ -37,7 +51,15 @@ defmodule AgentBlueprintProtocol.Evidence do
           surface: atom(),
           subject: [binary() | non_neg_integer()],
           verified: boolean(),
-          detail: nil | BoundsAlgebra.ClampEvidence.t() | Digest.t() | binary()
+          detail:
+            nil
+            | BoundsAlgebra.ClampEvidence.t()
+            | Digest.t()
+            | Signatures.t()
+            | Binding.t()
+            | :no_signatures_present
+            | :retained
+            | :quarantined
         }
 
   @type t :: %__MODULE__{
@@ -83,7 +105,7 @@ defmodule AgentBlueprintProtocol.Evidence do
          effective_bounds: Map.get(attrs, :effective_bounds),
          clamps: Map.get(attrs, :clamps, []),
          optional_extensions_retained: Map.get(attrs, :optional_extensions_retained, []),
-         not_verified: Enum.uniq(@host_owned ++ extras)
+         not_verified: Enum.uniq(@host_owned ++ extras ++ unchecked(Map.get(attrs, :checks, [])))
        }}
     end
   end
@@ -98,6 +120,17 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   def build(_not_map_or_keyword),
     do: {:error, %Error{code: :invalid_type, subject: ["evidence"]}}
+
+  defp unchecked(checks) do
+    Enum.flat_map(checks, fn check ->
+      surfaces = if check.verified, do: [], else: [check.surface]
+
+      case check[:detail] do
+        %Binding{not_verified: skipped} -> surfaces ++ skipped
+        _ -> surfaces
+      end
+    end)
+  end
 
   defp extras_of(extras) when is_list(extras) do
     case invalid_index(extras, &(not is_atom(&1))) do
@@ -131,11 +164,39 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   defp checks_check(_), do: {:error, %Error{code: :invalid_type, subject: ["checks"]}}
 
-  defp check_ok?(%{surface: surface, subject: subject, verified: verified})
+  defp check_ok?(%{surface: surface, subject: subject, verified: verified} = check)
        when is_atom(surface) and is_boolean(verified) and is_list(subject),
-       do: is_nil(invalid_index(subject, &(not (is_binary(&1) or (is_integer(&1) and &1 >= 0)))))
+       do:
+         is_nil(invalid_index(subject, &(not (is_binary(&1) or (is_integer(&1) and &1 >= 0))))) and
+           detail_ok?(Map.get(check, :detail)) and
+           verified_detail?(verified, Map.get(check, :detail))
 
   defp check_ok?(_), do: false
+
+  defp detail_ok?(detail) when detail in [nil, :no_signatures_present, :retained, :quarantined],
+    do: true
+
+  defp detail_ok?(%BoundsAlgebra.ClampEvidence{}), do: true
+  defp detail_ok?(%Digest{}), do: true
+
+  defp detail_ok?(%Signatures{key_ids: ids}) when is_list(ids),
+    do: ids != [] and Enum.all?(ids, &is_binary/1) and length(ids) == length(Enum.uniq(ids))
+
+  defp detail_ok?(%Binding{checked: checked, not_verified: skipped})
+       when is_list(checked) and is_list(skipped),
+       do: Enum.all?(checked ++ skipped, &is_atom/1)
+
+  defp detail_ok?(_), do: false
+
+  defp verified_detail?(false, _detail), do: true
+
+  defp verified_detail?(true, detail)
+       when detail in [:no_signatures_present, :retained, :quarantined], do: false
+
+  defp verified_detail?(true, %Binding{checked: checked, not_verified: skipped}),
+    do: checked != [] and skipped == []
+
+  defp verified_detail?(true, _detail), do: true
 
   defp bounds_check(nil), do: :ok
 

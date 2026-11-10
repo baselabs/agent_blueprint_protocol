@@ -41,7 +41,7 @@ A per-release tarball (`verifier-<version>.tar.gz`) is attached to
 each git release tag: this tree plus the release's conformance corpus,
 flattened to the tarball root — from the extracted tarball, run
 `node cli.ts --corpus conformance`. The npm kit
-(`@agent-blueprint-protocol/verifier`) is the installable
+(`@agent-blueprint-protocol/verifier@rc`) is the installable
 distribution: the compiled verifier, the corpus embedded byte-identical
 to the release-certified copy, and the release-identity manifest
 (`dist/release-metadata.json`, byte-identical to the Hex package's) —

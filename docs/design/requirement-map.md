@@ -1972,3 +1972,28 @@ $ mix test test/agent_blueprint_protocol/json_test.exs test/agent_blueprint_prot
 publish step overrides the default success condition: Publish the Hex package and docs
 Failed: 3 tests
 ```
+
+### case: "the documented public modules and functions equal the declared API"
+
+The declared API includes documented modules and functions, with default
+arities expanded. Hidden implementation helpers remain callable internally
+without widening the supported API.
+
+```red
+$ # plant: a documented census_probe/0 added to Base64Url
+$ mix test test/architecture/public_api_census_test.exs
+1) test the documented public modules and functions equal the declared API
+the documented public API changed
+Result: 0/1 passed
+```
+
+The document-citation check also scans module documentation for references
+to a private source:
+
+```red
+$ # plant: a private document section citation added to the Base64Url moduledoc
+$ mix test test/architecture/document_citation_gate_test.exs
+1) test named section citations name a shipped document or a pinned standard
+lib/agent_blueprint_protocol/base64url.ex: "base §…" names no shipped document or standard
+Result: 1/2 passed
+```

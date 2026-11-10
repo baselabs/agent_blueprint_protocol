@@ -48,8 +48,6 @@ defmodule AgentBlueprintProtocol.Bounds do
           number_lexeme: pos_integer()
         }
 
-  @type error :: :unknown_bound | {:ceiling, atom()}
-
   @doc "The immutable profile maxima."
   @spec maximum() :: t()
   def maximum, do: struct!(__MODULE__, @maxima)
@@ -59,7 +57,7 @@ defmodule AgentBlueprintProtocol.Bounds do
   value a positive integer no greater than the corresponding maximum
   (tighten-only). Omitted fields keep their maximum.
   """
-  @spec new(map()) :: {:ok, t()} | {:error, error()}
+  @spec new(map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def new(overrides) when is_map(overrides) do
     with :ok <- validate_keys(overrides),
          :ok <- validate_values(overrides) do
@@ -67,7 +65,7 @@ defmodule AgentBlueprintProtocol.Bounds do
     end
   end
 
-  def new(_), do: {:error, :invalid_type}
+  def new(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Validate and normalize a `Bounds` struct, or build one from an overrides map.
@@ -76,16 +74,16 @@ defmodule AgentBlueprintProtocol.Bounds do
   `%Bounds{}` carrying a super-maximum (or non-positive) ceiling is rejected, so
   the tighten-only invariant holds no matter how the struct was made.
   """
-  @spec coerce(t() | map()) :: {:ok, t()} | {:error, error()}
+  @spec coerce(t() | map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def coerce(%__MODULE__{} = bounds), do: bounds |> Map.from_struct() |> new()
   def coerce(overrides) when is_map(overrides), do: new(overrides)
 
-  def coerce(_), do: {:error, :invalid_type}
+  def coerce(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp validate_keys(overrides) do
     case Map.keys(overrides) -- @fields do
       [] -> :ok
-      _unknown -> {:error, :unknown_bound}
+      _unknown -> {:error, %AgentBlueprintProtocol.Error{code: :unknown_bound}}
     end
   end
 
@@ -94,7 +92,7 @@ defmodule AgentBlueprintProtocol.Bounds do
       if is_integer(value) and value >= 1 and value <= Keyword.fetch!(@maxima, key) do
         {:cont, :ok}
       else
-        {:halt, {:error, {:ceiling, key}}}
+        {:halt, {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, key}}}}
       end
     end)
   end

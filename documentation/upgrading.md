@@ -1,5 +1,39 @@
 # Upgrading and stability
 
+## Migrating to the release candidate
+
+The candidate is unreleased. Select the full Hex requirement
+`"~> 1.0.0-rc.1"` or the npm `rc` tag once published. Both packages carry
+the same complete prerelease identity. Protocol revision remains 1;
+verification-semantics version is 2.
+
+- Match `{:error, %AgentBlueprintProtocol.Error{code: code}}` everywhere,
+  including decode, JSON, signatures, schemas, and decoder ceilings.
+  Ceiling codes remain `{:ceiling, key}` inside the record. Value-returning
+  helpers keep their successful values and now declare their error branch.
+  Error details are `nil`; read a protected-clamp denial's member path.
+  Requested and effective values remain in acknowledged clamp results.
+- Read each evidence boolean literally. Unsigned artifacts and skipped
+  binding observations are unverified and listed in `not_verified`.
+  Signature details are `Evidence.Signatures` with distinct key_ids;
+  binding details are `Evidence.Binding`, with performed and skipped checks.
+- Match `{:ok, %AgentBlueprintProtocol.Signature.Attributes{}}` from
+  `Signature.verify/2`; it returns the verified purpose and content digest.
+  Repeated signer key_ids in one artifact deny `invalid_constraint`.
+- Use documented modules and functions. Registry tables, extension parsing,
+  canonical-number and sorting helpers, corpus internals, and individual
+  runner dispatch are implementation details, hidden from public docs.
+- Re-pin the registry digest deliberately. The active federation namespace
+  is `io.github.baselabs/federation`; the deprecated example spelling
+  remains supported throughout 1.x. Both algorithm identifier spellings
+  verify in revision 1; producers SHOULD emit `Ed25519`.
+
+Time validity is unchanged: reconcile does not judge signature timestamps,
+lifecycle state, or key and signature time validity. `effect_impact_ceiling`
+remains an obligation, with the strictest value winning rather than capping
+what a Blueprint declares.
+
+
 The 0.x series is the public pre-1.0 line: shipped contracts may
 change within 0.x under pre-1.0 conventions, and every contract change
 lands with a red-capable test. The CHANGELOG records every public

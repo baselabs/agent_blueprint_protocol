@@ -2,11 +2,10 @@ import { isValue } from "./value.ts";
 // The Blueprint artifact — the mirror of AgentBlueprintProtocol.Blueprint:
 // canonical verify → the 18-member registry table → the portability scan →
 // the content-digest comparison, over the digest-covered members minus the
-// evidence trio. Also hosts the Signature.attributes twin (the TS signature
-// twin keeps its parts parser private; the artifact tables need the
-// attributes projection for the purpose checks).
+// evidence trio. The artifact tables share the signature parser for
+// attributes and purpose checks.
 
-import * as b64 from "./b64url.ts";
+import { attributes as signatureAttributes } from "./signature.ts";
 import type { Bounds } from "./bounds.ts";
 import { coerce as coerceBounds, maximum as maxBounds } from "./bounds.ts";
 import * as canonical from "./canonical.ts";
@@ -89,7 +88,7 @@ const CURRENCY = /^[A-Z]{3}$/;
 
 const enumSet = (values: string[]) => new Set(values);
 
-// ---- the 18-member table (base §6): data for the generic engine ---------------
+// ---- the 18-member table (protocol §2): data for the generic engine ---------------
 
 function portElement(): Spec {
   return {
@@ -210,6 +209,7 @@ export function table(): Spec[] {
     field("signatures", { array: { kind: "custom", check: checkSignatureEntry } }, {
       required: false,
       maxItems: CEILING_SIGNATURES,
+      check: checkSignatureIds,
     }),
     field("attestations", { array: { kind: "any" } }, {
       required: false,
@@ -357,6 +357,16 @@ function checkSchemaDocument(value: Value): VResult {
 // The purpose is the artifact's fact: the envelope parses AND must be
 // "blueprint" here — a deployment-purpose signature riding a Blueprint is a
 // wrong-position entry, denied as a table constraint.
+function checkSignatureIds(value: Value): {ok:true} | {ok:false;e:string} {
+  if (value.t !== "arr") return {ok: false, e: "invalid_type"};
+  const ids = value.v.flatMap((entry) => {
+    const attrs = entry?.t === "obj" ? keyfind(entry.v, "signed_attributes") : null;
+    const id = attrs?.t === "obj" ? keyfind(attrs.v, "key_id") : null;
+    return id?.t === "str" ? [id.v] : [];
+  });
+  return new Set(ids).size === ids.length ? {ok:true} : {ok:false,e:"invalid_constraint"};
+}
+
 function checkSignatureEntry(entry: Value): VResult {
   const attrs = signatureAttributes(entry);
   if (!attrs.ok) return { ok: false, e: attrs.e };
@@ -727,118 +737,8 @@ function memberListOf(members: [string, Value][], name: string): Value[] {
   return found !== null && found.t === "arr" ? found.v : [];
 }
 
-// ---- the Signature.attributes twin ---------------------------------------------------
-//
-// Shape-validated only — no signature checked. The TS signature twin keeps
-// its parts parser private, so the artifact tables (blueprint/deployment/
-// federation purpose checks, evidence key-id scans) share this projection.
-
-export interface SignatureAttributes {
-  contentDigest: digest.Digest;
-  createdAt: string;
-  keyId: string;
-  purpose: "blueprint" | "deployment" | "federation-envelope";
-}
-
-const PURPOSES = new Set(["blueprint", "deployment", "federation-envelope"]);
-const ENTRY_MEMBERS = ["protected", "signature", "signed_attributes"];
-const HEADER_MEMBERS = ["alg", "b64", "crit", "kid"];
-const ATTR_MEMBERS = ["algorithm", "content_digest", "created_at", "key_id", "purpose"];
-
-function malformed(): { ok: false; e: string } {
-  return { ok: false, e: "signature_malformed" };
-}
-
-export function signatureAttributes(entry: Value): { ok: true; v: SignatureAttributes } | { ok: false; e: string } {
-  if (!isValue(entry)) return { ok: false, e: "invalid_type" };
-  if (entry.t !== "obj") return malformed();
-  const entryPairs = entry.v;
-
-  const entryNames = entryPairs.map(([name]) => name).sort();
-  if (
-    entryNames.length !== 3 ||
-    entryNames.join("\u0000") !== ENTRY_MEMBERS.join("\u0000")
-  ) {
-    return malformed();
-  }
-
-  const header = keyfind(entryPairs, "protected")!;
-  const attrs = keyfind(entryPairs, "signed_attributes")!;
-  const signatureBody = keyfind(entryPairs, "signature")!;
-
-  // Header: exactly {alg, b64, crit, kid}; the one algorithm-unsupported
-  // denial fires only when alg is a string naming another algorithm.
-  if (header.t !== "obj") return malformed();
-  const headerNames = header.v.map(([name]) => name).sort();
-  if (headerNames.length !== 4 || headerNames.join("\u0000") !== HEADER_MEMBERS.join("\u0000")) {
-    return malformed();
-  }
-  const alg = keyfind(header.v, "alg")!;
-  if (alg.t === "str" && alg.v !== "EdDSA") {
-    return { ok: false, e: "signature_algorithm_unsupported" };
-  }
-  if (alg.t !== "str") return malformed();
-  const b64Flag = keyfind(header.v, "b64")!;
-  if (b64Flag.t !== "bool" || b64Flag.v !== false) return malformed();
-  const crit = keyfind(header.v, "crit")!;
-  if (
-    crit.t !== "arr" ||
-    crit.v.length !== 1 ||
-    crit.v[0]!.t !== "str" ||
-    crit.v[0]!.v !== "b64"
-  ) {
-    return malformed();
-  }
-  const kid = keyfind(header.v, "kid")!;
-  if (kid.t !== "str" || kid.v === "") return malformed();
-
-  // Attributes: exactly the five closed members.
-  if (attrs.t !== "obj") return malformed();
-  const attrNames = attrs.v.map(([name]) => name).sort();
-  if (attrNames.length !== 5 || attrNames.join("\u0000") !== ATTR_MEMBERS.join("\u0000")) {
-    return malformed();
-  }
-  const algorithm = keyfind(attrs.v, "algorithm")!;
-  if (algorithm.t === "str" && algorithm.v !== "Ed25519") {
-    return { ok: false, e: "signature_algorithm_unsupported" };
-  }
-  if (algorithm.t !== "str") return malformed();
-  const contentDigest = keyfind(attrs.v, "content_digest")!;
-  if (contentDigest.t !== "str" || !digest.fromTagged(contentDigest.v).ok) return malformed();
-  const createdAt = keyfind(attrs.v, "created_at")!;
-  if (createdAt.t !== "str" || !Z_FORM.test(createdAt.v) || !validZFormDate(createdAt.v)) {
-    return malformed();
-  }
-  const keyId = keyfind(attrs.v, "key_id")!;
-  if (keyId.t !== "str" || keyId.v === "" || keyId.v.includes(".")) return malformed();
-  const purpose = keyfind(attrs.v, "purpose")!;
-  if (purpose.t !== "str" || !PURPOSES.has(purpose.v)) return malformed();
-
-  if (kid.v !== keyId.v) return malformed();
-
-  if (signatureBody.t !== "str") return malformed();
-  const decodedSignature = b64.decodeStrict(signatureBody.v);
-  if (!decodedSignature.ok || decodedSignature.v.length !== 64) return malformed();
-
-  // canonical_input: both halves must re-encode (invalid UTF-8 in a
-  // hand-built entry denies malformed).
-  const headerJson = canonical.encode(header);
-  const attrsJson = canonical.encode(attrs);
-  if (!headerJson.ok || !attrsJson.ok) return malformed();
-
-  const parsedDigest = digest.fromTagged(contentDigest.v);
-  if (!parsedDigest.ok) return malformed();
-
-  return {
-    ok: true,
-    v: {
-      contentDigest: parsedDigest.v,
-      createdAt: createdAt.v,
-      keyId: keyId.v,
-      purpose: purpose.v as SignatureAttributes["purpose"],
-    },
-  };
-}
+// Artifact tables and receipt checks use the signature module's parser.
+export { attributes as signatureAttributes } from "./signature.ts";
 
 // DateTime.from_iso8601's field validation for the Z whole-second form.
 export function validZFormDate(stamped: string): boolean {

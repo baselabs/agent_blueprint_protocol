@@ -22,17 +22,23 @@ defmodule AgentBlueprintProtocol.BoundsTest do
   end
 
   test "new/1 rejects a widening override (tighten-only)" do
-    assert Bounds.new(%{depth: 65}) == {:error, {:ceiling, :depth}}
+    assert Bounds.new(%{depth: 65}) ==
+             {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}}
   end
 
   test "new/1 rejects a non-positive or non-integer override" do
-    assert Bounds.new(%{depth: 0}) == {:error, {:ceiling, :depth}}
-    assert Bounds.new(%{depth: -1}) == {:error, {:ceiling, :depth}}
-    assert Bounds.new(%{depth: 1.5}) == {:error, {:ceiling, :depth}}
+    assert Bounds.new(%{depth: 0}) ==
+             {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}}
+
+    assert Bounds.new(%{depth: -1}) ==
+             {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}}
+
+    assert Bounds.new(%{depth: 1.5}) ==
+             {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}}
   end
 
   test "new/1 rejects an unknown key" do
-    assert Bounds.new(%{bogus: 1}) == {:error, :unknown_bound}
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_bound}} = Bounds.new(%{bogus: 1})
   end
 
   test "coerce/1 validates a struct and builds a profile from a map" do
@@ -43,6 +49,8 @@ defmodule AgentBlueprintProtocol.BoundsTest do
 
   test "coerce/1 rejects a directly-constructed struct that widens a ceiling" do
     widened = %{Bounds.maximum() | bytes: Bounds.maximum().bytes + 1}
-    assert Bounds.coerce(widened) == {:error, {:ceiling, :bytes}}
+
+    assert Bounds.coerce(widened) ==
+             {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :bytes}}}
   end
 end

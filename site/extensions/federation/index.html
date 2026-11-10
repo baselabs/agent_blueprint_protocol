@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Federation extension — Agent Blueprint Protocol</title>
+<meta name="description" content="The Agent Blueprint Protocol federation profile extension registration.">
+<link rel="stylesheet" href="../../styles.css?v=2">
+</head>
+<body>
+<header class="familynav"><nav>
+<a class="brand" href="../../"><span class="wordmark"><i>[</i>ABP<i>]</i></span></a>
+<a class="gh" href="https://github.com/baselabs/agent_blueprint_protocol">GitHub&nbsp;↗</a>
+</nav></header>
+<main>
+<section class="wrap">
+<div class="sec-head"><h1>Federation extension</h1>
+<p>The federation profile key of the Agent Blueprint Protocol.</p></div>
+<p>The profile carries a non-authorizing Federation TaskEnvelope in A2A metadata
+and MCP <code>_meta</code>. It describes lineage, release and deployment digests,
+bounds, evidence commitments, and mapped logical task states.</p>
+<dl>
+<dt>Namespace</dt><dd><code>io.github.baselabs/federation</code></dd>
+<dt>Criticality</dt><dd>critical</dd>
+<dt>State</dt><dd>active</dd>
+<dt>Schema digest</dt><dd><code>sha-256:NgfEJT8JXJqRMpQS5TVBQDrk97-PzUtbgnRgWc8Dki0</code></dd>
+</dl>
+<p>The deprecated namespace <code>com.example/federation</code> remains supported
+with the same schema digest and an <code>extension_deprecated</code> notice.
+Producers SHOULD use the active namespace.</p>
+<p>See <a href="https://github.com/baselabs/agent_blueprint_protocol/blob/main/spec/protocol.md#11-federation-profile">specification §11</a>
+and the <a href="https://github.com/baselabs/agent_blueprint_protocol/blob/main/spec/registry/registry.json">extension registry</a>.</p>
+</section>
+</main>
+</body>
+</html>

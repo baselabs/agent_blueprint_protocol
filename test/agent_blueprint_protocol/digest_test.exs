@@ -2,7 +2,7 @@ defmodule AgentBlueprintProtocol.DigestTest do
   @moduledoc """
   Unit contract for the tagged content digest: FIPS 180-4 known-answer
   vectors (from the NIST example document this package's conformance row
-  cites), the base-§8.2 domain-separated preimage formula re-derived
+  cites), the protocol §5 domain-separated preimage formula re-derived
   independently, the tagged wire form, and constant-time equality.
   """
 
@@ -33,7 +33,7 @@ defmodule AgentBlueprintProtocol.DigestTest do
     end
   end
 
-  describe "hash/2 (domain-separated preimage, base §8.2)" do
+  describe "hash/2 (domain-separated preimage, protocol §5)" do
     test "the preimage formula is separator || <<0>> || bytes, re-derived here" do
       jcs = "{}"
 
@@ -77,7 +77,8 @@ defmodule AgentBlueprintProtocol.DigestTest do
     end
 
     test "a hand-built struct with wrong-size bytes denies without emitting bytes" do
-      assert {:error, :invalid_type} = Digest.to_tagged(%Digest{algorithm: :sha256, bytes: <<0>>})
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Digest.to_tagged(%Digest{algorithm: :sha256, bytes: <<0>>})
     end
   end
 
@@ -88,41 +89,48 @@ defmodule AgentBlueprintProtocol.DigestTest do
     end
 
     test "unknown or inexact algorithm tags deny :digest_algorithm_unsupported" do
-      assert Digest.from_tagged("SHA-256:" <> @abc_body) ==
-               {:error, :digest_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}} =
+               Digest.from_tagged("SHA-256:" <> @abc_body)
 
-      assert Digest.from_tagged("sha256:" <> @abc_body) == {:error, :digest_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}} =
+               Digest.from_tagged("sha256:" <> @abc_body)
 
-      assert Digest.from_tagged("sha-512:" <> @abc_body) ==
-               {:error, :digest_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}} =
+               Digest.from_tagged("sha-512:" <> @abc_body)
 
-      assert Digest.from_tagged(":" <> @abc_body) == {:error, :digest_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}} =
+               Digest.from_tagged(":" <> @abc_body)
     end
 
     test "a string with no colon is not a tagged digest" do
-      assert Digest.from_tagged(@abc_body) == {:error, :digest_encoding_invalid}
-      assert Digest.from_tagged("sha-256") == {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged(@abc_body)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256")
     end
 
     test "an empty body denies :digest_encoding_invalid" do
-      assert Digest.from_tagged("sha-256:") == {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256:")
     end
 
     test "wrong-length but codec-valid bodies deny :digest_encoding_invalid" do
-      assert Digest.from_tagged("sha-256:" <> String.slice(@abc_body, 0, 42)) ==
-               {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256:" <> String.slice(@abc_body, 0, 42))
 
-      assert Digest.from_tagged("sha-256:" <> @abc_body <> "A") ==
-               {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256:" <> @abc_body <> "A")
     end
 
     test "a padded body collapses to :digest_encoding_invalid at the digest layer" do
-      assert Digest.from_tagged("sha-256:" <> @abc_body <> "==") ==
-               {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256:" <> @abc_body <> "==")
     end
 
     test "extra colons are a body defect" do
-      assert Digest.from_tagged("sha-256:AAA:BBB") == {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.from_tagged("sha-256:AAA:BBB")
     end
   end
 
@@ -158,23 +166,25 @@ defmodule AgentBlueprintProtocol.DigestTest do
       for bit <- 0..7 do
         mutated = flip_bit(jcs, 0, bit)
 
-        assert Digest.verify_content(:blueprint_content, mutated, tagged) ==
-                 {:error, :digest_mismatch}
+        assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+                 Digest.verify_content(:blueprint_content, mutated, tagged)
       end
     end
 
     test "a digest from another domain does not verify under this one" do
       jcs = ~s({"covered":true})
       tagged = Digest.to_tagged(Digest.hash(:deployment_content, jcs))
-      assert Digest.verify_content(:blueprint_content, jcs, tagged) == {:error, :digest_mismatch}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+               Digest.verify_content(:blueprint_content, jcs, tagged)
     end
 
     test "parse errors surface before any comparison" do
-      assert Digest.verify_content(:blueprint_content, "{}", "sha-512:" <> @abc_body) ==
-               {:error, :digest_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}} =
+               Digest.verify_content(:blueprint_content, "{}", "sha-512:" <> @abc_body)
 
-      assert Digest.verify_content(:blueprint_content, "{}", "sha-256:") ==
-               {:error, :digest_encoding_invalid}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}} =
+               Digest.verify_content(:blueprint_content, "{}", "sha-256:")
     end
 
     test "covered bytes are opaque — the canonicality contract is the caller's" do
@@ -187,7 +197,9 @@ defmodule AgentBlueprintProtocol.DigestTest do
       non_canonical = ~s({"b":2,"a":1})
 
       assert {:ok, _} = Canonicalization.verify(~s({"a":1,"b":2}))
-      assert {:error, :non_canonical_bytes} = Canonicalization.verify(non_canonical)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(non_canonical)
 
       tagged = Digest.to_tagged(Digest.hash(:blueprint_content, non_canonical))
       assert Digest.verify_content(:blueprint_content, non_canonical, tagged) == :ok

@@ -126,7 +126,7 @@ export function intersect(
 // runner pre-filters unknown member names to :invalid_type at add_bound_entry;
 // here that delegated filter runs first, then BoundSet.new's value checks).
 
-function buildSet(raw: Record<string, unknown>): { ok: true; v: Record<string, BoundValue> } | { ok: false; e: string } {
+export function buildSet(raw: Record<string, unknown>): { ok: true; v: Record<string, BoundValue> } | { ok: false; e: string } {
   if (!isPlainObject(raw)) return { ok: false, e: "invalid_type" };
   const out: Record<string, BoundValue> = {};
   for (const [name, value] of Object.entries(raw)) {

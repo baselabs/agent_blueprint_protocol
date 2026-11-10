@@ -103,3 +103,11 @@ semver, git tags, and the manifest version govern the release identity.
 The axes are independent — one event (for example an optional→critical
 registry flip, which requires a revision increment) may move more than
 one at once; none may be derived from another.
+
+## Prerelease identity
+
+Hex and npm carry the same complete semantic version, including a
+prerelease suffix. The candidate uses `rc` as npm's distribution tag and
+is marked prerelease in the source release. Tags are distribution
+selection, not another durable identity. Version comparison uses semantic
+version precedence, including numeric prerelease identifiers.

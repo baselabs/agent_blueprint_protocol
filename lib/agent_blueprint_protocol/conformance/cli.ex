@@ -1,19 +1,5 @@
 defmodule AgentBlueprintProtocol.Conformance.Cli do
-  @moduledoc """
-  The conformance CLI : `--corpus <dir>` is REQUIRED
-  — no default, so a vacuous run is impossible — and the exit status is the
-  agreement verdict:
-
-  - `0` complete agreement;
-  - `1` any disagreement;
-  - `2` usage error or corpus integrity failure.
-
-  This module and its `Main` entry are the ONLY filesystem touchers in the
-  package (the `no_file_access` architecture gate carves out exactly these
-  beams). Everything downstream of reading the directory is the pure
-  loader/runner/report.
-  The CLI reports conformance facts; it never authorizes anything.
-  """
+  @moduledoc false
 
   alias AgentBlueprintProtocol.Conformance.{Corpus, Report, Runner}
 
@@ -26,16 +12,12 @@ defmodule AgentBlueprintProtocol.Conformance.Cli do
 
   @usage "usage: agent_blueprint_protocol_conformance --corpus <dir>"
 
-  @doc """
-  Runs the CLI over `argv`. Returns the exit status (never halts — the
-  escript entry owns `System.halt/1`).
-  """
+  @doc false
   @spec run([binary()]) :: 0 | 1 | 2
   def run(argv) do
     with {:ok, dir} <- parse(argv),
          {:ok, map} <- read_corpus(dir),
-         {:ok, corpus} <- Corpus.load(map),
-         :ok <- reader_inputs(corpus) do
+         {:ok, corpus} <- Corpus.load(map) do
       certified = if corpus.identity == @certified_digest, do: "matches", else: "does not match"
       IO.puts(:stderr, "corpus digest #{certified} the release-certified corpus")
       results = Runner.run(corpus)
@@ -66,58 +48,6 @@ defmodule AgentBlueprintProtocol.Conformance.Cli do
         2
     end
   end
-
-  defp reader_inputs(%Corpus{cases: files}) do
-    readable? = Enum.all?(files, fn {_, rows} -> Enum.all?(rows, &reader_input?/1) end)
-    if readable?, do: :ok, else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
-  end
-
-  defp reader_input?(%{"surface" => surface, "input" => input})
-       when surface in ["negotiation.negotiate", "extension.resolve"] do
-    case Map.get(input, "support") do
-      nil ->
-        true
-
-      support when is_map(support) ->
-        fields_shape?(support, [
-          {"revisions", &is_list/1},
-          {"core_fields", &is_list/1},
-          {"schemas", &is_map/1},
-          {"registry", &registry_shape?/1}
-        ])
-
-      _ ->
-        false
-    end
-  end
-
-  defp reader_input?(%{"surface" => "bounds_algebra.intersect", "input" => input}) do
-    Enum.all?(["blueprint", "deployment", "host"], fn key ->
-      fields_shape?(input, [{key, &bound_map_shape?/1}])
-    end)
-  end
-
-  defp reader_input?(_), do: true
-
-  defp fields_shape?(map, fields),
-    do:
-      Enum.all?(fields, fn {key, predicate} ->
-        not Map.has_key?(map, key) or predicate.(map[key])
-      end)
-
-  defp registry_shape?(map) when is_map(map),
-    do: Enum.all?(map, fn {_, entry} -> is_map(entry) end)
-
-  defp registry_shape?(_), do: false
-
-  defp bound_map_shape?(map) when is_map(map) do
-    Enum.all?(map, fn
-      {_, %{"ordinal" => _} = value} -> fields_shape?(value, [{"markers", &is_list/1}])
-      _ -> true
-    end)
-  end
-
-  defp bound_map_shape?(_), do: false
 
   defp parse(["--corpus", dir]) when is_binary(dir) and dir != "", do: {:ok, dir}
   defp parse(_), do: :usage

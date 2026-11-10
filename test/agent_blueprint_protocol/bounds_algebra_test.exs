@@ -37,12 +37,12 @@ defmodule AgentBlueprintProtocol.BoundsAlgebraTest do
     max_tokens: 100_000
   }
 
-  defp set(overrides \\ []) do
+  defp set(overrides) do
     {:ok, set} = BoundSet.new(Map.merge(@base, Map.new(overrides)))
     set
   end
 
-  defp sources(opts \\ []) do
+  defp sources(opts) do
     %Sources{
       blueprint: Keyword.get(opts, :blueprint, set([])),
       deployment: Keyword.get(opts, :deployment, set([])),
@@ -108,23 +108,16 @@ defmodule AgentBlueprintProtocol.BoundsAlgebraTest do
     assert %{source: :host} = clamp_for(tied, :max_tokens)
   end
 
-  # ---- tripwire 2: protected deny carries the triple ------------------------
+  # ---- tripwire 2: protected deny is value-free ----------------------------
 
-  test "a protected narrowing under the default posture denies carrying field/requested/effective" do
+  test "a protected narrowing denies with its member path and no input values" do
     denied = BoundsAlgebra.intersect(sources(blueprint: set(disclosure_ceiling: :detail)))
 
     assert {:error,
             %Error{
               code: :protected_bound_clamp_denied,
               subject: ["disclosure_ceiling"],
-              detail: %ClampEvidence{
-                field: :disclosure_ceiling,
-                class: :protected,
-                unit: :ordinal,
-                requested: :detail,
-                effective: :summary,
-                acknowledged: false
-              }
+              detail: nil
             }} = denied
   end
 
@@ -147,20 +140,25 @@ defmodule AgentBlueprintProtocol.BoundsAlgebraTest do
   test "a marker-bearing host narrows the markerless lifted baseline (the deny-storm case)" do
     marker_host = set(classification_ceiling: %{ordinal: :internal, markers: MapSet.new([:pci])})
 
-    assert {:error, %Error{code: :protected_bound_clamp_denied, detail: detail}} =
+    assert {:error,
+            %Error{
+              code: :protected_bound_clamp_denied,
+              subject: ["classification_ceiling"],
+              detail: nil
+            }} =
              BoundsAlgebra.intersect(sources(host: marker_host))
-
-    assert %{field: :classification_ceiling, requested: %{ordinal: :internal, markers: empty}} =
-             detail
-
-    assert MapSet.size(empty) == 0
 
     assert {:ok, %Result{} = acknowledged} =
              BoundsAlgebra.intersect(sources(host: marker_host, protected_clamp: :acknowledge))
 
-    assert %ClampEvidence{acknowledged: true, effective: %{markers: pci}} =
+    assert %ClampEvidence{
+             acknowledged: true,
+             requested: %{markers: empty},
+             effective: %{markers: pci}
+           } =
              clamp_for(acknowledged, :classification_ceiling)
 
+    assert MapSet.size(empty) == 0
     assert MapSet.equal?(pci, MapSet.new([:pci]))
   end
 
@@ -224,13 +222,11 @@ defmodule AgentBlueprintProtocol.BoundsAlgebraTest do
 
   test "a stricter host narrows a weaker declared obligation (deny); a wider host never clamps" do
     # empty-capability shape: declared envelope none, host separated
-    assert {:error, %Error{code: :protected_bound_clamp_denied, detail: detail}} =
+    assert {:error,
+            %Error{code: :protected_bound_clamp_denied, subject: ["approval_trait"], detail: nil}} =
              BoundsAlgebra.intersect(
                sources(host: set(approval_trait: :separated_human_required))
              )
-
-    assert %{field: :approval_trait, requested: :none, effective: :separated_human_required} =
-             detail
 
     # the REVERSE: declared separated, host none — effective stays separated, no clamp
     assert {:ok, %Result{clamps: []}} =
@@ -324,10 +320,13 @@ defmodule AgentBlueprintProtocol.BoundsAlgebraTest do
 
     # the understatement hole is closed: a host at internal now DENIES against
     # the artifact's own restricted declaration instead of passing silently
-    assert {:error, %Error{code: :protected_bound_clamp_denied, detail: detail}} =
+    assert {:error,
+            %Error{
+              code: :protected_bound_clamp_denied,
+              subject: ["classification_ceiling"],
+              detail: nil
+            }} =
              BoundsAlgebra.intersect(sources(blueprint: lifted))
-
-    assert %{requested: %{ordinal: :restricted}, effective: %{ordinal: :internal}} = detail
   end
 
   # ---- lifters --------------------------------------------------------------

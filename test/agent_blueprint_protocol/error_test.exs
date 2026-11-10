@@ -24,9 +24,11 @@ defmodule AgentBlueprintProtocol.ErrorTest do
     codes = Error.codes()
     keys = Error.ceiling_keys()
 
-    assert codes != [] and Enum.uniq(codes) == codes
+    assert [_ | _] = codes
+    assert Enum.uniq(codes) == codes
     assert Enum.all?(codes, &is_atom/1)
-    assert keys != [] and Enum.uniq(keys) == keys
+    assert [_ | _] = keys
+    assert Enum.uniq(keys) == keys
     assert Enum.all?(keys, &is_atom/1)
   end
 end

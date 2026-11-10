@@ -6,7 +6,7 @@ inventing anything (the mapping-before-inventing law). The verdict, re-derived
 against the live sources below: **3 fields map natively, 5 partially, and 15
 have no safe native home** — so no protocol-native wire field and no native
 transport are warranted. The profile is one registered extension
-(`com.example/federation`, critical) carried inside each transport's
+(`io.github.baselabs/federation`, critical) carried inside each transport's
 untyped extension channel, with the same JCS-canonical object and the same
 detached Ed25519 signature envelope on both.
 
@@ -92,8 +92,8 @@ different preimage and verification fails silently.
 ## Carrier keys and lossy-state rules
 
 The envelope rides `Task.metadata[<a2a_uri>]` on A2A (keyed by the
-registry entry's `https://example.com/extensions/federation`, following
-A2A's URI-keyed metadata convention) and `_meta["com.example/federation"]`
+registry entry's `https://baselabs.github.io/agent_blueprint_protocol/extensions/federation`, following
+A2A's URI-keyed metadata convention) and `_meta["io.github.baselabs/federation"]`
 on MCP (the reverse-DNS namespace; the MCP `_meta` key grammar forbids a
 `://` URI key). The same JCS-canonical object under both.
 
@@ -155,7 +155,7 @@ validation work or crash later digest encodes with non-UTF-8 bytes.
 
 ## One namespace, two bodies
 
-`com.example/federation` names two deliberately distinct objects: the
+`io.github.baselabs/federation` names two deliberately distinct objects: the
 ARTIFACT-side critical-extension body a Blueprint declares (the
 digest-pinned issuer/subject/audience trio in the compiled-in extension
 registry, validated at negotiation) and the WIRE-side TaskEnvelope

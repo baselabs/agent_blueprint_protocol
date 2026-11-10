@@ -173,7 +173,11 @@ defmodule AgentBlueprintProtocol.BlueprintFixture do
   end
 
   def signing_keypair do
-    :crypto.generate_key(:eddsa, :ed25519, :crypto.strong_rand_bytes(32))
+    :crypto.generate_key(
+      :eddsa,
+      :ed25519,
+      :crypto.hash(:sha256, "agent-blueprint-protocol/obviously-test-only-ed25519-fixture-seed")
+    )
   end
 
   # The 15 required members (content_digest computed by with_digest/1).

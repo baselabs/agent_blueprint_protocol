@@ -76,3 +76,19 @@ still a legitimate bump), never inverse-checked. Certification is over
 the released censuses, never the input space at large — the boundary is
 stated in the specification, the manifest vocabulary, and the upgrading
 guide.
+
+## Semantics version 2
+
+The release candidate increments `verification_semantics_version` once,
+from 1 to 2, while retaining protocol revision 1. Failures have one typed
+shape, evidence no longer marks skipped checks verified, signature
+verification returns signed attributes, duplicate signers deny, the
+protected header accepts the Ed25519 identifier, and the federation
+namespace is deprecated in favor of its controlled replacement. The
+release history appends the candidate identity; published rows remain
+immutable. Prior-census claims describe projected verdicts separately
+from these API and evidence changes.
+The `negotiation-estate-contract-valid` case gains an
+`extension_deprecated` notice. Its valid verdict and previously declared
+projection fields are unchanged, so prior-census claims remain
+`equivalent`; the current census explicitly pins the added notice.

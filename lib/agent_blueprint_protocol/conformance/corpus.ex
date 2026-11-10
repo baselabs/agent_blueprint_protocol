@@ -20,7 +20,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   | zero cases total | `:corpus_empty` |
 
   Applicability totality is enforced against the COMPILED-IN floor (`floor/0`,
-  the protocol's pinned 16×29 table), not merely the index's self-consistency —
+  the protocol's pinned 16×31 table), not merely the index's self-consistency —
   an all-`n_a` corpus cannot load. A required cell's declared count must EQUAL
   the observed executed count (over-counting reds too); an `n_a` cell carries
   `{"n_a" => reason}` with a non-empty reason and zero executed cases.
@@ -58,17 +58,10 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   @enforce_keys [:index, :index_bytes, :cases, :data, :raws, :case_ids, :identity]
   defstruct [:index, :index_bytes, :cases, :data, :raws, :case_ids, :identity]
 
-  @type t :: %__MODULE__{
-          index: map(),
-          index_bytes: binary(),
-          cases: [{binary(), [map()]}],
-          data: %{binary() => term()},
-          raws: %{binary() => binary()},
-          case_ids: MapSet.t(binary()),
-          identity: binary()
-        }
+  @typedoc "A loaded corpus for Runner and Report; its fields are implementation details."
+  @type t :: %__MODULE__{}
 
-  # --- the pinned floor (spec: Corpus applicability floor, 16 x 29) ----------
+  # --- the pinned floor (spec: Corpus applicability floor, 16 x 31) ----------
 
   @surfaces [
     "json.decode",
@@ -224,12 +217,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   def load(map) when is_map(map), do: load_census(map, :conformance)
   def load(_), do: {:error, %Error{code: :corpus_index_invalid, subject: ["index"]}}
 
-  @doc """
-  Loads a PRIOR release's census for compatibility replay: the same
-  pipeline with the two current-state couplings suspended (see the
-  moduledoc). The census's own integrity chain — including its own
-  `corpus_digest` and per-file hashes — is verified exactly as in `load/1`.
-  """
+  @doc false
   @spec load_prior_census(%{binary() => binary()}) :: {:ok, t()} | {:error, Error.t()}
   def load_prior_census(map) when is_map(map), do: load_census(map, :prior_census)
 

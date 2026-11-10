@@ -77,10 +77,6 @@ function main(argv: string[]): number {
     return 2;
   }
 
-  if (!corpus.v.cases.every((file) => file.cases.every(readerInput))) {
-    process.stderr.write("corpus integrity failure: :invalid_type\n");
-    return 2;
-  }
   const certified = corpus.v.identity === releaseMetadata().corpus_digest ? "matches" : "does not match";
   process.stderr.write(`corpus digest ${certified} the release-certified corpus\n`);
   const results = run(corpus.v);
@@ -90,29 +86,6 @@ function main(argv: string[]): number {
   process.stdout.write(bytes);
   const agreed = results.flat().filter((r) => r.agree).length;
   return agreed === results.flat().length && agreed > 0 ? 0 : 1;
-}
-
-function fieldShape(input: Value, key: string, predicate: (v: Value) => boolean): boolean {
-  const value = member(input, key);
-  return value === null || predicate(value);
-}
-
-function readerInput(row: CaseObj): boolean {
-  const input = row.input;
-  if (row.surface === "negotiation.negotiate" || row.surface === "extension.resolve") {
-    const support = member(input, "support");
-    if (support === null || support.t === "null") return true;
-    if (support.t !== "obj") return false;
-    return ["revisions", "core_fields"].every((key) => fieldShape(support, key, (v) => v.t === "arr")) &&
-      fieldShape(support, "schemas", (v) => v.t === "obj") &&
-      fieldShape(support, "registry", (v) => v.t === "obj" && v.v.every(([, entry]) => entry.t === "obj"));
-  }
-  if (row.surface === "bounds_algebra.intersect") {
-    return ["blueprint", "deployment", "host"].every((key) => fieldShape(input, key, (v) =>
-      v.t === "obj" && v.v.every(([, bound]) => bound.t !== "obj" || member(bound, "ordinal") === null ||
-        fieldShape(bound, "markers", (markers) => markers.t === "arr"))));
-  }
-  return true;
 }
 
 // Single-artifact mode — a kit-side convenience the escript deliberately

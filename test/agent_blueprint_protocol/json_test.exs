@@ -33,15 +33,15 @@ defmodule AgentBlueprintProtocol.JsonTest do
 
   test "accepts trailing JSON whitespace, rejects trailing non-whitespace" do
     assert Json.decode("1 \n\t ") == {:ok, {:integer, 1}}
-    assert Json.decode("1 x") == {:error, :trailing_bytes}
-    assert Json.decode("{} []") == {:error, :trailing_bytes}
+    assert {:error, %AgentBlueprintProtocol.Error{code: :trailing_bytes}} = Json.decode("1 x")
+    assert {:error, %AgentBlueprintProtocol.Error{code: :trailing_bytes}} = Json.decode("{} []")
   end
 
   test "malformed input is a value-free syntax error, never a raise" do
-    assert Json.decode("{") == {:error, :invalid_syntax}
-    assert Json.decode("") == {:error, :invalid_syntax}
-    assert Json.decode("nul") == {:error, :invalid_syntax}
-    assert Json.decode("[1,]") == {:error, :invalid_syntax}
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_syntax}} = Json.decode("{")
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_syntax}} = Json.decode("")
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_syntax}} = Json.decode("nul")
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_syntax}} = Json.decode("[1,]")
   end
 
   test "invalid Unicode escapes deny without exposing input through every decode surface" do
@@ -71,12 +71,12 @@ defmodule AgentBlueprintProtocol.JsonTest do
         ],
         decode <- decoders do
       assert decode.(input) in [
-               {:error, :invalid_syntax},
+               {:error, %AgentBlueprintProtocol.Error{code: :invalid_syntax}},
                {:error, %AgentBlueprintProtocol.Error{code: :invalid_syntax, subject: []}}
              ]
 
       assert decode.(input <> <<255>>) in [
-               {:error, :invalid_encoding},
+               {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}},
                {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding, subject: []}}
              ]
     end
@@ -85,12 +85,15 @@ defmodule AgentBlueprintProtocol.JsonTest do
   end
 
   test "an overflowing float lexeme is a value-free invalid_number" do
-    assert Json.decode("1e400") == {:error, :invalid_number}
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_number}} = Json.decode("1e400")
   end
 
   test "propagates a bounds coercion error unchanged" do
-    assert Json.decode("1", %{depth: 9999}) == {:error, {:ceiling, :depth}}
-    assert Json.decode("1", %{bogus: 1}) == {:error, :unknown_bound}
+    assert Json.decode("1", %{depth: 9999}) ==
+             {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}}
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_bound}} =
+             Json.decode("1", %{bogus: 1})
   end
 
   test "accepts an explicit Bounds struct" do
@@ -100,9 +103,11 @@ defmodule AgentBlueprintProtocol.JsonTest do
 
   describe "non-binary input (the floor's json.decode × invalid_type cell)" do
     test "a non-binary input denies with a typed error, never raises" do
-      assert Json.decode(123) == {:error, :invalid_type}
-      assert Json.decode(nil) == {:error, :invalid_type}
-      assert Json.decode(:atom, %{}) == {:error, :invalid_type}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = Json.decode(123)
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} = Json.decode(nil)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+               Json.decode(:atom, %{})
     end
   end
 end

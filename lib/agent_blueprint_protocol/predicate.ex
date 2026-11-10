@@ -3,7 +3,7 @@ defmodule AgentBlueprintProtocol.Predicate do
 
   @moduledoc """
   The closed, portable boolean predicate algebra carried by
-  `deterministic_predicate` evaluation assertions (base §6.6).
+  `deterministic_predicate` evaluation assertions (protocol §2).
 
   Grammar (closed world — every node is an object with `op` plus exactly the
   operator's operand members):
@@ -31,7 +31,7 @@ defmodule AgentBlueprintProtocol.Predicate do
   CANONICAL decimal index string (`"0"`, `"17"` — no leading zeros). For
   `present`/`absent` an unresolvable path is a defined outcome (`present` →
   false, `absent` → true); for every value operator it is
-  `{:error, :predicate_path_unresolved}`. `eq`/`ne`/`in` use `Schema.equal?/2`
+  `{:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}}`. `eq`/`ne`/`in` use `Schema.equal?/2`
   (mathematical-value numbers, order-blind objects); `lt`/`lte`/`gt`/`gte`
   require both operands numbers (mathematical value) or both strings (byte
   order) — any other combination is `:predicate_path_unresolved` (the path
@@ -43,15 +43,6 @@ defmodule AgentBlueprintProtocol.Predicate do
   """
 
   alias AgentBlueprintProtocol.{Json, Schema}
-
-  @type reason ::
-          :predicate_op_unknown
-          | :predicate_path_unresolved
-          | :predicate_nodes_exceeded
-          | :unknown_member
-          | :missing_required_field
-          | :invalid_type
-          | :invalid_cardinality
 
   @fold_ops ["and", "or"]
   @not_ops ["not"]
@@ -82,7 +73,8 @@ defmodule AgentBlueprintProtocol.Predicate do
   Validate a predicate's shape against `port_names`. Total and never-raising
   on any input: malformed tagged shapes deny `:invalid_type`.
   """
-  @spec validate(Json.value(), [binary()] | :any_root) :: :ok | {:error, reason()}
+  @spec validate(Json.value(), [binary()] | :any_root) ::
+          :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def validate(predicate, :any_root) do
     case shape(predicate, :any_root, 0) do
       {:ok, _nodes} -> :ok
@@ -94,11 +86,12 @@ defmodule AgentBlueprintProtocol.Predicate do
     if port_names?(port_names) do
       validate_names(predicate, port_names)
     else
-      {:error, :invalid_type}
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  def validate(_predicate, _port_names), do: {:error, :invalid_type}
+  def validate(_predicate, _port_names),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp port_names?([]), do: true
   defp port_names?([name | rest]) when is_binary(name), do: port_names?(rest)
@@ -117,7 +110,7 @@ defmodule AgentBlueprintProtocol.Predicate do
   `{:ok, boolean()}` or the first error encountered under the pinned orders.
   """
   @spec evaluate(Json.value(), %{optional(binary()) => Json.value()}) ::
-          {:ok, boolean()} | {:error, reason()}
+          {:ok, boolean()} | {:error, AgentBlueprintProtocol.Error.t()}
   def evaluate(predicate, ports) when is_map(ports) do
     # Shape-only: the root check belongs to decode-time validation against
     # DECLARED ports. At evaluation, a root the host did not supply is an
@@ -128,7 +121,8 @@ defmodule AgentBlueprintProtocol.Predicate do
     end
   end
 
-  def evaluate(_predicate, _ports), do: {:error, :invalid_type}
+  def evaluate(_predicate, _ports),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # ---- shape walk ---------------------------------------------------------------
 
@@ -142,9 +136,12 @@ defmodule AgentBlueprintProtocol.Predicate do
     end
   end
 
-  defp shape(_other, _ports, _count), do: {:error, :invalid_type}
+  defp shape(_other, _ports, _count),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  defp count_ok(count) when count > @node_ceiling, do: {:error, :predicate_nodes_exceeded}
+  defp count_ok(count) when count > @node_ceiling,
+    do: {:error, %AgentBlueprintProtocol.Error{code: :predicate_nodes_exceeded}}
+
   defp count_ok(_count), do: :ok
 
   # Hand-built objects can carry duplicate members the decoder would have
@@ -158,21 +155,21 @@ defmodule AgentBlueprintProtocol.Predicate do
       end)
 
     if :malformed in names or length(names) != length(Enum.uniq(names)),
-      do: {:error, :invalid_type},
+      do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}},
       else: :ok
   end
 
   defp op_of(members) do
     case List.keyfind(members, "op", 0) do
       {"op", {:string, op}} when is_binary(op) -> {:ok, op}
-      {"op", _other} -> {:error, :invalid_type}
-      nil -> {:error, :missing_required_field}
+      {"op", _other} -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
+      nil -> {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}}
     end
   end
 
   defp closed_members(members, op) do
     case Map.fetch(@operands, op) do
-      :error -> {:error, :predicate_op_unknown}
+      :error -> {:error, %AgentBlueprintProtocol.Error{code: :predicate_op_unknown}}
       {:ok, operands} -> closed_member_check(members, ["op" | operands])
     end
   end
@@ -182,7 +179,7 @@ defmodule AgentBlueprintProtocol.Predicate do
     # remaining name is binary.
     case Enum.find(members, fn {name, _} -> name not in allowed end) do
       nil -> :ok
-      {_name, _} -> {:error, :unknown_member}
+      {_name, _} -> {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
     end
   end
 
@@ -191,7 +188,7 @@ defmodule AgentBlueprintProtocol.Predicate do
 
     case Enum.find(required, fn name -> List.keyfind(members, name, 0) == nil end) do
       nil -> :ok
-      _missing -> {:error, :missing_required_field}
+      _missing -> {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}}
     end
   end
 
@@ -211,7 +208,9 @@ defmodule AgentBlueprintProtocol.Predicate do
 
   defp arity_check(op, n) when op in @fold_ops and n >= 1, do: :ok
   defp arity_check(_not, 1), do: :ok
-  defp arity_check(_op, _n), do: {:error, :invalid_cardinality}
+
+  defp arity_check(_op, _n),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}}
 
   defp values_member_when_needed("in", members), do: values_member(members)
   defp values_member_when_needed(_op, _members), do: :ok
@@ -228,7 +227,7 @@ defmodule AgentBlueprintProtocol.Predicate do
   defp array_member(members, name) do
     case List.keyfind(members, name, 0) do
       {^name, {:array, items}} when is_list(items) -> {:ok, items}
-      {^name, _other} -> {:error, :invalid_type}
+      {^name, _other} -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -238,11 +237,11 @@ defmodule AgentBlueprintProtocol.Predicate do
         path_segments(segments, ports)
 
       {"path", _other} ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  defp path_segments([], _ports), do: {:error, :invalid_type}
+  defp path_segments([], _ports), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp path_segments(segments, ports) do
     if Enum.all?(segments, &match?({:string, s} when is_binary(s), &1)) do
@@ -250,7 +249,7 @@ defmodule AgentBlueprintProtocol.Predicate do
 
       root_ok?(ports, root)
     else
-      {:error, :invalid_type}
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -259,16 +258,18 @@ defmodule AgentBlueprintProtocol.Predicate do
   defp root_ok?(ports, root) do
     if MapSet.member?(ports, root),
       do: :ok,
-      else: {:error, :predicate_path_unresolved}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}}
   end
 
   defp values_member(members) do
     case List.keyfind(members, "values", 0) do
       {"values", {:array, items}} when is_list(items) ->
-        if Enum.all?(items, &well_formed?/1), do: :ok, else: {:error, :invalid_type}
+        if Enum.all?(items, &well_formed?/1),
+          do: :ok,
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
       {"values", _other} ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -344,7 +345,7 @@ defmodule AgentBlueprintProtocol.Predicate do
 
     case resolve(segments, ports) do
       {:ok, actual} -> compare_values(op, actual, value)
-      :unresolved -> {:error, :predicate_path_unresolved}
+      :unresolved -> {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}}
     end
   end
 
@@ -356,8 +357,11 @@ defmodule AgentBlueprintProtocol.Predicate do
   defp compare_values(op, actual, value)
        when op in ["lt", "lte", "gt", "gte"] do
     case orderable_pair(actual, value) do
-      {:ok, a, b} -> {:ok, order(op, a, b)}
-      :mismatched_kinds -> {:error, :predicate_path_unresolved}
+      {:ok, a, b} ->
+        {:ok, order(op, a, b)}
+
+      :mismatched_kinds ->
+        {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}}
     end
   end
 
@@ -381,7 +385,7 @@ defmodule AgentBlueprintProtocol.Predicate do
 
     case resolve(segments, ports) do
       {:ok, actual} -> {:ok, Enum.any?(values, &Schema.equal?(actual, &1))}
-      :unresolved -> {:error, :predicate_path_unresolved}
+      :unresolved -> {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}}
     end
   end
 

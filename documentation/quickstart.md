@@ -14,7 +14,7 @@ Add the dependency:
 ```elixir
 defp deps do
   [
-    {:agent_blueprint_protocol, "~> 0.8.4"}
+    {:agent_blueprint_protocol, "~> 1.0.0-rc.1"}
   ]
 end
 ```
@@ -60,7 +60,7 @@ that is NOT a Blueprint at all:
 ```elixir
 {:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode({:object, [{"a", {:integer, 1}}]})
 AgentBlueprintProtocol.Json.decode(bytes) # => {:ok, {:object, [{"a", {:integer, 1}}]}}
-AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, :unknown_member}
+AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
 ```
 
 `a` is not a Blueprint member — the denial is typed, and there is never a

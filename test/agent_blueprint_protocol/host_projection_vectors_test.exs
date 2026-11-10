@@ -522,7 +522,7 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
     # retained optional; its carriage is proven by the green negotiation over
     # the digest-pinned document and the byte-exact round trip below.
     assert retained == []
-    assert Enum.all?(evidence.checks, & &1.verified)
+    assert Enum.all?(evidence.checks, &(&1.verified or &1.surface in [:signatures, :bind]))
 
     assert Enum.take(evidence.not_verified, 7) ==
              ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth)a
@@ -622,7 +622,7 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
           [denied_name, "asset_definition", "definition_version", "as_of"]
         )
 
-      assert {:error, :forbidden_portable_value} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
                Blueprint.from_value(blueprint_value(echo_schema: denied_named_echo))
     end
 
@@ -652,7 +652,7 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
       }
     }
 
-    assert {:error, :extension_unknown_critical} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_unknown_critical}} =
              Negotiation.negotiate(Blueprint.to_value(commerce_blueprint), host_view)
 
     assert {:error, %{code: :extension_unknown_critical}} =
@@ -665,7 +665,7 @@ defmodule AgentBlueprintProtocol.HostProjectionVectorsTest do
     # Contrast at the compiled registry (no view pin): the same attachment
     # denies for the missing critical schema, not unknownness — the two-host
     # half needs the view pin to reach the unknown-critical verdict.
-    assert {:error, :extension_schema_unavailable} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_schema_unavailable}} =
              Negotiation.negotiate(
                Blueprint.to_value(commerce_blueprint),
                %Support{revisions: MapSet.new([1])}

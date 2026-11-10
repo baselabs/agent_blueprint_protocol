@@ -133,7 +133,9 @@ jobs:
             # a forbidden direct publish (403, action not permitted).
             npm install -g --ignore-scripts npm@11.19.1 >/dev/null
             npm --version
-            npm stage publish "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" --ignore-scripts --access public --provenance
+            NPM_TAG=latest
+            if [[ "${VERSION%%+*}" == *-* ]]; then NPM_TAG=rc; fi
+            npm stage publish "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" --ignore-scripts --access public --provenance --tag "$NPM_TAG"
           fi
 
   publish:
@@ -206,10 +208,12 @@ jobs:
             exit 0
           fi
           VERSION="${GITHUB_REF_NAME#v}"
+          PRERELEASE_ARGS=()
+          if [[ "${VERSION%%+*}" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi
           gh release create "$GITHUB_REF_NAME" "verified-release/verifier-${VERSION}.tar.gz" \
             --repo "$GITHUB_REPOSITORY" \
             --title "${VERSION} — installable verifier" \
-            --generate-notes
+            --generate-notes "${PRERELEASE_ARGS[@]}"
 
       - name: Post-publish verification (registry install vs the tag)
         run: |

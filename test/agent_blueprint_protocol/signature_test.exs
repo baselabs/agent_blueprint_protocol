@@ -84,47 +84,51 @@ defmodule AgentBlueprintProtocol.SignatureTest do
     test "alg other than EdDSA denies :signature_algorithm_unsupported" do
       bad = put_member(header(), "alg", {:string, "HS256"})
 
-      assert Signature.verify(signed_entry(bad), keys()) ==
-               {:error, :signature_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+               Signature.verify(signed_entry(bad), keys())
     end
 
     test "alg missing or non-string denies :signature_malformed" do
       no_alg = drop_member(header(), "alg")
 
-      assert Signature.signing_input(signed_entry(no_alg, attrs())) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(no_alg, attrs()))
 
       int_alg = put_member(header(), "alg", {:integer, 7})
 
-      assert Signature.signing_input(signed_entry(int_alg, attrs())) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(int_alg, attrs()))
     end
 
     test "b64 not exactly false denies :signature_malformed" do
       bad = put_member(header(), "b64", {:boolean, true})
-      assert Signature.signing_input(signed_entry(bad, attrs())) == {:error, :signature_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(bad, attrs()))
     end
 
     test "crit not exactly [\"b64\"] denies :signature_malformed" do
       extra = put_member(header(), "crit", {:array, [{:string, "b64"}, {:string, "foo"}]})
 
-      assert Signature.signing_input(signed_entry(extra, attrs())) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(extra, attrs()))
 
       wrong_name = put_member(header(), "crit", {:array, [{:string, "exp"}]})
 
-      assert Signature.signing_input(signed_entry(wrong_name, attrs())) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(wrong_name, attrs()))
 
       none = drop_member(header(), "crit")
 
-      assert Signature.signing_input(signed_entry(none, attrs())) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(none, attrs()))
     end
 
     test "unknown header members deny :signature_malformed" do
       typ = add_member(header(), "typ", {:string, "JOSE"})
-      assert Signature.signing_input(signed_entry(typ, attrs())) == {:error, :signature_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(typ, attrs()))
     end
   end
 
@@ -132,23 +136,23 @@ defmodule AgentBlueprintProtocol.SignatureTest do
     test "algorithm other than Ed25519 denies :signature_algorithm_unsupported" do
       bad = put_member(attrs(), "algorithm", {:string, "ES256"})
 
-      assert Signature.signing_input(signed_entry(header(), bad)) ==
-               {:error, :signature_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+               Signature.signing_input(signed_entry(header(), bad))
     end
 
     test "an unparsable content_digest denies :signature_malformed" do
       bad = put_member(attrs(), "content_digest", {:string, "sha256:not-a-digest"})
 
-      assert Signature.signing_input(signed_entry(header(), bad)) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(header(), bad))
     end
 
     test "created_at must be Z-form, whole seconds, calendar-valid" do
       for bad <- ["2026-08-20T00:00:00.5Z", "2026-08-20T00:00:00+00:00", "2026-13-01T00:00:00Z"] do
         ats = put_member(attrs(), "created_at", {:string, bad})
 
-        assert Signature.signing_input(signed_entry(header(), ats)) ==
-                 {:error, :signature_malformed}
+        assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+                 Signature.signing_input(signed_entry(header(), ats))
       end
     end
 
@@ -156,7 +160,9 @@ defmodule AgentBlueprintProtocol.SignatureTest do
       for bad <- ["", "acme.prod.2026"] do
         ats = put_member(attrs(), "key_id", {:string, bad})
         hdr = header(bad)
-        assert Signature.signing_input(signed_entry(hdr, ats)) == {:error, :signature_malformed}
+
+        assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+                 Signature.signing_input(signed_entry(hdr, ats))
       end
     end
 
@@ -172,32 +178,34 @@ defmodule AgentBlueprintProtocol.SignatureTest do
            {"signature", {:string, String.duplicate("A", 86)}}
          ]}
 
-      assert Signature.signing_input(entry) == {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(entry)
     end
 
     test "purpose outside the closed set denies :signature_malformed" do
       bad = put_member(attrs(), "purpose", {:string, "attestation"})
 
-      assert Signature.signing_input(signed_entry(header(), bad)) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(header(), bad))
     end
 
     test "unknown or missing members deny :signature_malformed" do
       extra = add_member(attrs(), "nonce", {:string, "x"})
 
-      assert Signature.signing_input(signed_entry(header(), extra)) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(header(), extra))
 
       missing = drop_member(attrs(), "purpose")
 
-      assert Signature.signing_input(signed_entry(header(), missing)) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(header(), missing))
     end
 
     test "non-object and non-string members deny :signature_malformed" do
       placeholder = {:string, String.duplicate("A", 86)}
 
-      assert Signature.signing_input({:string, "not-an-entry"}) == {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input({:string, "not-an-entry"})
 
       bad_protected =
         {:object,
@@ -207,7 +215,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
            {"signature", placeholder}
          ]}
 
-      assert Signature.signing_input(bad_protected) == {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(bad_protected)
 
       bad_attrs =
         {:object,
@@ -217,7 +226,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
            {"signature", placeholder}
          ]}
 
-      assert Signature.signing_input(bad_attrs) == {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(bad_attrs)
 
       bad_signature =
         {:object,
@@ -227,15 +237,16 @@ defmodule AgentBlueprintProtocol.SignatureTest do
            {"signature", {:integer, 86}}
          ]}
 
-      assert Signature.signing_input(bad_signature) == {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(bad_signature)
     end
 
     test "non-string scalar members deny :signature_malformed" do
       for member <- ["algorithm", "content_digest", "created_at", "purpose"] do
         bad = put_member(attrs(), member, {:integer, 1})
 
-        assert Signature.signing_input(signed_entry(header(), bad)) ==
-                 {:error, :signature_malformed}
+        assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+                 Signature.signing_input(signed_entry(header(), bad))
       end
     end
   end
@@ -243,7 +254,9 @@ defmodule AgentBlueprintProtocol.SignatureTest do
   describe "kid / key_id anti-substitution" do
     test "a header kid that differs from the signed key_id denies :signature_malformed" do
       hdr = header("other-key")
-      assert Signature.signing_input(signed_entry(hdr, attrs())) == {:error, :signature_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.signing_input(signed_entry(hdr, attrs()))
     end
   end
 
@@ -258,7 +271,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
              {"signature", {:string, body}}
            ]}
 
-        assert Signature.signing_input(entry) == {:error, :signature_malformed}
+        assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+                 Signature.signing_input(entry)
       end
     end
   end
@@ -281,7 +295,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
            {"signature", {:string, Base64Url.encode(<<0::512>>)}}
          ]}
 
-      assert Signature.verify(forged, zero_key) == {:error, :signature_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+               Signature.verify(forged, zero_key)
     end
 
     test "degenerate and off-curve key encodings are unusable Ed25519" do
@@ -323,8 +338,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
       for bad_key <- [y_one_sign, y_one_clear, y_p_minus_one, y_ge_p, off_curve] do
         keys = [%Signature.PublicKey{key_id: "test-key", algorithm: :ed25519, key: bad_key}]
 
-        assert Signature.verify(signed_entry(), keys) ==
-                 {:error, :signature_algorithm_unsupported}
+        assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+                 Signature.verify(signed_entry(), keys)
       end
     end
 
@@ -340,26 +355,28 @@ defmodule AgentBlueprintProtocol.SignatureTest do
           }
         ]
 
-        assert Signature.verify(signed_entry(), keys) ==
-                 {:error, :signature_algorithm_unsupported},
+        assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+                 Signature.verify(signed_entry(), keys),
                "a #{size}-byte key"
       end
     end
 
     test "an honest envelope verified under the supplied key" do
-      assert Signature.verify(signed_entry(), keys()) == {:ok, :verified}
+      assert {:ok, %Signature.Attributes{}} = Signature.verify(signed_entry(), keys())
     end
 
     test "an unknown key_id reports the key fact, never verified" do
       stranger = [%Signature.PublicKey{key_id: "other", algorithm: :ed25519, key: pub()}]
-      assert Signature.verify(signed_entry(), stranger) == {:error, :signature_key_unsupported}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_key_unsupported}} =
+               Signature.verify(signed_entry(), stranger)
     end
 
     test "a matched key that is not usable Ed25519 denies :signature_algorithm_unsupported" do
       wrong_alg = [%Signature.PublicKey{key_id: "test-key", algorithm: :ed448, key: pub()}]
 
-      assert Signature.verify(signed_entry(), wrong_alg) ==
-               {:error, :signature_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+               Signature.verify(signed_entry(), wrong_alg)
     end
 
     test "duplicate key_id: any candidate verifying is the fact" do
@@ -368,14 +385,15 @@ defmodule AgentBlueprintProtocol.SignatureTest do
       rotated =
         keys() ++ [%Signature.PublicKey{key_id: "test-key", algorithm: :ed25519, key: other_pub}]
 
-      assert Signature.verify(signed_entry(header(), attrs(), other_priv), rotated) ==
-               {:ok, :verified}
+      assert {:ok, %Signature.Attributes{}} =
+               Signature.verify(signed_entry(header(), attrs(), other_priv), rotated)
 
       {third_pub, _third_priv} = :crypto.generate_key(:eddsa, :ed25519, :binary.copy(<<9>>, 32))
       none = [%Signature.PublicKey{key_id: "test-key", algorithm: :ed25519, key: third_pub}]
 
       # Signed by the TEST 1 key; only the unrelated third key is supplied.
-      assert Signature.verify(signed_entry(), none) == {:error, :signature_not_verified}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}} =
+               Signature.verify(signed_entry(), none)
     end
 
     test "purpose swapped after signing fails verification" do
@@ -383,7 +401,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
         signed_entry(header(), attrs(purpose: "deployment"))
         |> put_nested("signed_attributes", "purpose", {:string, "blueprint"})
 
-      assert Signature.verify(swapped, keys()) == {:error, :signature_not_verified}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}} =
+               Signature.verify(swapped, keys())
     end
 
     test "content_digest re-bound to another body after signing fails verification" do
@@ -394,7 +413,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
         )
         |> put_nested("signed_attributes", "content_digest", {:string, honest_digest()})
 
-      assert Signature.verify(rebound, keys()) == {:error, :signature_not_verified}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}} =
+               Signature.verify(rebound, keys())
     end
   end
 
@@ -405,9 +425,10 @@ defmodule AgentBlueprintProtocol.SignatureTest do
     # honest case proves the call counter sees a real backend call.
 
     test "an honest signature verifies with exactly one backend call" do
-      assert StrictFixture.backend_verify_calls(fn ->
-               Signature.verify(signed_entry(), keys())
-             end) == {{:ok, :verified}, 1}
+      assert {{:ok, %Signature.Attributes{}}, 1} =
+               StrictFixture.backend_verify_calls(fn ->
+                 Signature.verify(signed_entry(), keys())
+               end)
     end
 
     test "R = identity with S = k*a under the holder's own key is never verified" do
@@ -421,7 +442,7 @@ defmodule AgentBlueprintProtocol.SignatureTest do
 
       assert StrictFixture.backend_verify_calls(fn ->
                Signature.verify(entry_with_signature(forged), keys())
-             end) == {{:error, :signature_not_verified}, 0}
+             end) == {{:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}, 0}
     end
 
     test "each of the eight small-order encodings as R is never verified" do
@@ -439,7 +460,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
             Signature.verify(entry_with_signature(forged), keys())
           end)
 
-        assert outcome == {{:error, :signature_not_verified}, 0},
+        assert outcome ==
+                 {{:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}, 0},
                "small-order R must deny before any backend call; got " <>
                  "{verdict, backend_calls} = #{inspect(outcome)} for #{Base.encode16(r)}"
       end
@@ -456,7 +478,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
             Signature.verify(entry_with_signature(forged), keys())
           end)
 
-        assert outcome == {{:error, :signature_not_verified}, 0},
+        assert outcome ==
+                 {{:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}, 0},
                "non-canonical R must deny before any backend call; got " <>
                  "{verdict, backend_calls} = #{inspect(outcome)} for #{Base.encode16(r)}"
       end
@@ -476,7 +499,8 @@ defmodule AgentBlueprintProtocol.SignatureTest do
             Signature.verify(entry_with_signature(forged), keys())
           end)
 
-        assert outcome == {{:error, :signature_not_verified}, 0},
+        assert outcome ==
+                 {{:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}, 0},
                "S >= L must deny before any backend call; got " <>
                  "{verdict, backend_calls} = #{inspect(outcome)} for S - L = #{bad_s - l}"
       end
@@ -502,7 +526,7 @@ defmodule AgentBlueprintProtocol.SignatureTest do
 
       assert StrictFixture.backend_verify_calls(fn ->
                Signature.verify(entry_with_signature(below), keys())
-             end) == {{:error, :signature_not_verified}, 1}
+             end) == {{:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}, 1}
     end
 
     test "the fixture's L is the base point's order, derived on the curve" do
@@ -529,11 +553,11 @@ defmodule AgentBlueprintProtocol.SignatureTest do
       stranger = [%Signature.PublicKey{key_id: "other", algorithm: :ed25519, key: pub()}]
       wrong_alg = [%Signature.PublicKey{key_id: "test-key", algorithm: :ed448, key: pub()}]
 
-      assert Signature.verify(entry_with_signature(forged), stranger) ==
-               {:error, :signature_key_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_key_unsupported}} =
+               Signature.verify(entry_with_signature(forged), stranger)
 
-      assert Signature.verify(entry_with_signature(forged), wrong_alg) ==
-               {:error, :signature_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+               Signature.verify(entry_with_signature(forged), wrong_alg)
     end
   end
 
@@ -591,21 +615,25 @@ defmodule AgentBlueprintProtocol.SignatureTest do
          ]}
 
       entry = signed_entry(header(), ats)
-      assert Signature.verify_attestation(entry, keys()) == {:error, :attestation_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :attestation_malformed}} =
+               Signature.verify_attestation(entry, keys())
     end
 
     test "attestation shape errors use the attestation vocabulary" do
       bad = add_member(header(), "typ", {:string, "JOSE"})
       entry = signed_entry(bad, attrs())
-      assert Signature.verify_attestation(entry, keys()) == {:error, :attestation_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :attestation_malformed}} =
+               Signature.verify_attestation(entry, keys())
     end
 
     test "attestation algorithm denials share the signature vocabulary (pinned)" do
       bad_alg = put_member(header(), "alg", {:string, "HS256"})
       entry = signed_entry(bad_alg, attrs())
 
-      assert Signature.verify_attestation(entry, keys()) ==
-               {:error, :signature_algorithm_unsupported}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+               Signature.verify_attestation(entry, keys())
     end
   end
 

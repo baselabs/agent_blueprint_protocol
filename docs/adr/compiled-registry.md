@@ -82,3 +82,11 @@ the gate's closed-world shape check (the format member and undeclared
 entry members red; red-proven) — the file's own bytes are additionally
 covered end-to-end by the release identity chain's specification
 digest.
+
+## Controlled federation registration
+
+The federation profile uses `io.github.baselabs/federation` and its
+project-hosted A2A declaration URI. Its previous example namespace is
+deprecated, remains supported in 1.x, and retains the same schema pin.
+The five product placeholder namespaces remain unchanged. Registration
+validates MCP metadata key syntax without narrowing artifact decoding.

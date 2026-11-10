@@ -108,7 +108,7 @@ defmodule AgentBlueprintProtocol.FederationCommitmentTest do
     Digest.hash(:federation_envelope, jcs)
   end
 
-  defp attrs_for(envelope_value, digest) do
+  defp attrs_for(_envelope_value, digest) do
     {:object,
      [
        {"algorithm", {:string, "Ed25519"}},
@@ -493,7 +493,7 @@ defmodule AgentBlueprintProtocol.FederationCommitmentTest do
 
       with_commitment = put_receipt_member(shell, "terminal_commitment", commitment_of(shell))
       {:ok, jcs} = Canonicalization.encode(with_commitment)
-      {:ok, env} = Federation.decode(jcs)
+      {:ok, _env} = Federation.decode(jcs)
       covered = covered_body(with_commitment)
       {:ok, cj} = Canonicalization.encode(covered)
       digest = Digest.hash(:federation_envelope, cj)
@@ -650,7 +650,7 @@ defmodule AgentBlueprintProtocol.FederationCommitmentTest do
       assert {:error,
               %AgentBlueprintProtocol.Error{
                 code: :signature_malformed,
-                subject: ["evidence_receipt", "signature"]
+                subject: ["evidence_receipt", "signature", "signature"]
               }} =
                Federation.verify_commitment(%Federation{value: mangled}, %Federation.Context{
                  keys: [],
@@ -914,6 +914,6 @@ defmodule AgentBlueprintProtocol.FederationCommitmentTest do
     end
   end
 
-  defp put_if({name, _} = pair, name, value), do: {name, value}
+  defp put_if({name, _}, name, value), do: {name, value}
   defp put_if(pair, _other, _value), do: pair
 end

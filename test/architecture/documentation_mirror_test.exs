@@ -64,9 +64,6 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
     case Regex.run(~r/^(.*?)\s+#\s*=>\s*(.+)$/, line) do
       [_, expr_src, claim_src] ->
         case eval_pair(expr_src, claim_src, binding) do
-          {:ok, _value, binding} ->
-            {offs, binding}
-
           {:equal, binding} ->
             {offs, binding}
 
@@ -142,7 +139,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
   end
 
   defp eval_env do
-    import AgentBlueprintProtocol
+    import AgentBlueprintProtocol, warn: false
     __ENV__
   end
 

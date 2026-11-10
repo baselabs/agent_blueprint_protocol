@@ -1,8 +1,8 @@
 defmodule AgentBlueprintProtocol.Blueprint do
   @moduledoc """
-  The Blueprint artifact (base §6): an immutable, portable, inert statement
+  The Blueprint artifact (protocol §2): an immutable, portable, inert statement
   of intent, decoded and validated through the ONE generic field-registry
-  engine (`AgentBlueprintProtocol.Registry`) parameterized by this module's
+  engine (the internal registry engine) parameterized by this module's
   18-member table.
 
   The decode pipeline, in order, each stage fail-closed:
@@ -13,7 +13,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
      obligation: digests are computed only over exact received bytes, and a
      re-encode-then-digest shortcut must fail this gate, never
      `verify_content`).
-  2. `AgentBlueprintProtocol.Registry.validate/2` against `table/0` — closed world
+  2. structure validation against the internal member table — closed world
      (`:unknown_member`), required members, tag-strict integer typing (the
      window-float deny: `{:float, f}` in an integer-typed core field is
      `:invalid_type` here, because only this layer sees the decoder tag the
@@ -118,14 +118,11 @@ defmodule AgentBlueprintProtocol.Blueprint do
   defstruct [:value]
 
   @type t :: %__MODULE__{value: Json.value()}
-  @type reason :: Registry.reason()
+  @type reason :: AgentBlueprintProtocol.Error.t()
 
   # ---- the table --------------------------------------------------------------------
 
-  @doc """
-  The 18-member field registry (base §6): data for the generic engine. Field
-  order is the engine's precedence anchor for table-order stages.
-  """
+  @doc false
   @spec table() :: [Registry.spec()]
   def table do
     [
@@ -169,7 +166,8 @@ defmodule AgentBlueprintProtocol.Blueprint do
       ),
       field("signatures", {:array, signature_element()},
         required: false,
-        max_items: @ceiling_signatures
+        max_items: @ceiling_signatures,
+        check: &check_signature_ids/1
       ),
       field("attestations", {:array, %{kind: :any}},
         required: false,
@@ -286,7 +284,8 @@ defmodule AgentBlueprintProtocol.Blueprint do
   validation → portability scan → content-digest comparison. Total and
   never-raising.
   """
-  @spec decode(binary(), Bounds.t() | map()) :: {:ok, t()} | {:error, reason()}
+  @spec decode(binary(), Bounds.t() | map()) ::
+          {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def decode(binary, bounds \\ Bounds.maximum())
 
   def decode(binary, bounds) when is_binary(binary) do
@@ -301,7 +300,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
   # The API type boundary — the moduledoc's "total and never-raising" made
   # true at this clause too: a non-binary input denies :invalid_type instead
   # of raising FunctionClauseError (the corpus floor's json surface fix).
-  def decode(_binary, _bounds), do: {:error, :invalid_type}
+  def decode(_binary, _bounds), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Validate an already-decoded tagged value (stages 2-3; no canonicality —
@@ -321,13 +320,15 @@ defmodule AgentBlueprintProtocol.Blueprint do
   that the supplied namespaces occur in this artifact's critical region.
   `Reconcile.reconcile/3` derives the list from the current negotiation.
   """
-  @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, reason()}
+  @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def from_value(value, opts \\ %{})
 
   def from_value(value, opts) when is_map(opts) do
     validated = Map.get(opts, :authored_extensions, [])
 
-    with true <- authored_names?(validated) or {:error, :invalid_type},
+    with true <-
+           authored_names?(validated) or
+             {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}},
          {:ok, _bytes} <- Canonicalization.encode(value),
          :ok <- authored_tied_to_value(value, validated),
          :ok <- Registry.validate(table(), value),
@@ -336,22 +337,22 @@ defmodule AgentBlueprintProtocol.Blueprint do
     end
   end
 
-  def from_value(_, _), do: {:error, :invalid_type}
+  def from_value(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc "The held tagged value — the identity, so the round-trip is byte-exact."
-  @spec to_value(t()) :: Json.value()
+  @spec to_value(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
   def to_value(%__MODULE__{value: value}), do: value
-  def to_value(_), do: {:error, :invalid_type}
+  def to_value(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc "The digest input: the artifact minus the three evidence members (§8.2)."
-  @spec digest_input(t()) :: Json.value()
+  @spec digest_input(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
   def digest_input(%__MODULE__{value: {:object, members}}) do
     with {:ok, _bytes} <- Canonicalization.encode({:object, members}) do
       {:object, Enum.reject(members, fn {name, _} -> name in @evidence_members end)}
     end
   end
 
-  def digest_input(_), do: {:error, :invalid_type}
+  def digest_input(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc "Whether `member_name` (a wire-level member name) is digest-covered."
   @spec digest_covered?(binary()) :: boolean()
@@ -361,12 +362,12 @@ defmodule AgentBlueprintProtocol.Blueprint do
   def digest_covered?(_), do: false
 
   @doc "The canonical bytes of the whole artifact."
-  @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, reason()}
+  @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
-  def canonical_bytes(_), do: {:error, :invalid_type}
+  def canonical_bytes(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc "The honest content digest over the covered members' canonical bytes."
-  @spec content_digest(t()) :: Digest.t() | {:error, reason()}
+  @spec content_digest(t()) :: Digest.t() | {:error, AgentBlueprintProtocol.Error.t()}
   def content_digest(%__MODULE__{} = blueprint) do
     with {:object, _} = covered <- digest_input(blueprint),
          {:ok, jcs} <- Canonicalization.encode(covered) do
@@ -374,21 +375,21 @@ defmodule AgentBlueprintProtocol.Blueprint do
     end
   end
 
-  def content_digest(_), do: {:error, :invalid_type}
+  def content_digest(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Compare the declared `content_digest` member against the recomputed
   digest over the exact received (verified) bytes' canonical form:
   `:digest_mismatch` on divergence.
   """
-  @spec verify_content_digest(t()) :: :ok | {:error, reason()}
+  @spec verify_content_digest(t()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def verify_content_digest(%__MODULE__{value: {:object, members}} = blueprint) do
     with {:ok, _} <- Canonicalization.encode({:object, members}) do
       verify_declared_digest(blueprint, members)
     end
   end
 
-  def verify_content_digest(_), do: {:error, :invalid_type}
+  def verify_content_digest(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp verify_declared_digest(blueprint, members) do
     case List.keyfind(members, "content_digest", 0) do
@@ -399,14 +400,16 @@ defmodule AgentBlueprintProtocol.Blueprint do
         end
 
       _other ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   # ---- field checks (carried in the table as data) -----------------------------------
 
   defp check_positive({:integer, n}) when n >= 1, do: :ok
-  defp check_positive(_value), do: {:error, :invalid_constraint}
+
+  defp check_positive(_value),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
 
   defp check_producer_qualified({:string, s}) do
     segments = String.split(s, "/")
@@ -414,13 +417,13 @@ defmodule AgentBlueprintProtocol.Blueprint do
     if byte_size(s) <= @identifier_bytes and length(segments) == 2 and
          Enum.all?(segments, &(&1 != "" and Regex.match?(@segment, &1))),
        do: :ok,
-       else: {:error, :invalid_constraint}
+       else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_producer_name({:string, s}) do
     if byte_size(s) <= @identifier_bytes and Regex.match?(@segment, s),
       do: :ok,
-      else: {:error, :invalid_constraint}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_z_form({:string, s}) do
@@ -428,11 +431,13 @@ defmodule AgentBlueprintProtocol.Blueprint do
     # 2026-99-99T99:99:99Z, the calendar does not.
     if Regex.match?(@z_form, s) and match?({:ok, _, _}, DateTime.from_iso8601(s)),
       do: :ok,
-      else: {:error, :invalid_constraint}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_currency({:string, s}) do
-    if Regex.match?(@currency, s), do: :ok, else: {:error, :invalid_constraint}
+    if Regex.match?(@currency, s),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_tagged_digest({:string, tagged}) do
@@ -453,10 +458,24 @@ defmodule AgentBlueprintProtocol.Blueprint do
   # envelope parses (the closed set) AND must be "blueprint" here — a
   # deployment-purpose signature riding a Blueprint is a wrong-position
   # entry, denied as a table constraint.
+  defp check_signature_ids({:array, entries}) do
+    ids =
+      for {:object, members} <- entries,
+          is_list(members),
+          {"signed_attributes", {:object, attrs}} <- members,
+          is_list(attrs),
+          {"key_id", {:string, id}} <- attrs,
+          do: id
+
+    if length(ids) == length(Enum.uniq(ids)),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
+  end
+
   defp check_signature_entry(entry) do
     case Signature.attributes(entry) do
       {:ok, %Signature.Attributes{purpose: :blueprint}} -> :ok
-      {:ok, _other_purpose} -> {:error, :invalid_constraint}
+      {:ok, _other_purpose} -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -465,7 +484,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   # kind-valid, so a non-empty array denies. When kinds register, this row
   # gains the envelope shape parse.
   defp check_attestations({:array, []}), do: :ok
-  defp check_attestations({:array, _entries}), do: {:error, :attestation_malformed}
+
+  defp check_attestations({:array, _entries}),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :attestation_malformed}}
 
   defp check_required_core_fields({:array, items}) do
     if Enum.all?(items, fn
@@ -473,7 +494,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
          _not_a_string -> false
        end),
        do: :ok,
-       else: {:error, :invalid_constraint}
+       else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   # ---- assertion element check ---------------------------------------------------------
@@ -509,14 +530,21 @@ defmodule AgentBlueprintProtocol.Blueprint do
     end
   end
 
-  defp check_assertion(_other), do: {:error, :invalid_type}
+  defp check_assertion(_other), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp assertion_kind(members) do
     case List.keyfind(members, "kind", 0) do
-      {"kind", {:string, kind}} when kind in @assertion_kinds -> {:ok, kind}
-      {"kind", {:string, _other}} -> {:error, :invalid_constraint}
-      {"kind", _other} -> {:error, :invalid_type}
-      nil -> {:error, :missing_required_field}
+      {"kind", {:string, kind}} when kind in @assertion_kinds ->
+        {:ok, kind}
+
+      {"kind", {:string, _other}} ->
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
+
+      {"kind", _other} ->
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
+
+      nil ->
+        {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}}
     end
   end
 
@@ -525,7 +553,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
     case Enum.find(members, fn {name, _} -> not MapSet.member?(allowed, name) end) do
       nil -> :ok
-      _unknown -> {:error, :unknown_member}
+      _unknown -> {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
     end
   end
 
@@ -539,7 +567,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
     case missing do
       nil -> operand_types(members, operands, kind)
-      {_missing, _} -> {:error, :missing_required_field}
+      {_missing, _} -> {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}}
     end
   end
 
@@ -573,7 +601,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
     has_bound =
       List.keyfind(members, "minimum", 0) != nil or List.keyfind(members, "maximum", 0) != nil
 
-    if has_bound, do: :ok, else: {:error, :invalid_constraint}
+    if has_bound,
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp at_least_one_bound(_members, _kind), do: :ok
@@ -583,7 +613,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   defp operand_type_ok?(:nonempty_string, {:string, s}) when s != "", do: :ok
 
   defp operand_type_ok?(:any, value) do
-    if well_formed?(value), do: :ok, else: {:error, :invalid_type}
+    if well_formed?(value),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
   defp operand_type_ok?(:schema_document, value), do: check_schema_document(value)
@@ -595,10 +627,13 @@ defmodule AgentBlueprintProtocol.Blueprint do
   defp operand_type_ok?(:positive_number, {:float, f}) when f >= 1, do: :ok
 
   defp operand_type_ok?({:enum, allowed}, {:string, s}) do
-    if MapSet.member?(allowed, s), do: :ok, else: {:error, :invalid_constraint}
+    if MapSet.member?(allowed, s),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
-  defp operand_type_ok?(_operand_kind, _value), do: {:error, :invalid_type}
+  defp operand_type_ok?(_operand_kind, _value),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp well_formed?(:null), do: true
   defp well_formed?({:boolean, b}), do: is_boolean(b)
@@ -627,7 +662,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
     # One flat port namespace: an input/output name collision makes every
     # predicate root and host-side port map ambiguous.
     if Enum.any?(input_names, &(&1 in output_names)) do
-      {:error, :invalid_cardinality}
+      {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}}
     else
       assertion_hooks(members, port_names, families)
     end
@@ -658,7 +693,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
         if MapSet.member?(port_names, port_name),
           do: :ok,
-          else: {:error, :invalid_constraint}
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
 
       "required_capability_use" ->
         family_in(members, families)
@@ -671,7 +706,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
         if name in @covered_members,
           do: :ok,
-          else: {:error, :invalid_constraint}
+          else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
 
       _non_cross_field ->
         :ok
@@ -683,7 +718,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
     if MapSet.member?(families, family),
       do: :ok,
-      else: {:error, :invalid_constraint}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp hook_output_contract(members) do
@@ -693,7 +728,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
     if MapSet.member?(output_names, port_name),
       do: :ok,
-      else: {:error, :invalid_constraint}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp port_names(members, member_name) do
@@ -743,11 +778,12 @@ defmodule AgentBlueprintProtocol.Blueprint do
     with %MapSet{} = critical <- Extension.critical_namespaces(members) do
       if Enum.all?(authored, &MapSet.member?(critical, &1)),
         do: :ok,
-        else: {:error, :invalid_type}
+        else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  defp authored_tied_to_value(_other, _authored), do: {:error, :invalid_type}
+  defp authored_tied_to_value(_other, _authored),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # Non-object values were already denied by the registry stage.
   defp scan({:object, members}, authored_ns) do

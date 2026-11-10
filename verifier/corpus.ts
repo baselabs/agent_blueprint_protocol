@@ -81,7 +81,7 @@ export const CLASSES = [
   "terminal_equivocation",
 ] as const;
 
-// The pinned 16×29 floor: per surface, required classes + the falsifiable
+// The pinned 16×31 floor: per surface, required classes + the falsifiable
 // n_a reason covering its complement.
 const FLOOR: Record<string, { required: string[]; n_a: string }> = {
   "json.decode": {

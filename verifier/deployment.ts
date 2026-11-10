@@ -271,6 +271,7 @@ export function table(): Spec[] {
     field("signatures", { array: { kind: "custom", check: checkSignatureEntry } }, {
       required: false,
       maxItems: CEILING_SIGNATURES,
+      check: checkSignatureIds,
     }),
     field("attestations", { array: { kind: "any" } }, {
       required: false,
@@ -503,6 +504,7 @@ function stageRecovery(deployment: Deployment, bindings: Value[], bound: bluepri
 // now: null skips every staleness judgment (the host's governance choice).
 function stageStaleness(bindings: Value[], obs: Observations): VResult {
   if (obs.now === null) return { ok: true };
+  if (typeof obs.now !== "string") return {ok: false, e: "invalid_type"};
   const now = parseTimestamp(obs.now);
   if (now === null) return { ok: true }; // parse_time parity: undecodable now skips
 
@@ -697,6 +699,16 @@ function checkRequiredCoreFields(value: Value): VResult {
 
 // The purpose is this artifact's fact: the envelope parses AND must be
 // "deployment" here.
+function checkSignatureIds(value: Value): {ok:true} | {ok:false;e:string} {
+  if (value.t !== "arr") return {ok: false, e: "invalid_type"};
+  const ids = value.v.flatMap((entry) => {
+    const attrs = entry?.t === "obj" ? keyfind(entry.v, "signed_attributes") : null;
+    const id = attrs?.t === "obj" ? keyfind(attrs.v, "key_id") : null;
+    return id?.t === "str" ? [id.v] : [];
+  });
+  return new Set(ids).size === ids.length ? {ok:true} : {ok:false,e:"invalid_constraint"};
+}
+
 function checkSignatureEntry(entry: Value): VResult {
   const attrs = blueprint.signatureAttributes(entry);
   if (!attrs.ok) return { ok: false, e: attrs.e };

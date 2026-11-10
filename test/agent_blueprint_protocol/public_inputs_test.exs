@@ -81,7 +81,9 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
   @tag :tmp_dir
   test "runner input readers deny malformed nested collections and structs", %{tmp_dir: dir} do
     for bad <- [MapSet.new([1]), Bounds.maximum(), %URI{}, [1 | :bad]] do
-      assert {{:error, :invalid_type}, false} = Runner.execute(bad, %{}, %{})
+      assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
+               Runner.execute(bad, %{}, %{})
+
       assert {:error, %Error{code: :invalid_type}} = BoundsAlgebra.BoundSet.new(bad)
     end
 
@@ -100,7 +102,8 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
         "input" => %{"artifact" => %{}, "support" => support}
       }
 
-      assert {{:error, :invalid_type}, false} = Runner.execute(row, %{}, %{})
+      assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
+               Runner.execute(row, %{}, %{})
     end
 
     for bad <- ["x", 1, [1 | :bad], MapSet.new()] do
@@ -115,7 +118,9 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
     end
 
     deep = Enum.reduce(1..65, %{}, fn _, acc -> %{"x" => acc} end)
-    assert {{:error, :invalid_type}, false} = Runner.execute(%{"input" => deep}, %{}, %{})
+
+    assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
+             Runner.execute(%{"input" => deep}, %{}, %{})
 
     for binding <- [1, %{"blueprint" => BlueprintFixture.fixture_bytes(), "now" => 1}] do
       Runner.execute(
@@ -131,7 +136,7 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
       )
     end
 
-    assert {{:error, :invalid_type}, false} =
+    assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
              Runner.execute(
                %{
                  "surface" => "schema.validate_instance",
@@ -141,7 +146,7 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
                %{}
              )
 
-    assert {{:error, :invalid_type}, false} =
+    assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
              Runner.execute(
                %{
                  "surface" => "bounds_algebra.intersect",
@@ -171,7 +176,20 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
         ] do
       rows = Builder.minimal_cases()
       [row | _] = rows
-      row = %{row | "surface" => surface, "input" => input}
+
+      code =
+        if surface == "bounds_algebra.intersect" and is_map(input["blueprint"]),
+          do: "bound_value_invalid",
+          else: "invalid_type"
+
+      row = %{
+        row
+        | "surface" => surface,
+          "input" => input,
+          "expected" => %{"verdict" => "invalid", "code" => code}
+      }
+
+      assert {{:error, %Error{}}, true} = Runner.execute(row, %{}, %{})
       # Keep the declared floor intact while adding one malformed case.
       map =
         Builder.build(rows ++ [%{row | "id" => "malformed-reader", "class" => "invalid_type"}])
@@ -184,21 +202,27 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
 
       stderr =
         ExUnit.CaptureIO.capture_io(:stderr, fn ->
-          assert Cli.run(["--corpus", dir]) == 2
+          report = ExUnit.CaptureIO.capture_io(fn -> assert Cli.run(["--corpus", dir]) == 1 end)
+          assert report =~ "agent-blueprint-protocol-conformance-report"
         end)
 
-      assert stderr =~ "corpus integrity failure: :invalid_type"
+      assert stderr =~ "corpus digest does not match the release-certified corpus"
 
       {output, status} =
         System.cmd("node", ["verifier/cli.ts", "--corpus", dir], stderr_to_stdout: true)
 
-      assert status == 2
-      assert output =~ "corpus integrity failure: :invalid_type"
+      assert status == 1
+      assert output =~ "agent-blueprint-protocol-conformance-report"
     end
 
-    assert {{:error, :invalid_type}, false} = Runner.execute(%{"input" => %URI{}}, %{}, %{})
-    assert {{:error, :invalid_type}, false} = Runner.execute(%{}, %URI{}, %{})
-    assert {{:error, :invalid_type}, false} = Runner.execute(%{}, %{}, %URI{})
+    assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
+             Runner.execute(%{"input" => %URI{}}, %{}, %{})
+
+    assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
+             Runner.execute(%{}, %URI{}, %{})
+
+    assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
+             Runner.execute(%{}, %{}, %URI{})
   end
 
   test "artifact helpers deny malformed held values and malformed options" do
@@ -228,11 +252,18 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
              )
 
     entry = BlueprintFixture.signature_entry(attrs: BlueprintFixture.signature_attrs(key_id: ""))
-    assert {:error, :signature_malformed} = Signature.signing_input(entry)
 
-    assert {:error, :invalid_encoding} = Canonicalization.sort_key(<<255>>)
-    assert {:error, :invalid_type} = Canonicalization.encode({:object, [{1, :null}]})
-    assert {:error, :invalid_type} = Canonicalization.encode({:object, [{"x", :null} | :x]})
+    assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+             Signature.signing_input(entry)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}} =
+             Canonicalization.sort_key(<<255>>)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Canonicalization.encode({:object, [{1, :null}]})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Canonicalization.encode({:object, [{"x", :null} | :x]})
   end
 
   test "federation projections and checks deny malformed structs and carriers" do
@@ -260,7 +291,7 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
     {:ok, set} = BoundsAlgebra.from_blueprint(blueprint)
 
     for observed <- [MapSet.new([1]), %URI{}] do
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                Deployment.verify_binding(deployment, blueprint, %Deployment.Observations{
                  observed: observed
                })
@@ -294,37 +325,46 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
       Deployment.verify_binding(deployment, %Blueprint{value: bad}, %Deployment.Observations{})
     end
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Deployment.verify_binding(deployment, blueprint, %Deployment.Observations{
                observed: nil
              })
 
-    assert {:error, :invalid_type} = Signature.verify(BlueprintFixture.signature_entry(), [nil])
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Signature.verify(BlueprintFixture.signature_entry(), [nil])
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Negotiation.negotiate(Blueprint.to_value(blueprint), %Negotiation.Support{
                revisions: nil
              })
 
-    assert {:error, :invalid_type} = Extension.envelope_ok?({:object, [:x]})
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Extension.envelope_ok?({:object, [:x]})
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              AgentBlueprintProtocol.Registry.validate([nil], {:object, []})
 
-    assert {:error, :invalid_type} = Report.to_bytes(struct(Corpus), nil)
-    assert {{:error, :invalid_type}, false} = Runner.execute(%{"input" => nil}, %{}, %{})
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Report.to_bytes(struct(Corpus), nil)
 
-    assert {:error, :invalid_type} =
+    assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
+             Runner.execute(%{"input" => nil}, %{}, %{})
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Runner.run(struct(Corpus, cases: [nil], data: %{}, raws: %{}))
   end
 
   test "typed denials cover malformed result rows and reconstructed bounds" do
     corpus = struct(Corpus)
-    assert {:error, :invalid_type} = Report.build(corpus, [nil])
-    assert {:error, :invalid_type} = Report.build(corpus, [{"example", [nil]}])
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Report.build(corpus, [nil])
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Report.build(corpus, [{"example", [nil]}])
 
     for rows <- [nil, [nil]] do
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                Runner.run(struct(Corpus, cases: [{"example", rows}], data: %{}, raws: %{}))
     end
 
@@ -373,7 +413,7 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
 
     assert {:error, %Error{code: :invalid_type}} = Federation.terminal_commitment(envelope)
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Negotiation.negotiate(
                {:object,
                 [
@@ -387,7 +427,7 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
     for assertion <- [:null, {:object, [{"kind", {:integer, 1}}]}] do
       value = BlueprintFixture.fixture_value(assertions: [assertion])
 
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                AgentBlueprintProtocol.Registry.validate(Blueprint.table(), value)
     end
 
@@ -405,7 +445,7 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
            {"evaluation_assertions", {:array, [assertion]}}
          )}
 
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                AgentBlueprintProtocol.Registry.validate(Blueprint.table(), value)
     end
   end
@@ -425,7 +465,7 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
 
   test "registry input shapes deny before reading malformed descriptors or lists" do
     for kind <- [{:enum, nil}, {:array, nil}, {:object, %{members: nil}}, :example] do
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                AgentBlueprintProtocol.Registry.validate(
                  [%{name: "example", required: false, kind: kind}],
                  {:object, []}
@@ -434,17 +474,17 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
 
     table = [%{name: "example", required: false, kind: {:array, %{kind: :any}}}]
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              AgentBlueprintProtocol.Registry.validate(
                table,
                {:object, [{"example", {:array, [:null | :x]}}]}
              )
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              AgentBlueprintProtocol.Registry.validate(table, {:object, [{"example", :null} | :x]})
 
     for scan <- [:scan, :scan_authored, :scan_identifier, :scan_value] do
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                apply(AgentBlueprintProtocol.Portability, scan, [{:object, [:x]}])
     end
   end

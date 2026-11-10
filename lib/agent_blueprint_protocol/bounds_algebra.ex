@@ -22,8 +22,8 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   ## Posture
 
   A protected narrowing never happens silently. Under the default `:deny`
-  posture it denies with `:protected_bound_clamp_denied` carrying the
-  field/requested/effective triple; under `:acknowledge` it clamps and
+  posture it denies with `:protected_bound_clamp_denied` naming the member
+  path without input values; under `:acknowledge` it clamps and
   ALWAYS emits `acknowledged: true` evidence. Because decoded artifacts
   lift marker sets empty and the Blueprint derives `disclosure_ceiling` as
   `:full` (it declares no disclosure member), a host asserting any marker
@@ -125,7 +125,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
     def new(_), do: {:error, %Error{code: :invalid_type, subject: ["bound_set"]}}
 
-    @doc "Fetch one bound. `:error` when absent."
+    @doc false
     @spec fetch(t(), atom()) :: {:ok, Bound.t()} | :error
     def fetch(%__MODULE__{bounds: bounds}, name) when is_map_key(bounds, name),
       do: {:ok, :erlang.map_get(name, bounds)}
@@ -177,8 +177,8 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule ClampEvidence do
     @moduledoc """
-    The typed evidence of one permitted narrowing (base §Evolution
-    `:155-156`): the field, its class and unit, the requested and effective
+    The typed evidence of one permitted narrowing (protocol §9):
+    the field, its class and unit, the requested and effective
     values, the source that produced the effective value (a Deployment or
     host term, never a tenant or principal), and whether the host
     acknowledged a protected clamp.
@@ -311,7 +311,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   protected absence `:bound_source_missing`), the within-currency cost
   rule, then the pointwise narrowest meet. Operational narrowings emit
   unacknowledged evidence; a protected narrowing denies under `:deny`
-  (carrying the triple) or clamps with `acknowledged: true` under
+  (naming the member path) or clamps with `acknowledged: true` under
   `:acknowledge`. Clamps are emitted in the name-sorted vocabulary order.
   """
   @spec intersect(Sources.t()) :: {:ok, Result.t()} | {:error, Error.t()}
@@ -457,8 +457,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
        {:error,
         %Error{
           code: :protected_bound_clamp_denied,
-          subject: [to_string(name)],
-          detail: %ClampEvidence{evidence | acknowledged: false}
+          subject: [to_string(name)]
         }}}
     else
       {:cont, {:ok, Map.put(bounds, name, bound), [evidence | clamps]}}
@@ -707,7 +706,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   defp value_shape(value) do
     case AgentBlueprintProtocol.Canonicalization.encode(value) do
       {:ok, _} -> :ok
-      {:error, reason} -> {:error, %Error{code: reason, subject: ["bound_set"]}}
+      {:error, reason} -> {:error, %{reason | subject: ["bound_set"] ++ reason.subject}}
     end
   end
 
@@ -730,7 +729,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   end
 
   # The lifted object is CLOSED and duplicate-free even on the hand-built
-  # struct path (decode enforces both; base §Evolution "Reject duplicate
+  # struct path (decode enforces both; protocol §9 "Reject duplicate
   # members" — first-wins List.keyfind must not become a silent hole).
   defp closed_members?(bound_members, subject) do
     member_names = Enum.map(bound_members, &elem(&1, 0))

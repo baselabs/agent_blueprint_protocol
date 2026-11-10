@@ -33,7 +33,7 @@ verifier:
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!("examples/echo-blueprint.json"))
 digest = AgentBlueprintProtocol.Blueprint.content_digest(blueprint)
 {public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
-protected = {:object, [{"alg", {:string, "EdDSA"}}, {"b64", {:boolean, false}}, {"crit", {:array, [{:string, "b64"}]}}, {"kid", {:string, "example-demo-1"}}]}
+protected = {:object, [{"alg", {:string, "Ed25519"}}, {"b64", {:boolean, false}}, {"crit", {:array, [{:string, "b64"}]}}, {"kid", {:string, "example-demo-1"}}]}
 signed_attributes = {:object, [{"algorithm", {:string, "Ed25519"}}, {"content_digest", {:string, AgentBlueprintProtocol.Digest.to_tagged(digest)}}, {"created_at", {:string, "2026-08-21T00:00:00Z"}}, {"key_id", {:string, "example-demo-1"}}, {"purpose", {:string, "blueprint"}}]}
 protected_bytes = AgentBlueprintProtocol.Canonicalization.encode(protected) |> elem(1)
 attributes_bytes = AgentBlueprintProtocol.Canonicalization.encode(signed_attributes) |> elem(1)
@@ -41,7 +41,8 @@ preimage = AgentBlueprintProtocol.Base64Url.encode(protected_bytes) <> "." <> at
 signature = :crypto.sign(:eddsa, :none, preimage, [private_key, :ed25519])
 envelope = {:object, [{"protected", protected}, {"signed_attributes", signed_attributes}, {"signature", {:string, AgentBlueprintProtocol.Base64Url.encode(signature)}}]}
 key = %AgentBlueprintProtocol.Signature.PublicKey{key_id: "example-demo-1", algorithm: :ed25519, key: public_key}
-AgentBlueprintProtocol.Signature.verify(envelope, [key]) # => {:ok, :verified}
+{:ok, verified} = AgentBlueprintProtocol.Signature.verify(envelope, [key])
+{verified.purpose, AgentBlueprintProtocol.Digest.equal?(verified.content_digest, digest)} # => {:blueprint, true}
 ```
 
 The `envelope` value is what you attach as the artifact's `signatures`
@@ -66,3 +67,11 @@ an unknown `key_id`, a small-order key, and the strict R and S rule.
 Canonical encoding enforces the same structural ceilings as decoding, including
 container size, string and key lengths, node count, and depth. A producer cannot
 emit an artifact that a verifier will refuse to decode.
+
+Revision 1 accepts both `Ed25519` and `EdDSA` protected-header identifiers;
+producers SHOULD use `Ed25519`. Each spelling is signed as presented.
+`Signature.verify/2` returns the verified `Signature.Attributes` value.
+
+`effect_impact_ceiling` is an obligation: the strictest source value wins.
+It does not cap a Blueprint's declared effect impact. `created_at` is
+signed and format-checked, never judged for time by this function.

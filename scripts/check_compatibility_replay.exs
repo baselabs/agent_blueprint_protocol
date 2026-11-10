@@ -153,7 +153,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
   end
 
   # One entry per DISTINCT census digest, carrying every release tag that
-  # shipped it, newest-first ("newest" compares version TUPLES —
+  # shipped it, newest-first ("newest" uses semantic version ordering —
   # lexicographic tag order lies from 0.10.0 on). The digest key is the
   # tag manifest's CLAIM; replay_census replaces it with the recomputed
   # census identity after asserting the two agree.
@@ -170,23 +170,12 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
       )
     end)
     |> Enum.map(fn {_digest, group} ->
-      %{group | tags: Enum.sort_by(group.tags, &version_tuple/1, :desc)}
+      %{group | tags: Enum.sort_by(group.tags, &version_tuple/1, {:desc, Version})}
     end)
-    |> Enum.sort_by(&(&1.tags |> hd() |> version_tuple()), :desc)
+    |> Enum.sort_by(&(&1.tags |> hd() |> version_tuple()), {:desc, Version})
   end
 
-  defp version_tuple(tag) do
-    tag
-    |> String.trim_leading("v")
-    |> String.split(".")
-    |> Enum.map(fn part ->
-      case Integer.parse(part) do
-        {n, _rest} -> n
-        :error -> 0
-      end
-    end)
-    |> List.to_tuple()
-  end
+  defp version_tuple(tag), do: tag |> String.trim_leading("v") |> Version.parse!()
 
   # ---- census replay --------------------------------------------------------------
 
@@ -382,7 +371,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         else: ["history: #{@history_path} carries a wrong format member"]
 
     ordering =
-      if row_versions == Enum.sort_by(row_versions, &version_tuple(&1)),
+      if row_versions == Enum.sort_by(row_versions, &version_tuple(&1), Version),
         do: [],
         else: ["history: rows are not in ascending release order"]
 

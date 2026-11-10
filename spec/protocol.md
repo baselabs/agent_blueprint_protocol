@@ -1,9 +1,9 @@
 # Agent Blueprint Protocol — specification
 
-Status: published pre-1.0 protocol (0.x release line). This document is
+Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8`, 199 cases) are
+`sha-256:X3V0Y8dB8UkJTBsF7JQkywTHFWGy44zd_M5QQEc2p3k`, 448 cases) are
 certified against this document at every release through the release
 identity chain — the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -219,6 +219,13 @@ reference implementation's to enforce.
   `:non_canonical_bytes` before any semantic read, and digests MUST be
   computed only over the exact received bytes.
 
+The byte ceiling is checked first; containers check depth after an opening
+delimiter has a following token, then check completed members or elements
+in order (cardinality, key size, nodes, number or string size), reject
+duplicates at object close, and reject trailing bytes before root node or
+scalar checks; a missing or invalid value delimiter is a syntax error
+before that value's sink checks.
+
 ## 4. Canonicalization
 
 The canonical form MUST be RFC 8785 JSON Canonicalization Scheme:
@@ -234,6 +241,9 @@ The canonical form MUST be RFC 8785 JSON Canonicalization Scheme:
 - Object members sorted as UTF-16 code units compared as unsigned
   integers (§3.2.3) — NOT by UTF-8 byte order: for `U+FF3A` vs
   `U+10000`, UTF-16 order puts `U+10000` first.
+
+On the conformance `canonicalization.encode` surface, input JSON is decoded
+under the profile maxima before encoder bounds are applied.
 
 ## 5. Digest
 
@@ -261,8 +271,8 @@ Separators carry no version token: `protocol_revision` is itself a
 covered member. The wire form MUST be the self-identifying tagged string
 `sha-256:<43-char unpadded base64url>`, never a bare hex blob; an
 unknown algorithm tag MUST deny `:digest_algorithm_unsupported`, a
-malformed body MUST deny `:digest_encoding_invalid`. Algorithm succession
-is therefore a data change, not a format break.
+malformed body MUST deny `:digest_encoding_invalid`. The algorithm succession
+rule is defined below (protocol §6).
 
 ## 6. Signature envelope
 
@@ -272,8 +282,17 @@ and MUST NOT embed public keys in artifacts (the host supplies trusted
 keys).
 
 - Format: RFC 7515 compact + RFC 7797 `b64=false` unencoded detached
-  payload. Protected header: `{alg: EdDSA, kid, crit: ["b64"], b64:
-  false}`. Ed25519 only; an unknown `alg` MUST deny.
+  payload. The protected header has exactly `alg`, `kid`, `crit: ["b64"]`,
+  and `b64: false`. Revision 1 verifiers MUST accept exactly `EdDSA` and
+  `Ed25519` as `alg` values; producers SHOULD emit `Ed25519`, the fully
+  specified identifier registered by [RFC 9864](https://www.rfc-editor.org/rfc/rfc9864.html).
+  `EdDSA` remains valid throughout revision 1. Other strings, including
+  case variants and `Ed448`, deny `:signature_algorithm_unsupported`.
+  The header as presented participates in the signing input: changing
+  only its algorithm spelling invalidates the signature.
+  An identifier alias for the same algorithm is not algorithm succession.
+  A new signature or digest algorithm requires a new protocol revision
+  and a verification-semantics increment.
 - `signed_attributes = {algorithm, content_digest, created_at, key_id,
   purpose}` with `purpose` one of `blueprint` | `deployment` |
   `federation-envelope`. The signing input is the RFC 7797 §3 input
@@ -285,8 +304,8 @@ keys).
 - Because the digest covers `protocol_revision`, identity members,
   extensions, and `required_core_fields`, a signature cannot be lifted
   onto a different artifact, revision, or purpose; `key_id` prevents key
-  substitution. A `key_id` matching no supplied key MUST produce a
-  `verified: false` check entry with `:signature_key_unsupported` — the
+  substitution. A `key_id` matching no supplied key MUST halt verification
+  with `:signature_key_unsupported`, including during reconcile — the
   package performs no key discovery, fetch, or trust selection.
 - Attestations use the identical envelope with a registered `kind` and
   a `statement_digest`. The attestation kind registry is empty by
@@ -299,20 +318,23 @@ keys).
   `:signature_algorithm_unsupported` when no matched key is usable.
   `:signature_key_unsupported` is reserved for a `key_id` that matches
   no supplied key.
-- Strict signature encoding (RFC 8032 §5.1.7): before any curve
+- This protocol's strict verification profile: before any curve
   arithmetic, the signature's first half R MUST satisfy the same point
   rule as the public key (canonical encoding, decodes to a curve point,
   not small-order), and its second half S, read as a little-endian
   integer, MUST be less than the group order L = 2^252 +
   27742317777372353535851937790883648493. A signature failing either
   rule MUST deny `:signature_not_verified`, whatever the cryptographic
-  backend would conclude. Verification is otherwise the cofactorless
-  equation [S]B = R + [k]A. Under an honest key, R = the identity with
+  backend would conclude. RFC 8032 §5.1.7 specifies the S < L range
+  check; canonical encoding and small-order rejection above are this
+  protocol's profile. Verification MUST use the cofactorless equation
+  [S]B = R + [k]A. Mixed-order points with nonzero prime-order components
+  satisfy the point rule; the cofactored equation is insufficient. Under an honest key, R = the identity with
   S = k·a mod L satisfies that equation; only the key holder can build
   it, and this rule denies it.
 - Order of the checks. (1) The envelope parses: exactly the three
   entry members; the exact four-member protected header, where an `alg`
-  string other than `EdDSA` denies `:signature_algorithm_unsupported`
+  string other than `EdDSA` or `Ed25519` denies `:signature_algorithm_unsupported`
   and any other header violation `:signature_malformed`; the exact
   five signed attributes, where an `algorithm` string other than
   `Ed25519` denies `:signature_algorithm_unsupported` and any other
@@ -326,6 +348,14 @@ keys).
   and S. (4) The equation. When several keys share the `key_id`, the
   unusable ones are set aside and the signature verifies if any usable
   one verifies it.
+
+A second `signatures` entry naming the same `key_id` as an earlier entry
+in the same Blueprint or Deployment denies `:invalid_constraint` during
+structure validation. A successful standalone signature verification
+returns its verified signed attributes, including purpose and content digest.
+`created_at` is signed and format-checked as a valid RFC 3339 Z-form
+whole-second timestamp; standalone signature verification and reconcile
+never judge its time. Key and signature time validity belong to the host.
 
 ## 7. Evolution and negotiation
 
@@ -345,7 +375,8 @@ spot), and is in the consumer's supported set.
 ### Extension criticality
 
 For each `namespace → {criticality, payload}` in `extensions`, the
-outcomes in this table are absolute requirements:
+outcomes in this table are absolute requirements (MCP metadata registrations
+also satisfy the lowercase, at-least-two-prefix-label rules (protocol §8)):
 
 | Registry state | Declared critical | Declared optional |
 |---|---|---|
@@ -385,6 +416,15 @@ that moves no previously-certified artifact's verdict is not. The two
 axes are independent of `protocol_revision`, which governs what
 artifacts may say; one event may move more than one axis.
 
+Verification-semantics version 2 replaces version 1 for structured failures, non-vacuous evidence, verified signed
+attributes, duplicate-signer rejection, the accepted algorithm alias, and
+federation namespace deprecation. Protocol revision remains 1. The release
+history records the increment; prior-census equivalence remains a per-case
+projection claim, not a claim that the public APIs are unchanged.
+The legacy federation namespace adds an `extension_deprecated` notice to
+`negotiation-estate-contract-valid`; its valid verdict and previously
+declared projection fields are unchanged.
+
 Released identities are immutable: a published digest, corpus, registry,
 manifest, or release-history row is never mutated in place; a correction
 is a new release. The evidence boundary: semantics equivalence between
@@ -410,7 +450,28 @@ compiled twins and the corpus index by the registry equality gate. Registered at
 | `com.example.commerce/rubric-assertion` | ExampleCommerce | optional | active |
 | `com.example.platform/estate` | ExamplePlatform | optional | deprecated |
 | `com.example.platform/estate-contract` | ExamplePlatform | critical | active |
-| `com.example/federation` | Agent Blueprint Protocol | critical | active |
+| `com.example/federation` | Agent Blueprint Protocol | critical | deprecated |
+| `io.github.baselabs/federation` | Agent Blueprint Protocol | critical | active |
+
+The active federation namespace is `io.github.baselabs/federation`, with
+A2A declaration URI
+`https://baselabs.github.io/agent_blueprint_protocol/extensions/federation`.
+It pins the same schema as `com.example/federation`. Verifiers accept both
+namespaces and both carriage keys; producers SHOULD use the active one.
+The deprecated namespace remains supported with `:extension_deprecated`
+and is never retired in the 1.x line. A carrier containing both supported
+keys denies `:federation_mapping_conflict`.
+
+Registration of a namespace carried as an MCP `_meta` key MUST satisfy
+[MCP revision 2026-07-28's key grammar](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta):
+this registry requires at least two prefix labels, each starting with a
+lowercase letter, ending with a lowercase letter or digit, and containing
+only lowercase letters, digits, or hyphens; the nonempty name starts and
+ends with a lowercase letter or digit and permits lowercase letters,
+digits, hyphens, underscores, and dots inside. These lowercase and
+two-label restrictions are stricter than the MCP grammar. Prefixes whose second label is `mcp` or `modelcontextprotocol`
+are reserved. The registry applies these rules at registration, without
+narrowing revision 1 artifact decoding.
 
 `com.example.platform/estate-contract` is the product-extension registration:
 the first product-owned critical namespace with an authored schema pin. The
@@ -449,6 +510,10 @@ tighten-only decoder limits):
   Obligation families (authority, approval, effect impact) meet at the
   STRICTEST value; markers are retained regulatory obligations whose
   effective set is the UNION of sources — dropping one is a widening.
+  Despite its name, `effect_impact_ceiling` is an obligation: the strictest
+  value wins. It does not cap what a Blueprint declares. A Blueprint
+  declaring `secret` with deployment and host values `ordinary` produces
+  effective `secret`, no clamp, even under the deny posture.
 
 Laws (property-tested): meet is idempotent, commutative, associative;
 effective bounds MUST NOT widen host policy (`not widens?(effective,
@@ -472,7 +537,8 @@ rug-pull case).
 ## 11. Federation profile
 
 A 23-member task envelope carried in A2A `Task.metadata` / MCP `_meta`
-under the registered `com.example/federation` extension; the full
+under the registered `io.github.baselabs/federation` extension (or its
+deprecated `com.example/federation` spelling); the full
 field-by-field A2A/MCP mapping (3 native, 5 partial, 15 extension
 members) also ships with the reference implementation's document set.
 Zero native wire fields; no native transport. State codecs MUST be
@@ -493,7 +559,7 @@ verification failure). Correlation grants nothing.
 ### Member grammar — Federation TaskEnvelope (23 members)
 
 The envelope is a closed world: one wire member per logical field,
-carried as the extension body under the `com.example/federation`
+carried as the extension body under either registered federation
 namespace on both transports. Cardinality `1` members are required;
 `0..1` members are optional (absent — there is no null form). The
 machine-readable grammar ships as the CDDL artifact under
@@ -532,6 +598,15 @@ Terminal-Commitment components.
 
 ## 12. Error vocabulary
 
+Every fallible public Elixir operation returns
+`{:error, %Error{code, subject, detail}}` on failure. The closed `code`
+union includes `{:ceiling, key}` over the eight decoder limits. Subjects
+contain schema-defined member names and array indices where known, never
+unknown names or input values; an unavailable path is `[]`. Detail is
+`nil`, including on a protected-clamp denial. Value-returning
+helpers retain their successful value form and explicitly include this
+failure result in their types; predicates retain their boolean form.
+
 A closed typed set — `%Error{code, subject, detail}`. An
 implementation MUST NOT emit an undeclared code, and every code it
 declares MUST be reachable (enforced two-directionally by a build
@@ -550,7 +625,7 @@ raised, the subject it names, and the host action it demands):
 | `binding_incomplete` | the binding check set is incomplete where completeness is required | bind surface | halt the import (reconcile denies) |
 | `bound_source_missing` | an intersection input names a bound source that is absent | bounds sources | reject the intersection call |
 | `bound_unit_mismatch` | two bounds meet with incompatible units | bounds | reject the intersection call |
-| `bound_unknown` | an unknown bound name appears | bounds | reject the artifact |
+| `bound_unknown` | a bounds-algebra BoundSet names a member outside its closed 13-name vocabulary | bounds set | reject the artifact |
 | `bound_value_invalid` | a bound value fails its shape or range check | bounds | reject the artifact |
 | `compatibility_duplicate_entry` | build_identities carries a duplicate identity | build_identities | reject the manifest |
 | `compatibility_entry_missing` | verification names an identity with no manifest entry | build_identities | deny compatibility |
@@ -563,44 +638,44 @@ raised, the subject it names, and the host action it demands):
 | `corpus_file_set_mismatch` | the corpus file set differs from the index (both directions) | corpus | operator: fix the corpus |
 | `corpus_hash_mismatch` | a corpus file's hash differs from the index entry | corpus | operator: fix the corpus |
 | `corpus_index_invalid` | the corpus index fails its structural parse | corpus index | operator: regenerate the index |
-| `deployment_digest_mismatch` | the declared deployment digest differs from the computed digest | deployment_digest | reject the manifest (tamper) |
+| `deployment_digest_mismatch` | binding compares deployment.blueprint_release.content_digest to the supplied Blueprint and they differ; it does not name the Deployment's own content-digest check | blueprint_release.content_digest | reject the manifest (tamper) |
 | `digest_algorithm_unsupported` | an unknown digest algorithm tag | digest member | reject the artifact |
 | `digest_encoding_invalid` | a malformed digest body | digest member | reject the artifact |
-| `digest_mismatch` | a content digest differs from the computed digest | content_digest | reject the artifact (tamper) |
+| `digest_mismatch` | a declared Blueprint or Deployment content digest differs from its covered bytes, signed attributes name a different artifact digest, or a federation receipt digest/commitment differs from its recomputation | known digest member | reject the artifact (tamper) |
 | `duplicate_member` | a duplicate JSON member name (I-JSON) | bytes | reject the artifact |
 | `extension_criticality_conflict` | declared criticality conflicts with the registry | extensions | reject the artifact |
 | `extension_duplicate` | one namespace appears twice in extensions | extensions | reject the artifact |
 | `extension_namespace_invalid` | a namespace fails the reverse-DNS-plus-path form | extensions | reject the artifact |
 | `extension_payload_forbidden` | a payload appears where the registry forbids one | extensions | reject the artifact |
 | `extension_retired` | a retired namespace is declared | extensions | reject the artifact |
-| `extension_schema_digest_mismatch` | a critical body's validating schema digest differs from the registry pin | extensions | reject the artifact |
+| `extension_schema_digest_mismatch` | the digest of a host-supplied critical-extension schema differs from the registered schema pin; this is not an artifact-body digest comparison | extensions | reject the artifact |
 | `extension_schema_unavailable` | no host schema is supplied for a digest-pinned critical body | extensions | reject the artifact |
 | `extension_unknown_critical` | an unregistered or reserved namespace is declared critical | extensions | reject the artifact |
 | `federation_mapping_conflict` | a state has no consistent mapping on the target transport | federation codec | reject the crossing |
 | `federation_state_unmappable` | a state is unmappable (e.g. A2A UNSPECIFIED) | federation codec | reject the crossing |
 | `federation_terminal_conflict` | two receipts for one task identity diverge in any commitment component | federation envelope | reject the later receipt |
 | `forbidden_portable_value` | a value shape trips the portability denylist | offending member | reject the artifact |
-| `integer_magnitude` | an integer above the parse window | offending lexeme | reject the artifact |
+| `integer_magnitude` | canonical encoding receives a tagged integer outside ±(2^53−1), including a hand-built value; this is not the JSON lexeme rule | integer value | reject the artifact |
 | `invalid_cardinality` | an array violates min/max items | offending member | reject the artifact |
-| `invalid_constraint` | a member fails its check constraint | offending member | reject the artifact |
+| `invalid_constraint` | a member fails a value constraint, signer key_ids repeat, or a federation receipt's signed created_at falls outside its explicit inclusive receiving-context pins | offending member | reject the artifact |
 | `invalid_encoding` | a member fails its encoding form | offending member | reject the artifact |
 | `invalid_number` | a number lexeme is malformed | bytes | reject the artifact |
 | `invalid_syntax` | the JSON text is syntactically invalid | bytes | reject the artifact |
-| `invalid_type` | a member's JSON type disagrees with the schema | offending member | reject the artifact |
+| `invalid_type` | a JSON tag disagrees with a field or instance schema (a float-tagged integral value still fails an integer field), a hand-built tagged value is malformed, or a host API argument has the wrong shape | known member or API argument | reject the artifact |
 | `lifecycle_state_invalid` | a deployment lifecycle state is unknown | lifecycle | reject the manifest |
 | `missing_ceiling` | an operational bound is absent (never infinity) | ceilings | reject the artifact |
 | `missing_required_field` | a required member is absent | the member | reject the artifact |
 | `no_authoritative_recovery` | a mutation-kind operation is bound while the effect owner's recovery is none | effect_owner | reject the import |
 | `non_canonical_bytes` | interchange bytes are not already canonical | bytes | reject before any semantic read |
 | `nonportable_content` | an authority-shaped claim rides portable content | offending member | reject the artifact |
-| `number_not_double_expressible` | an above-window integer is not exactly double-expressible | offending lexeme | reject the artifact |
+| `number_not_double_expressible` | JSON decoding receives a pure-digit integer lexeme outside ±(2^53−1) whose conversion to a double and canonical serialization does not reproduce that lexeme exactly | number input | reject the artifact |
 | `predicate_nodes_exceeded` | a predicate AST exceeds the node ceiling | predicate | reject the artifact |
 | `predicate_op_unknown` | a predicate names an unknown operator | predicate | reject the artifact |
 | `predicate_path_unresolved` | a predicate path resolves against no declared port | predicate | reject the artifact |
 | `protected_bound_clamp_denied` | a protected bound narrows without the acknowledge opt-in | bounds | reject, or opt in and record evidence |
 | `protocol_revision_unsupported` | the revision is outside the declared set (both directions) | protocol_revision | reject the artifact |
 | `required_core_field_not_digest_covered` | a required core field names an evidence-only member | required_core_fields | reject the artifact |
-| `required_core_field_unsupported` | a required core field names no known core member | required_core_fields | reject the artifact |
+| `required_core_field_unsupported` | a required core field is unknown or absent from the consumer's supported field set | required_core_fields | reject the artifact |
 | `schema_complexity_exceeded` | a schema exceeds the complexity meter | schema document | reject the artifact |
 | `schema_dialect_unknown` | a schema names an unknown dialect | schema document | reject the artifact |
 | `schema_invalid_shape` | a schema is structurally malformed | schema document | reject the artifact |
@@ -608,17 +683,32 @@ raised, the subject it names, and the host action it demands):
 | `schema_keyword_value_invalid` | a schema keyword carries an invalid value | schema document | reject the artifact |
 | `schema_ref_cycle` | a schema $ref cycle | schema document | reject the artifact |
 | `schema_ref_unresolvable` | a schema $ref resolves nowhere | schema document | reject the artifact |
-| `signature_algorithm_unsupported` | an unknown signature algorithm, or no matched key is usable Ed25519 (non-canonical, off-curve, or small-order) | signatures | halt the import (reconcile denies) |
+| `signature_algorithm_unsupported` | header alg is neither EdDSA nor Ed25519, signed_attributes.algorithm is not Ed25519, or no matching key is usable Ed25519 (wrong algorithm/length, non-canonical, off-curve, or small-order) | signatures | halt the import (reconcile denies) |
 | `signature_key_unsupported` | no supplied key matches the `key_id` | signatures | halt the import (reconcile denies) |
 | `signature_malformed` | a signature envelope fails its parse | signatures | halt the import (reconcile denies) |
 | `signature_not_verified` | the cryptographic verification fails, or R or S breaks the strict encoding rule (§6) | signatures | halt the import (reconcile denies) |
 | `trailing_bytes` | bytes follow the JSON value | bytes | reject the artifact |
-| `unknown_bound` | a bounds member name is unknown | bounds | reject the artifact |
+| `unknown_bound` | a decoder-limit override names no field of Bounds (distinct from the algebra bound set) | decoder limits | reject the artifact |
 | `unknown_member` | a member is outside the closed world | the member | reject the artifact |
 Plus the parameterized ceiling family `{:ceiling, key}` over the eight
 decoder limit names. No authorization vocabulary exists in any
 identifier — no `:unauthorized` in either polarity (source-scanned
 gate).
+
+Non-error notices (not members of the error-code union):
+
+| Notice | Meaning |
+|---|---|
+| `extension_deprecated` | a supported namespace is deprecated |
+| `extension_unknown_optional_retained` | optional content is retained without interpreting it |
+| `clamp_applied` | bounds narrowed with structured clamp evidence |
+
+Conformance runners preserve present input types rather than coercing wrong
+types to defaults: malformed binding objects and malformed nested support
+collections deny `invalid_type` before the operation, JSON null remains a
+schema instance, bound sources are constructed in blueprint/deployment/host
+order before totality is checked, and omitted or null bounds, support, receiving context,
+or receiving identity pins retain their existing absent-input meaning.
 
 ## 13. Evidence and reconcile
 
@@ -632,6 +722,31 @@ cannot establish: `tenancy`, `live_policy`, `authority`,
 `effect_ownership`, `execution`, `billing`, `evaluation_truth`. A
 caller SHOULD NOT read an Evidence record and conclude "everything is
 fine": the record itself names what it did not check.
+
+A check MAY state `verified: true` only after at least one verification
+ran and passed. Zero signatures yields `verified: false` with typed detail
+`:no_signatures_present`; reconcile still succeeds. A signature check that
+passes carries a typed Signatures detail naming distinct verifying key_ids.
+No free-text detail strings are emitted. Retained or quarantined optional
+extension payloads are not reported as verified payloads.
+
+The binding detail lists checks performed and observations skipped. A bind
+check is false unless every binding has a matching descriptor observation
+and both `now` and a maximum attestation age are supplied; a future-date
+check alone does not establish staleness verification. Those skipped surfaces and every false
+check surface join `not_verified`. Canonical checks on structs establish
+encodability; they do not establish equality to unavailable received bytes.
+`signature_created_at`, `lifecycle_state`, `key_time_validity`, and
+`signature_time_validity` are always unverified by reconcile. Lifecycle
+state is shape-checked and never judged. These results add no time-validity
+mechanism.
+
+Federation receipt verification separately supports the existing explicit
+`created_after` and `created_before` receiving-context pins. Both are
+optional, valid RFC 3339 Z-form whole seconds, inclusive, and compare the
+signed `created_at`. The check runs after receipt-conflict detection;
+malformed pins deny `:invalid_type`, and a receipt outside a supplied pin
+denies `:invalid_constraint`. No clock or implicit validity window exists.
 
 ## 14. Portability
 
@@ -649,10 +764,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-199 cases covering every required cell of the 16-surface × 31-class
+448 cases covering every required cell of the 16-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8`. Corpus identity
+`sha-256:X3V0Y8dB8UkJTBsF7JQkywTHFWGy44zd_M5QQEc2p3k`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over `%{path => binary}` and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
@@ -701,8 +816,8 @@ not conform at this release.
 ## 16. The shipped surface (informative — the reference implementation)
 
 The facade (`AgentBlueprintProtocol`) delegates and never implements;
-every public function carries a `@spec` (build-gated), every module a
-boundary-stating moduledoc:
+every public function carries a `@spec` (build-gated), every public module a
+boundary-stating moduledoc; implementation modules and helpers are hidden:
 
 | Function | Contract |
 |---|---|
@@ -718,12 +833,11 @@ boundary-stating moduledoc:
 
 Layered under it: the bytes layer (`Json`, `Canonicalization`,
 `Base64Url`, `Digest`, `Bounds`), the artifacts (`Blueprint`,
-`Deployment`, `Extension`, `Registry` as the one generic table-driven
-engine, `Schema` as the bounded 2020-12 dialect + instance validator,
+`Deployment`, `Schema` as the bounded 2020-12 dialect + instance validator,
 `Predicate`, `Portability`), the algebra (`BoundsAlgebra`,
 `Negotiation`, `Compatibility`, `Signature`, `Federation`, `Error`,
 `Evidence`, `Reconcile`, `ExtensionRegistry`), and the conformance
-tooling (`Conformance.Corpus/Runner/Report/Cli` + the escript entry).
+tooling (`Conformance.Corpus/Runner/Report`; CLI implementation modules are internal).
 The module tree is strictly downward (bytes → algebra → artifacts →
 conformance); the engine knows tables, never domains.
 
@@ -797,7 +911,7 @@ corpus does not carry.
 
 | Threat | Vector | Corpus class | Mitigation |
 |---|---|---|---|
-| Artifact tamper | bytes edited after signing | `tamper_meaningful_byte` `digest_mismatch` | content digests over exact received bytes; `:digest_mismatch` denies (checked after structural validation, before signatures and binding) |
+| Artifact tamper | bytes edited after signing | `tamper_meaningful_byte` `digest_mismatch` | content digests over exact received bytes; `:digest_mismatch` denies (checked after structure and portability in standalone decode; checked before negotiation and structure in reconcile, always before signatures and binding) |
 | Canonicality laundering | non-canonical spellings of the same value | `invalid_duplicate` | MUST-already-be-canonical interchange bytes; `:non_canonical_bytes` |
 | Signature substitution | a signature lifted onto another artifact/purpose | `signature_invalid` | purpose-pinned signed attributes; digest covers revision + identity members |
 | Protocol downgrade | an older/newer revision forced on a consumer | `revision_above_max` `revision_below_min` | explicit revision SETs, both directions deny `:protocol_revision_unsupported` |

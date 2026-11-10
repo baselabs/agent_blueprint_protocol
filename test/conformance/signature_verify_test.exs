@@ -77,7 +77,7 @@ defmodule AgentBlueprintProtocol.Conformance.SignatureVerifyTest do
 
   describe "class: valid" do
     test "an honest envelope verifies under its key" do
-      assert Signature.verify(signed_entry(), keys()) == {:ok, :verified}
+      assert {:ok, %Signature.Attributes{}} = Signature.verify(signed_entry(), keys())
     end
 
     test "the compact rendering verifies under standard JOSE reconstruction" do
@@ -108,12 +108,15 @@ defmodule AgentBlueprintProtocol.Conformance.SignatureVerifyTest do
          ]}
 
       # The TEST 1 signature is over the empty message, not our input.
-      assert Signature.verify(entry, keys()) == {:error, :signature_not_verified}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}} =
+               Signature.verify(entry, keys())
     end
 
     test "unknown key_id is a key fact, never verified" do
       stranger = [%Signature.PublicKey{key_id: "nobody", algorithm: :ed25519, key: pub()}]
-      assert Signature.verify(signed_entry(), stranger) == {:error, :signature_key_unsupported}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_key_unsupported}} =
+               Signature.verify(signed_entry(), stranger)
     end
   end
 
@@ -138,17 +141,22 @@ defmodule AgentBlueprintProtocol.Conformance.SignatureVerifyTest do
            {"signature", {:string, tampered}}
          ]}
 
-      assert Signature.verify(entry, keys()) == {:error, :signature_not_verified}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}} =
+               Signature.verify(entry, keys())
     end
   end
 
   describe "class: invalid_encoding (header/payload)" do
     test "non-string members where strings are required" do
       bad_header = put(header(), "kid", {:integer, 3})
-      assert Signature.verify(with_header(bad_header), keys()) == {:error, :signature_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.verify(with_header(bad_header), keys())
 
       bad_attrs = put(attrs(), "key_id", {:array, []})
-      assert Signature.verify(with_attrs(bad_attrs), keys()) == {:error, :signature_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.verify(with_attrs(bad_attrs), keys())
     end
 
     test "a non-b64url signature body" do
@@ -160,27 +168,32 @@ defmodule AgentBlueprintProtocol.Conformance.SignatureVerifyTest do
            {"signature", {:string, "not base64url !!"}}
          ]}
 
-      assert Signature.verify(entry, keys()) == {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.verify(entry, keys())
     end
   end
 
   describe "class: invalid_constraint (crit/b64 violations)" do
     test "b64 true" do
-      assert Signature.verify(with_header(put(header(), "b64", {:boolean, true})), keys()) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.verify(with_header(put(header(), "b64", {:boolean, true})), keys())
     end
 
     test "crit missing or extra" do
       drop = {:object, List.keydelete(elem(header(), 1), "crit", 0)}
-      assert Signature.verify(with_header(drop), keys()) == {:error, :signature_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.verify(with_header(drop), keys())
 
       extra = put(header(), "crit", {:array, [{:string, "b64"}, {:string, "exp"}]})
-      assert Signature.verify(with_header(extra), keys()) == {:error, :signature_malformed}
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.verify(with_header(extra), keys())
     end
 
     test "kid does not match the signed key_id" do
-      assert Signature.verify(with_header(put(header(), "kid", {:string, "other"})), keys()) ==
-               {:error, :signature_malformed}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
+               Signature.verify(with_header(put(header(), "kid", {:string, "other"})), keys())
     end
   end
 

@@ -14,7 +14,9 @@ defmodule AgentBlueprintProtocol.JsonPropertyTest do
 
   property "a widening bounds override is rejected; the exact maximum is accepted" do
     check all({field, max} <- member_of(Map.to_list(Map.from_struct(Bounds.maximum())))) do
-      assert Bounds.new(%{field => max + 1}) == {:error, {:ceiling, field}}
+      assert Bounds.new(%{field => max + 1}) ==
+               {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, field}}}
+
       assert {:ok, _} = Bounds.new(%{field => max})
     end
   end

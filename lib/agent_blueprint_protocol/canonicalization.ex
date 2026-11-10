@@ -25,7 +25,7 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   `verify/2` enforces the interchange contract: bytes are canonical only if
   decode followed by re-encode reproduces them exactly; anything else
   (whitespace, member reordering, needless escapes, non-ES6 number lexemes)
-  is `{:error, :non_canonical_bytes}`. Digests are computed over exactly
+  is `{:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}}`. Digests are computed over exactly
   these verified bytes by the digest layer.
 
   The decoder's integer window (the integer-window amendment, 2026-08-21) closes the
@@ -61,7 +61,8 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   the `bytes` ceiling bounds the output size. Producers cannot emit artifacts
   that verifiers refuse to decode.
   """
-  @spec encode(Json.value(), Bounds.t() | map()) :: {:ok, binary()} | {:error, reason()}
+  @spec encode(Json.value(), Bounds.t() | map()) ::
+          {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def encode(value, bounds \\ Bounds.maximum()) do
     with {:ok, bounds} <- Bounds.coerce(bounds),
          {:ok, _nodes} <- shape(value, bounds, 0, 0),
@@ -69,31 +70,23 @@ defmodule AgentBlueprintProtocol.Canonicalization do
       binary = IO.iodata_to_binary(iodata)
 
       if byte_size(binary) > bounds.bytes,
-        do: {:error, {:ceiling, :bytes}},
+        do: {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :bytes}}},
         else: {:ok, binary}
     end
   end
 
-  @doc """
-  The RFC 8785 §3.2.3 member sort key: `name` as big-endian UTF-16 code
-  units. Erlang binary order over these keys is exactly the RFC's unsigned
-  code-unit comparison, shorter-prefix-first. `name` must be valid UTF-8.
-  """
-  @spec sort_key(binary()) :: binary()
+  @doc false
+  @spec sort_key(binary()) :: binary() | {:error, AgentBlueprintProtocol.Error.t()}
   def sort_key(name) when is_binary(name) do
     if String.valid?(name),
       do: :unicode.characters_to_binary(name, :utf8, {:utf16, :big}),
-      else: {:error, :invalid_encoding}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}}
   end
 
-  def sort_key(_), do: {:error, :invalid_type}
+  def sort_key(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Serialize `float` per ECMA-262 §7.1.12.1 (Note 2 included): `-0.0` is
-  `"0"`, integral values below 10^21 print as integers, `1e+21` and beyond
-  (and below 10^-6) use exponential notation.
-  """
-  @spec number(float()) :: {:ok, binary()}
+  @doc false
+  @spec number(float()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def number(f) when is_float(f) do
     cond do
       f == 0 -> {:ok, "0"}
@@ -102,36 +95,34 @@ defmodule AgentBlueprintProtocol.Canonicalization do
     end
   end
 
-  def number(_), do: {:error, :invalid_type}
-
-  @type reason ::
-          :non_canonical_bytes
-          | :integer_magnitude
-          | Json.reason()
+  def number(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Verify that `input` is already in canonical form: decode under `bounds`,
   re-encode, and require byte equality. Returns the decoded value on
-  success, `{:error, :non_canonical_bytes}` on any mismatch, and passes
+  success, `{:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}}` on any mismatch, and passes
   decoder errors through unchanged (so every `Json` decode reason —
   `:number_not_double_expressible` included — can surface here).
   """
-  @spec verify(binary(), Bounds.t() | map()) :: {:ok, Json.value()} | {:error, reason()}
+  @spec verify(binary(), Bounds.t() | map()) ::
+          {:ok, Json.value()} | {:error, AgentBlueprintProtocol.Error.t()}
   def verify(input, bounds \\ Bounds.maximum())
 
   def verify(input, bounds) when is_binary(input) do
     with {:ok, value} <- Json.decode(input, bounds),
          {:ok, canonical} <- encode(value, bounds) do
-      if canonical == input, do: {:ok, value}, else: {:error, :non_canonical_bytes}
+      if canonical == input,
+        do: {:ok, value},
+        else: {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}}
     end
   end
 
-  def verify(_, _), do: {:error, :invalid_type}
+  def verify(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # ---- encode walk ------------------------------------------------------------
 
   defp shape(_value, bounds, _depth, nodes) when nodes >= bounds.nodes,
-    do: {:error, {:ceiling, :nodes}}
+    do: {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :nodes}}}
 
   defp shape({tag, values}, bounds, depth, nodes)
        when tag in [:array, :object] and is_list(values) do
@@ -139,7 +130,7 @@ defmodule AgentBlueprintProtocol.Canonicalization do
     field = if tag == :array, do: :items, else: :members
 
     if depth >= bounds.depth do
-      {:error, {:ceiling, :depth}}
+      {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}}
     else
       with :ok <- container_size(values, limit, field),
            do: shape_children(values, tag, bounds, depth + 1, nodes + 1)
@@ -148,9 +139,14 @@ defmodule AgentBlueprintProtocol.Canonicalization do
 
   defp shape({:string, value}, bounds, _depth, nodes) when is_binary(value) do
     cond do
-      byte_size(value) > bounds.bytes -> {:error, {:ceiling, :bytes}}
-      byte_size(value) > bounds.string -> {:error, {:ceiling, :string}}
-      true -> {:ok, nodes + 1}
+      byte_size(value) > bounds.bytes ->
+        {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :bytes}}}
+
+      byte_size(value) > bounds.string ->
+        {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :string}}}
+
+      true ->
+        {:ok, nodes + 1}
     end
   end
 
@@ -163,15 +159,17 @@ defmodule AgentBlueprintProtocol.Canonicalization do
     do: {:ok, nodes + 1}
 
   defp shape({:float, value}, _bounds, _depth, nodes) when is_float(value), do: {:ok, nodes + 1}
-  defp shape(_, _, _, _), do: {:error, :invalid_type}
+  defp shape(_, _, _, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp container_size([], _remaining, _field), do: :ok
-  defp container_size([_ | _], 0, field), do: {:error, {:ceiling, field}}
+
+  defp container_size([_ | _], 0, field),
+    do: {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, field}}}
 
   defp container_size([_ | rest], remaining, field),
     do: container_size(rest, remaining - 1, field)
 
-  defp container_size(_, _, _), do: {:error, :invalid_type}
+  defp container_size(_, _, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp shape_children([], _tag, _bounds, _depth, nodes), do: {:ok, nodes}
 
@@ -183,14 +181,15 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   defp shape_children([{name, value} | rest], :object, bounds, depth, nodes)
        when is_binary(name) do
     if byte_size(name) > bounds.key do
-      {:error, {:ceiling, :key}}
+      {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :key}}}
     else
       with {:ok, next} <- shape(value, bounds, depth, nodes),
            do: shape_children(rest, :object, bounds, depth, next)
     end
   end
 
-  defp shape_children(_, _, _, _, _), do: {:error, :invalid_type}
+  defp shape_children(_, _, _, _, _),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp iodata(:null), do: {:ok, "null"}
   defp iodata({:boolean, true}), do: {:ok, "true"}
@@ -198,7 +197,7 @@ defmodule AgentBlueprintProtocol.Canonicalization do
 
   defp iodata({:integer, n}) when is_integer(n) do
     if abs(n) > @ijson_max,
-      do: {:error, :integer_magnitude},
+      do: {:error, %AgentBlueprintProtocol.Error{code: :integer_magnitude}},
       else: {:ok, Integer.to_string(n)}
   end
 
@@ -245,7 +244,7 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   defp check_names(members) do
     if Enum.all?(members, fn {name, _} -> String.valid?(name) end),
       do: :ok,
-      else: {:error, :invalid_encoding}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}}
   end
 
   defp sort_members(members) do
@@ -253,7 +252,7 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   end
 
   defp reject_adjacent_duplicates([{name, _} | [{name, _} | _rest]]),
-    do: {:error, :duplicate_member}
+    do: {:error, %AgentBlueprintProtocol.Error{code: :duplicate_member}}
 
   defp reject_adjacent_duplicates([_ | rest]), do: reject_adjacent_duplicates(rest)
   defp reject_adjacent_duplicates([]), do: :ok
@@ -263,7 +262,7 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   defp string_iodata(s) do
     if String.valid?(s),
       do: {:ok, [?", escape(s), ?"]},
-      else: {:error, :invalid_encoding}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding}}
   end
 
   defp escape(<<>>), do: []

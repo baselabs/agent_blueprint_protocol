@@ -23,7 +23,7 @@ defmodule AgentBlueprintProtocol do
     Reconcile
   }
 
-  @type failure :: {:error, term()}
+  @type failure :: {:error, AgentBlueprintProtocol.Error.t()}
 
   @doc """
   Decode and fully verify a Blueprint artifact: canonical verify → registry
@@ -54,12 +54,19 @@ defmodule AgentBlueprintProtocol do
   (`reconcile/3`) the digest stage runs between canonical and negotiation
   — see `AgentBlueprintProtocol.Reconcile` for the pinned stage order.
   """
-  @spec negotiate(Blueprint.t() | term(), Negotiation.Support.t()) ::
+  @spec negotiate(
+          Blueprint.t() | Deployment.t() | AgentBlueprintProtocol.Json.value(),
+          Negotiation.Support.t()
+        ) ::
           {:ok, Negotiation.Outcome.t()} | failure()
   def negotiate(artifact, %Negotiation.Support{} = support),
     do: Negotiation.negotiate(artifact, support)
 
-  def negotiate(%Blueprint{}, _),
+  def negotiate(artifact, _)
+      when is_struct(artifact, Blueprint) or is_struct(artifact, Deployment),
+      do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type, subject: ["support"]}}
+
+  def negotiate({:object, _}, _),
     do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type, subject: ["support"]}}
 
   def negotiate(_, _),

@@ -57,38 +57,59 @@ defmodule AgentBlueprintProtocol.Base64UrlTest do
 
   describe "decode/1 rejects padded input (:base64url_padded)" do
     test "full padding" do
-      assert Base64Url.decode("QQ==") == {:error, :base64url_padded}
+      assert Base64Url.decode("QQ==") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_padded}}
     end
 
     test "partial padding" do
-      assert Base64Url.decode("QQ=") == {:error, :base64url_padded}
+      assert Base64Url.decode("QQ=") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_padded}}
     end
 
     test "interior or leading pad characters are still padding" do
-      assert Base64Url.decode("Q=Q") == {:error, :base64url_padded}
-      assert Base64Url.decode("=QQ") == {:error, :base64url_padded}
+      assert Base64Url.decode("Q=Q") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_padded}}
+
+      assert Base64Url.decode("=QQ") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_padded}}
     end
   end
 
   describe "decode/1 rejects malformed input (:base64url_invalid)" do
     test "non-alphabet characters, including the standard-alphabet + and /" do
-      assert Base64Url.decode("A+B") == {:error, :base64url_invalid}
-      assert Base64Url.decode("A/B") == {:error, :base64url_invalid}
-      assert Base64Url.decode("A B") == {:error, :base64url_invalid}
-      assert Base64Url.decode("A.B") == {:error, :base64url_invalid}
-      assert Base64Url.decode("ünicode") == {:error, :base64url_invalid}
+      assert Base64Url.decode("A+B") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
+
+      assert Base64Url.decode("A/B") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
+
+      assert Base64Url.decode("A B") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
+
+      assert Base64Url.decode("A.B") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
+
+      assert Base64Url.decode("ünicode") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
     end
 
     test "dangling single character (encoded length ≡ 1 mod 4)" do
-      assert Base64Url.decode("Q") == {:error, :base64url_invalid}
-      assert Base64Url.decode("QQQQQ") == {:error, :base64url_invalid}
+      assert Base64Url.decode("Q") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
+
+      assert Base64Url.decode("QQQQQ") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
     end
 
     test "non-zero pad bits are a non-canonical aliasing spelling (RFC 4648 §3.5)" do
       # "QR" and "QQ" decode to the same byte; both cannot be valid spellings.
       assert Base64Url.decode("QQ") == {:ok, "A"}
-      assert Base64Url.decode("QR") == {:error, :base64url_invalid}
-      assert Base64Url.decode("QRR") == {:error, :base64url_invalid}
+
+      assert Base64Url.decode("QR") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
+
+      assert Base64Url.decode("QRR") ==
+               {:error, %AgentBlueprintProtocol.Error{code: :base64url_invalid}}
     end
   end
 end

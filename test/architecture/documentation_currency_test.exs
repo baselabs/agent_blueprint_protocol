@@ -42,21 +42,27 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     # the current version can name a kit npm does not serve yet. The README
     # says how to see which kit npx runs. Pure file read, no registry call.
     npm_pins =
-      ~r/@agent-blueprint-protocol\/verifier@\S+/
+      ~r/@agent-blueprint-protocol\/verifier@[A-Za-z0-9.+-]+/
       |> Regex.scan(readme)
       |> Enum.map(&hd/1)
       |> Enum.uniq()
 
-    assert npm_pins == [],
+    assert npm_pins ==
+             if(Version.parse!(version).pre == [],
+               do: [],
+               else: ["@agent-blueprint-protocol/verifier@rc"]
+             ),
            "README npm kit commands must stay unpinned (npx runs the latest " <>
              "published kit), found #{inspect(npm_pins)}"
 
-    assert readme =~ "npm view @agent-blueprint-protocol/verifier version",
+    assert readme =~ "npm view @agent-blueprint-protocol/verifier",
            "README must say how to see which kit npx runs"
 
     security = File.read!(@security_path)
 
-    assert first_supported_row(security) == {"#{line}.x", "yes"},
+    supported = if Version.parse!(version).pre == [], do: "#{line}.x", else: version
+
+    assert first_supported_row(security) == {supported, "yes"},
            "SECURITY.md supported table's first row must be the #{line}.x " <>
              "line marked yes (got #{inspect(first_supported_row(security))})"
   end
@@ -98,7 +104,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
           file not in release_docs,
           content = File.read!(file),
           claim <- version_claims(content),
-          claim != version,
+          String.trim_leading(claim, "v") != version,
           uniq: true do
         {file, claim}
       end
@@ -116,7 +122,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     visible = Regex.replace(~r/<[^>]*>/s, File.read!("site/index.html"), " ")
 
     stale =
-      ~r/(?<![\d.])\d+\.\d+\.\d+(?![\d.])/
+      ~r/(?<![\d.])\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?(?![\d.])/
       |> Regex.scan(visible)
       |> Enum.map(&hd/1)
       |> Enum.uniq()
@@ -124,6 +130,19 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
 
     assert stale == [],
            "site/index.html names stale versions #{inspect(stale)} — only #{version} may appear"
+
+    source = File.read!("site/extensions/federation/index.html")
+    registry = File.read!("spec/registry/registry.json") |> Jason.decode!()
+    entry = Enum.find(registry["entries"], &(&1["namespace"] == "io.github.baselabs/federation"))
+
+    for field <- ["namespace", "criticality", "state", "schema_digest"] do
+      assert source =~ entry[field]
+    end
+
+    assert source =~ "spec/protocol.md#11-federation-profile"
+    assert source =~ "spec/registry/registry.json"
+    assert File.read!(".github/workflows/pages.yml") =~ "path: site"
+    assert File.exists?(Path.expand("../../styles.css", "site/extensions/federation"))
   end
 
   # Package entries include bare directories ("documentation", "examples");
@@ -152,10 +171,13 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   # this-project version is 0.x, so v-tagged 0.x tokens are scanned
   # separately and must also name the current version.
   defp version_claims(content) do
-    bare = ~r/(?<!§)(?<!\.)\b\d+\.\d+\.\d+\b(?!\.)/ |> Regex.scan(content) |> Enum.map(&hd/1)
+    bare =
+      ~r/(?<!§)(?<!\.)\b\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\b(?!\.)/
+      |> Regex.scan(content)
+      |> Enum.map(&hd/1)
 
     vtagged =
-      ~r/v(0\.\d+\.\d+)\b/
+      ~r/v(0\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)\b/
       |> Regex.scan(content)
       |> Enum.map(fn [_, v] -> "v" <> v end)
 
@@ -200,7 +222,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   # Every hex requirement string in README is an install pin; they must all
   # name the current version.
   defp requirement_pins(readme) do
-    ~r/"(~> [\d.]+)"/
+    ~r/"(~> [^"]+)"/
     |> Regex.scan(readme)
     |> Enum.map(fn [_, pin] -> pin end)
   end

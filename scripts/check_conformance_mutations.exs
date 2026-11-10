@@ -21,6 +21,129 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
 
   @mutations [
     %{
+      name: "protected-clamp-denial-input-values-restored",
+      path: "lib/agent_blueprint_protocol/bounds_algebra.ex",
+      from: "code: :protected_bound_clamp_denied,\n          subject: [to_string(name)]",
+      to:
+        "code: :protected_bound_clamp_denied,\n          subject: [to_string(name)],\n          detail: evidence",
+      command: ["mix", "test", "test/agent_blueprint_protocol/bounds_algebra_test.exs"]
+    },
+    %{
+      name: "fixture-signing-seed-randomized",
+      path: "test/support/blueprint_fixture.exs",
+      from:
+        ":crypto.hash(:sha256, \"agent-blueprint-protocol/obviously-test-only-ed25519-fixture-seed\")",
+      to: ":crypto.strong_rand_bytes(32)",
+      command: ["mix", "test", "test/agent_blueprint_protocol/verification_contract_test.exs"]
+    },
+    %{
+      name: "signature-ed25519-identifier-removed",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "when alg in [\"EdDSA\", \"Ed25519\"]",
+      to: "when alg in [\"EdDSA\"]",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      name: "typescript-signature-ed25519-identifier-removed",
+      path: "verifier/signature.ts",
+      from: "const HEADER_ALGORITHMS = new Set([\"EdDSA\", \"Ed25519\"]);",
+      to: "const HEADER_ALGORITHMS = new Set([\"EdDSA\"]);",
+      command: ["node", "verifier/cli.ts", "--corpus", "priv/conformance"]
+    },
+    %{
+      name: "registry-mcp-reserved-prefix-check-removed",
+      path: "scripts/check_registry_equality.exs",
+      from: "Enum.at(labels, 1) not in [\"mcp\", \"modelcontextprotocol\"]",
+      to: "true",
+      command: ["mix", "registry.equality"]
+    },
+    %{
+      name: "registry-mcp-prefix-label-check-removed",
+      path: "scripts/check_registry_equality.exs",
+      from: "Enum.all?(labels, &Regex.match?(~r/\\A[a-z](?:[a-z0-9-]*[a-z0-9])?\\z/, &1))",
+      to: "true",
+      command: ["mix", "registry.equality"]
+    },
+    %{
+      name: "registry-mcp-name-check-removed",
+      path: "scripts/check_registry_equality.exs",
+      from: "Regex.match?(~r/\\A[a-z0-9](?:[a-z0-9_.-]*[a-z0-9])?\\z/, name)",
+      to: "is_binary(name)",
+      command: ["mix", "registry.equality"]
+    },
+    %{
+      name: "evidence-skipped-binding-marked-verified",
+      path: "lib/agent_blueprint_protocol/evidence.ex",
+      from: "do: checked != [] and skipped == []",
+      to: "do: is_list(checked) and is_list(skipped)",
+      command: ["mix", "test", "test/agent_blueprint_protocol/verification_contract_test.exs"]
+    },
+    %{
+      name: "evidence-empty-or-repeated-signer-identities-accepted",
+      path: "lib/agent_blueprint_protocol/evidence.ex",
+      from:
+        "ids != [] and Enum.all?(ids, &is_binary/1) and length(ids) == length(Enum.uniq(ids))",
+      to: "Enum.all?(ids, &is_binary/1)",
+      command: ["mix", "test", "test/agent_blueprint_protocol/verification_contract_test.exs"]
+    },
+    %{
+      name: "blueprint-signer-entry-shape-guard-removed",
+      path: "lib/agent_blueprint_protocol/blueprint.ex",
+      from: "for {:object, members} <- entries,\n          is_list(members),",
+      to: "for {:object, members} <- entries,",
+      command: ["mix", "test", "test/agent_blueprint_protocol/verification_contract_test.exs"]
+    },
+    %{
+      name: "deployment-signer-entry-shape-guard-removed",
+      path: "lib/agent_blueprint_protocol/deployment.ex",
+      from: "for {:object, members} <- entries,\n          is_list(members),",
+      to: "for {:object, members} <- entries,",
+      command: ["mix", "test", "test/agent_blueprint_protocol/verification_contract_test.exs"]
+    },
+    %{
+      name: "blueprint-duplicate-signer-check-removed",
+      path: "lib/agent_blueprint_protocol/blueprint.ex",
+      from: "        check: &check_signature_ids/1",
+      to: "        check: fn _ -> :ok end",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      name: "deployment-duplicate-signer-check-removed",
+      path: "lib/agent_blueprint_protocol/deployment.ex",
+      from: "        check: &check_signature_ids/1",
+      to: "        check: fn _ -> :ok end",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      name: "signature-algorithm-allowlist-opened",
+      path: "lib/agent_blueprint_protocol/signature.ex",
+      from: "when alg in [\"EdDSA\", \"Ed25519\"]",
+      to: "when is_binary(alg)",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      name: "federation-double-carriage-accepted",
+      path: "lib/agent_blueprint_protocol/federation.ex",
+      from:
+        "      _both ->\n        {:error, %Error{code: :federation_mapping_conflict, subject: [envelope_member]}}",
+      to: "      [{_key, {:object, _} = body} | _] -> {:ok, body}",
+      command: ["mix", "conformance.verify"]
+    },
+    %{
+      name: "evidence-skipped-detail-marked-verified",
+      path: "lib/agent_blueprint_protocol/evidence.ex",
+      from: "when detail in [:no_signatures_present, :retained, :quarantined], do: false",
+      to: "when detail in [:no_signatures_present, :retained, :quarantined], do: true",
+      command: ["mix", "test", "test/agent_blueprint_protocol/verification_contract_test.exs"]
+    },
+    %{
+      name: "evidence-untyped-detail-accepted",
+      path: "lib/agent_blueprint_protocol/evidence.ex",
+      from: "  defp detail_ok?(_), do: false",
+      to: "  defp detail_ok?(_), do: true",
+      command: ["mix", "test", "test/agent_blueprint_protocol/verification_contract_test.exs"]
+    },
+    %{
       name: "predicate-content-scan-removed",
       path: "lib/agent_blueprint_protocol/blueprint.ex",
       from: "        do: predicate\n",
@@ -42,7 +165,7 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
       name: "strict-signature-rule-removed",
       path: "lib/agent_blueprint_protocol/signature.ex",
       from:
-        "      not strict_signature?(parts.signature) ->\n        {:error, :signature_not_verified}\n\n",
+        "      not strict_signature?(parts.signature) ->\n        {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}\n\n",
       to: "",
       command: ["mix", "conformance.verify"]
     },
@@ -158,8 +281,8 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
       # decodes) -> disagreement either way.
       name: "padded-base64url-accept",
       path: "lib/agent_blueprint_protocol/base64url.ex",
-      from: "      String.contains?(input, \"=\") -> {:error, :base64url_padded}",
-      to: "      false -> {:error, :base64url_padded}",
+      from: "      String.contains?(input, \"=\") ->",
+      to: "      false ->",
       command: ["mix", "conformance.verify"]
     },
     %{
@@ -168,9 +291,8 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
       # of denying -> disagreement.
       name: "revision-max-plus-one",
       path: "lib/agent_blueprint_protocol/negotiation.ex",
-      from:
-        "      not MapSet.member?(support.revisions, revision) -> {:error, :protocol_revision_unsupported}",
-      to: "      false -> {:error, :protocol_revision_unsupported}",
+      from: "      not MapSet.member?(support.revisions, revision) ->",
+      to: "      false ->",
       command: ["mix", "conformance.verify"]
     },
     %{
@@ -206,7 +328,11 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
     "mix.exs",
     "mix.lock",
     "priv",
-    "scripts"
+    "scripts",
+    "test",
+    "spec",
+    "verifier",
+    "package.json"
   ]
 
   def run do

@@ -1,6 +1,6 @@
 defmodule AgentBlueprintProtocol.Architecture.SchemaShapeTest do
   @moduledoc """
-  Structural tripwire for the bounded dialect's DoS/SSRF posture (base §6.2
+  Structural tripwire for the bounded dialect's DoS/SSRF posture (protocol §2.2
   row: "a regex-bearing or network-fetching schema is a
   denial-of-service and SSRF surface in a portable artifact").
 

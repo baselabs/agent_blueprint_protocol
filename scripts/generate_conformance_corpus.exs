@@ -83,13 +83,13 @@ defmodule CorpusGen do
 
   # --- signed constructs -----------------------------------------------------
 
-  def signature_entry(seed, kid, digest_tagged) do
+  def signature_entry(seed, kid, digest_tagged, alg \\ "EdDSA", purpose \\ "deployment") do
     {pub, priv} = keypair(seed)
 
     header =
       {:object,
        [
-         {"alg", {:string, "EdDSA"}},
+         {"alg", {:string, alg}},
          {"b64", {:boolean, false}},
          {"crit", {:array, [{:string, "b64"}]}},
          {"kid", {:string, kid}}
@@ -102,7 +102,7 @@ defmodule CorpusGen do
          {"content_digest", {:string, digest_tagged}},
          {"created_at", {:string, "2026-08-23T00:00:00Z"}},
          {"key_id", {:string, kid}},
-         {"purpose", {:string, "deployment"}}
+         {"purpose", {:string, purpose}}
        ]}
 
     {:ok, h} = Canonicalization.encode(header)
@@ -122,7 +122,7 @@ defmodule CorpusGen do
   end
 
   # An honestly signed federation terminal receipt over the covered body.
-  def signed_receipt(seed, kid) do
+  def signed_receipt(seed, kid, alg \\ "EdDSA", purpose \\ "federation-envelope") do
     {pub, priv} = keypair(seed)
     shell = FederationFixture.value(terminal: true)
 
@@ -146,13 +146,13 @@ defmodule CorpusGen do
          {"content_digest", {:string, Digest.to_tagged(digest)}},
          {"created_at", {:string, "2026-08-23T00:00:00Z"}},
          {"key_id", {:string, kid}},
-         {"purpose", {:string, "federation-envelope"}}
+         {"purpose", {:string, purpose}}
        ]}
 
     header =
       {:object,
        [
-         {"alg", {:string, "EdDSA"}},
+         {"alg", {:string, alg}},
          {"b64", {:boolean, false}},
          {"crit", {:array, [{:string, "b64"}]}},
          {"kid", {:string, kid}}
@@ -1604,7 +1604,8 @@ negotiation_cases = [
     "expected" => %{
       "verdict" => "valid",
       "revision" => 1,
-      "critical" => ["com.example.platform/estate-contract", "com.example/federation"]
+      "critical" => ["com.example.platform/estate-contract", "com.example/federation"],
+      "notices" => ["extension_deprecated"]
     }
   },
   %{
@@ -2369,6 +2370,205 @@ signature_key_scan_cases =
     }
   end
 
+# New signing fixtures derive from one fixed, obviously test-only seed.
+# Existing case signatures are preserved below; new fixtures regenerate from arithmetic.
+fixture_label = "agent-blueprint-protocol/obviously-test-only-ed25519-fixture-seed"
+
+{alias_entry, alias_pub} =
+  CorpusGen.signature_entry(fixture_label, "example-signing-key", sig_digest, "Ed25519")
+
+alias_keys = [%{"key_id" => "example-signing-key", "key" => CorpusGen.b64(alias_pub)}]
+
+{eddsa_entry, ^alias_pub} =
+  CorpusGen.signature_entry(fixture_label, "example-signing-key", sig_digest, "EdDSA")
+
+algorithm_cases =
+  for {label, text, expected} <-
+        [
+          {"eddsa", eddsa_entry, %{"verdict" => "valid", "verified" => true}},
+          {"ed25519", alias_entry, %{"verdict" => "valid", "verified" => true}}
+        ] ++
+          for(
+            alg <- ["ed25519", "EDDSA", "Ed448", "unknown"],
+            do:
+              {"unsupported-" <> alg,
+               String.replace(alias_entry, "\"alg\":\"Ed25519\"", "\"alg\":\"#{alg}\""),
+               %{"verdict" => "invalid", "code" => "signature_algorithm_unsupported"}}
+          ) ++
+          [
+            {"header-substitution",
+             String.replace(eddsa_entry, "\"alg\":\"EdDSA\"", "\"alg\":\"Ed25519\""),
+             %{"verdict" => "invalid", "code" => "signature_not_verified"}},
+            {"reverse-header-substitution",
+             String.replace(alias_entry, "\"alg\":\"Ed25519\"", "\"alg\":\"EdDSA\""),
+             %{"verdict" => "invalid", "code" => "signature_not_verified"}}
+          ] do
+    %{
+      "id" => "signature-algorithm-" <> label,
+      "surface" => "signature.verify",
+      "class" => if(expected["verdict"] == "valid", do: "valid", else: "signature_invalid"),
+      "input" => %{"entry" => text, "keys" => alias_keys},
+      "expected" => expected
+    }
+    |> strict_expectation.()
+  end
+
+# Let T=(0,p-1), an order-two point, and a be the test seed's clamped scalar.
+# A=[a]B (+T for a mixed key), R=[r]B (+T for mixed R), k=H(R||A||M) mod L,
+# S=r+k*a mod L. The prime-order components cancel exactly. The residual
+# torsion is T_R+[k]T_A: multiplying by 8 erases it, while the cofactorless
+# equation rejects it unless it is zero. These points are NOT small-order.
+{:ok, mixed_template} = Json.decode(alias_entry)
+{:ok, mixed_message} = Signature.signing_input(mixed_template)
+seed = :crypto.hash(:sha256, fixture_label)
+a = StrictFixture.secret_scalar(seed)
+b = StrictFixture.base_point()
+t = {0, StrictFixture.p() - 1}
+prime_a = StrictFixture.scalar_mult(a, b)
+
+mixed_cases =
+  for {label, mixed_key?, mixed_r?, parity, expected} <- [
+        {"key", true, false, 1, false},
+        {"r", false, true, nil, false},
+        {"both-valid", true, true, 1, true},
+        {"both-invalid", true, true, 0, false}
+      ] do
+    public_point = if mixed_key?, do: StrictFixture.add(prime_a, t), else: prime_a
+    public = StrictFixture.encode_point(public_point)
+
+    {r, r_point, k} =
+      Enum.find_value(1..100, fn r ->
+        prime_r = StrictFixture.scalar_mult(r, b)
+        rp = if mixed_r?, do: StrictFixture.add(prime_r, t), else: prime_r
+        k = StrictFixture.challenge(StrictFixture.encode_point(rp), public, mixed_message)
+        if parity == nil or rem(k, 2) == parity, do: {r, rp, k}
+      end)
+
+    scalar = rem(r + k * a, StrictFixture.l())
+    lhs = StrictFixture.scalar_mult(scalar, b)
+    rhs = StrictFixture.add(r_point, StrictFixture.scalar_mult(k, public_point))
+    true = StrictFixture.scalar_mult(8, lhs) == StrictFixture.scalar_mult(8, rhs)
+    ^expected = lhs == rhs
+    signature = StrictFixture.encode_point(r_point) <> <<scalar::little-unsigned-256>>
+    true = StrictFixture.strict_point?(public)
+    true = StrictFixture.strict_signature?(signature)
+    ^expected = :crypto.verify(:eddsa, :none, mixed_message, signature, [public, :ed25519])
+    entry = CorpusGen.put_path(mixed_template, ["signature"], {:string, CorpusGen.b64(signature)})
+
+    %{
+      "id" => "signature-mixed-order-" <> label,
+      "surface" => "signature.verify",
+      "class" => if(expected, do: "valid", else: "signature_invalid"),
+      "input" => %{
+        "entry" => CorpusGen.json_text!(entry),
+        "keys" => [%{"key_id" => "example-signing-key", "key" => CorpusGen.b64(public)}]
+      },
+      "expected" =>
+        if(expected,
+          do: %{"verdict" => "valid", "verified" => true, "strict_signature" => true},
+          else: %{
+            "verdict" => "invalid",
+            "code" => "signature_not_verified",
+            "strict_signature" => true
+          }
+        )
+    }
+  end
+
+duplicate_signer_cases =
+  for {kind, fixture} <- [{"blueprint", BlueprintFixture}, {"deployment", DeploymentFixture}] do
+    entry = fixture.signature_entry()
+    value = fixture.fixture_value(extra_members: [{"signatures", {:array, [entry, entry]}}])
+
+    %{
+      "id" => kind <> "-decode-duplicate-signers",
+      "surface" => kind <> ".decode",
+      "class" => "invalid_constraint",
+      "input" => %{"text" => CorpusGen.json_text!(value)},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_constraint"}
+    }
+  end
+
+impact_case = %{
+  "id" => "intersect-effect-impact-is-obligation",
+  "surface" => "bounds_algebra.intersect",
+  "class" => "valid",
+  "input" => %{
+    "blueprint" => Map.put(narrow_bounds, "effect_impact_ceiling", "secret"),
+    "deployment" => narrow_bounds,
+    "host" => narrow_bounds,
+    "protected_clamp" => "deny"
+  },
+  "expected" => %{
+    "verdict" => "valid",
+    "clamp_count" => 0,
+    "effective" => Map.put(narrow_bounds, "effect_impact_ceiling", "secret")
+  }
+}
+
+# Both registered spellings carry identical schema pins. New producers use the controlled namespace.
+namespace_cases =
+  for namespace <- ["com.example/federation", "io.github.baselabs/federation"] do
+    %{
+      "id" =>
+        "extension-federation-" <>
+          if(namespace == "com.example/federation", do: "deprecated", else: "active"),
+      "surface" => "extension.resolve",
+      "class" => "valid",
+      "input" => %{
+        "artifact" =>
+          Map.put(base_artifact, "extensions", %{
+            "critical" => %{namespace => %{"issuer" => "org-a"}},
+            "optional" => %{}
+          }),
+        "support" => %{
+          "revisions" => [1],
+          "schemas" => %{namespace => CorpusGen.plain(ExtensionRegistry.federation_schema())}
+        }
+      },
+      "expected" => %{
+        "verdict" => "valid",
+        "critical" => [namespace],
+        "notices" =>
+          if(namespace == "com.example/federation", do: ["extension_deprecated"], else: [])
+      }
+    }
+  end
+
+{:ok, carrier_envelope} = Federation.from_value(FederationFixture.value(checkpoint: true))
+
+carrier_cases =
+  for {lane, encoder, member, current, legacy} <- [
+        {"a2a", &Federation.to_a2a_carrier/1, "metadata", Federation.a2a_carrier_key(),
+         "https://example.com/extensions/federation"},
+        {"mcp", &Federation.to_mcp_carrier/1, "_meta", Federation.mcp_carrier_key(),
+         "com.example/federation"}
+      ],
+      variant <- [:current, :legacy, :both] do
+    {:ok, carrier} = encoder.(carrier_envelope)
+    plain = CorpusGen.plain(carrier)
+    body = plain[member][current]
+
+    region =
+      case variant do
+        :current -> %{current => body}
+        :legacy -> %{legacy => body}
+        :both -> %{current => body, legacy => body}
+      end
+
+    %{
+      "id" => "federation-carrier-" <> lane <> "-" <> Atom.to_string(variant),
+      "surface" => "federation.decode",
+      "class" => if(variant == :both, do: "invalid_constraint", else: "valid"),
+      "input" => %{("from_" <> lane <> "_carrier") => Map.put(plain, member, region)},
+      "expected" =>
+        if(variant == :both,
+          do: %{"verdict" => "invalid", "code" => "federation_mapping_conflict"},
+          else: %{"verdict" => "valid", "decoded" => true}
+        )
+    }
+  end
+
 all_cases =
   json_cases ++
     canonicalization_cases ++
@@ -2392,7 +2592,410 @@ all_cases =
     unknown_bound_cases ++
     unknown_algebra_cases ++
     uri_boundary_cases ++
-    recovery_name_cases ++ predicate_content_cases ++ signature_key_scan_cases
+    recovery_name_cases ++
+    predicate_content_cases ++
+    signature_key_scan_cases ++
+    algorithm_cases ++
+    mixed_cases ++ duplicate_signer_cases ++ [impact_case] ++ namespace_cases ++ carrier_cases
+
+# Every artifact signature position accepts the same protected-header identifiers.
+artifact_algorithm_cases =
+  for {kind, fixture, digest_member} <- [
+        {"blueprint", BlueprintFixture, "content_digest"},
+        {"deployment", DeploymentFixture, "deployment_digest"}
+      ],
+      alg <- ["EdDSA", "Ed25519", "Ed448"] do
+    value = fixture.fixture_value()
+    digest = CorpusGen.member_string(value, digest_member)
+
+    {text, _public} =
+      CorpusGen.signature_entry(fixture_label, "example-signing-key", digest, alg, kind)
+
+    {:ok, entry} = Json.decode(text)
+    {:object, members} = value
+    value = {:object, [{"signatures", {:array, [entry]}} | members]}
+
+    %{
+      "id" => kind <> "-decode-header-" <> alg,
+      "surface" => kind <> ".decode",
+      "class" => if(alg == "Ed448", do: "signature_invalid", else: "valid"),
+      "input" => %{"text" => CorpusGen.json_text!(value)},
+      "expected" =>
+        if(alg == "Ed448",
+          do: %{"verdict" => "invalid", "code" => "signature_algorithm_unsupported"},
+          else: %{"verdict" => "valid", "digest" => digest}
+        )
+    }
+  end
+
+receipt_algorithm_cases =
+  for alg <- ["EdDSA", "Ed25519", "Ed448"],
+      surface <- ["federation.decode", "federation.verify_commitment"] do
+    {text, public, _commitment} =
+      CorpusGen.signed_receipt(fixture_label, "example-signing-key", alg)
+
+    input =
+      if(surface == "federation.decode",
+        do: %{"text" => text},
+        else: %{
+          "envelope" => text,
+          "context" => %{
+            "keys" => [%{"key_id" => "example-signing-key", "key" => CorpusGen.b64(public)}],
+            "created_after" => "2026-08-22T00:00:00Z",
+            "created_before" => "2026-08-24T00:00:00Z"
+          }
+        }
+      )
+
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-header-" <> alg,
+      "surface" => surface,
+      "class" => if(alg == "Ed448", do: "signature_invalid", else: "valid"),
+      "input" => input,
+      "expected" =>
+        cond do
+          alg == "Ed448" -> %{"verdict" => "invalid", "code" => "invalid_constraint"}
+          surface == "federation.decode" -> %{"verdict" => "valid", "canonical" => text}
+          true -> %{"verdict" => "valid", "task_identity" => "task-7f3a2c"}
+        end
+    }
+  end
+
+all_cases = all_cases ++ artifact_algorithm_cases ++ receipt_algorithm_cases
+
+# Byte error precedence and conformance input projection are shared across surfaces.
+precedence_cases =
+  for {label, text, bounds, code} <- [
+        {"trailing-close", "[[[1]]]]", %{"depth" => 4}, "trailing_bytes"},
+        {"truncated-depth", "[[[[[", %{"depth" => 4}, "invalid_syntax"},
+        {"truncated-window-array", "[29514790517935283", %{}, "invalid_syntax"},
+        {"truncated-window-object", "{\"x\":29514790517935283", %{}, "invalid_syntax"},
+        {"invalid-window-delimiter", "[29514790517935283x]", %{}, "invalid_syntax"},
+        {"truncated-overflow", "[1e999", %{}, "invalid_syntax"},
+        {"window-before-tail", "[29514790517935283]]", %{}, "number_not_double_expressible"},
+        {"root-tail-before-window", "29514790517935283]", %{}, "trailing_bytes"},
+        {"root-tail-before-nodes", "1]", %{"nodes" => 1}, "trailing_bytes"}
+      ],
+      surface <- ["json.decode", "canonicalization.encode"] do
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-precedence-" <> label,
+      "surface" => surface,
+      "class" => "invalid_encoding",
+      "input" => %{"text" => text, "bounds" => bounds},
+      "expected" => %{"verdict" => "invalid", "code" => code}
+    }
+  end
+
+empty_base64_cases =
+  for surface <- ["json.decode", "canonicalization.encode"] do
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-empty-base64-input",
+      "surface" => surface,
+      "class" => "invalid_encoding",
+      "input" => %{"base64url" => ""},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_syntax"}
+    }
+  end
+
+null_bounds_cases =
+  for {surface, text, expected} <- [
+        {"json.decode", "null", %{"verdict" => "valid", "value" => nil}},
+        {"canonicalization.encode", "null", %{"verdict" => "valid", "encoded" => "null"}},
+        {"blueprint.decode", golden_blueprint, hd(blueprint_cases)["expected"]},
+        {"deployment.decode", golden_deployment, hd(deployment_cases)["expected"]},
+        {"federation.decode", CorpusGen.json_text!(FederationFixture.value()),
+         %{"verdict" => "valid", "canonical" => CorpusGen.json_text!(FederationFixture.value())}}
+      ] do
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-null-bounds",
+      "surface" => surface,
+      "class" => "valid",
+      "input" => %{"text" => text, "bounds" => nil},
+      "expected" => expected
+    }
+  end
+
+input_projection_cases =
+  for {surface, input, expected} <- [
+        {"schema.validate_instance", %{"schema" => %{}, "instance" => nil},
+         %{"verdict" => "valid", "valid" => true}},
+        {"schema.validate_instance", %{"schema" => %{}, "instance" => 1, "dialect" => false},
+         %{"verdict" => "invalid", "code" => "invalid_type"}},
+        {"bounds.new", %{"bounds" => nil},
+         %{
+           "verdict" => "valid",
+           "bounds" =>
+             Map.new(Map.from_struct(AgentBlueprintProtocol.Bounds.maximum()), fn {k, v} ->
+               {Atom.to_string(k), v}
+             end)
+         }}
+      ] do
+    %{
+      "id" =>
+        String.replace(surface, ".", "-") <>
+          "-input-projection-" <> if(expected["verdict"] == "valid", do: "valid", else: "type"),
+      "surface" => surface,
+      "class" => if(expected["verdict"] == "valid", do: "valid", else: "invalid_type"),
+      "input" => input,
+      "expected" => expected
+    }
+  end
+
+binding_type_cases =
+  for {label, wrong} <- [
+        {"null", nil},
+        {"false", false},
+        {"number", 0},
+        {"string", ""},
+        {"array", []}
+      ] do
+    %{
+      "id" => "deployment-decode-binding-type-" <> label,
+      "surface" => "deployment.decode",
+      "class" => "invalid_type",
+      "input" => %{"text" => golden_deployment, "binding" => wrong},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_type"}
+    }
+  end
+
+support_type_cases =
+  for surface <- ["negotiation.negotiate", "extension.resolve"],
+      field <- ["revisions", "core_fields", "registry", "schemas"],
+      {label, wrong} <- [
+        {"null", nil},
+        {"false", false},
+        {"number", 0},
+        {"string", ""},
+        {"collection", if(field in ["revisions", "core_fields"], do: %{}, else: [])}
+      ] do
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-support-type-" <> field <> "-" <> label,
+      "surface" => surface,
+      "class" => "invalid_type",
+      "input" => %{"artifact" => base_artifact, "support" => %{field => wrong}},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_type"}
+    }
+  end
+
+marker_type_cases =
+  for role <- ["blueprint", "deployment", "host"],
+      {label, wrong} <- [
+        {"null", nil},
+        {"false", false},
+        {"number", 0},
+        {"string", ""},
+        {"object", %{}}
+      ] do
+    source =
+      Map.put(narrow_bounds, "classification_ceiling", %{
+        "ordinal" => "internal",
+        "markers" => wrong
+      })
+
+    %{
+      "id" => "intersect-marker-type-" <> role <> "-" <> label,
+      "surface" => "bounds_algebra.intersect",
+      "class" => "invalid_constraint",
+      "input" =>
+        Map.put(
+          %{"blueprint" => narrow_bounds, "deployment" => narrow_bounds, "host" => narrow_bounds},
+          role,
+          source
+        ),
+      "expected" => %{"verdict" => "invalid", "code" => "bound_value_invalid"}
+    }
+  end
+
+notice_projection_cases =
+  for surface <- ["negotiation.negotiate", "extension.resolve"] do
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-deprecated-optional-notice",
+      "surface" => surface,
+      "class" => "valid",
+      "input" => %{
+        "artifact" =>
+          Map.put(base_artifact, "extensions", %{
+            "critical" => %{},
+            "optional" => %{"com.example.platform/estate" => %{"label" => "archive"}}
+          })
+      },
+      "expected" => %{"verdict" => "valid", "notices" => ["extension_deprecated"]}
+    }
+  end
+
+negotiation_namespace_cases =
+  Enum.map(namespace_cases, fn c ->
+    %{
+      c
+      | "id" => String.replace(c["id"], "extension-", "negotiation-"),
+        "surface" => "negotiation.negotiate"
+    }
+  end)
+
+all_cases =
+  all_cases ++
+    precedence_cases ++
+    empty_base64_cases ++
+    null_bounds_cases ++
+    input_projection_cases ++
+    binding_type_cases ++
+    support_type_cases ++
+    marker_type_cases ++
+    notice_projection_cases ++ negotiation_namespace_cases
+
+receiving_type_cases =
+  for base <- receipt_algorithm_cases,
+      base["surface"] == "federation.verify_commitment",
+      base["class"] == "valid",
+      field <- ["created_after", "created_before"],
+      {label, wrong} <- [{"false", false}, {"number", 0}, {"array", []}, {"object", %{}}] do
+    input = put_in(base["input"], ["context", field], wrong)
+
+    %{
+      base
+      | "id" => base["id"] <> "-" <> field <> "-" <> label,
+        "class" => "invalid_type",
+        "input" => input,
+        "expected" => %{"verdict" => "invalid", "code" => "invalid_type"}
+    }
+  end
+
+binding_age_type_cases =
+  for {field, label, wrong} <-
+        [{"now", "false", false}] ++
+          for(
+            {label, wrong} <- [{"false", false}, {"string", ""}, {"array", []}, {"object", %{}}],
+            do: {"max_attestation_age_ms", label, wrong}
+          ) do
+    binding =
+      Map.put(
+        %{
+          "blueprint" => golden_blueprint,
+          "now" => "2026-08-21T00:00:00Z",
+          "max_attestation_age_ms" => 86_400_000
+        },
+        field,
+        wrong
+      )
+
+    %{
+      "id" => "deployment-binding-type-" <> field <> "-" <> label,
+      "surface" => "deployment.decode",
+      "class" => "invalid_type",
+      "input" => %{"text" => golden_deployment, "binding" => binding},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_type"}
+    }
+  end
+
+all_cases = all_cases ++ receiving_type_cases ++ binding_age_type_cases
+
+source_precedence_cases =
+  for base <- marker_type_cases,
+      earlier =
+        Enum.find(["blueprint", "deployment", "host"], fn role ->
+          base["input"][role]["classification_ceiling"]["markers"] != []
+        end),
+      later <-
+        (case earlier do
+           "blueprint" -> ["deployment", "host"]
+           "deployment" -> ["host"]
+           "host" -> []
+         end),
+      {label, wrong} <- [
+        {"null", nil},
+        {"false", false},
+        {"number", 0},
+        {"string", ""},
+        {"array", []}
+      ] do
+    %{
+      base
+      | "id" => base["id"] <> "-before-" <> later <> "-" <> label,
+        "input" => Map.put(base["input"], later, wrong)
+    }
+  end
+
+all_cases = all_cases ++ source_precedence_cases
+
+artifact_purpose_cases =
+  for {kind, fixture, digest_member} <- [
+        {"blueprint", BlueprintFixture, "content_digest"},
+        {"deployment", DeploymentFixture, "deployment_digest"}
+      ],
+      alg <- ["EdDSA", "Ed25519"],
+      purpose <- ["blueprint", "deployment", "federation-envelope", "unknown"],
+      purpose != kind do
+    value = fixture.fixture_value()
+    digest = CorpusGen.member_string(value, digest_member)
+
+    {text, _public} =
+      CorpusGen.signature_entry(fixture_label, "example-signing-key", digest, alg, purpose)
+
+    {:ok, entry} = Json.decode(text)
+    {:object, members} = value
+    value = {:object, [{"signatures", {:array, [entry]}} | members]}
+
+    %{
+      "id" => kind <> "-decode-purpose-" <> alg <> "-" <> purpose,
+      "surface" => kind <> ".decode",
+      "class" => "invalid_constraint",
+      "input" => %{"text" => CorpusGen.json_text!(value)},
+      "expected" => %{
+        "verdict" => "invalid",
+        "code" => if(purpose == "unknown", do: "signature_malformed", else: "invalid_constraint")
+      }
+    }
+  end
+
+receipt_purpose_cases =
+  for alg <- ["EdDSA", "Ed25519"],
+      purpose <- ["blueprint", "deployment", "unknown"],
+      surface <- ["federation.decode", "federation.verify_commitment"] do
+    {text, public, _commitment} =
+      CorpusGen.signed_receipt(fixture_label, "example-signing-key", alg, purpose)
+
+    valid? = surface == "federation.decode" and purpose != "unknown"
+
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-purpose-" <> alg <> "-" <> purpose,
+      "surface" => surface,
+      "class" => if(valid?, do: "valid", else: "invalid_constraint"),
+      "input" =>
+        if(surface == "federation.decode",
+          do: %{"text" => text},
+          else: %{
+            "envelope" => text,
+            "context" => %{
+              "keys" => [%{"key_id" => "example-signing-key", "key" => CorpusGen.b64(public)}]
+            }
+          }
+        ),
+      "expected" =>
+        if(valid?,
+          do: %{"verdict" => "valid", "canonical" => text},
+          else: %{"verdict" => "invalid", "code" => "invalid_constraint"}
+        )
+    }
+  end
+
+closed_purpose_cases =
+  for alg <- ["EdDSA", "Ed25519"] do
+    {text, public} =
+      CorpusGen.signature_entry(fixture_label, "example-signing-key", sig_digest, alg, "unknown")
+
+    %{
+      "id" => "signature-closed-purpose-" <> alg,
+      "surface" => "signature.verify",
+      "class" => "invalid_constraint",
+      "input" => %{
+        "entry" => text,
+        "keys" => [%{"key_id" => "example-signing-key", "key" => CorpusGen.b64(public)}]
+      },
+      "expected" => %{"verdict" => "invalid", "code" => "signature_malformed"}
+    }
+  end
+
+all_cases = all_cases ++ artifact_purpose_cases ++ receipt_purpose_cases ++ closed_purpose_cases
 
 # --- vectors + schemas (hash-bound non-case data) ----------------------------
 
@@ -2445,8 +3048,8 @@ defmodule GenMain do
 
   # The goldens' fixture signatures (kid example-demo-signing-key /
   # example-demo-deploy-key, over the digest-UNCOVERED `signatures`
-  # member) are minted under a fresh random key on every run and carry no
-  # verdict. Preserve tokens per case, so adding cases to a file does not
+  # member) historically used random test keys. New signatures use the fixed
+  # test-only seed in BlueprintFixture.signing_keypair/0. Preserve tokens per case, so adding cases to a file does not
   # replace an existing case's signature. Non-case files retain the same
   # whole-file comparison.
   @fixture_signature ~r/(example-demo-(?:signing|deploy)-key\\?"\},\\?"signature\\?":\\?")[A-Za-z0-9_-]{86}/

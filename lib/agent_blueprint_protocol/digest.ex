@@ -6,7 +6,7 @@ defmodule AgentBlueprintProtocol.Digest do
   `"sha-256:<43-char unpadded base64url>"` — a consumer never guesses the
   algorithm or encoding from length. Preimages are domain-separated —
   `SHA-256(separator || <<0>> || jcs_bytes)` — under the registered
-  separator for the hashing domain (base §8.2), so a digest transplanted
+  separator for the hashing domain (protocol §5), so a digest transplanted
   across domains never verifies.
 
   **Canonicality is the caller's contract.** `hash/2` and `verify_content/3`
@@ -44,12 +44,10 @@ defmodule AgentBlueprintProtocol.Digest do
 
   @type t :: %__MODULE__{algorithm: algorithm(), bytes: <<_::256>>}
 
-  @type reason :: :digest_algorithm_unsupported | :digest_encoding_invalid | :digest_mismatch
-
   @tags %{sha256: "sha-256"}
   @sizes %{sha256: 32}
 
-  # Base §8.2's normative separator table: constants with no version token,
+  # protocol §5's normative separator table: constants with no version token,
   # because protocol_revision is itself a covered member inside the bytes.
   @separators %{
     blueprint_content: "agent-blueprint-protocol/blueprint-content",
@@ -63,23 +61,23 @@ defmodule AgentBlueprintProtocol.Digest do
   }
 
   @doc "SHA-256 of `data` as a tagged digest value."
-  @spec of(iodata()) :: t()
+  @spec of(iodata()) :: t() | {:error, AgentBlueprintProtocol.Error.t()}
   def of(data) do
     if iodata?(data),
       do: %__MODULE__{algorithm: :sha256, bytes: :crypto.hash(:sha256, data)},
-      else: {:error, :invalid_type}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
   @doc """
-  Domain-separated digest over canonical JCS bytes: the base §8.2 preimage
+  Domain-separated digest over canonical JCS bytes: the protocol §5 preimage
   `separator || <<0>> || jcs_bytes` under the registered separator for
   `domain`. An unknown domain or malformed byte input denies `:invalid_type`.
   """
-  @spec hash(domain(), iodata()) :: t()
+  @spec hash(domain(), iodata()) :: t() | {:error, AgentBlueprintProtocol.Error.t()}
   def hash(domain, data) do
     case Map.fetch(@separators, domain) do
       {:ok, separator} -> of([separator, <<0>>, data])
-      :error -> {:error, :invalid_type}
+      :error -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -87,11 +85,11 @@ defmodule AgentBlueprintProtocol.Digest do
   The wire form `"sha-256:<43-char unpadded base64url>"`. A hand-built struct with an unknown algorithm or wrong-size bytes
   denies `:invalid_type`.
   """
-  @spec to_tagged(t()) :: binary()
+  @spec to_tagged(t()) :: binary() | {:error, AgentBlueprintProtocol.Error.t()}
   def to_tagged(%__MODULE__{algorithm: :sha256 = algorithm, bytes: <<_::256>> = bytes}),
     do: Map.fetch!(@tags, algorithm) <> ":" <> Base64Url.encode(bytes)
 
-  def to_tagged(_), do: {:error, :invalid_type}
+  def to_tagged(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Parse a tagged digest string. A string with no colon is not a tagged
@@ -102,7 +100,7 @@ defmodule AgentBlueprintProtocol.Digest do
   sha-256 body decodes to exactly 32 bytes), non-alphabet characters,
   padding, non-canonical pad bits, extra colons.
   """
-  @spec from_tagged(binary()) :: {:ok, t()} | {:error, reason()}
+  @spec from_tagged(binary()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def from_tagged(input) when is_binary(input) do
     case String.split(input, ":", parts: 2) do
       [tag, body] ->
@@ -112,11 +110,11 @@ defmodule AgentBlueprintProtocol.Digest do
         end
 
       [_] ->
-        {:error, :digest_encoding_invalid}
+        {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}}
     end
   end
 
-  def from_tagged(_), do: {:error, :invalid_type}
+  def from_tagged(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Constant-time equality over the digest bytes: the comparison accumulates
@@ -141,15 +139,18 @@ defmodule AgentBlueprintProtocol.Digest do
   divergent digest denies `:digest_mismatch`. `jcs_bytes` are the caller's
   canonical covered bytes (see the moduledoc contract).
   """
-  @spec verify_content(domain(), binary(), binary()) :: :ok | {:error, reason()}
+  @spec verify_content(domain(), binary(), binary()) ::
+          :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def verify_content(domain, jcs_bytes, tagged)
       when is_map_key(@separators, domain) and is_binary(jcs_bytes) and is_binary(tagged) do
     with {:ok, declared} <- from_tagged(tagged) do
-      if equal?(hash(domain, jcs_bytes), declared), do: :ok, else: {:error, :digest_mismatch}
+      if equal?(hash(domain, jcs_bytes), declared),
+        do: :ok,
+        else: {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}}
     end
   end
 
-  def verify_content(_, _, _), do: {:error, :invalid_type}
+  def verify_content(_, _, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp iodata?(data) when is_binary(data), do: true
   defp iodata?([]), do: true
@@ -165,7 +166,7 @@ defmodule AgentBlueprintProtocol.Digest do
   defp tag_lookup(tag) do
     case Enum.find(@tags, fn {_algorithm, spelled} -> spelled == tag end) do
       {algorithm, _spelled} -> {:ok, algorithm}
-      nil -> {:error, :digest_algorithm_unsupported}
+      nil -> {:error, %AgentBlueprintProtocol.Error{code: :digest_algorithm_unsupported}}
     end
   end
 
@@ -173,9 +174,14 @@ defmodule AgentBlueprintProtocol.Digest do
     expected_size = Map.fetch!(@sizes, algorithm)
 
     case Base64Url.decode(body) do
-      {:ok, bytes} when byte_size(bytes) == expected_size -> {:ok, bytes}
-      {:ok, _wrong_length} -> {:error, :digest_encoding_invalid}
-      {:error, _body_reason} -> {:error, :digest_encoding_invalid}
+      {:ok, bytes} when byte_size(bytes) == expected_size ->
+        {:ok, bytes}
+
+      {:ok, _wrong_length} ->
+        {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}}
+
+      {:error, _body_reason} ->
+        {:error, %AgentBlueprintProtocol.Error{code: :digest_encoding_invalid}}
     end
   end
 

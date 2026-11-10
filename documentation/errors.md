@@ -19,8 +19,8 @@ Bytes and structure: `invalid_syntax`, `invalid_encoding`,
 Decoder limits: `{:ceiling, key}`, one code per limit in the bounds
 profile you pass (or `Bounds.maximum()` by default) — `:bytes`,
 `:depth`, `:members`, `:items`, `:nodes`, `:string`, `:key`,
-`:number_lexeme`. The input exceeded that limit before it was fully
-read; reject it, or decode under a larger profile only if your host
+`:number_lexeme`. The input exceeded that decoder limit, or a requested override was
+nonpositive or above its immutable maximum; reject it, or decode under a larger profile only if your host
 policy allows one.
 
 Closed worlds: `unknown_member`, `missing_required_field`,
@@ -92,3 +92,17 @@ The `corpus_*` family — `corpus_index_invalid`, `corpus_hash_mismatch`,
 `corpus_empty`, `corpus_case_invalid` — loader and index integrity
 failures in the conformance tooling. If you see one, fix the corpus;
 no host artifact produces them.
+
+All fallible public Elixir operations return `{:error, %AgentBlueprintProtocol.Error{}}`.
+The code is the closed union; subjects use known member names and array
+indices, never input values. Value-returning helpers retain their success
+form and declare the error branch explicitly in their types.
+
+`bound_unknown` names the bounds-algebra set; `unknown_bound` names a
+decoder-limit override. `digest_mismatch` includes both artifact content
+digests and signed digest binding; `deployment_digest_mismatch` names the
+Deployment's Blueprint release reference. `extension_schema_digest_mismatch`
+names a supplied schema versus its registry pin.
+
+Notices are not errors: `extension_deprecated`,
+`extension_unknown_optional_retained`, and `clamp_applied`.

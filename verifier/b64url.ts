@@ -32,7 +32,7 @@ export function decodeStrict(input: string): { ok: true; v: Buffer } | { ok: fal
   return { ok: true, v: decoded };
 }
 
-const LENIENT = /^[A-Za-z0-9_-]+={0,2}$/;
+const LENIENT = /^(?:[A-Za-z0-9_-]+={0,2})?$/;
 
 export function decodeLenient(input: string): { ok: true; v: Buffer } | { ok: false; e: "lenient_invalid" | "invalid_type" } {
   if (typeof input !== "string") return { ok: false, e: "invalid_type" };

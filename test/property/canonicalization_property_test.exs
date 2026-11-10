@@ -34,9 +34,14 @@ defmodule AgentBlueprintProtocol.CanonicalizationPropertyTest do
     check all(value <- json_value()) do
       {:ok, bytes} = Canonicalization.encode(value)
 
-      assert Canonicalization.verify(" " <> bytes) == {:error, :non_canonical_bytes}
-      assert Canonicalization.verify(bytes <> " ") == {:error, :non_canonical_bytes}
-      assert Canonicalization.verify(" " <> bytes <> " ") == {:error, :non_canonical_bytes}
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(" " <> bytes)
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(bytes <> " ")
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}} =
+               Canonicalization.verify(" " <> bytes <> " ")
     end
   end
 

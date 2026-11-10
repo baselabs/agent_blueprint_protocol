@@ -21,6 +21,7 @@ import * as digest from "./digest.ts";
 import type { Value } from "./value.ts";
 import { member, memberString } from "./corpus.ts";
 
+const HEADER_ALGORITHMS = new Set(["EdDSA", "Ed25519"]);
 const PURPOSES = new Set(["blueprint", "deployment", "federation-envelope"]);
 const CREATED_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
@@ -29,7 +30,16 @@ export interface PublicKey {
   key: Uint8Array; // raw 32-byte Ed25519 encoding
 }
 
-type VerifyResult = { ok: true; v: "verified" } | { ok: false; e: string };
+export interface Attributes {
+  algorithm: "Ed25519";
+  contentDigest: digest.Digest;
+  createdAt: string;
+  keyId: string;
+  purpose: "blueprint" | "deployment" | "federation-envelope";
+}
+
+type Failure = { ok: false; e: string };
+type VerifyResult = { ok: true; v: Attributes } | Failure;
 
 function malformed(): { ok: false; e: string } {
   return { ok: false, e: "signature_malformed" };
@@ -40,10 +50,16 @@ export function verify(entry: Value, keys: PublicKey[]): VerifyResult {
   const parts = parseParts(entry);
   if (!parts.ok) return parts;
   const input = parts.v.headerB64 + "." + parts.v.payload;
-  return check(input, parts.v.signature, parts.v.keyId, keys);
+  const result = check(input, parts.v.signature, parts.v.keyId, keys);
+  return result.ok ? { ok: true, v: parts.v.attributes } : result;
 }
 
-export function signingInput(entry: Value): { ok: true; v: string } | VerifyResult {
+export function attributes(entry: Value): VerifyResult {
+  const parts = parseParts(entry);
+  return parts.ok ? { ok: true, v: parts.v.attributes } : parts;
+}
+
+export function signingInput(entry: Value): { ok: true; v: string } | Failure {
   const parts = parseParts(entry);
   if (!parts.ok) return parts;
   return { ok: true, v: parts.v.headerB64 + "." + parts.v.payload };
@@ -51,13 +67,14 @@ export function signingInput(entry: Value): { ok: true; v: string } | VerifyResu
 
 // RFC 7515 detached compact: BASE64URL(JCS(protected)) .. BASE64URL(sig),
 // empty payload segment (Appendix F).
-export function toCompact(entry: Value): { ok: true; v: string } | VerifyResult {
+export function toCompact(entry: Value): { ok: true; v: string } | Failure {
   const parts = parseParts(entry);
   if (!parts.ok) return parts;
   return { ok: true, v: parts.v.headerB64 + "." + "." + b64.encode(parts.v.signature) };
 }
 
 interface Parts {
+  attributes: Attributes;
   headerB64: string;
   payload: string;
   signature: Buffer;
@@ -81,7 +98,7 @@ function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: stri
   const header = member(entry, "protected")!;
   const attrs = member(entry, "signed_attributes")!;
 
-  // Header: exactly {alg, b64, crit, kid}; alg must be EdDSA (the twin's one
+  // Header: exactly {alg, b64, crit, kid}; alg is EdDSA or Ed25519 (the twin's
   // algorithm-unsupported denial in the header), b64 exactly false, crit
   // exactly ["b64"], kid a non-empty string.
   if (header.t !== "obj") return malformed();
@@ -90,7 +107,7 @@ function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: stri
     return malformed();
   }
   const alg = member(header, "alg");
-  if (alg !== null && alg.t === "str" && alg.v !== "EdDSA") {
+  if (alg !== null && alg.t === "str" && !HEADER_ALGORITHMS.has(alg.v)) {
     return { ok: false, e: "signature_algorithm_unsupported" };
   }
   if (alg === null || alg.t !== "str") return malformed();
@@ -125,7 +142,9 @@ function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: stri
   if (algorithm === null || algorithm.t !== "str") return malformed();
 
   const contentDigest = memberString(attrs, "content_digest");
-  if (contentDigest === null || !digest.fromTagged(contentDigest).ok) return malformed();
+  if (contentDigest === null) return malformed();
+  const parsedDigest = digest.fromTagged(contentDigest);
+  if (!parsedDigest.ok) return malformed();
 
   const createdAt = memberString(attrs, "created_at");
   if (createdAt === null || !CREATED_AT.test(createdAt) || !validZFormDate(createdAt)) {
@@ -156,6 +175,13 @@ function parseParts(entry: Value): { ok: true; v: Parts } | { ok: false; e: stri
       payload: attrsJson.v,
       signature: decodedSignature.v,
       keyId,
+      attributes: {
+        algorithm: "Ed25519",
+        contentDigest: parsedDigest.v,
+        createdAt,
+        keyId,
+        purpose: purpose as Attributes["purpose"],
+      },
     },
   };
 }
@@ -182,7 +208,7 @@ function check(
   signature: Buffer,
   keyId: string,
   keys: PublicKey[],
-): VerifyResult {
+): { ok: true } | Failure {
   const candidates = keys.filter((key) => key.keyId === keyId);
   if (candidates.length === 0) return { ok: false, e: "signature_key_unsupported" };
 
@@ -196,7 +222,7 @@ function check(
   const inputBytes = Buffer.from(input, "utf8");
   for (const key of usable) {
     if (cryptoVerify(null, inputBytes, keyObject(key.key), signature)) {
-      return { ok: true, v: "verified" };
+      return { ok: true };
     }
   }
   return { ok: false, e: "signature_not_verified" };

@@ -70,10 +70,10 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
   end
 
   test "a revision outside the set denies :protocol_revision_unsupported (above and below)" do
-    assert {:error, :protocol_revision_unsupported} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :protocol_revision_unsupported}} =
              Negotiation.negotiate(artifact_value(revision: 2), support())
 
-    assert {:error, :protocol_revision_unsupported} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :protocol_revision_unsupported}} =
              Negotiation.negotiate(
                artifact_value(revision: 1),
                support(revisions: MapSet.new([2]))
@@ -89,7 +89,8 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         extensions: extensions(critical: %{"com.example.unknown/x" => {:object, []}})
       )
 
-    assert {:error, :protocol_revision_unsupported} = Negotiation.negotiate(value, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :protocol_revision_unsupported}} =
+             Negotiation.negotiate(value, support())
   end
 
   test "malformed machinery values reuse the decode reason rules" do
@@ -99,42 +100,47 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         {:object, Enum.reject(members, fn {n, _} -> n == "protocol_revision" end)}
       end)
 
-    assert {:error, :missing_required_field} = Negotiation.negotiate(no_rev, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Negotiation.negotiate(no_rev, support())
 
     float_rev =
       artifact_value()
       |> then(fn {:object, m} -> {:object, replace(m, "protocol_revision", {:float, 1.0})} end)
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(float_rev, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(float_rev, support())
 
     zero_rev =
       artifact_value()
       |> then(fn {:object, m} -> {:object, replace(m, "protocol_revision", {:integer, 0})} end)
 
-    assert {:error, :invalid_constraint} = Negotiation.negotiate(zero_rev, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
+             Negotiation.negotiate(zero_rev, support())
   end
 
   # ---- required_core_fields --------------------------------------------------------
 
   test "the three fail-closed checks with their pinned reasons and order" do
     unknown = artifact_value(requires: ["bogus"])
-    assert {:error, :required_core_field_unsupported} = Negotiation.negotiate(unknown, support())
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :required_core_field_unsupported}} =
+             Negotiation.negotiate(unknown, support())
 
     evidence = artifact_value(requires: ["signatures"])
 
-    assert {:error, :required_core_field_not_digest_covered} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :required_core_field_not_digest_covered}} =
              Negotiation.negotiate(evidence, support())
 
     covered_unsupported =
       artifact_value(requires: ["ceilings"])
 
-    assert {:error, :required_core_field_unsupported} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :required_core_field_unsupported}} =
              Negotiation.negotiate(covered_unsupported, support())
 
     # known-and-covered but evidence: not-covered fires before unsupported.
     evidence_unsupported = artifact_value(requires: ["attestations"])
 
-    assert {:error, :required_core_field_not_digest_covered} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :required_core_field_not_digest_covered}} =
              Negotiation.negotiate(evidence_unsupported, support())
 
     assert {:ok, outcome} =
@@ -150,7 +156,8 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         extensions: extensions(critical: %{"com.example.unknown/x" => {:object, []}})
       )
 
-    assert {:error, :required_core_field_unsupported} = Negotiation.negotiate(value, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :required_core_field_unsupported}} =
+             Negotiation.negotiate(value, support())
   end
 
   # ---- the extension state machine ---------------------------------------------------
@@ -165,7 +172,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
   test "unregistered critical denies; unregistered optional QUARANTINES green" do
     unknown = %{"com.example.unknown/x" => {:object, [{"payload", {:integer, 1}}]}}
 
-    assert {:error, :extension_unknown_critical} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_unknown_critical}} =
              Negotiation.negotiate(
                artifact_value(extensions: extensions(critical: unknown)),
                support()
@@ -183,7 +190,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
 
   test "criticality conflict denies in BOTH directions, before state handling" do
     # registry says critical, artifact says optional (the real graph entry).
-    assert {:error, :extension_criticality_conflict} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_criticality_conflict}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions:
@@ -197,7 +204,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
       "example.test/flip" => entry(namespace: "example.test/flip", criticality: :optional)
     }
 
-    assert {:error, :extension_criticality_conflict} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_criticality_conflict}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions: extensions(critical: %{"example.test/flip" => {:object, []}})
@@ -229,7 +236,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
     assert outcome.notices == [:extension_deprecated]
 
     # deprecated + position mismatch = conflict, not notice.
-    assert {:error, :extension_criticality_conflict} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_criticality_conflict}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions: extensions(optional: %{"example.test/dep" => {:object, []}})
@@ -244,7 +251,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         entry(namespace: "example.test/old", state: :retired, criticality: :critical)
     }
 
-    assert {:error, :extension_retired} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_retired}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions: extensions(critical: %{"example.test/old" => {:object, []}})
@@ -270,7 +277,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         entry(namespace: "example.test/res", state: :reserved, criticality: :optional)
     }
 
-    assert {:error, :extension_unknown_critical} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_unknown_critical}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions: extensions(critical: %{"example.test/res" => {:object, []}})
@@ -326,7 +333,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
   # ---- critical body validation ---------------------------------------------------------
 
   test "a critical body without a host-supplied schema denies :extension_schema_unavailable" do
-    assert {:error, :extension_schema_unavailable} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_schema_unavailable}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions: extensions(critical: %{"com.example/federation" => {:object, []}})
@@ -338,7 +345,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
   test "a wrong-digest host schema denies :extension_schema_digest_mismatch" do
     wrong = {:object, [{"type", {:string, "object"}}]}
 
-    assert {:error, :extension_schema_digest_mismatch} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_schema_digest_mismatch}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions: extensions(critical: %{"com.example/federation" => body()})
@@ -363,7 +370,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
 
     bad_body = {:object, [{"issuer", {:integer, 5}}]}
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions: extensions(critical: %{"com.example/federation" => bad_body})
@@ -390,7 +397,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         ] do
       smuggle = %{"com.example.unknown/x" => {:object, [{key, {:integer, 8}}]}}
 
-      assert {:error, :extension_payload_forbidden} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :extension_payload_forbidden}} =
                Negotiation.negotiate(
                  artifact_value(extensions: extensions(optional: smuggle)),
                  support()
@@ -404,7 +411,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         {:object, [{"outer", {:object, [{"max_fan_out", {:integer, 4}}]}}]}
     }
 
-    assert {:error, :extension_payload_forbidden} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_payload_forbidden}} =
              Negotiation.negotiate(
                artifact_value(extensions: extensions(optional: deep)),
                support()
@@ -412,7 +419,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
 
     crit = %{"com.example/federation" => {:object, [{"max_depth", {:integer, 8}}]}}
 
-    assert {:error, :extension_payload_forbidden} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_payload_forbidden}} =
              Negotiation.negotiate(
                artifact_value(extensions: extensions(critical: crit)),
                support(
@@ -456,7 +463,9 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
     assert {:ok, verified} = Canonicalization.verify(tampered)
     assert {:ok, _outcome} = Negotiation.negotiate(verified, support())
     assert {:ok, bp} = Blueprint.from_value(verified)
-    assert {:error, :digest_mismatch} = Blueprint.verify_content_digest(bp)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+             Blueprint.verify_content_digest(bp)
   end
 
   test "region totality, override pins, denylist spellings" do
@@ -473,7 +482,8 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
          )}
       end)
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(bad_region, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(bad_region, support())
 
     junk_region =
       artifact_value()
@@ -487,13 +497,14 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
          )}
       end)
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(junk_region, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(junk_region, support())
 
     # A host override cannot re-classify a compiled entry.
     {:ok, compiled} = ExtensionRegistry.entry("com.example.commerce/graph")
     flipped = %{"com.example.commerce/graph" => struct!(compiled, criticality: :optional)}
 
-    assert {:error, :extension_criticality_conflict} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_criticality_conflict}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions:
@@ -533,7 +544,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
     for key <- ["MaxDepth", "maxdepth", "max-depth", "MAX_DEPTH", "CLASSIFICATION-CEILING"] do
       smuggle = %{"com.example.unknown/x" => {:object, [{key, {:integer, 8}}]}}
 
-      assert {:error, :extension_payload_forbidden} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :extension_payload_forbidden}} =
                Negotiation.negotiate(
                  artifact_value(extensions: extensions(optional: smuggle)),
                  support()
@@ -550,7 +561,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
     smuggle = %{"com.example.unknown/x" => {:object, [{"engine_id", {:string, blob}}]}}
     value = artifact_value(extensions: extensions(optional: smuggle))
 
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Blueprint.from_value(value, %{authored_extensions: ["com.example.unknown/x"]})
 
     # A critical namespace that IS in this value threads green; the same
@@ -588,11 +599,11 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
              Blueprint.from_value(carrier, %{authored_extensions: outcome.critical_extensions})
 
     # Replay the SAME list against the optional-smuggle artifact: denies.
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Blueprint.from_value(value, %{authored_extensions: outcome.critical_extensions})
 
     # A non-object value with a non-empty authored list hits the fallback.
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Blueprint.from_value({:array, []}, %{authored_extensions: ["example.test/blob"]})
   end
 
@@ -602,7 +613,8 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
       artifact_value()
       |> then(fn {:object, m} -> {:object, replace(m, "required_core_fields", {:array, [5]})} end)
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(bad, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(bad, support())
 
     # absent required_core_fields
     no_fields =
@@ -611,7 +623,8 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         {:object, Enum.reject(m, fn {n, _} -> n == "required_core_fields" end)}
       end)
 
-    assert {:error, :missing_required_field} = Negotiation.negotiate(no_fields, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Negotiation.negotiate(no_fields, support())
 
     # non-array required_core_fields
     bad_shape =
@@ -620,7 +633,8 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         {:object, replace(m, "required_core_fields", {:string, "x"})}
       end)
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(bad_shape, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(bad_shape, support())
 
     # absent and malformed extensions envelope
     no_ext =
@@ -629,13 +643,15 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         {:object, Enum.reject(m, fn {n, _} -> n == "extensions" end)}
       end)
 
-    assert {:error, :missing_required_field} = Negotiation.negotiate(no_ext, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Negotiation.negotiate(no_ext, support())
 
     bad_ext =
       artifact_value()
       |> then(fn {:object, m} -> {:object, replace(m, "extensions", {:string, "x"})} end)
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(bad_ext, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(bad_ext, support())
 
     # a deprecated OPTIONAL extension with matching criticality retains with notice
     pinned = %{
@@ -659,7 +675,8 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
       artifact_value()
       |> then(fn {:object, m} -> {:object, replace(m, "protocol_revision", {:string, "one"})} end)
 
-    assert {:error, :invalid_type} = Negotiation.negotiate(str_rev, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Negotiation.negotiate(str_rev, support())
 
     # absent revision
     no_rev2 =
@@ -668,7 +685,8 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
         {:object, Enum.reject(m, fn {n, _} -> n == "protocol_revision" end)}
       end)
 
-    assert {:error, :missing_required_field} = Negotiation.negotiate(no_rev2, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Negotiation.negotiate(no_rev2, support())
   end
 
   test "sweep: denylist inside arrays; negotiate on a non-object denies" do
@@ -676,7 +694,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
       "com.example.unknown/x" => {:array, [{:object, [{"max_depth", {:integer, 8}}]}]}
     }
 
-    assert {:error, :extension_payload_forbidden} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_payload_forbidden}} =
              Negotiation.negotiate(
                artifact_value(extensions: extensions(optional: in_array)),
                support()
@@ -684,8 +702,11 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
 
     # A non-object value reaches member_of's fallback: the first machinery
     # read (revision) is absent.
-    assert {:error, :missing_required_field} = Negotiation.negotiate({:array, []}, support())
-    assert {:error, :missing_required_field} = Negotiation.negotiate(:null, support())
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Negotiation.negotiate({:array, []}, support())
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
+             Negotiation.negotiate(:null, support())
   end
 
   test "runtime-smoke finding: a partially-built Support works (struct defaults)" do
@@ -710,7 +731,7 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
     blob = "cGFzdGhldGljYWxseV9sb25nX3NlY3JldF9rZXlfbWF0ZXJpYWwxMjM0"
     smuggle = %{"com.example.unknown/x" => {:object, [{"correlation", {:string, blob}}]}}
 
-    assert {:error, :forbidden_portable_value} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Blueprint.from_value(artifact_value(extensions: extensions(optional: smuggle)))
 
     # The same blob shape inside a schema-declared, digest-pinned critical

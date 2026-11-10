@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "0.8.4"
+  @version "1.0.0-rc.1"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -129,6 +129,12 @@ defmodule AgentBlueprintProtocol.MixProject do
     [
       main: "readme",
       source_ref: "v#{@version}",
+      # Released changelog entries retain names that are now implementation details.
+      skip_code_autolink_to: [
+        "AgentBlueprintProtocol.Extension",
+        "AgentBlueprintProtocol.Registry",
+        "AgentBlueprintProtocol.Blueprint.table/0"
+      ],
       source_url: @source_url,
       groups_for_extras: [
         "Getting started": [

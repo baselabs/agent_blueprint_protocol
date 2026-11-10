@@ -167,7 +167,11 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
              :bounds
            ]
 
-    assert Enum.all?(evidence.checks, & &1.verified)
+    assert Enum.all?(
+             evidence.checks,
+             &(&1.verified or &1.surface in [:extensions, :signatures, :bind])
+           )
+
     assert %Digest{} = evidence.blueprint_digest
     assert %Digest{} = evidence.deployment_digest
   end
@@ -253,7 +257,11 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
   test "negotiation tamper: an unsupported revision set denies at negotiation" do
     inputs = inputs(support: %Support{revisions: MapSet.new([2])})
 
-    assert {:error, %Error{code: :protocol_revision_unsupported, subject: ["blueprint"]}} =
+    assert {:error,
+            %Error{
+              code: :protocol_revision_unsupported,
+              subject: ["blueprint", "protocol_revision"]
+            }} =
              Reconcile.reconcile(golden_blueprint(), golden_deployment(), inputs)
   end
 
@@ -266,7 +274,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
         other -> other
       end) ++ [{"signatures", {:array, [{:object, [{"junk", {:string, "x"}}]}]}}]
 
-    assert {:error, %Error{code: :signature_malformed, subject: ["deployment"]}} =
+    assert {:error, %Error{code: :signature_malformed, subject: ["deployment", "signatures", 0]}} =
              Reconcile.reconcile(
                golden_blueprint(),
                %Deployment{value: {:object, forged}},
@@ -336,7 +344,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
              Reconcile.reconcile(golden_blueprint(), golden_deployment(), inputs)
   end
 
-  test "bounds tamper: a protected narrowing under :deny denies with the clamp triple" do
+  test "bounds tamper: a protected narrowing under :deny names the member without input values" do
     host =
       host_bounds()
       |> narrow_to(:classification_ceiling, %{ordinal: :public, markers: MapSet.new()})
@@ -344,7 +352,8 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
     assert {:error,
             %Error{
               code: :protected_bound_clamp_denied,
-              detail: %ClampEvidence{field: :classification_ceiling}
+              subject: ["classification_ceiling"],
+              detail: nil
             }} =
              Reconcile.reconcile(
                golden_blueprint(),
@@ -372,7 +381,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
        end) ++ [{"signatures", {:array, [{:object, [{"junk", {:string, "x"}}]}]}}])
       |> DeploymentFixture.with_digest()
 
-    assert {:error, %Error{code: :signature_malformed, subject: ["deployment"]}} =
+    assert {:error, %Error{code: :signature_malformed, subject: ["deployment", "signatures", 0]}} =
              Reconcile.reconcile(golden_blueprint(), %Deployment{value: both}, inputs())
   end
 
@@ -461,7 +470,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
              Reconcile.reconcile(golden_blueprint(), golden_deployment(), inputs())
 
     unsigned = Enum.filter(checks, &(&1.surface == :signatures))
-    assert Enum.all?(unsigned, &(&1.detail == "no signatures present"))
+    assert Enum.all?(unsigned, &(&1.detail == :no_signatures_present))
 
     assert {:ok, %Evidence{checks: signed_checks}} =
              Reconcile.reconcile(
@@ -471,7 +480,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
              )
 
     signed = Enum.filter(signed_checks, &(&1.surface == :signatures))
-    assert Enum.all?(signed, &(&1.detail == "1 signature(s) verified"))
+    assert Enum.all?(signed, &match?(%Evidence.Signatures{key_ids: [_]}, &1.detail))
   end
 
   test "a namespace retained by both artifacts appears once in the retained list" do
@@ -509,7 +518,12 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
     assert {:ok, %Evidence{checks: checks}} =
              Reconcile.reconcile(blueprint, deployment, inputs())
 
-    assert %{surface: :extensions, subject: ["com.unknown/thing"], verified: false, detail: nil} in checks
+    assert %{
+             surface: :extensions,
+             subject: ["com.unknown/thing"],
+             verified: false,
+             detail: :quarantined
+           } in checks
   end
 
   test "an operational narrowing lands as clamp evidence plus a per-bound bounds check" do
@@ -566,6 +580,54 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
       assert {:error, %Error{code: :invalid_type, subject: ^subject}} =
                Reconcile.reconcile(golden_blueprint(), golden_deployment(), forged),
              "expected typed denial for #{inspect(subject)}"
+    end
+  end
+
+  test "binding evidence covers every descriptor and the complete age check" do
+    blueprint =
+      golden_blueprint(
+        capabilities: [
+          BlueprintFixture.capability(),
+          BlueprintFixture.capability(family: "example.demo.compute_shape")
+        ]
+      )
+
+    deployment =
+      golden_deployment(
+        blueprint: blueprint,
+        tool_bindings: [
+          DeploymentFixture.tool_binding(),
+          DeploymentFixture.tool_binding(operation: "example.demo.compute_shape")
+        ]
+      )
+
+    descriptor = DeploymentFixture.tagged("descriptor")
+
+    for observed <- [
+          %{},
+          %{"example.demo.read_shape" => descriptor},
+          %{"example.demo.read_shape" => descriptor, "example.demo.compute_shape" => descriptor}
+        ],
+        {now, age} <- [
+          {nil, nil},
+          {~U[2026-08-21T00:00:00Z], nil},
+          {~U[2026-08-21T00:00:00Z], 86_400_000}
+        ] do
+      observations = %Observations{now: now, max_attestation_age_ms: age, observed: observed}
+
+      assert {:ok, evidence} =
+               Reconcile.reconcile(blueprint, deployment, inputs(observations: observations))
+
+      binding = Enum.find(evidence.checks, &(&1.surface == :bind))
+      descriptors? = map_size(observed) == 2
+      staleness? = now != nil and age != nil
+      assert :binding_descriptors in binding.detail.checked == descriptors?
+      assert :binding_descriptors in binding.detail.not_verified == not descriptors?
+      assert :binding_staleness in binding.detail.checked == staleness?
+      assert :binding_staleness in binding.detail.not_verified == not staleness?
+      assert binding.verified == (descriptors? and staleness?)
+      assert :binding_descriptors in evidence.not_verified == not descriptors?
+      assert :binding_staleness in evidence.not_verified == not staleness?
     end
   end
 

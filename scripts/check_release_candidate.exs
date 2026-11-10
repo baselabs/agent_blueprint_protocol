@@ -66,6 +66,14 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
 
   @reprove_plants [
     %{
+      name: "public-api-function-added",
+      path: "lib/agent_blueprint_protocol/base64url.ex",
+      from: "defmodule AgentBlueprintProtocol.Base64Url do\n",
+      to:
+        "defmodule AgentBlueprintProtocol.Base64Url do\n  @spec census_probe() :: :ok\n  def census_probe, do: :ok\n",
+      command: ~w(mix test test/architecture/public_api_census_test.exs)
+    },
+    %{
       name: "publish-guard-toolpath-plant",
       path: "README.md",
       from: "and [`NOTICE`](NOTICE).\n",
@@ -145,9 +153,9 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       name: "federation-validate-skip",
       path: "lib/agent_blueprint_protocol/federation.ex",
       from:
-        "    with {:ok, value} <- Canonicalization.verify(binary, bounds),\n         :ok <- Registry.validate(table(), value),\n         :ok <- scan(value) do\n      {:ok, %__MODULE__{value: value}}\n    else\n      {:error, %Error{} = error} -> {:error, error}\n      {:error, reason} -> {:error, %Error{code: reason, subject: []}}\n    end\n  end\n\n  def decode(_, _), do: {:error, %Error{code: :invalid_type, subject: [\"federation_envelope\"]}}\n\n  @doc \"\"\"\n  Validate an already-decoded tagged value (registry walk + portability\n  pass; no canonicality \u2014 there are no bytes). The codec reconstruction\n  path; values from the wire go through `decode/2`.\n  \"\"\"\n  @spec from_value(Json.value()) :: {:ok, t()} | {:error, Error.t()}\n  def from_value({:object, _} = value) do\n    with :ok <- bounded_shape(value),\n         :ok <- Registry.validate(table(), value),\n         :ok <- scan(value) do\n",
+        "    with {:ok, value} <- Canonicalization.verify(binary, bounds),\n         :ok <- Registry.validate(table(), value),\n         :ok <- scan(value) do\n      {:ok, %__MODULE__{value: value}}\n    else\n      {:error, %Error{} = error} -> {:error, error}\n    end\n  end\n\n  def decode(_, _), do: {:error, %Error{code: :invalid_type, subject: [\"federation_envelope\"]}}\n\n  @doc \"\"\"\n  Validate an already-decoded tagged value (registry walk + portability\n  pass; no canonicality \u2014 there are no bytes). The codec reconstruction\n  path; values from the wire go through `decode/2`.\n  \"\"\"\n  @spec from_value(Json.value()) :: {:ok, t()} | {:error, Error.t()}\n  def from_value({:object, _} = value) do\n    with :ok <- bounded_shape(value),\n         :ok <- Registry.validate(table(), value),\n         :ok <- scan(value) do\n",
       to:
-        "    with {:ok, value} <- Canonicalization.verify(binary, bounds),\n         :ok <- :ok,\n         :ok <- scan(value) do\n      {:ok, %__MODULE__{value: value}}\n    else\n      {:error, %Error{} = error} -> {:error, error}\n      {:error, reason} -> {:error, %Error{code: reason, subject: []}}\n    end\n  end\n\n  def decode(_, _), do: {:error, %Error{code: :invalid_type, subject: [\"federation_envelope\"]}}\n\n  @doc \"\"\"\n  Validate an already-decoded tagged value (registry walk + portability\n  pass; no canonicality \u2014 there are no bytes). The codec reconstruction\n  path; values from the wire go through `decode/2`.\n  \"\"\"\n  @spec from_value(Json.value()) :: {:ok, t()} | {:error, Error.t()}\n  def from_value({:object, _} = value) do\n    with :ok <- bounded_shape(value),\n         :ok <- :ok,\n         :ok <- scan(value) do\n",
+        "    with {:ok, value} <- Canonicalization.verify(binary, bounds),\n         :ok <- :ok,\n         :ok <- scan(value) do\n      {:ok, %__MODULE__{value: value}}\n    else\n      {:error, %Error{} = error} -> {:error, error}\n    end\n  end\n\n  def decode(_, _), do: {:error, %Error{code: :invalid_type, subject: [\"federation_envelope\"]}}\n\n  @doc \"\"\"\n  Validate an already-decoded tagged value (registry walk + portability\n  pass; no canonicality \u2014 there are no bytes). The codec reconstruction\n  path; values from the wire go through `decode/2`.\n  \"\"\"\n  @spec from_value(Json.value()) :: {:ok, t()} | {:error, Error.t()}\n  def from_value({:object, _} = value) do\n    with :ok <- bounded_shape(value),\n         :ok <- :ok,\n         :ok <- scan(value) do\n",
       command: ~w(mix test test/architecture/federation_shape_test.exs)
     },
     %{

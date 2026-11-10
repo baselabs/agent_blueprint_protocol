@@ -152,7 +152,7 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
       |> File.read!()
       |> Jason.decode!()
       |> Map.fetch!("cases")
-      |> Enum.filter(&(&1["expected"]["verdict"] == "valid"))
+      |> Enum.filter(&(&1["expected"]["verdict"] == "valid" and is_binary(&1["input"]["text"])))
       |> Enum.map(&{&1["id"], &1["input"]["text"]})
 
     vectors =

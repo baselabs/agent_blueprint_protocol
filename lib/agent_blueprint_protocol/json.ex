@@ -14,7 +14,7 @@ defmodule AgentBlueprintProtocol.Json do
   above `±(2^53−1)` admits as `{:float, f}` — the correctly-rounded double
   `Float.parse` yields, which is what an ECMAScript peer parses from the same
   digits — iff that double's canonical ECMAScript serialization
-  (`AgentBlueprintProtocol.Canonicalization.number/1`) reproduces the lexeme
+  (the canonical-number encoder) reproduces the lexeme
   byte-exactly; every other above-bound integer lexeme denies with
   `:number_not_double_expressible`. The bound's stated purpose is JS-peer
   round-trip: exact doubles round-trip, silently-lossy spellings do not.
@@ -46,22 +46,13 @@ defmodule AgentBlueprintProtocol.Json do
           | {:array, [value()]}
           | {:object, [{binary(), value()}]}
 
-  @type reason ::
-          :invalid_syntax
-          | :invalid_encoding
-          | :invalid_number
-          | :number_not_double_expressible
-          | :duplicate_member
-          | :trailing_bytes
-          | :invalid_type
-          | Bounds.error()
-
   @doc """
   Decode `input` under `bounds` (a `Bounds` struct or a tighten-only overrides
   map, defaulting to the profile maxima). Returns the tagged value or a
   value-free error.
   """
-  @spec decode(binary(), Bounds.t() | map()) :: {:ok, value()} | {:error, reason()}
+  @spec decode(binary(), Bounds.t() | map()) ::
+          {:ok, value()} | {:error, AgentBlueprintProtocol.Error.t()}
   def decode(input, bounds \\ Bounds.maximum())
 
   def decode(input, bounds) when is_binary(input) do
@@ -76,20 +67,27 @@ defmodule AgentBlueprintProtocol.Json do
         if blank?(rest) do
           finalize_root(value, bounds, counters)
         else
-          {:error, :trailing_bytes}
+          {:error, %AgentBlueprintProtocol.Error{code: :trailing_bytes}}
         end
       catch
         # Ceiling, duplicate, and number violations we raise from container
         # callbacks or `finalize_root`. (`:json` swallows a throw from a scalar
         # decoder, so number checks run at the value sinks, never in the hook.)
-        :throw, {:abp_error, reason} -> {:error, reason}
+        :throw, {:abp_error, reason} ->
+          {:error, %AgentBlueprintProtocol.Error{code: reason}}
+
         # OTP 27–29 decode errors: unexpected_end, invalid_byte, and
         # unexpected_sequence (malformed Unicode escapes). Classify using the
         # whole input without returning the byte or sequence. Other errors,
         # including callback invariant failures, must still escape loudly.
-        :error, :unexpected_end -> {:error, classify_parse_error(input)}
-        :error, {:invalid_byte, _byte} -> {:error, classify_parse_error(input)}
-        :error, {:unexpected_sequence, _bytes} -> {:error, classify_parse_error(input)}
+        :error, :unexpected_end ->
+          {:error, %AgentBlueprintProtocol.Error{code: classify_parse_error(input)}}
+
+        :error, {:invalid_byte, _byte} ->
+          {:error, %AgentBlueprintProtocol.Error{code: classify_parse_error(input)}}
+
+        :error, {:unexpected_sequence, _bytes} ->
+          {:error, %AgentBlueprintProtocol.Error{code: classify_parse_error(input)}}
       end
     end
   end
@@ -97,7 +95,7 @@ defmodule AgentBlueprintProtocol.Json do
   # The API type boundary: a non-binary input is the decoder's one
   # invalid_type surface (the corpus floor's json.decode cell) — typed
   # denial, never a FunctionClauseError raise.
-  def decode(_input, _bounds), do: {:error, :invalid_type}
+  def decode(_input, _bounds), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp decoders(bounds, counters) do
     %{
@@ -196,7 +194,9 @@ defmodule AgentBlueprintProtocol.Json do
   defp check_string_size(value, _bounds), do: value
 
   defp check_bytes(input, bounds) do
-    if byte_size(input) > bounds.bytes, do: {:error, {:ceiling, :bytes}}, else: :ok
+    if byte_size(input) > bounds.bytes,
+      do: {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :bytes}}},
+      else: :ok
   end
 
   defp enter(counters, bounds) do

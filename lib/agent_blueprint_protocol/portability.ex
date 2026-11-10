@@ -147,24 +147,22 @@ defmodule AgentBlueprintProtocol.Portability do
   @lower_identifier Regex.compile!("\\A[a-z0-9_-]+\\z")
   @upper_identifier Regex.compile!("\\A[A-Z0-9_-]+\\z")
 
-  @type reason :: :forbidden_portable_value | :invalid_type | {:ceiling, :depth}
-
   @max_depth AgentBlueprintProtocol.Bounds.maximum().depth
 
   @doc "Names + values, identifier exemption OFF (extension bodies)."
-  @spec scan(Json.value()) :: :ok | {:error, reason()}
+  @spec scan(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def scan(value), do: walk(value, true, false, 0)
 
   @doc "Names + values, identifier exemption ON (authored JSON: schemas, predicate operands)."
-  @spec scan_authored(Json.value()) :: :ok | {:error, reason()}
+  @spec scan_authored(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def scan_authored(value), do: walk(value, true, true, 0)
 
   @doc "Values only, identifier exemption ON (the protocol's identifier positions)."
-  @spec scan_identifier(Json.value()) :: :ok | {:error, reason()}
+  @spec scan_identifier(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def scan_identifier(value), do: walk(value, false, true, 0)
 
   @doc "Values only, exemption OFF (every other string position)."
-  @spec scan_value(Json.value()) :: :ok | {:error, reason()}
+  @spec scan_value(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def scan_value(value), do: walk(value, false, false, 0)
 
   # Names normalize kebab/SCREAMING/camel onto the stored forms before the
@@ -180,12 +178,12 @@ defmodule AgentBlueprintProtocol.Portability do
 
   defp walk({tag, _}, _names?, _exempt?, depth)
        when tag in [:array, :object] and depth >= @max_depth,
-       do: {:error, {:ceiling, :depth}}
+       do: {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}}
 
   defp walk({:object, members}, names?, exempt?, depth) when is_list(members) do
     if member_pairs?(members),
       do: walk_object(members, names?, exempt?, depth),
-      else: {:error, :invalid_type}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
   defp walk({:array, items}, names?, exempt?, depth) when is_list(items) do
@@ -194,7 +192,10 @@ defmodule AgentBlueprintProtocol.Portability do
 
   defp walk({:string, s}, _names?, exempt?, _depth) when is_binary(s) do
     forbidden = if exempt? and identifier_style?(s), do: false, else: forbidden_value?(s)
-    if forbidden, do: {:error, :forbidden_portable_value}, else: :ok
+
+    if forbidden,
+      do: {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}},
+      else: :ok
   end
 
   defp walk(_other, _names?, _exempt?, _depth), do: :ok
@@ -206,7 +207,7 @@ defmodule AgentBlueprintProtocol.Portability do
          do: walk_array(rest, names?, exempt?, depth)
   end
 
-  defp walk_array(_, _, _, _), do: {:error, :invalid_type}
+  defp walk_array(_, _, _, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp member_pairs?([]), do: true
   defp member_pairs?([{name, _} | rest]) when is_binary(name), do: member_pairs?(rest)
@@ -221,7 +222,7 @@ defmodule AgentBlueprintProtocol.Portability do
         pass_nil(walk(value, names?, exempt?, depth + 1))
       end)
     else
-      {:error, :forbidden_portable_value}
+      {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}}
     end
   end
 

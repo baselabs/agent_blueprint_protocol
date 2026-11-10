@@ -17,3 +17,9 @@
 - Treat interchange bytes as canonical only after `Canonicalization.verify/2`
   accepts them (decode, re-encode, byte-compare); compute digests over the
   exact received bytes, never over a re-serialization.
+
+All fallible functions return `{:error, %AgentBlueprintProtocol.Error{}}`.
+`Signature.verify/2` returns the verified `Signature.Attributes` on success.
+An unsigned artifact and skipped observations are unverified evidence;
+read typed details and `not_verified`. `effect_impact_ceiling` is an
+obligation (strictest wins), not a cap on Blueprint declarations.

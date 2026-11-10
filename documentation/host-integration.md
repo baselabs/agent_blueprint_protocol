@@ -65,7 +65,7 @@ support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])
 observations = %AgentBlueprintProtocol.Deployment.Observations{now: ~U[2026-08-21T00:00:00Z], max_attestation_age_ms: 86_400_000, observed: %{}}
 inputs = %AgentBlueprintProtocol.Reconcile.Inputs{host_bounds: host_bounds, support: support, keys: [], protected_clamp: :acknowledge, observations: observations}
 {:ok, evidence} = AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
-length(evidence.not_verified) # => 7
+Enum.take(evidence.not_verified, 7) # => [:tenancy, :live_policy, :authority, :effect_ownership, :execution, :billing, :evaluation_truth]
 ```
 
 Those seven are the point: tenancy, live policy, authority, effect
@@ -88,3 +88,18 @@ replays your history green while any true semantics change conflicts
 loudly. The partition, the semantics-version contract, and why a
 registry-digest conflict is the fail-closed detector working (not a
 break) live in the [upgrading guide](upgrading.md).
+
+An unsigned artifact is accepted with an unverified signatures check and
+`:no_signatures_present` detail. A successful signatures check names the
+distinct verifying key_ids in `Evidence.Signatures`. `Evidence.Binding`
+lists performed and skipped checks; absent or unrelated observations do
+not establish freshness or descriptor equality. False checks and skipped
+surfaces appear in `not_verified`.
+
+`signature_created_at`, `lifecycle_state`, `key_time_validity`, and
+`signature_time_validity` also appear there. Signed timestamps are format-
+checked; lifecycle state is shape-checked. Reconcile judges neither.
+
+Despite its name, `effect_impact_ceiling` is an obligation. The strictest
+source value wins; a Blueprint's `secret` remains `secret` when deployment
+and host declare `ordinary`, with no clamp under the deny posture.

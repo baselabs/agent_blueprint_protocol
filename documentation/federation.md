@@ -2,7 +2,7 @@
 
 The 23-member task envelope rides INSIDE each transport's untyped
 extension channel — A2A `Task.metadata` (URI-keyed) and MCP `_meta`
-(reverse-DNS key) — under the registered `com.example/federation`
+(reverse-DNS key) — under the registered `io.github.baselabs/federation`
 namespace: the same JCS-canonical object, the same detached-Ed25519
 signature envelope on both.
 

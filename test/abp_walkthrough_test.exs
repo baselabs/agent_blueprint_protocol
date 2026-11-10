@@ -54,20 +54,29 @@ defmodule AgentBlueprintProtocol.WalkthroughTest do
     assert [%{round_trip_exact?: true, recomputed_digest: digest}] = section_values(results, "2")
     assert digest == composed.content_digest
 
-    assert [%{verify: {:ok, :verified}, signed_digest_unchanged?: true}] =
+    assert [
+             %{
+               verify: {:ok, %AgentBlueprintProtocol.Signature.Attributes{}},
+               signed_digest_unchanged?: true
+             }
+           ] =
              section_values(results, "3")
 
     [negotiated] = section_values(results, "4")
     assert negotiated.weather.quarantined_extensions == ["org.example.weather/units"]
     assert negotiated.weather.optional_retained == ["com.example.platform/estate"]
-    assert negotiated.unknown_critical == {:error, :extension_unknown_critical}
-    assert negotiated.revision_unsupported == {:error, :protocol_revision_unsupported}
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :extension_unknown_critical}} =
+             negotiated.unknown_critical
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :protocol_revision_unsupported}} =
+             negotiated.revision_unsupported
 
     [reconciled] = section_values(results, "5")
     assert reconciled.binds?
     assert reconciled.deny_posture == :protected_bound_clamp_denied
     assert reconciled.without_the_producer_key == :signature_key_unsupported
-    assert length(reconciled.not_verified) == 7
+    assert :signature_time_validity in reconciled.not_verified
 
     index = File.read!("priv/conformance/index.json") |> JSON.decode!()
     total = index["total_cases"]
@@ -81,13 +90,22 @@ defmodule AgentBlueprintProtocol.WalkthroughTest do
 
     assert Enum.all?(attacks.rejections, fn {_attack, verdict} -> match?({:error, _}, verdict) end)
 
-    assert section_values(results, "8") == [
+    assert [
              %{
-               honest: %{backend: true, package: {:ok, :verified}},
-               identity_r: %{backend: true, package: {:error, :signature_not_verified}},
-               s_plus_l: %{backend: false, package: {:error, :signature_not_verified}}
+               honest: %{
+                 backend: true,
+                 package: {:ok, %AgentBlueprintProtocol.Signature.Attributes{}}
+               },
+               identity_r: %{
+                 backend: true,
+                 package: {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}
+               },
+               s_plus_l: %{
+                 backend: false,
+                 package: {:error, %AgentBlueprintProtocol.Error{code: :signature_not_verified}}
+               }
              }
-           ]
+           ] = section_values(results, "8")
   end
 
   test "the notebook's Ed25519 arithmetic matches the independent fixture", %{binding: binding} do
@@ -147,7 +165,10 @@ defmodule AgentBlueprintProtocol.WalkthroughTest do
          Signature.verify(envelope, [key])}
       end
 
-    assert Enum.uniq(verdicts) == [{true, {:error, :signature_algorithm_unsupported}}]
+    assert Enum.uniq(verdicts) == [
+             {true,
+              {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}}}
+           ]
   end
 
   # Splits the notebook into its elixir cells, each with the numbered

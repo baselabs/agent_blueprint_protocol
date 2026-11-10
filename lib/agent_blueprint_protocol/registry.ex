@@ -1,54 +1,11 @@
 defmodule AgentBlueprintProtocol.Registry do
-  @moduledoc """
-  The generic field-registry decode/validate engine: ONE
-  table-driven walk, parameterized by the registry table an artifact layer
-  supplies — `Blueprint` today, `Deployment` next. The engine knows tables,
-  not domains: every domain judgment (bounded schemas, signature envelopes,
-  predicates, extension forms, cross-field rules) arrives as data — checker
-  functions carried in the table and defined in the owning artifact module —
-  so the dependency direction is always artifact → engine.
-
-  A table is a list of field specs (maps):
-
-      %{
-        name: "member_name",            # binary()
-        required: true,                 # absence → :missing_required_field
-        kind: kind(),                   # structural check below
-        check: fn value -> :ok | {:error, reason()} end,   # optional, per-field
-        root_hook: fn members -> :ok | {:error, reason()} end, # optional, cross-field
-        min_items: 1,                   # array cardinality floor (kind arrays)
-        max_items: 64,                  # array cardinality ceiling
-        unique_by: "id"                 # array element uniqueness member name
-      }
-
-  Kinds: `:string` `:integer` `:float` `:boolean` `:number` (either number
-  tag) `{:enum, MapSet.t()}` `{:array, element_spec}` `{:object,
-  %{members: [spec()]}}` (closed world recursively) `:any` (any well-formed
-  tagged value) `:custom` (the spec's `check` is the whole judgment). `:integer` is TAG-STRICT: a
-  `{:float, f}` — including a zero-fraction window float — denies
-  `:invalid_type`. This is the artifact layer's typing; the wire cannot carry
-  the tag, so only this layer can see it (the artifact-typing relocation).
-
-  **Failure precedence is pinned** so two implementations pick the same
-  reason. Per object: member-list well-formedness (pairs, duplicates —
-  hand-built values only; the decoder already denies these) → `:unknown_member`
-  (document order) → `:missing_required_field` (table order) → `:invalid_type`
-  (table order) → `:invalid_constraint` (table order: enum membership and
-  `check` results that are not pass-through reasons of earlier stages) →
-  `:invalid_cardinality` (table order: counts and uniqueness over raw keys) →
-  nested recursion (children in document order; child reasons propagate) →
-  `root_hook`s (table order). Array elements are recursed after cardinality,
-  and uniqueness runs on raw member values so it never depends on element
-  validity.
-
-  Total and never-raising: malformed tagged shapes deny `:invalid_type`.
-  The engine validates structure — validation never authorizes an operation.
-  """
+  @moduledoc false
 
   alias AgentBlueprintProtocol.Json
 
-  @type check :: (Json.value() -> :ok | {:error, reason()})
-  @type root_hook :: (%{optional(binary()) => Json.value()} -> :ok | {:error, reason()})
+  @type check :: (Json.value() -> :ok | {:error, AgentBlueprintProtocol.Error.t()})
+  @type root_hook :: (%{optional(binary()) => Json.value()} ->
+                        :ok | {:error, AgentBlueprintProtocol.Error.t()})
 
   @type kind ::
           :string
@@ -73,21 +30,12 @@ defmodule AgentBlueprintProtocol.Registry do
           optional(:unique_by) => binary()
         }
 
-  @type reason ::
-          :unknown_member
-          | :missing_required_field
-          | :invalid_type
-          | :invalid_constraint
-          | :invalid_cardinality
-          | term()
+  @type reason :: AgentBlueprintProtocol.Error.t()
 
-  @doc """
-  Validate `value` against `table` under the pinned precedence. The root
-  must be an object; every stage is fail-closed and value-free.
-  """
-  @spec validate([spec()], Json.value()) :: :ok | {:error, reason()}
+  @doc false
+  @spec validate([spec()], Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def validate(table, {:object, members}) when is_list(table) and is_list(members) do
-    with true <- table_ok?(table) or {:error, :invalid_type},
+    with true <- table_ok?(table) or {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}},
          :ok <- member_pairs_ok?(members),
          :ok <- no_duplicate_members(members),
          :ok <- unknown_check(table, members),
@@ -100,7 +48,7 @@ defmodule AgentBlueprintProtocol.Registry do
     end
   end
 
-  def validate(_table, _value), do: {:error, :invalid_type}
+  def validate(_table, _value), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp table_ok?([]), do: true
 
@@ -128,7 +76,9 @@ defmodule AgentBlueprintProtocol.Registry do
   # ---- object well-formedness (hand-built values) ----------------------------------
 
   defp member_pairs_ok?(members) do
-    if pairs?(members), do: :ok, else: {:error, :invalid_type}
+    if pairs?(members),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
   defp pairs?([]), do: true
@@ -140,7 +90,7 @@ defmodule AgentBlueprintProtocol.Registry do
 
     if length(names) == length(Enum.uniq(names)),
       do: :ok,
-      else: {:error, :invalid_type}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
   # ---- stages ----------------------------------------------------------------------
@@ -150,7 +100,7 @@ defmodule AgentBlueprintProtocol.Registry do
 
     case Enum.find(members, fn {name, _} -> not MapSet.member?(names, name) end) do
       nil -> :ok
-      _unknown -> {:error, :unknown_member}
+      _unknown -> {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
     end
   end
 
@@ -158,8 +108,11 @@ defmodule AgentBlueprintProtocol.Registry do
     present = MapSet.new(members, fn {name, _} -> name end)
 
     case Enum.find(table, &(&1.required and not MapSet.member?(present, &1.name))) do
-      nil -> :ok
-      _missing -> {:error, :missing_required_field}
+      nil ->
+        :ok
+
+      %{name: name} ->
+        {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field, subject: [name]}}
     end
   end
 
@@ -169,8 +122,11 @@ defmodule AgentBlueprintProtocol.Registry do
     table
     |> Enum.find_value(fn spec ->
       case List.keyfind(members, spec.name, 0) do
-        nil -> nil
-        {_name, value} -> fun.(spec, value)
+        nil ->
+          nil
+
+        {_name, value} ->
+          at_field(fun.(spec, value), spec.name)
       end
     end)
     |> case do
@@ -179,18 +135,25 @@ defmodule AgentBlueprintProtocol.Registry do
     end
   end
 
+  defp at_field({:error, error}, name), do: {:error, %{error | subject: [name | error.subject]}}
+  defp at_field(other, _name), do: other
+
   defp type_check(table, members),
     do: stage(table, members, fn spec, value -> spec_type(spec, value) end)
 
   defp spec_type(spec, value) do
-    if kind_ok?(spec.kind, value), do: nil, else: {:error, :invalid_type}
+    if kind_ok?(spec.kind, value),
+      do: nil,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
   defp constraint_check(table, members),
     do: stage(table, members, fn spec, value -> spec_constraint(spec, value) end)
 
   defp spec_constraint(%{kind: {:enum, allowed}}, {:string, s}) when is_binary(s) do
-    if MapSet.member?(allowed, s), do: nil, else: {:error, :invalid_constraint}
+    if MapSet.member?(allowed, s),
+      do: nil,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp spec_constraint(%{check: check}, value) when is_function(check, 1),
@@ -207,13 +170,13 @@ defmodule AgentBlueprintProtocol.Registry do
   defp array_cardinality(spec, {:array, items}) when is_list(items) do
     cond do
       spec[:min_items] != nil and length(items) < spec.min_items ->
-        {:error, :invalid_cardinality}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}}
 
       spec[:max_items] != nil and length(items) > spec.max_items ->
-        {:error, :invalid_cardinality}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}}
 
       duplicate_keys?(spec[:unique_by], items) ->
-        {:error, :invalid_cardinality}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}}
 
       true ->
         nil
@@ -243,8 +206,14 @@ defmodule AgentBlueprintProtocol.Registry do
 
   defp hook_result(%{root_hook: hook} = spec, member_map) when is_function(hook, 1) do
     case Map.fetch(member_map, spec.name) do
-      {:ok, _present} -> check_result(hook.(member_map))
-      :error -> nil
+      {:ok, _present} ->
+        case check_result(hook.(member_map)) do
+          {:error, error} -> {:error, %{error | subject: [spec.name | error.subject]}}
+          other -> other
+        end
+
+      :error ->
+        nil
     end
   end
 
@@ -280,10 +249,12 @@ defmodule AgentBlueprintProtocol.Registry do
   # element gets the same judgment a table field gets: kind (type stage),
   # enum membership or `check` (constraint stage), then nested recursion.
   defp recurse({:array, element_spec}, {:array, items}) when is_list(items) do
-    Enum.reduce_while(items, :ok, fn item, :ok ->
+    items
+    |> Enum.with_index()
+    |> Enum.reduce_while(:ok, fn {item, index}, :ok ->
       case element_ok?(element_spec, item) do
         :ok -> {:cont, :ok}
-        {:error, _reason} = error -> {:halt, error}
+        {:error, error} -> {:halt, {:error, %{error | subject: [index | error.subject]}}}
       end
     end)
   end
@@ -301,11 +272,15 @@ defmodule AgentBlueprintProtocol.Registry do
   end
 
   defp element_type(spec, value) do
-    if kind_ok?(spec.kind, value), do: :ok, else: {:error, :invalid_type}
+    if kind_ok?(spec.kind, value),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
   defp element_constraint(%{kind: {:enum, allowed}}, {:string, s}) when is_binary(s) do
-    if MapSet.member?(allowed, s), do: :ok, else: {:error, :invalid_constraint}
+    if MapSet.member?(allowed, s),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp element_constraint(%{check: check}, value) when is_function(check, 1) do

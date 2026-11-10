@@ -27,8 +27,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
     allowed = MapSet.new(@external_standards ++ repo_doc_stems())
 
     offenders =
-      for file <- shipped_markdown(),
-          source = File.read!(file),
+      for {file, source} <-
+            Enum.map(shipped_markdown(), &{&1, File.read!(&1)}) ++ private_citations(),
           token <- citation_tokens(source),
           not MapSet.member?(allowed, token),
           uniq: true do
@@ -60,6 +60,14 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
              end)
   end
 
+  defp private_citations do
+    for file <- Path.wildcard("{lib,verifier,test,scripts}/**/*"),
+        File.regular?(file),
+        source = File.read!(file),
+        Regex.match?(~r/\bbase[-\s]*§/i, source),
+        do: {file, "base" <> " §1"}
+  end
+
   # The scanned set is exactly the markdown the package ships — a document
   # outside the archive may cite repo-only documents freely. Directory
   # entries ("documentation") are expanded: filtering the entries list by
@@ -87,7 +95,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   end
 
   # Captures the document token naming a section: `A2A §7.6.4` → "A2A",
-  # `base-§8.2` → "base". Numeric or absent prefixes (bare `§3.2.2.2`,
+  # `protocol-§5` → "protocol". Numeric or absent prefixes (bare `§3.2.2.2`,
   # `RFC 4648 §3.3`) match nothing and stay unchecked by construction.
   defp citation_tokens(source) do
     ~r/\b([A-Za-z][A-Za-z0-9-]*?)[- ]?§\s*\d/

@@ -40,10 +40,10 @@ defmodule AgentBlueprintProtocol.PredicateTest do
   end
 
   test "unknown operator denies :predicate_op_unknown (closed op set)" do
-    assert {:error, :predicate_op_unknown} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_op_unknown}} =
              Predicate.validate(leaf("input") |> put_op("xor"), @ports)
 
-    assert {:error, :predicate_op_unknown} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_op_unknown}} =
              Predicate.validate(cmp("eq", "input") |> put_op("=~"), @ports)
   end
 
@@ -52,14 +52,15 @@ defmodule AgentBlueprintProtocol.PredicateTest do
       {:object,
        [{"op", {:string, "and"}}, {"args", {:array, [leaf("input")]}}, {"extra", {:string, "x"}}]}
 
-    assert {:error, :unknown_member} = Predicate.validate(p, @ports)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
+             Predicate.validate(p, @ports)
   end
 
   test "missing operand member denies :missing_required_field" do
-    assert {:error, :missing_required_field} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
              Predicate.validate({:object, [{"op", {:string, "and"}}]}, @ports)
 
-    assert {:error, :missing_required_field} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
              Predicate.validate(
                {:object, [{"op", {:string, "eq"}}, {"path", path("input")}]},
                @ports
@@ -67,13 +68,13 @@ defmodule AgentBlueprintProtocol.PredicateTest do
   end
 
   test "and/or with zero args and not with arity != 1 deny :invalid_cardinality" do
-    assert {:error, :invalid_cardinality} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
              Predicate.validate(
                {:object, [{"op", {:string, "and"}}, {"args", {:array, []}}]},
                @ports
              )
 
-    assert {:error, :invalid_cardinality} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
              Predicate.validate(not2(leaf("input"), leaf("config")), @ports)
   end
 
@@ -84,7 +85,7 @@ defmodule AgentBlueprintProtocol.PredicateTest do
           {:string, "input"},
           :null
         ] do
-      assert {:error, :invalid_type} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
                Predicate.validate(
                  {:object, [{"op", {:string, "eq"}}, {"path", bad}, {"value", {:integer, 1}}]},
                  @ports
@@ -93,19 +94,23 @@ defmodule AgentBlueprintProtocol.PredicateTest do
   end
 
   test "path[0] naming no declared port denies :predicate_path_unresolved" do
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.validate(cmp("eq", "elsewhere"), @ports)
   end
 
   test "values operand of in must be an array" do
     p = {:object, [{"op", {:string, "in"}}, {"path", path("input")}, {"values", {:string, "x"}}]}
-    assert {:error, :invalid_type} = Predicate.validate(p, @ports)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Predicate.validate(p, @ports)
   end
 
   test "node count over predicate_nodes (256) denies :predicate_nodes_exceeded" do
     # chain(n) is n `not` nodes over one comparison leaf = n + 1 nodes total.
     assert :ok = Predicate.validate(chain(255), @ports)
-    assert {:error, :predicate_nodes_exceeded} = Predicate.validate(chain(256), @ports)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_nodes_exceeded}} =
+             Predicate.validate(chain(256), @ports)
   end
 
   test "total and never-raising on malformed tagged shapes" do
@@ -172,10 +177,10 @@ defmodule AgentBlueprintProtocol.PredicateTest do
   end
 
   test "ordering across mismatched kinds denies :predicate_path_unresolved" do
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(lt_path(["input", "level"], {:string, "3"}), @ports_value)
 
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(lt_path(["input", "name"], {:integer, 3}), @ports_value)
   end
 
@@ -203,21 +208,21 @@ defmodule AgentBlueprintProtocol.PredicateTest do
   end
 
   test "an unresolvable path on a value operator denies :predicate_path_unresolved" do
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(eq_path(["input", "nope"], {:integer, 1}), @ports_value)
 
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(eq_path(["nowhere", "x"], {:integer, 1}), @ports_value)
 
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(eq_path(["input", "items", "9"], {:string, "x"}), @ports_value)
   end
 
   test "array index segments use canonical decimal form" do
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(eq_path(["input", "items", "01"], {:string, "y"}), @ports_value)
 
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(eq_path(["input", "items", "x"], {:string, "y"}), @ports_value)
   end
 
@@ -227,20 +232,20 @@ defmodule AgentBlueprintProtocol.PredicateTest do
 
     # or(true, error) must be an ERROR, never true — short-circuit-on-value
     # would make the verdict depend on operand order.
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(or_leaf(true_leaf, errored), @ports_value)
 
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(or_leaf(errored, true_leaf), @ports_value)
 
     # and(false, error) must be an ERROR, never false.
     false_leaf = eq_path(["input", "level"], {:integer, 4})
 
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(and2(false_leaf, errored), @ports_value)
 
     # not(error) is an error.
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(not_leaf(errored), @ports_value)
   end
 
@@ -265,10 +270,14 @@ defmodule AgentBlueprintProtocol.PredicateTest do
   # ---- hardened rims ---------------------------------------------------------
 
   test "malformed member lists deny :invalid_type, never raise" do
-    assert {:error, :invalid_type} = Predicate.validate({:object, [:bad]}, @ports)
-    assert {:error, :invalid_type} = Predicate.validate({:object, [5]}, @ports)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Predicate.validate({:object, [:bad]}, @ports)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Predicate.validate({:object, [5]}, @ports)
+
     # A non-binary member NAME (tuple element) hits the invalid_type branch.
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Predicate.validate({:object, [{5, {:string, "and"}}]}, @ports)
   end
 
@@ -281,7 +290,9 @@ defmodule AgentBlueprintProtocol.PredicateTest do
 
     assert {:ok, true} = Predicate.evaluate(absent, @ports_value)
     assert {:ok, false} = Predicate.evaluate(present, @ports_value)
-    assert {:error, :predicate_path_unresolved} = Predicate.evaluate(eq, @ports_value)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
+             Predicate.evaluate(eq, @ports_value)
   end
 
   # ---- helpers -----------------------------------------------------------------
@@ -345,21 +356,24 @@ defmodule AgentBlueprintProtocol.PredicateTest do
   # ---- branch sweep: live fallback clauses ------------------------------------------
 
   test "sweep: validate/2 non-list ports and evaluate/2 non-map ports deny" do
-    assert {:error, :invalid_type} = Predicate.validate(leaf("input"), :ports)
-    assert {:error, :invalid_type} = Predicate.evaluate(leaf("input"), [:ports])
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Predicate.validate(leaf("input"), :ports)
+
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Predicate.evaluate(leaf("input"), [:ports])
   end
 
   test "sweep: malformed operand members hit their class fallbacks" do
     # op present but nil-value member shape (op_of's nil clause is the
     # missing case; a non-tuple op value hits invalid_type)
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Predicate.validate(
                {:object, [{"op", 5}, {"args", {:array, [leaf("input")]}}]},
                @ports
              )
 
     # non-binary member name
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Predicate.validate(
                {:object,
                 [{5, nil}, {"op", {:string, "and"}}, {"args", {:array, [leaf("input")]}}]},
@@ -367,7 +381,7 @@ defmodule AgentBlueprintProtocol.PredicateTest do
              )
 
     # args not an array
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Predicate.validate(
                {:object, [{"op", {:string, "and"}}, {"args", 5}]},
                @ports
@@ -378,10 +392,11 @@ defmodule AgentBlueprintProtocol.PredicateTest do
       {:object,
        [{"op", {:string, "in"}}, {"path", path("input")}, {"values", {:array, [{:integer, 1.5}]}}]}
 
-    assert {:error, :invalid_type} = Predicate.validate(bad_values, @ports)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Predicate.validate(bad_values, @ports)
 
     # well_formed? misses: object with non-binary member name, non-list array
-    assert {:error, :invalid_type} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
              Predicate.validate(
                {:object,
                 [
@@ -395,7 +410,7 @@ defmodule AgentBlueprintProtocol.PredicateTest do
 
   test "sweep: missing op member and rich in-values hit their branches" do
     # op absent entirely: op_of's nil clause (checked before anything else).
-    assert {:error, :missing_required_field} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :missing_required_field}} =
              Predicate.validate({:object, [{"args", {:array, [leaf("input")]}}]}, @ports)
 
     # every tagged kind inside in-values exercises well_formed?'s positives.
@@ -421,7 +436,8 @@ defmodule AgentBlueprintProtocol.PredicateTest do
     junk =
       {:object, [{"op", {:string, "in"}}, {"path", path("input")}, {"values", {:array, [5]}}]}
 
-    assert {:error, :invalid_type} = Predicate.validate(junk, @ports)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+             Predicate.validate(junk, @ports)
   end
 
   test "sweep: not-fold, numeric orderings across tags, scalar descent, in on an unresolvable path" do
@@ -451,7 +467,7 @@ defmodule AgentBlueprintProtocol.PredicateTest do
              Predicate.evaluate(lte_path(["input", "level"], {:integer, 3}), @ports_value)
 
     # a path descending INTO a scalar denies unresolved.
-    assert {:error, :predicate_path_unresolved} =
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
              Predicate.evaluate(
                eq_path(["input", "level", "deeper"], {:integer, 1}),
                @ports_value
@@ -465,6 +481,7 @@ defmodule AgentBlueprintProtocol.PredicateTest do
          {"values", {:array, [{:integer, 1}]}}
        ]}
 
-    assert {:error, :predicate_path_unresolved} = Predicate.evaluate(in_bad, @ports_value)
+    assert {:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}} =
+             Predicate.evaluate(in_bad, @ports_value)
   end
 end

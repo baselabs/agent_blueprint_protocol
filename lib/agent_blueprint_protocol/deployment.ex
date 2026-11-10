@@ -1,9 +1,9 @@
 defmodule AgentBlueprintProtocol.Deployment do
   @moduledoc """
-  The Deployment Manifest artifact (base §7, re-derived 2026-08-22): binds
+  The Deployment Manifest artifact (protocol §2, re-derived 2026-08-22): binds
   exactly ONE Blueprint release digest to one local environment — portable
   as a shape, resolved values local. Decoded and validated through the ONE
-  generic field-registry engine (`AgentBlueprintProtocol.Registry`)
+  generic field-registry engine (the internal registry engine)
   parameterized by this module's 19-member table : the table, the
   scan's open regions, and the digest domain are the only deltas from the
   Blueprint pipeline.
@@ -12,11 +12,11 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   1. `Canonicalization.verify/2` — non-canonical spellings deny
      `:non_canonical_bytes` before any semantic read (the canonicality ordering).
-  2. `AgentBlueprintProtocol.Registry.validate/2` against `table/0` — closed world
+  2. structure validation against the internal member table — closed world
      (`:unknown_member`), 16 required members, tag-strict integer typing,
      enums, cardinalities (tool_bindings ≤ 128, data_bindings ≤ 64,
      build_identities ≥ 1 and ≤ 128 — an empty identity manifest pins
-     nothing and is the silent-fallback space the base red case names), the
+     nothing), the
      exact-only build-identity versions (`:compatibility_identity_inexact`
      on any range vocabulary), and the per-member custom checks (tagged
      digests, Z-form timestamps, the lifecycle temporal rules
@@ -26,20 +26,18 @@ defmodule AgentBlueprintProtocol.Deployment do
      other string position — including every `adapter_identity` and
      `profile_identity` — is value-shape scanned strict: a network URI, PEM
      armour, a JWS shape, or raw-key entropy denies
-     `:forbidden_portable_value` (the base's never-portable list, red in
-     deployment positions).
+     `:forbidden_portable_value`.
   4. The content-digest comparison over the covered members' canonical
      bytes under the `:deployment_content` domain — everything except
      `deployment_digest`, `signatures`, `attestations`.
 
   ## The binding surface
 
-  `binds?/2` is digest equality AND NOTHING ELSE (base §7's binding rule):
+  `binds?/2` is digest equality AND NOTHING ELSE (protocol §2's binding rule):
   the declared release digest against the paired Blueprint's RECOMPUTED
   content digest — never the declared member — via constant-time compare.
   Total over the deployment side: malformed deployment input answers
-  `false`. (A hand-built malformed `%Blueprint{}` raises in `Blueprint`'s own
-  digest surface — that module's contract, not this one's.)
+  `false`, including malformed hand-built Blueprint values.
 
   `verify_binding/3` is the six-stage deny set, order pinned (the second-language
   verifier contract):
@@ -61,9 +59,8 @@ defmodule AgentBlueprintProtocol.Deployment do
   Stages 5-6 run only on the host observations that feed them: `now: nil`
   skips EVERY staleness judgment including the future-deny; an empty
   `observed` map skips the rug-pull. That is the host's governance choice —
-  the parameters ARE host policy (the base's stale-binding and rug-pull red
-  cases are host-observation cases); decode-time integrity is never
-  skippable.
+  the parameters are host observations; decode-time integrity is never
+  skippable. Reconciliation lists skipped observations in `not_verified`.
 
   ## Honest limits
 
@@ -146,7 +143,7 @@ defmodule AgentBlueprintProtocol.Deployment do
   defstruct [:value]
 
   @type t :: %__MODULE__{value: Json.value()}
-  @type reason :: Registry.reason()
+  @type reason :: AgentBlueprintProtocol.Error.t()
 
   # ---- observations -------------------------------------------------------------------
 
@@ -170,11 +167,7 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   # ---- the table --------------------------------------------------------------------
 
-  @doc """
-  The 19-member field registry (base §7, re-derived): data for the generic
-  engine. Field order is the engine's precedence anchor for table-order
-  stages.
-  """
+  @doc false
   @spec table() :: [Registry.spec()]
   def table do
     [
@@ -213,7 +206,8 @@ defmodule AgentBlueprintProtocol.Deployment do
       ),
       field("signatures", {:array, signature_element()},
         required: false,
-        max_items: @ceiling_signatures
+        max_items: @ceiling_signatures,
+        check: &check_signature_ids/1
       ),
       field("attestations", {:array, %{kind: :any}},
         required: false,
@@ -404,7 +398,8 @@ defmodule AgentBlueprintProtocol.Deployment do
   validation → portability scan → content-digest comparison. Total and
   never-raising.
   """
-  @spec decode(binary(), Bounds.t() | map()) :: {:ok, t()} | {:error, reason()}
+  @spec decode(binary(), Bounds.t() | map()) ::
+          {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def decode(binary, bounds \\ Bounds.maximum())
 
   def decode(binary, bounds) when is_binary(binary) do
@@ -420,7 +415,7 @@ defmodule AgentBlueprintProtocol.Deployment do
   # non-binary input denies :invalid_type instead of raising
   # FunctionClauseError (the corpus floor's json surface fix, applied
   # symmetrically to the artifact decoders).
-  def decode(_binary, _bounds), do: {:error, :invalid_type}
+  def decode(_binary, _bounds), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Validate an already-decoded tagged value (stages 2-3; no canonicality —
@@ -436,13 +431,15 @@ defmodule AgentBlueprintProtocol.Deployment do
   that the supplied namespaces occur in this artifact's critical region.
   `Reconcile.reconcile/3` derives the list from the current negotiation.
   """
-  @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, reason()}
+  @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   def from_value(value, opts \\ %{})
 
   def from_value(value, opts) when is_map(opts) do
     validated = Map.get(opts, :authored_extensions, [])
 
-    with true <- authored_names?(validated) or {:error, :invalid_type},
+    with true <-
+           authored_names?(validated) or
+             {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}},
          {:ok, _bytes} <- Canonicalization.encode(value),
          :ok <- authored_tied_to_value(value, validated),
          :ok <- Registry.validate(table(), value),
@@ -451,24 +448,24 @@ defmodule AgentBlueprintProtocol.Deployment do
     end
   end
 
-  def from_value(_, _), do: {:error, :invalid_type}
+  def from_value(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc "The held tagged value — the identity, so the round-trip is byte-exact."
-  @spec to_value(t()) :: Json.value()
+  @spec to_value(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
   def to_value(%__MODULE__{value: value}), do: value
-  def to_value(_), do: {:error, :invalid_type}
+  def to_value(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # ---- the digest surface -----------------------------------------------------------
 
   @doc "The digest input: the artifact minus the three evidence members (§8.2)."
-  @spec digest_input(t()) :: Json.value()
+  @spec digest_input(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
   def digest_input(%__MODULE__{value: {:object, members}}) do
     with {:ok, _bytes} <- Canonicalization.encode({:object, members}) do
       {:object, Enum.reject(members, fn {name, _} -> name in @evidence_members end)}
     end
   end
 
-  def digest_input(_), do: {:error, :invalid_type}
+  def digest_input(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc "Whether `member_name` (a wire-level member name) is digest-covered."
   @spec digest_covered?(binary()) :: boolean()
@@ -478,12 +475,12 @@ defmodule AgentBlueprintProtocol.Deployment do
   def digest_covered?(_), do: false
 
   @doc "The canonical bytes of the whole artifact."
-  @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, reason()}
+  @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
-  def canonical_bytes(_), do: {:error, :invalid_type}
+  def canonical_bytes(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc "The honest content digest over the covered members' canonical bytes."
-  @spec content_digest(t()) :: Digest.t() | {:error, reason()}
+  @spec content_digest(t()) :: Digest.t() | {:error, AgentBlueprintProtocol.Error.t()}
   def content_digest(%__MODULE__{} = deployment) do
     with {:object, _} = covered <- digest_input(deployment),
          {:ok, jcs} <- Canonicalization.encode(covered) do
@@ -491,21 +488,21 @@ defmodule AgentBlueprintProtocol.Deployment do
     end
   end
 
-  def content_digest(_), do: {:error, :invalid_type}
+  def content_digest(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   @doc """
   Compare the declared `deployment_digest` member against the recomputed
   digest over the exact received (verified) bytes' canonical form:
   `:digest_mismatch` on divergence.
   """
-  @spec verify_content_digest(t()) :: :ok | {:error, reason()}
+  @spec verify_content_digest(t()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def verify_content_digest(%__MODULE__{value: {:object, members}} = deployment) do
     with {:ok, _} <- Canonicalization.encode({:object, members}) do
       verify_declared_digest(deployment, members)
     end
   end
 
-  def verify_content_digest(_), do: {:error, :invalid_type}
+  def verify_content_digest(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp verify_declared_digest(deployment, members) do
     case List.keyfind(members, "deployment_digest", 0) do
@@ -516,7 +513,7 @@ defmodule AgentBlueprintProtocol.Deployment do
         end
 
       _other ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -530,14 +527,15 @@ defmodule AgentBlueprintProtocol.Deployment do
   @spec bound_release(t()) ::
           {:ok,
            %{blueprint_id: binary(), release_number: pos_integer(), content_digest: Digest.t()}}
-          | {:error, reason()}
+          | {:error, AgentBlueprintProtocol.Error.t()}
   def bound_release(%__MODULE__{value: {:object, members}} = deployment) do
     with {:ok, _} <- bound_tool_bindings(deployment) do
       release_of(members)
     end
   end
 
-  def bound_release(_not_an_object_root), do: {:error, :invalid_type}
+  def bound_release(_not_an_object_root),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp release_of(members) do
     case List.keyfind(members, "blueprint_release", 0) do
@@ -549,16 +547,16 @@ defmodule AgentBlueprintProtocol.Deployment do
           {:ok, %{blueprint_id: id, release_number: n, content_digest: digest}}
         else
           {:error, reason} -> {:error, reason}
-          _malformed -> {:error, :invalid_type}
+          _malformed -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
         end
 
       _other ->
-        {:error, :invalid_type}
+        {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   @doc """
-  Digest equality and nothing else (base §7's binding rule): the declared
+  Digest equality and nothing else (protocol §2's binding rule): the declared
   release digest against the paired Blueprint's RECOMPUTED content digest —
   never its declared member. Total over the deployment side: malformed
   deployment or Blueprint input answers `false`.
@@ -582,7 +580,8 @@ defmodule AgentBlueprintProtocol.Deployment do
   `tool_bindings` member DENIES before any cross-artifact judgment. Stages
   5-6 are observation-gated — absent host inputs skip exactly their stages.
   """
-  @spec verify_binding(t(), Blueprint.t(), Observations.t()) :: :ok | {:error, reason()}
+  @spec verify_binding(t(), Blueprint.t(), Observations.t()) ::
+          :ok | {:error, AgentBlueprintProtocol.Error.t()}
   def verify_binding(%__MODULE__{} = deployment, %Blueprint{} = blueprint, %Observations{} = obs) do
     with {:ok, bindings} <- bound_tool_bindings(deployment),
          {:ok, _} <- canonical_bytes(deployment),
@@ -596,16 +595,16 @@ defmodule AgentBlueprintProtocol.Deployment do
     end
   end
 
-  def verify_binding(_, _, _), do: {:error, :invalid_type}
+  def verify_binding(_, _, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp stage_release_digest(deployment, blueprint) do
     with {:ok, release} <- bound_release(deployment),
          %Digest{} = expected <- Blueprint.content_digest(blueprint) do
       if Digest.equal?(release.content_digest, expected),
         do: :ok,
-        else: {:error, :deployment_digest_mismatch}
+        else: {:error, %AgentBlueprintProtocol.Error{code: :deployment_digest_mismatch}}
     else
-      _undecidable -> {:error, :invalid_type}
+      _undecidable -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -615,9 +614,9 @@ defmodule AgentBlueprintProtocol.Deployment do
          {:integer, n} <- member_of(blueprint_members(blueprint), "release_number") do
       if release.blueprint_id == id and release.release_number == n,
         do: :ok,
-        else: {:error, :binding_incomplete}
+        else: {:error, %AgentBlueprintProtocol.Error{code: :binding_incomplete}}
     else
-      _undecidable -> {:error, :invalid_type}
+      _undecidable -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -627,7 +626,7 @@ defmodule AgentBlueprintProtocol.Deployment do
     Enum.find_value(bindings, :ok, fn entry ->
       if MapSet.member?(known, operation_of(entry)),
         do: nil,
-        else: {:error, :binding_incomplete}
+        else: {:error, %AgentBlueprintProtocol.Error{code: :binding_incomplete}}
     end)
   end
 
@@ -649,7 +648,7 @@ defmodule AgentBlueprintProtocol.Deployment do
       op = operation_of(entry)
 
       if mutation?(Map.get(families, op), Map.get(effects, op)),
-        do: {:error, :no_authoritative_recovery},
+        do: {:error, %AgentBlueprintProtocol.Error{code: :no_authoritative_recovery}},
         else: nil
     end)
   end
@@ -657,7 +656,7 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp stage_staleness(_bindings, %Observations{now: nil}), do: :ok
 
   defp stage_staleness(_bindings, %Observations{now: now}) when not is_struct(now, DateTime),
-    do: {:error, :invalid_type}
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # A present-but-non-integer max age is a fail-OPEN hole (integer-vs-binary
   # term comparison always false — the bound would silently not apply), so
@@ -667,7 +666,7 @@ defmodule AgentBlueprintProtocol.Deployment do
          max_attestation_age_ms: age
        })
        when age != nil and not is_integer(age),
-       do: {:error, :invalid_type}
+       do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp stage_staleness(bindings, %Observations{} = obs) do
     Enum.find_value(bindings, :ok, fn entry ->
@@ -678,17 +677,17 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp staleness_judgment(attested, %Observations{now: now} = obs) do
     case DateTime.from_iso8601(attested) do
       {:ok, at, 0} -> age_judgment(at, now, obs.max_attestation_age_ms)
-      _malformed -> {:error, :invalid_type}
+      _malformed -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp age_judgment(at, now, max_age) do
     cond do
       DateTime.compare(at, now) == :gt ->
-        {:error, :binding_attestation_stale}
+        {:error, %AgentBlueprintProtocol.Error{code: :binding_attestation_stale}}
 
       max_age != nil and DateTime.diff(now, at, :millisecond) > max_age ->
-        {:error, :binding_attestation_stale}
+        {:error, %AgentBlueprintProtocol.Error{code: :binding_attestation_stale}}
 
       true ->
         nil
@@ -700,7 +699,7 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   defp stage_rug_pull(_bindings, %Observations{observed: observed})
        when not is_map(observed) or is_struct(observed),
-       do: {:error, :invalid_type}
+       do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp stage_rug_pull(bindings, %Observations{observed: observed}) do
     attested = attested_descriptors(bindings)
@@ -715,14 +714,14 @@ defmodule AgentBlueprintProtocol.Deployment do
   end
 
   defp rug_pull_judgment(_attested, observed_tagged) when not is_binary(observed_tagged),
-    do: {:error, :invalid_type}
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp rug_pull_judgment(attested, observed_tagged) do
     case Digest.from_tagged(observed_tagged) do
       {:ok, observed} ->
         if Digest.equal?(observed, attested),
           do: nil,
-          else: {:error, :binding_descriptor_mismatch}
+          else: {:error, %AgentBlueprintProtocol.Error{code: :binding_descriptor_mismatch}}
 
       {:error, reason} ->
         {:error, reason}
@@ -791,17 +790,18 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp bound_tool_bindings(%__MODULE__{value: {:object, members}}) when is_list(members) do
     case Canonicalization.encode({:object, members}) do
       {:ok, _} -> tool_bindings_of(members)
-      {:error, _} -> {:error, :invalid_type}
+      {:error, _} -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  defp bound_tool_bindings(_not_an_object_root), do: {:error, :invalid_type}
+  defp bound_tool_bindings(_not_an_object_root),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp tool_bindings_of(members) do
     case member_of(members, "tool_bindings") do
       nil -> {:ok, []}
       {:array, entries} when is_list(entries) -> entries_ok(entries)
-      _not_an_array -> {:error, :invalid_type}
+      _not_an_array -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
@@ -820,11 +820,12 @@ defmodule AgentBlueprintProtocol.Deployment do
       :ok
     else
       {:error, reason} -> {:error, reason}
-      _malformed_member -> {:error, :invalid_type}
+      _malformed_member -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  defp entry_judgment(_not_an_object), do: {:error, :invalid_type}
+  defp entry_judgment(_not_an_object),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # Pre-validated by stage 0: every entry carries string operands and a
   # parsable descriptor digest.
@@ -840,19 +841,21 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp recovery_mode(deployment) do
     case member_of(deployment_members(deployment), "effect_owner") do
       {:object, owner} -> recovery_of(owner)
-      _malformed -> {:error, :invalid_type}
+      _malformed -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp recovery_of(owner) do
     case member_of(owner, "idempotency") do
       {:object, idempotency} -> recovery_value(member_of(idempotency, "recovery"))
-      _malformed -> {:error, :invalid_type}
+      _malformed -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
   defp recovery_value({:string, mode}) when mode in ["authoritative", "none"], do: {:ok, mode}
-  defp recovery_value(_malformed), do: {:error, :invalid_type}
+
+  defp recovery_value(_malformed),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp deployment_members(%__MODULE__{value: {:object, members}}), do: members
 
@@ -882,10 +885,14 @@ defmodule AgentBlueprintProtocol.Deployment do
   # ---- field checks (carried in the table as data) -----------------------------------
 
   defp check_positive({:integer, n}) when n >= 1, do: :ok
-  defp check_positive(_value), do: {:error, :invalid_constraint}
+
+  defp check_positive(_value),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
 
   defp check_currency({:string, s}) do
-    if Regex.match?(@currency, s), do: :ok, else: {:error, :invalid_constraint}
+    if Regex.match?(@currency, s),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_producer_qualified({:string, s}) do
@@ -894,20 +901,20 @@ defmodule AgentBlueprintProtocol.Deployment do
     if byte_size(s) <= @identifier_bytes and length(segments) == 2 and
          Enum.all?(segments, &(&1 != "" and Regex.match?(@segment, &1))),
        do: :ok,
-       else: {:error, :invalid_constraint}
+       else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_identity_string({:string, s}) do
     if s != "" and byte_size(s) <= @identifier_bytes,
       do: :ok,
-      else: {:error, :invalid_constraint}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_z_form({:string, s}) do
     # Digit shape first (cheap), then calendar reality.
     if Regex.match?(@z_form, s) and match?({:ok, _, _}, DateTime.from_iso8601(s)),
       do: :ok,
-      else: {:error, :invalid_constraint}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   defp check_tagged_digest({:string, tagged}) do
@@ -920,13 +927,15 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp check_role_strings({:array, roles}) do
     if Enum.all?(roles, &match?({:string, s} when s != "", &1)),
       do: :ok,
-      else: {:error, :invalid_constraint}
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   # The attestation kind registry is empty BY DESIGN, identical to
   # Blueprint: no entry can be kind-valid, so a non-empty array denies.
   defp check_attestations({:array, []}), do: :ok
-  defp check_attestations({:array, _entries}), do: {:error, :attestation_malformed}
+
+  defp check_attestations({:array, _entries}),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :attestation_malformed}}
 
   defp check_required_core_fields({:array, items}) do
     if Enum.all?(items, fn
@@ -934,7 +943,7 @@ defmodule AgentBlueprintProtocol.Deployment do
          _not_a_string -> false
        end),
        do: :ok,
-       else: {:error, :invalid_constraint}
+       else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   end
 
   # A signature entry's PURPOSE is this artifact's fact: the envelope
@@ -942,10 +951,24 @@ defmodule AgentBlueprintProtocol.Deployment do
   # blueprint-purpose signature riding a Deployment is a wrong-position
   # entry, denied as a table constraint. Blueprint asserts its own symmetric
   # half.
+  defp check_signature_ids({:array, entries}) do
+    ids =
+      for {:object, members} <- entries,
+          is_list(members),
+          {"signed_attributes", {:object, attrs}} <- members,
+          is_list(attrs),
+          {"key_id", {:string, id}} <- attrs,
+          do: id
+
+    if length(ids) == length(Enum.uniq(ids)),
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
+  end
+
   defp check_signature_entry(entry) do
     case Signature.attributes(entry) do
       {:ok, %Signature.Attributes{purpose: :deployment}} -> :ok
-      {:ok, _other_purpose} -> {:error, :invalid_constraint}
+      {:ok, _other_purpose} -> {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -954,7 +977,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   # DSL, held verbatim and name-denylist-scanned (see the scan). "No
   # constraint" must be an explicit host act, never a decode default.
   defp check_expression({:object, members}) when members != [], do: :ok
-  defp check_expression(_other), do: {:error, :invalid_constraint}
+
+  defp check_expression(_other),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
 
   # The as_of total rule: exactly (required + positive age) or (none + null)
   # — the contradictory spellings are not requirements. A MISSING max_age_ms
@@ -970,15 +995,21 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp as_of_judgment(_bad_mode, _age), do: :ok
 
   defp required_age(nil), do: :ok
-  defp required_age(:null), do: {:error, :invalid_constraint}
+  defp required_age(:null), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
   defp required_age({:integer, n}) when n >= 1, do: :ok
-  defp required_age({:integer, _non_positive}), do: {:error, :invalid_constraint}
-  defp required_age(_wrong_tag), do: {:error, :invalid_type}
+
+  defp required_age({:integer, _non_positive}),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
+
+  defp required_age(_wrong_tag), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp none_age(:null), do: :ok
   defp none_age(nil), do: :ok
-  defp none_age({:integer, _carried}), do: {:error, :invalid_constraint}
-  defp none_age(_wrong_tag), do: {:error, :invalid_type}
+
+  defp none_age({:integer, _carried}),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
+
+  defp none_age(_wrong_tag), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # The lifecycle temporal rules (the closed state enum itself denies at the
   # member recursion; this check owns the state/timestamp coupling).
@@ -989,10 +1020,14 @@ defmodule AgentBlueprintProtocol.Deployment do
 
     case state do
       {:string, "draft"} ->
-        if activated == nil and retired == nil, do: :ok, else: {:error, :lifecycle_state_invalid}
+        if activated == nil and retired == nil,
+          do: :ok,
+          else: {:error, %AgentBlueprintProtocol.Error{code: :lifecycle_state_invalid}}
 
       {:string, "active"} ->
-        if activated != nil and retired == nil, do: :ok, else: {:error, :lifecycle_state_invalid}
+        if activated != nil and retired == nil,
+          do: :ok,
+          else: {:error, %AgentBlueprintProtocol.Error{code: :lifecycle_state_invalid}}
 
       {:string, "retired"} ->
         retired_lifecycle(activated, retired)
@@ -1005,11 +1040,13 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   defp retired_lifecycle({:string, activated}, {:string, retired}) do
     # Z-form whole-second strings sort lexicographically = chronologically.
-    if activated <= retired, do: :ok, else: {:error, :lifecycle_state_invalid}
+    if activated <= retired,
+      do: :ok,
+      else: {:error, %AgentBlueprintProtocol.Error{code: :lifecycle_state_invalid}}
   end
 
   defp retired_lifecycle(_missing_or_malformed, _other),
-    do: {:error, :lifecycle_state_invalid}
+    do: {:error, %AgentBlueprintProtocol.Error{code: :lifecycle_state_invalid}}
 
   # The exact-only version pin: the protocol rejects the RANGE VOCABULARY
   # (base: "version ranges and silent fallback fail"), not semver semantics
@@ -1026,16 +1063,16 @@ defmodule AgentBlueprintProtocol.Deployment do
 
     cond do
       version == "" ->
-        {:error, :compatibility_identity_inexact}
+        {:error, %AgentBlueprintProtocol.Error{code: :compatibility_identity_inexact}}
 
       not Regex.match?(@exact_charset, version) ->
-        {:error, :compatibility_identity_inexact}
+        {:error, %AgentBlueprintProtocol.Error{code: :compatibility_identity_inexact}}
 
       String.downcase(version) in ["*", "latest"] ->
-        {:error, :compatibility_identity_inexact}
+        {:error, %AgentBlueprintProtocol.Error{code: :compatibility_identity_inexact}}
 
       Enum.any?(segments, &(&1 in ["x", "X", "*"])) ->
-        {:error, :compatibility_identity_inexact}
+        {:error, %AgentBlueprintProtocol.Error{code: :compatibility_identity_inexact}}
 
       true ->
         :ok
@@ -1056,11 +1093,12 @@ defmodule AgentBlueprintProtocol.Deployment do
     with %MapSet{} = critical <- Extension.critical_namespaces(members) do
       if Enum.all?(authored, &MapSet.member?(critical, &1)),
         do: :ok,
-        else: {:error, :invalid_type}
+        else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
     end
   end
 
-  defp authored_tied_to_value(_other, _authored), do: {:error, :invalid_type}
+  defp authored_tied_to_value(_other, _authored),
+    do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # Non-object values were already denied by the registry stage.
   defp scan({:object, members}, authored_ns) do

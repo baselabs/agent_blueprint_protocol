@@ -36,7 +36,7 @@ defmodule AgentBlueprintProtocol.Property.BoundsAlgebraTest do
     end
   end
 
-  defp bound_map(currency \\ "USD") do
+  defp bound_map(currency) do
     gen all(
           max_attempts <- integer(1..1_000_000),
           max_concurrency <- integer(1..1_000_000),

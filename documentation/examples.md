@@ -93,7 +93,7 @@ same == File.read!("examples/extension-blueprint.json") # => true
 
 `federation-envelope.json` — the 23-member federation TaskEnvelope, the
 cross-transport task artifact that rides A2A task metadata and MCP
-`_meta` as the registered `com.example/federation` critical extension
+`_meta` as the registered `io.github.baselabs/federation` critical extension
 (the field-by-field A2A/MCP mapping lives in the federation-mapping
 document). Like the echo pair, it is a byte-exact corpus case: what you
 read is what the corpus executes. Verify it the same way:

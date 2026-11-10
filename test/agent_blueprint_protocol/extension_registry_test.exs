@@ -30,7 +30,8 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
                "com.example.commerce/rubric-assertion",
                "com.example.platform/estate",
                "com.example.platform/estate-contract",
-               "com.example/federation"
+               "com.example/federation",
+               "io.github.baselabs/federation"
              ])
 
     assert by_ns["com.example.commerce/graph"].criticality == :critical
@@ -92,9 +93,14 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
     for entry <- ExtensionRegistry.registered_extensions(), entry.schema_digest != nil do
       document =
         case entry.namespace do
-          "com.example/federation" -> ExtensionRegistry.federation_schema()
-          "com.example.platform/estate-contract" -> estate_contract_schema_document()
-          other -> flunk("pinned namespace #{other} has no document binding in this test")
+          ns when ns in ["com.example/federation", "io.github.baselabs/federation"] ->
+            ExtensionRegistry.federation_schema()
+
+          "com.example.platform/estate-contract" ->
+            estate_contract_schema_document()
+
+          other ->
+            flunk("pinned namespace #{other} has no document binding in this test")
         end
 
       {:ok, parsed} = Schema.parse(document, Schema.dialect())
@@ -175,7 +181,8 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
       t3 = %{"op" => "and", "args" => [t2, t2]}
       t4 = %{"op" => "and", "args" => [t3, t3]}
 
-      assert {:error, :invalid_cardinality} = validate(schema, body(t4))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, body(t4))
     end
 
     test "denies depth-skipping args (the renderer normalizes by identity padding)", %{
@@ -184,19 +191,21 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
       t1 = %{"op" => "and", "args" => [leaf(), leaf()]}
       skip = %{"op" => "and", "args" => [leaf(), t1]}
 
-      assert {:error, :invalid_cardinality} = validate(schema, body(skip))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, body(skip))
     end
 
     test "denies the grammar violations: not-arity, empty args, non-object op carrier", %{
       schema: schema
     } do
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                validate(schema, body(%{"op" => "not", "args" => [leaf(), leaf()]}))
 
-      assert {:error, :invalid_cardinality} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
                validate(schema, body(%{"op" => "and", "args" => []}))
 
-      assert {:error, :invalid_cardinality} = validate(schema, body("and"))
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_cardinality}} =
+               validate(schema, body("and"))
     end
   end
 
@@ -217,7 +226,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
       # state move) reds this pin; the developer updates it together with the corpus
       # index's registry_digest.
       assert Digest.to_tagged(ExtensionRegistry.digest()) ==
-               "sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs"
+               "sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg"
     end
 
     test "is the domain-separated JCS digest over the projected entries" do

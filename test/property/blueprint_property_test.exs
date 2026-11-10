@@ -90,7 +90,7 @@ defmodule AgentBlueprintProtocol.Property.BlueprintTest do
 
       assert {:ok, %Blueprint{}} = Blueprint.from_value({:object, shuffle(good_members, seed)})
 
-      assert {:error, :invalid_constraint} =
+      assert {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
                Blueprint.from_value({:object, shuffle(bad_members, seed)})
     end
   end
