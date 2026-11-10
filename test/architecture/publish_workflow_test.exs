@@ -58,7 +58,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     end
 
     assert npm =~
-             ~s(npm stage publish "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
+             ~s(npm stage publish "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
 
     assert publish =~ "tar -xzf verified-release/kit-dist.tar.gz"
 

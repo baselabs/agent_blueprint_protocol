@@ -133,7 +133,7 @@ jobs:
             # a forbidden direct publish (403, action not permitted).
             npm install -g --ignore-scripts npm@11.19.1 >/dev/null
             npm --version
-            npm stage publish "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" --ignore-scripts --access public --provenance
+            npm stage publish "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" --ignore-scripts --access public --provenance
           fi
 
   publish:
