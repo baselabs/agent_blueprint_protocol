@@ -2,7 +2,7 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
-## [0.8.4] — unreleased
+## [0.8.4] — 2026-11-10
 
 ### Fixed
 
