@@ -16,12 +16,12 @@ npx @agent-blueprint-protocol/verifier
 ```
 
 With no arguments the kit runs its EMBEDDED corpus over every protocol
-surface (129 cases in the 0.8.2 kit) and prints the single-line report.
+surface (190 cases in the 0.8.3 kit) and prints the single-line report.
 Green is `"agreement":true` and exit 0; the report names the corpus
 digest, so what you verified is an exact, identified byte set:
 
 ```json
-{"agreed":129,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":129}
+{"agreed":190,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":190}
 ```
 
 ## Verify any corpus

@@ -77,7 +77,7 @@ function explain(caseId: string, _path: string | undefined): string {
 
 function projectExpectation(caseObj: corpus.CaseObj): unknown {
   if (caseObj.expected.t !== "obj") return null;
-  const out: Record<string, unknown> = {};
+  const out: Record<string, unknown> = Object.create(null);
   for (const [key, value] of caseObj.expected.v) {
     out[key] = value.t === "str" ? value.v : value.t;
   }

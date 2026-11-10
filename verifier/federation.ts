@@ -488,7 +488,7 @@ function keyIdPositions(entry: [string, Value][]): [string, Value][] {
 
 export function fromA2aState(spelling: string): CodecResult {
   if (typeof spelling !== "string") return { ok: false, e: "invalid_type" };
-  if (spelling in A2A_TO_LOGICAL) return { ok: true, v: A2A_TO_LOGICAL[spelling]! };
+  if (Object.hasOwn(A2A_TO_LOGICAL, spelling)) return { ok: true, v: A2A_TO_LOGICAL[spelling]! };
   if (spelling === "TASK_STATE_UNSPECIFIED") {
     return { ok: false, e: "federation_state_unmappable" };
   }
@@ -504,7 +504,7 @@ export function toA2aState(spelling: string): CodecResult {
 
 export function fromMcpState(spelling: string): CodecResult {
   if (typeof spelling !== "string") return { ok: false, e: "invalid_type" };
-  if (spelling in MCP_TO_LOGICAL) return { ok: true, v: MCP_TO_LOGICAL[spelling]! };
+  if (Object.hasOwn(MCP_TO_LOGICAL, spelling)) return { ok: true, v: MCP_TO_LOGICAL[spelling]! };
   return { ok: false, e: "invalid_constraint" };
 }
 

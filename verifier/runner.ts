@@ -90,7 +90,8 @@ function agrees(expected: Value, actual: SurfaceResult): boolean {
     if (projections.length === 0) return false; // vacuous-green refusal
     if (!actual.ok) return false;
     return projections.every(([key, want]) => {
-      const got = (actual.v as Record<string, unknown>)[key];
+      if (!Object.hasOwn(actual.v, key)) return false;
+      const got = actual.v[key];
       if (got === undefined) return false;
       return compare(want, got);
     });
@@ -131,23 +132,12 @@ function deepEqual(want: Value, got: unknown): boolean {
     if (got === null || typeof got !== "object" || Array.isArray(got)) return false;
     const gotRecord = got as Record<string, unknown>;
     if (Object.keys(gotRecord).length !== want.v.length) return false;
-    return want.v.every(([k, w]) => k in gotRecord && deepEqual(w, gotRecord[k]));
+    return want.v.every(([k, w]) => Object.hasOwn(gotRecord, k) && deepEqual(w, gotRecord[k]));
   }
   return false;
 }
 
 // --- dispatch ----------------------------------------------------------------------
-
-const BOUNDS_KEYS: Record<string, string> = {
-  bytes: "bytes",
-  depth: "depth",
-  members: "members",
-  items: "items",
-  nodes: "nodes",
-  string: "string",
-  key: "key",
-  number_lexeme: "number_lexeme",
-};
 
 const DIGEST_DOMAINS = [
   "blueprint_content",
@@ -438,8 +428,7 @@ function boundsOverrides(input: Value): { ok: true; v: Record<string, unknown> }
   const out: Record<string, unknown> = Object.create(null);
   for (const [key, value] of overrides.v) {
     // Unknown keys pass through so coerce() denies them (unknown_bound).
-    const mapped = BOUNDS_KEYS[key] ?? key;
-    out[mapped] = value.t === "int" || value.t === "float" ? value.v : plainOf(value);
+    out[key] = value.t === "int" || value.t === "float" ? value.v : plainOf(value);
   }
   return { ok: true, v: out };
 }
@@ -542,7 +531,7 @@ function buildSupport(input: Value): { ok: true; v: negotiation.Support } | { ok
   }
 
   const schemasRaw = member(source, "schemas");
-  const schemas: Record<string, Value> = {};
+  const schemas: Record<string, Value> = Object.create(null);
   if (schemasRaw !== null && schemasRaw.t === "obj") {
     for (const [ns, schemaValue] of schemasRaw.v) schemas[ns] = schemaValue;
   }

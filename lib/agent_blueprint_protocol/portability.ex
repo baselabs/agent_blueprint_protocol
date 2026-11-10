@@ -144,7 +144,6 @@ defmodule AgentBlueprintProtocol.Portability do
   # host disclosure) matches anchored at string start only (the
   # scheme-requiring form would have let `//internal.svc/api`
   # through every scan mode).
-  @network_uri Regex.compile!("[A-Za-z][A-Za-z0-9+.-]*:\\/\\/[^\\/\\s#?]+|\\A\\/\\/[^\\/\\s#?]+")
   @lower_identifier Regex.compile!("\\A[a-z0-9_-]+\\z")
   @upper_identifier Regex.compile!("\\A[A-Z0-9_-]+\\z")
 
@@ -219,8 +218,43 @@ defmodule AgentBlueprintProtocol.Portability do
 
   defp structural_secret?(s) do
     String.contains?(s, @pem_marker) or compact_jws?(s) or
-      Regex.match?(@network_uri, s) or raw_key_material?(s) or padded_standard_b64?(s) or
+      network_uri?(s) or raw_key_material?(s) or padded_standard_b64?(s) or
       colon_hex_fingerprint?(s)
+  end
+
+  # Search delimiters once. The old unanchored scheme could begin at any
+  # letter in the preceding scheme-character run, including after digits.
+  # Backward walks cannot overlap: each delimiter breaks the next run.
+  defp network_uri?(<<"//", first, _rest::binary>>)
+       when first not in [?/, 9, 10, 11, 12, 13, 32, ?#, ??],
+       do: true
+
+  defp network_uri?(s), do: network_uri?(s, 0)
+
+  defp network_uri?(s, offset) do
+    case :binary.match(s, "://", scope: {offset, byte_size(s) - offset}) do
+      {at, 3} ->
+        (authority_start?(s, at + 3) and scheme_letter?(s, at - 1)) or
+          network_uri?(s, at + 3)
+
+      :nomatch ->
+        false
+    end
+  end
+
+  defp authority_start?(s, at) when at < byte_size(s),
+    do: :binary.at(s, at) not in [?/, 9, 10, 11, 12, 13, 32, ?#, ??]
+
+  defp authority_start?(_s, _at), do: false
+
+  defp scheme_letter?(_s, at) when at < 0, do: false
+
+  defp scheme_letter?(s, at) do
+    case :binary.at(s, at) do
+      c when c in ?A..?Z or c in ?a..?z -> true
+      c when c in ?0..?9 or c in [?+, ?., ?-] -> scheme_letter?(s, at - 1)
+      _ -> false
+    end
   end
 
   # Standard-alphabet base64 with padding: 32+ decoded bytes of key-shaped

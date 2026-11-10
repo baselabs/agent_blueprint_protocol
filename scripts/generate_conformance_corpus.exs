@@ -22,19 +22,14 @@ alias AgentBlueprintProtocol.{
   Blueprint,
   BlueprintFixture,
   Canonicalization,
-  Deployment,
   DeploymentFixture,
   Digest,
   ExtensionRegistry,
   Federation,
   FederationFixture,
   Json,
-  Negotiation,
   Signature
 }
-
-alias AgentBlueprintProtocol.Conformance.{Corpus, Report, Runner}
-alias AgentBlueprintProtocol.ConformanceTest.Builder
 
 defmodule CorpusGen do
   @moduledoc false
@@ -251,16 +246,6 @@ defmodule CorpusGen do
     )
     |> json_text!()
   end
-
-  def put_path({:object, members}, [key | rest], value) do
-    {:object,
-     Enum.map(members, fn
-       {^key, old} -> {key, put_path(old, rest, value)}
-       other -> other
-     end)}
-  end
-
-  def put_path(_old, [], value), do: value
 
   def drop_signature({:object, members}) do
     {:object,
@@ -594,7 +579,6 @@ sig_keys = [%{"key_id" => "corpus-key", "key" => CorpusGen.b64(sig_pub)}]
 
 # Flip the entry's LAST byte to "A" — inside the b64 signature segment, a
 # meaningful byte; the tamper block re-derives exactly this flip.
-sig_marker = ~s/"_signature":/
 # The entry's canonical member order puts "signature" LAST; the marker's
 # first match is the real one. Flip its first b64 char to "A".
 sig_marker = ~s/"signature":"/
@@ -2144,6 +2128,145 @@ verify_commitment_cases = [
   }
 ]
 
+# Malformed escapes exercise the shared decoder through every text surface.
+unicode_escape_cases =
+  for {name, text} <- [
+        {"low-surrogate", ~S("\udc00")},
+        {"member-surrogate", ~S({"a":"\udfff"})},
+        {"key-surrogate", ~S({"\udc00":1})},
+        {"high-surrogate", ~S("\ud800A")},
+        {"nonhex-escape", ~S("\uZZZZ")}
+      ],
+      surface <- [
+        "json.decode",
+        "canonicalization.encode",
+        "blueprint.decode",
+        "deployment.decode",
+        "federation.decode"
+      ] do
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-" <> name,
+      "surface" => surface,
+      "class" => "invalid_encoding",
+      "input" => %{"text" => text},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_syntax"}
+    }
+  end
+
+prototype_names = ~w(constructor toString __proto__ hasOwnProperty)
+
+predicate_operator_cases =
+  for name <- prototype_names do
+    assertion =
+      BlueprintFixture.assertion(
+        kind: "deterministic_predicate",
+        predicate: {:object, [{"op", {:string, name}}]}
+      )
+
+    %{
+      "id" => "blueprint-decode-unknown-operator-" <> name,
+      "surface" => "blueprint.decode",
+      "class" => "invalid_constraint",
+      "input" => %{"text" => BlueprintFixture.fixture_bytes(assertions: [assertion])},
+      "expected" => %{"verdict" => "invalid", "code" => "predicate_op_unknown"}
+    }
+  end
+
+unknown_state_cases =
+  for name <- prototype_names, transport <- ["a2a", "mcp"] do
+    %{
+      "id" => "federation-decode-unknown-" <> transport <> "-state-" <> name,
+      "surface" => "federation.decode",
+      "class" => "invalid_constraint",
+      "input" => %{("from_" <> transport <> "_state") => name},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_constraint"}
+    }
+  end
+
+unknown_bound_cases =
+  for name <- prototype_names do
+    %{
+      "id" => "bounds-new-unknown-member-" <> name,
+      "surface" => "bounds.new",
+      "class" => "invalid_type",
+      "input" => %{"bounds" => %{name => 1}},
+      "expected" => %{"verdict" => "invalid", "code" => "unknown_bound"}
+    }
+  end
+
+unknown_algebra_cases =
+  for name <- prototype_names do
+    %{
+      "id" => "intersect-unknown-member-" <> name,
+      "surface" => "bounds_algebra.intersect",
+      "class" => "invalid_type",
+      "input" => %{"blueprint" => %{name => 1}, "deployment" => %{}, "host" => %{}},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_type"}
+    }
+  end
+
+uri_boundary_cases =
+  for {name, text, denied} <- [
+        {"letter-suffix", "1a://x", true},
+        {"punctuation-prefix", "+a://x", true},
+        {"relative-authority", "//example.com", true},
+        {"colon-authority", "a://:x", true},
+        {"no-break-space-authority", "a://\u00A0", true},
+        {"ideographic-space-authority", "//\u3000", true},
+        {"no-letter", "123+.-://x", false},
+        {"no-scheme", "://x", false},
+        {"empty-authority", "a://", false},
+        {"fragment-authority", "a://#x", false},
+        {"path-authority", "a:///x", false},
+        {"repeated-delimiters", "a://#b://?c://", false}
+      ] do
+    expected =
+      if denied,
+        do: %{"verdict" => "invalid", "code" => "forbidden_portable_value"},
+        else: %{"verdict" => "valid", "clean" => true}
+
+    %{
+      "id" => "portability-network-" <> name,
+      "surface" => "portability.scan",
+      "class" => if(denied, do: "forbidden_portable_value", else: "valid"),
+      "input" => %{"text" => CorpusGen.json_text!(text)},
+      "expected" => expected
+    }
+  end
+
+# Dictionary keys retain their data meaning even when they share built-in names.
+recovery_name_cases =
+  for name <- prototype_names do
+    {:ok, blueprint} =
+      BlueprintFixture.fixture_bytes(
+        capabilities: [BlueprintFixture.capability(family: name, kind: "mutation")]
+      )
+      |> Blueprint.decode()
+
+    text =
+      DeploymentFixture.fixture_bytes(
+        blueprint: blueprint,
+        tool_bindings: [DeploymentFixture.tool_binding(operation: name)],
+        effect_owner: DeploymentFixture.effect_owner(recovery: "none")
+      )
+
+    %{
+      "id" => "deployment-decode-mutation-name-" <> name,
+      "surface" => "deployment.decode",
+      "class" => "invalid_constraint",
+      "input" => %{
+        "text" => text,
+        "binding" => %{
+          "blueprint" =>
+            BlueprintFixture.fixture_bytes(
+              capabilities: [BlueprintFixture.capability(family: name, kind: "mutation")]
+            )
+        }
+      },
+      "expected" => %{"verdict" => "invalid", "code" => "no_authoritative_recovery"}
+    }
+  end
+
 all_cases =
   json_cases ++
     canonicalization_cases ++
@@ -2159,7 +2282,13 @@ all_cases =
     intersect_cases ++
     portability_cases ++
     compatibility_cases ++
-    federation_decode_cases ++ verify_commitment_cases
+    federation_decode_cases ++
+    verify_commitment_cases ++
+    unicode_escape_cases ++
+    predicate_operator_cases ++
+    unknown_state_cases ++
+    unknown_bound_cases ++
+    unknown_algebra_cases ++ uri_boundary_cases ++ recovery_name_cases
 
 # --- vectors + schemas (hash-bound non-case data) ----------------------------
 
@@ -2213,9 +2342,9 @@ defmodule GenMain do
   # The goldens' fixture signatures (kid example-demo-signing-key /
   # example-demo-deploy-key, over the digest-UNCOVERED `signatures`
   # member) are minted under a fresh random key on every run and carry no
-  # verdict. A regenerated file whose ONLY difference from the committed
-  # one is such a token keeps its committed bytes, so the corpus digest
-  # moves only when certified content moves.
+  # verdict. Preserve tokens per case, so adding cases to a file does not
+  # replace an existing case's signature. Non-case files retain the same
+  # whole-file comparison.
   @fixture_signature ~r/(example-demo-(?:signing|deploy)-key\\?"\},\\?"signature\\?":\\?")[A-Za-z0-9_-]{86}/
 
   def preserve_fixture_signatures(map, dir) do
@@ -2226,15 +2355,37 @@ defmodule GenMain do
       {path, bytes}, acc ->
         case File.read(Path.join(dir, path)) do
           {:ok, committed} when committed != bytes ->
-            if mask(committed) == mask(bytes),
+            preserved = preserve_case_signatures(bytes, committed)
+
+            if preserved != bytes,
               do:
-                AgentBlueprintProtocol.ConformanceTest.Builder.resync_file(acc, path, committed),
+                AgentBlueprintProtocol.ConformanceTest.Builder.resync_file(acc, path, preserved),
               else: acc
 
           _unchanged_or_new ->
             acc
         end
     end)
+  end
+
+  defp preserve_case_signatures(bytes, committed) do
+    with {:ok, %{"cases" => previous}} <- Jason.decode(committed),
+         {:ok, %{"cases" => fresh} = body} <- Jason.decode(bytes) do
+      by_id = Map.new(previous, &{&1["id"], &1})
+
+      cases =
+        Enum.map(fresh, fn current ->
+          prior = Map.get(by_id, current["id"])
+
+          if prior && mask(CorpusGen.json_text!(prior)) == mask(CorpusGen.json_text!(current)),
+            do: prior,
+            else: current
+        end)
+
+      CorpusGen.json_text!(Map.put(body, "cases", cases))
+    else
+      _ -> if mask(committed) == mask(bytes), do: committed, else: bytes
+    end
   end
 
   defp mask(bytes), do: Regex.replace(@fixture_signature, bytes, "\\1<fixture-signature>")
@@ -2311,12 +2462,6 @@ defmodule GenMain do
                 base = Map.get(by_id, t["base_case"])
                 bi = t["byte_index"]
                 bx = t["xor"]
-
-                with {:object, _} <- :nope do
-                  :ok
-                else
-                  _ -> :ok
-                end
 
                 key =
                   case t["target"] do

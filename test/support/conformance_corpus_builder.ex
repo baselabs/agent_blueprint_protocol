@@ -150,7 +150,7 @@ defmodule AgentBlueprintProtocol.ConformanceTest.Builder do
   end
 
   defp surface_leaf(class, required, reason, counts, surface) do
-    if class in required,
+    if class in required or Map.has_key?(counts, {surface, class}),
       do: {class, Map.get(counts, {surface, class}, 0)},
       else: {class, %{"n_a" => reason}}
   end

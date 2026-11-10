@@ -70,7 +70,6 @@ const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 const B64URL = /^[A-Za-z0-9_-]+$/;
 // RFC 3986 scheme + "://" + non-empty authority, or the scheme-less
 // network-path reference anchored at string start.
-const NETWORK_URI = /[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/\s#?]+|^\/\/[^/\s#?]+/;
 const LOWER_IDENTIFIER = /^[a-z0-9_-]+$/;
 const UPPER_IDENTIFIER = /^[A-Z0-9_-]+$/;
 
@@ -140,11 +139,35 @@ function structuralSecret(s: string): boolean {
   return (
     s.includes(PEM_MARKER) ||
     compactJws(s) ||
-    NETWORK_URI.test(s) ||
+    networkUri(s) ||
     rawKeyMaterial(s) ||
     paddedStandardB64(s) ||
     colonHexFingerprint(s)
   );
+}
+
+// Delimiters partition the backward walks. An unanchored scheme can start
+// at any letter in its run, so "1a://x" still has the suffix scheme "a".
+function networkUri(s: string): boolean {
+  if (s.startsWith("//") && authorityStart(s, 2)) return true;
+  let at = s.indexOf("://");
+  while (at !== -1) {
+    if (authorityStart(s, at + 3)) {
+      for (let i = at - 1; i >= 0; i--) {
+        const c = s.charCodeAt(i);
+        if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) return true;
+        if (!((c >= 48 && c <= 57) || c === 43 || c === 45 || c === 46)) break;
+      }
+    }
+    at = s.indexOf("://", at + 3);
+  }
+  return false;
+}
+
+// ASCII whitespace only: the reference scans bytes, so non-ASCII spaces
+// (U+00A0, U+3000, ...) begin an authority like any other character.
+function authorityStart(s: string, at: number): boolean {
+  return at < s.length && /[^/\t\n\v\f\r #?]/.test(s[at]!);
 }
 
 // Pad-identified standard base64 (1-6 "=" at 32+ chars), or unpadded

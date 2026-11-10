@@ -129,7 +129,7 @@ export function intersect(
 function buildSet(raw: Record<string, unknown>): { ok: true; v: Record<string, BoundValue> } | { ok: false; e: string } {
   const out: Record<string, BoundValue> = {};
   for (const [name, value] of Object.entries(raw)) {
-    if (!(name in TABLE)) return { ok: false, e: "invalid_type" };
+    if (!Object.hasOwn(TABLE, name)) return { ok: false, e: "invalid_type" };
     const built = buildBound(name, value);
     if (!built.ok) return built;
     out[name] = built.v;
@@ -149,7 +149,7 @@ function buildBound(name: string, raw: unknown): { ok: true; v: BoundValue } | {
   }
 
   if (kind === "cost") {
-    if (isPlainObject(raw) && Object.keys(raw).length === 2) {
+    if (isPlainObject(raw) && Object.keys(raw).length === 2 && Object.hasOwn(raw, "amount") && Object.hasOwn(raw, "currency")) {
       const record = raw as Record<string, unknown>;
       const amount = record["amount"];
       const currency = record["currency"];
@@ -164,7 +164,7 @@ function buildBound(name: string, raw: unknown): { ok: true; v: BoundValue } | {
   }
 
   if (typeof kind === "object" && "markers" in kind) {
-    if (isPlainObject(raw) && Object.keys(raw).length === 2) {
+    if (isPlainObject(raw) && Object.keys(raw).length === 2 && Object.hasOwn(raw, "ordinal") && Object.hasOwn(raw, "markers")) {
       const record = raw as Record<string, unknown>;
       const ordinal = record["ordinal"];
       const markersRaw = record["markers"];

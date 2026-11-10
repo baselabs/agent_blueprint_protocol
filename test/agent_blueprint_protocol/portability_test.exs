@@ -7,6 +7,7 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
   """
 
   use ExUnit.Case, async: true
+  use ExUnitProperties
 
   alias AgentBlueprintProtocol.Portability
 
@@ -130,6 +131,67 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
              Portability.scan_value(
                {:string, "sha-256:47DEQpj8HBS-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU"}
              )
+  end
+
+  property "network URI detection preserves the unanchored scheme grammar" do
+    # Short strings isolate this class from the key-material length floors.
+    # A scheme may start at ANY letter inside a longer scheme-character run.
+    tokens = ["a", "Z", "1", "+", "-", ".", "://", "//", "/", " ", "#", "?", "é", "\t"]
+    original = ~r/[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\/\s#?]+|\A\/\/[^\/\s#?]+/
+
+    check all(parts <- list_of(member_of(tokens), max_length: 8), max_runs: 1000) do
+      input = Enum.join(parts)
+
+      expected =
+        if Regex.match?(original, input), do: {:error, :forbidden_portable_value}, else: :ok
+
+      assert Portability.scan_value({:string, input}) == expected
+    end
+  end
+
+  test "network URI boundaries include suffix schemes and nonempty authority" do
+    for input <- [
+          "1a://x",
+          "+a://x",
+          "1.a://x",
+          "a://:x",
+          "//x",
+          "a://é",
+          "a://" <> <<0xA0::utf8>>
+        ] do
+      assert Portability.scan_value({:string, input}) == {:error, :forbidden_portable_value}
+    end
+
+    for input <- [
+          "123+.-://x",
+          "://x",
+          "a://",
+          "a://#x",
+          "a://?x",
+          "a:///x",
+          "a:// x",
+          "x//x",
+          "//?",
+          "a://#b://?c://"
+        ] do
+      assert Portability.scan_value({:string, input}) == :ok
+    end
+  end
+
+  test "maximal scheme runs have a linear reduction budget" do
+    # Reductions account for regex engine work without depending on CPU speed.
+    # Both unsuccessful authority and repeated delimiter searches must be bounded.
+    for {input, expected} <- [
+          {String.duplicate("a", 99_996) <> "://#", :ok},
+          {String.duplicate("a", 100_000), {:error, :forbidden_portable_value}},
+          {String.duplicate("a://#", 20_000), :ok},
+          {String.duplicate("1.", 49_998) <> "://x", :ok}
+        ] do
+      {:reductions, before} = Process.info(self(), :reductions)
+      assert Portability.scan_value({:string, input}) == expected
+      {:reductions, after_count} = Process.info(self(), :reductions)
+      assert after_count - before < 100 * byte_size(input)
+    end
   end
 
   test "clean b64url over 32 decoded bytes denies (the entropy threshold)" do

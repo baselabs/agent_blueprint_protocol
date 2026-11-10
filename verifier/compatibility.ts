@@ -102,7 +102,7 @@ function validatedObserved(identities: ObservedIdentity[]): { ok: true; v: Ident
       typeof record === "object" &&
       record !== null &&
       Object.keys(record).length === 4 &&
-      IDENTITY_KEYS.every((key) => typeof record[key] === "string");
+      IDENTITY_KEYS.every((key) => Object.hasOwn(record, key) && typeof record[key] === "string");
     if (!wellFormed) return { ok: false, e: "invalid_type" };
     const shaped = identity as unknown as Identity;
     if (!exact(shaped)) return { ok: false, e: "compatibility_identity_inexact" };

@@ -6,7 +6,7 @@ livebook:{"persist_outputs":true}
 
 ```elixir
 Mix.install([
-  {:agent_blueprint_protocol, "~> 0.8.2"}
+  {:agent_blueprint_protocol, "~> 0.8.3"}
 ])
 ```
 
@@ -538,7 +538,7 @@ Map.take(report, [:agreement, :agreed, :disagreed, :total])
 <!-- livebook:{"output":true} -->
 
 ```
-%{agreed: 129, agreement: true, disagreed: 0, total: 129}
+%{agreed: 190, agreement: true, disagreed: 0, total: 190}
 ```
 
 ## 7. Attacks on the signature and the bytes fail closed

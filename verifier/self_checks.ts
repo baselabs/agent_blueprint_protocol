@@ -958,6 +958,124 @@ function priorCensusFixture(overrides?: {
   );
 }
 
+// ---- hostile input boundaries ----------------------------------------------------
+
+import * as portability from "./portability.ts";
+import * as predicate from "./predicate.ts";
+import * as federation from "./federation.ts";
+import * as boundsAlgebra from "./bounds_algebra.ts";
+import * as bounds from "./bounds.ts";
+import * as runner from "./runner.ts";
+
+function resultCode(run: () => { ok: boolean; e?: string }): string {
+  try {
+    const result = run();
+    return result.ok ? "valid" : result.e!;
+  } catch (error) {
+    return error instanceof Error ? `raised ${error.name}` : "raised";
+  }
+}
+
+for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+  check(`predicate: unknown operator ${name}`, resultCode(() => predicate.validate(obj([["op", str(name)]]), [])), "predicate_op_unknown");
+  check(`state: unknown A2A spelling ${name}`, resultCode(() => federation.fromA2aState(name)), "invalid_constraint");
+  check(`state: unknown MCP spelling ${name}`, resultCode(() => federation.fromMcpState(name)), "invalid_constraint");
+  check(`bounds: unknown member ${name}`, resultCode(() => boundsAlgebra.intersect(Object.fromEntries([[name, 1]]), {}, {}, "deny")), "invalid_type");
+  check(`parse ceilings: unknown member ${name}`, resultCode(() => bounds.coerce(Object.fromEntries([[name, 1]]))), "unknown_bound");
+}
+
+const inheritedBounds = bounds.coerce(Object.create({ depth: 1 }));
+check("parse ceilings: inherited values are absent", inheritedBounds.ok && inheritedBounds.v.depth, bounds.maximum().depth);
+
+for (const text of ['"\\udc00"', '{"a":"\\udfff"}', '{"\\udc00":1}', '"\\ud800A"', '"\\uZZZZ"']) {
+  check("decode: invalid Unicode escape", resultCode(() => decode(text)), "invalid_syntax");
+}
+
+const originalNetworkUri = /[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/\t\n\v\f\r #?]+|^\/\/[^/\t\n\v\f\r #?]+/;
+const uriInputs = [
+  "1a://x", "+a://x", "1.a://x", "a://:x", "//x", "a://é", "a://\u00a0",
+  "123+.-://x", "://x", "a://", "a://#x", "a://?x", "a:///x", "a:// x", "x//x", "//?", "a://#b://?c://",
+];
+const uriTokens = ["a", "Z", "1", "+", "-", ".", "://", "//", "/", " ", "#", "?", "é", "\t"];
+for (const input of ["a://\u00a0", "a://\u3000", "a://\u2028x", "a://\ufeff", "//\u00a0", "//\u3000"]) {
+  check(`portability: non-ASCII space begins an authority ${JSON.stringify(input)}`, portability.scanValue(str(input)).ok, false);
+}
+let uriSeed = 17;
+for (let sample = 0; sample < 1000; sample++) {
+  let input = "";
+  for (let part = 0; part < sample % 9; part++) {
+    uriSeed = (Math.imul(uriSeed, 1664525) + 1013904223) >>> 0;
+    input += uriTokens[uriSeed % uriTokens.length]!;
+  }
+  uriInputs.push(input);
+}
+for (const input of uriInputs) {
+  check(`portability: URI grammar ${JSON.stringify(input)}`, !portability.scanValue(str(input)).ok, originalNetworkUri.test(input));
+}
+
+// JavaScript exposes no regex reduction counter. One second per maximum-length
+// string leaves ample CPU headroom while catching repeated scheme backtracking.
+for (const [input, denied] of [
+  ["a".repeat(99_996) + "://#", false],
+  ["a".repeat(100_000), true],
+  ["a://#".repeat(20_000), false],
+  ["1.".repeat(49_998) + "://x", false],
+] as [string, boolean][]) {
+  const started = performance.now();
+  check("portability: maximum-length scan verdict", !portability.scanValue(str(input)).ok, denied);
+  check("portability: maximum-length scan under one second", performance.now() - started < 1000, true);
+}
+
+function inputCase(surface: string, input: Value, expected: Value): import("./corpus.ts").CaseObj {
+  return { id: "example-input", surface, klass: "invalid_type", input, expected, tamper: null, raw: obj([]) };
+}
+
+for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+  const result = runner.execute(inputCase("bounds.new", obj([["bounds", obj([[name, int(1)]])]]), obj([["verdict", str("invalid")], ["code", str("unknown_bound")]])), new Map(), new Map());
+  check(`runner: unknown ceiling member ${name}`, result.actual.ok ? "valid" : result.actual.e, "unknown_bound");
+}
+
+for (const [name, value] of [
+  ["max_cost", Object.assign(Object.create({ amount: 1, currency: "USD" }), { extra: 1, other: 2 })],
+  ["classification_ceiling", Object.assign(Object.create({ ordinal: "public", markers: [] }), { extra: 1, other: 2 })],
+] as [string, unknown][]) {
+  check(`bounds: inherited ${name} members deny`, resultCode(() => boundsAlgebra.intersect({ [name]: value }, {}, {}, "deny")), "bound_value_invalid");
+}
+
+for (const [text, projection] of [
+  ["null", obj([["verdict", str("valid")], ["__proto__", obj([])]])],
+  ['{"other":1}', obj([["verdict", str("valid")], ["value", obj([["__proto__", obj([])]])]])],
+] as [string, Value][]) {
+  check("runner: inherited expectation members never agree", runner.execute(inputCase("json.decode", obj([["text", str(text)]]), projection), new Map(), new Map()).agree, false);
+}
+
+import * as negotiation from "./negotiation.ts";
+const exampleNamespace = "com.example/host";
+const exampleSchema = obj([["type", str("object")]]);
+const exampleSchemaBytes = encode(exampleSchema);
+if (!exampleSchemaBytes.ok) throw new Error("invalid example schema");
+const exampleEntry: negotiation.RegistryEntryInput = {
+  owner: "ExampleHost", criticality: "critical", state: "active",
+  schemaDigest: digest.toTagged(digest.hash("extension_schema", Buffer.from(exampleSchemaBytes.v))),
+  a2aUri: "https://example.com/extensions/host", promotedAtRevision: null,
+};
+const exampleArtifact = obj([
+  ["content_digest", str("example")], ["protocol_revision", int(1)], ["required_core_fields", arr([])],
+  ["extensions", obj([["critical", obj([[exampleNamespace, obj([])]])], ["optional", obj([])]])],
+]);
+check("negotiation: inherited registration is absent", resultCode(() => negotiation.negotiate(exampleArtifact, {
+  revisions: new Set([1]), coreFields: new Set(), registry: Object.create({ [exampleNamespace]: exampleEntry }), schemas: {},
+})), "extension_unknown_critical");
+check("negotiation: inherited schema is absent", resultCode(() => negotiation.negotiate(exampleArtifact, {
+  revisions: new Set([1]), coreFields: new Set(), registry: { [exampleNamespace]: exampleEntry }, schemas: Object.create({ [exampleNamespace]: exampleSchema }),
+})), "extension_schema_unavailable");
+
+import * as compatibility from "./compatibility.ts";
+const exampleIdentity = { kind: "tool", name: "example", version: "1.0.0", digest: digest.toTagged(digest.of(Buffer.from("example"))) };
+const observedWithInheritedMembers = Object.assign(Object.create(exampleIdentity), { one: 1, two: 2, three: 3, four: 4 });
+const exampleDeployment = { value: obj([["build_identities", arr([obj(Object.entries(exampleIdentity).map(([key, value]) => [key, str(value)]))])]]) };
+check("compatibility: inherited identity members deny", resultCode(() => compatibility.verify(exampleDeployment, { identities: [observedWithInheritedMembers] })), "invalid_type");
+
 // ---- summary --------------------------------------------------------------------
 
 if (failures.length > 0) {

@@ -581,7 +581,7 @@ function blueprintEffects(bound: blueprint.Blueprint): string[] {
 }
 
 function blueprintFamilyKinds(bound: blueprint.Blueprint): Record<string, string> {
-  const out: Record<string, string> = {};
+  const out: Record<string, string> = Object.create(null);
   for (const entry of memberArrayOf(bound, "capability_requirements")) {
     if (entry.t !== "obj") continue;
     const family = keyfind(entry.v, "operation_family");
@@ -594,7 +594,7 @@ function blueprintFamilyKinds(bound: blueprint.Blueprint): Record<string, string
 }
 
 function blueprintEffectKinds(bound: blueprint.Blueprint): Record<string, string> {
-  const out: Record<string, string> = {};
+  const out: Record<string, string> = Object.create(null);
   for (const entry of memberArrayOf(bound, "effect_intents")) {
     if (entry.t !== "obj") continue;
     const operation = keyfind(entry.v, "logical_operation");

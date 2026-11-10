@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.JsonTest do
   use ExUnit.Case, async: true
 
-  alias AgentBlueprintProtocol.Json
+  alias AgentBlueprintProtocol.{Bounds, Canonicalization, Json}
 
   test "decodes scalars into the tagged algebra" do
     assert Json.decode("42") == {:ok, {:integer, 42}}
@@ -42,6 +42,46 @@ defmodule AgentBlueprintProtocol.JsonTest do
     assert Json.decode("") == {:error, :invalid_syntax}
     assert Json.decode("nul") == {:error, :invalid_syntax}
     assert Json.decode("[1,]") == {:error, :invalid_syntax}
+  end
+
+  test "invalid Unicode escapes deny without exposing input through every decode surface" do
+    decoders = [
+      &Json.decode/1,
+      &Json.decode(&1, Bounds.maximum()),
+      &AgentBlueprintProtocol.decode_blueprint/1,
+      &AgentBlueprintProtocol.decode_blueprint(&1, %{}),
+      &AgentBlueprintProtocol.decode_deployment/1,
+      &AgentBlueprintProtocol.decode_deployment(&1, %{}),
+      &AgentBlueprintProtocol.decode_federation_envelope/1,
+      &AgentBlueprintProtocol.decode_federation_envelope(&1, %{}),
+      &Canonicalization.verify/1,
+      &Canonicalization.verify(&1, %{})
+    ]
+
+    for input <- [
+          ~S("\udc00"),
+          ~S({"a":"\udfff"}),
+          ~S({"\udc00":1}),
+          ~S("\ud800A"),
+          ~S("\ud800\u0041"),
+          ~S("\ud800\ud800"),
+          ~S("\uZZZZ"),
+          ~S("\x"),
+          ~S("\ud800)
+        ],
+        decode <- decoders do
+      assert decode.(input) in [
+               {:error, :invalid_syntax},
+               {:error, %AgentBlueprintProtocol.Error{code: :invalid_syntax, subject: []}}
+             ]
+
+      assert decode.(input <> <<255>>) in [
+               {:error, :invalid_encoding},
+               {:error, %AgentBlueprintProtocol.Error{code: :invalid_encoding, subject: []}}
+             ]
+    end
+
+    assert Json.decode(~S("\ud800\udc00")) == {:ok, {:string, <<0x10000::utf8>>}}
   end
 
   test "an overflowing float lexeme is a value-free invalid_number" do

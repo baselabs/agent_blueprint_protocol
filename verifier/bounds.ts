@@ -45,7 +45,7 @@ export function coerce(overrides: unknown): { ok: true; v: Bounds } | { ok: fals
     if (!FIELDS.includes(key as keyof Bounds)) return { ok: false, e: "unknown_bound" };
   }
   for (const key of FIELDS) {
-    if (!(key in source)) continue;
+    if (!Object.hasOwn(source, key)) continue;
     const value = source[key];
     if (
       typeof value !== "number" ||

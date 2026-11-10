@@ -39,7 +39,7 @@ The report is a single-line JSON object, JCS-canonical (members
 sorted), no trailing newline, on stdout:
 
 ```json
-{"agreed":129,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":129}
+{"agreed":190,"agreement":true,"corpus_digest":"sha-256:…","disagreed":0,"exit_status":0,"format":"agent-blueprint-protocol-conformance-report","total":190}
 ```
 
 - `agreed`/`disagreed` — per-case verdict agreement between the

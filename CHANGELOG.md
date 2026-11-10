@@ -2,6 +2,33 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [0.8.3] — 2026-11-10
+
+### Fixed — security
+
+- Hostile JSON containing lone surrogate escapes or malformed Unicode escapes
+  could raise an exception in the Elixir decoder. Every decode surface now
+  returns a value-free denial, matching the independent verifier.
+- Hostile input could consume seconds of CPU in both verifiers' portability
+  scan. Network URI detection now takes linear work and preserves the
+  existing scheme and authority rules.
+- The TypeScript verifier treated a non-ASCII space after `://` as the end
+  of a network authority, where the reference implementation denies it. Both
+  now deny, and corpus cases hold the agreement.
+- Hostile member names could crash or mislead the TypeScript verifier through
+  prototype-chain lookups. Input-keyed tables and dictionaries now use only
+  their own properties, including predicate operators, transport states,
+  bounds, recovery operations, extension support, and result comparisons.
+- The release workflow could publish after a failed check or npm staging
+  failure. Each publishing step now requires all preceding steps to succeed;
+  already-published versions still skip safely on reruns.
+
+The corpus contains 190 cases, digest
+`sha-256:SvJLvMwXdYQZBjOrklsQSHQRX8PhxPHOv23C2rmFazQ`; registry
+`sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification digest
+`sha-256:UDRV0o-JUWvHBZPiODetlEQYHALStnIOlWI4qZKxUcc`. Protocol revision and
+`verification_semantics_version` remain 1.
+
 ## [0.8.2] — 2026-11-05
 
 ### Fixed — documentation

@@ -1960,3 +1960,15 @@ registry half is superseded: the extension registry is compiled-in data
 ships — see `docs/adr/compiled-registry.md`. The archive gains
 `docs/protocol.md` (the normative protocol doc) and nothing else beyond
 the previously frozen set.
+
+### case: "publishing stops after any failed preceding step and preserves registry skip guards"
+
+Publishing steps use the default success condition. Registry and release
+existence checks preserve idempotent reruns.
+
+```red
+$ mix test test/agent_blueprint_protocol/json_test.exs test/agent_blueprint_protocol/portability_test.exs test/architecture/publish_workflow_test.exs
+1) test publishing stops after any failed preceding step and preserves registry skip guards
+publish step overrides the default success condition: Publish the Hex package and docs
+Failed: 3 tests
+```

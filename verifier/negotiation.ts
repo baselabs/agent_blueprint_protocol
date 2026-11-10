@@ -253,7 +253,7 @@ function extensionsCheck(value: Value, support: Support): { ok: true; v: Extensi
 // alone. Entries for namespaces the registry does not carry pass through as
 // given (the host-supplied registration surface).
 function resolveEntry(namespace: string, support: Support): ResolvedEntry | null {
-  const override = support.registry[namespace];
+  const override = Object.hasOwn(support.registry, namespace) ? support.registry[namespace] : undefined;
   if (override !== undefined) {
     const valid =
       (override.criticality === "critical" || override.criticality === "optional") &&
@@ -310,7 +310,7 @@ function criticalJudgment(
 
 function criticalBodyCheck(entry: ResolvedEntry, body: Value, support: Support, namespace: string): VResult {
   if (entry.schemaDigest === null) return { ok: false, e: "extension_schema_unavailable" };
-  const schemaDocument = support.schemas[namespace];
+  const schemaDocument = Object.hasOwn(support.schemas, namespace) ? support.schemas[namespace] : undefined;
   if (schemaDocument === undefined) return { ok: false, e: "extension_schema_unavailable" };
 
   // The pin: JCS of the parsed document under the extension-schema domain.

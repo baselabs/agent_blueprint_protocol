@@ -37,6 +37,20 @@ defmodule AgentBlueprintProtocol.Conformance.CorpusTest do
     end
   end
 
+  test "the corpus builder counts observed classes beyond the required minimum" do
+    additional = %{
+      "id" => "example-blueprint-invalid-escape",
+      "surface" => "blueprint.decode",
+      "class" => "invalid_encoding",
+      "input" => %{"text" => ~S("\udc00")},
+      "expected" => %{"verdict" => "invalid", "code" => "invalid_syntax"}
+    }
+
+    map = Builder.build(Builder.minimal_cases() ++ [additional])
+    assert {:ok, corpus} = Corpus.load(map)
+    assert corpus.index["applicability"]["blueprint.decode"]["invalid_encoding"] == 1
+  end
+
   describe "index integrity" do
     test "a non-map input denies :corpus_index_invalid" do
       deny(:not_a_map, :corpus_index_invalid, ["index"])
@@ -254,10 +268,15 @@ defmodule AgentBlueprintProtocol.Conformance.CorpusTest do
         "expected" => %{"verdict" => "invalid", "code" => "invalid_type"}
       }
 
-      deny(Builder.build(Builder.minimal_cases() ++ [stray]), :corpus_applicability_incomplete, [
-        "index",
-        "applicability"
-      ])
+      tampered =
+        Builder.build(Builder.minimal_cases() ++ [stray])
+        |> Builder.update_index(fn index ->
+          put_in(index, ["applicability", "json.decode", "signature_invalid"], %{
+            "n_a" => "no signature semantics at the byte decoder"
+          })
+        end)
+
+      deny(tampered, :corpus_applicability_incomplete, ["index", "applicability"])
     end
 
     test "a surface keyset drift denies" do

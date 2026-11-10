@@ -83,14 +83,13 @@ defmodule AgentBlueprintProtocol.Json do
         # callbacks or `finalize_root`. (`:json` swallows a throw from a scalar
         # decoder, so number checks run at the value sinks, never in the hook.)
         :throw, {:abp_error, reason} -> {:error, reason}
-        # :json's own raises — a bare atom (e.g. :unexpected_end) or
-        # {:invalid_byte, byte}: invalid UTF-8 in the bytes vs a structural
-        # mistake in otherwise-valid text. Anything else (a struct-bearing
-        # error such as the MatchError number/1 raises on an unforeseen
-        # [:short] form) is an internal invariant violation and escapes
-        # loudly — never a quietly mislabeled deny.
-        :error, reason when is_atom(reason) -> {:error, classify_parse_error(input)}
+        # OTP 27–29 decode errors: unexpected_end, invalid_byte, and
+        # unexpected_sequence (malformed Unicode escapes). Classify using the
+        # whole input without returning the byte or sequence. Other errors,
+        # including callback invariant failures, must still escape loudly.
+        :error, :unexpected_end -> {:error, classify_parse_error(input)}
         :error, {:invalid_byte, _byte} -> {:error, classify_parse_error(input)}
+        :error, {:unexpected_sequence, _bytes} -> {:error, classify_parse_error(input)}
       end
     end
   end

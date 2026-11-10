@@ -1,4 +1,4 @@
-# Regenerates priv/release-metadata.json from live state.
+# Regenerates release metadata and the current release-history row from live state.
 #
 #   MIX_ENV=test mix run --no-start scripts/generate_release_metadata.exs
 #
@@ -34,7 +34,29 @@ defmodule AgentBlueprintProtocol.ReleaseMetadataGenerator do
     path = Path.expand(Path.join([__DIR__, "..", identity.metadata_path()]), __DIR__)
     File.write!(path, json)
 
+    history_path = Path.join(Path.dirname(path), "release-history.json")
+
+    %{"format" => "agent-blueprint-protocol-release-history", "rows" => releases} =
+      history = Jason.decode!(File.read!(history_path))
+
+    row =
+      Map.take(metadata, [
+        "package_version",
+        "verification_semantics_version",
+        "corpus_digest",
+        "registry_digest",
+        "spec_digest"
+      ])
+
+    releases =
+      case Enum.find_index(releases, &(&1["package_version"] == row["package_version"])) do
+        nil -> releases ++ [row]
+        index -> List.replace_at(releases, index, row)
+      end
+
+    File.write!(history_path, encoded(Map.put(history, "rows", releases)))
     IO.puts("release metadata: wrote #{path} (spec #{metadata["spec_digest"]})")
+    IO.puts("release history: synchronized #{row["package_version"]}")
   end
 end
 

@@ -89,7 +89,7 @@ function opOf(members: [string, Value][]): { ok: true; v: string } | { ok: false
 }
 
 function closedMembers(members: [string, Value][], op: string): VResult {
-  const operands = OPERANDS[op];
+  const operands = Object.hasOwn(OPERANDS, op) ? OPERANDS[op] : undefined;
   if (operands === undefined) return { ok: false, e: "predicate_op_unknown" };
   const allowed = new Set(["op", ...operands]);
   for (const [name] of members) {

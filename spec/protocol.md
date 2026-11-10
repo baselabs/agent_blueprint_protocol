@@ -3,7 +3,7 @@
 Status: published pre-1.0 protocol (0.x release line). This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4`, 129 cases) are
+`sha-256:SvJLvMwXdYQZBjOrklsQSHQRX8PhxPHOv23C2rmFazQ`, 190 cases) are
 certified against this document at every release through the release
 identity chain — the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -649,10 +649,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-129 cases covering every required cell of the 16-surface × 31-class
+190 cases covering every required cell of the 16-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4`. Corpus identity
+`sha-256:SvJLvMwXdYQZBjOrklsQSHQRX8PhxPHOv23C2rmFazQ`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over `%{path => binary}` and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,

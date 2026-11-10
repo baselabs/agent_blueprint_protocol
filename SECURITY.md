@@ -13,6 +13,8 @@
 | 0.2.x | no — upgrade to the current line |
 | 0.1.x | no — upgrade to the current line |
 
+Use 0.8.3 or later for the current security fixes.
+
 ## Reporting a vulnerability
 
 Report privately through GitHub: open the repository's

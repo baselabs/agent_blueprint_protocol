@@ -223,6 +223,10 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     "blueprint-decode-maximum-plus-one",
     "deployment-decode-maximum-plus-one",
     "deployment-decode-binding-stale",
+    "deployment-decode-mutation-name-__proto__",
+    "deployment-decode-mutation-name-constructor",
+    "deployment-decode-mutation-name-hasOwnProperty",
+    "deployment-decode-mutation-name-toString",
     "deployment-decode-digest-mismatch",
     "federation-decode-a2a-state-valid",
     "federation-decode-a2a-state-invalid"
