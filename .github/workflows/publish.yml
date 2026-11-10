@@ -72,7 +72,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir verified-release
           npm pack --ignore-scripts --pack-destination verified-release
-          MIX_ENV=test mix release.asset --write
+          env MIX_ENV=test mix release.asset --write
           mv "verifier-${VERSION}.tar.gz" verified-release/
           mix hex.build --output "verified-release/agent_blueprint_protocol-${VERSION}.tar"
           tar -czf verified-release/kit-dist.tar.gz --exclude='.DS_Store' --exclude='._*' dist agent_blueprint_protocol_conformance

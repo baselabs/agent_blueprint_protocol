@@ -97,6 +97,12 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
     end
   end
 
+  # The kit is built by the quality lane; the toolchain lanes run without it.
+  @tag skip:
+         if(File.exists?("dist/kit/cli.mjs"),
+           do: false,
+           else: "the npm kit is not built in this lane"
+         )
   test "the installed entry reports help and version and preserves unknown-argument errors" do
     {help, 0} = System.cmd("node", ["dist/kit/cli.mjs", "--help"], stderr_to_stdout: true)
     assert help =~ "usage: agent-blueprint-protocol"

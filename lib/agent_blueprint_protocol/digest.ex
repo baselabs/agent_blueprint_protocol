@@ -128,8 +128,8 @@ defmodule AgentBlueprintProtocol.Digest do
   """
   @spec equal?(t(), t()) :: boolean()
   def equal?(%__MODULE__{algorithm: a1, bytes: b1}, %__MODULE__{algorithm: a2, bytes: b2}) do
-    is_binary(b1) and is_binary(b2) and byte_size(b1) == byte_size(b2) and a1 == a2 and
-      xor_zero?(b1, b2, 0)
+    binaries? = is_binary(b1) and is_binary(b2)
+    binaries? and byte_size(b1) == byte_size(b2) and a1 == a2 and xor_zero?(b1, b2, 0)
   end
 
   def equal?(_, _), do: false
