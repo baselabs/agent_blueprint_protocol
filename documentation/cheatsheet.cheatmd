@@ -1,0 +1,84 @@
+# Agent Blueprint Protocol cheatsheet
+
+This reference is for developers using the Elixir or TypeScript facade. It lists the common calls for decoding, encoding, reconciling, and running conformance.
+
+## Elixir facade
+
+### Decode artifacts
+
+Excerpt. Provide the artifact bytes before running these calls.
+
+```elixir
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(blueprint_bytes)
+{:ok, deployment} = AgentBlueprintProtocol.decode_deployment(deployment_bytes)
+{:ok, envelope} = AgentBlueprintProtocol.decode_federation_envelope(envelope_bytes)
+```
+
+### Encode and compute identity
+
+Excerpt. The artifact value must already have passed its constructor.
+
+```elixir
+{:ok, canonical_bytes} = AgentBlueprintProtocol.canonical_bytes(blueprint)
+digest = AgentBlueprintProtocol.Blueprint.content_digest(blueprint)
+tagged_digest = AgentBlueprintProtocol.Digest.to_tagged(digest)
+```
+
+### Reconcile artifacts
+
+Excerpt. Supply host bounds, revision support, keys, and observations in the Inputs struct.
+
+```elixir
+{:ok, evidence} = AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
+```
+
+### Run the corpus
+
+```sh
+mix conformance.verify
+```
+
+## TypeScript facade
+
+### Import package-root functions
+
+Excerpt. Provide byte arrays and inputs from your application.
+
+```ts
+import {
+  canonicalBytes,
+  decodeBlueprint,
+  decodeDeployment,
+  decodeFederationEnvelope,
+  reconcile
+} from "@agent-blueprint-protocol/verifier";
+
+const blueprint = decodeBlueprint(blueprintBytes);
+const deployment = decodeDeployment(deploymentBytes);
+const envelope = decodeFederationEnvelope(envelopeBytes);
+if (blueprint.ok && deployment.ok) {
+  const result = reconcile(blueprint.value, deployment.value, inputs);
+}
+```
+
+### Run the embedded corpus
+
+```sh
+npx @agent-blueprint-protocol/verifier@rc
+```
+
+### Run an external implementation
+
+Command template (excerpt). Replace `./example-adapter` with the adapter executable supplied by the implementation.
+
+```sh
+npx @agent-blueprint-protocol/verifier@rc conformance run --corpus ./conformance --results results.json -- ./example-adapter
+```
+
+Cost amounts are integer millionths of the named currency unit. Verification returns evidence and does not grant permission to act.
+
+## Next steps
+
+- [Elixir quickstart](quickstart.md)
+- [TypeScript guide](typescript.md)
+- [Complete error reference](errors.md)

@@ -1,46 +1,20 @@
 defmodule AgentBlueprintProtocol.Predicate do
-  @node_ceiling 256
-
   @moduledoc """
-  The closed, portable boolean predicate algebra carried by
-  `deterministic_predicate` evaluation assertions (protocol §2).
+    This module validates and evaluates the protocol predicate algebra.
 
-  Grammar (closed world — every node is an object with `op` plus exactly the
-  operator's operand members):
+    Use it when handling deterministic predicates over named input ports.
 
-      {"op": "and" | "or",  "args": [predicate, …]}      # n-ary, ≥ 1
-      {"op": "not",         "args": [predicate]}
-      {"op": "eq" | "ne" | "lt" | "lte" | "gt" | "gte",
-       "path": [segment, …], "value": json}
-      {"op": "in",          "path": [segment, …], "values": [json, …]}
-      {"op": "present" | "absent", "path": [segment, …]}
+    This module does not authorize operations.
 
-  `validate/2` checks shape against the declared port names: `path[0]` must
-  name a declared port (`:predicate_path_unresolved`), the node count is
-  ceilinged at `#{@node_ceiling}` (`:predicate_nodes_exceeded`), unknown
-  operators deny `:predicate_op_unknown`, and operand-shape failures use the
-  package's class vocabulary (`:unknown_member`, `:missing_required_field`,
-  `:invalid_type`, `:invalid_cardinality`). Check order inside one node is
-  pinned so two implementations pick the same reason: `op` presence → `op`
-  value/known → unknown member → missing operand → operand type/cardinality →
-  `path[0]` → node ceiling (nodes are counted depth-first, on entry).
+    ## Example
 
-  `evaluate/2` validates first, then applies the predicate to a map of port
-  name → tagged value. Path addressing: segment 0 is the port-name map key;
-  later segments address object members by name and array elements by
-  CANONICAL decimal index string (`"0"`, `"17"` — no leading zeros). For
-  `present`/`absent` an unresolvable path is a defined outcome (`present` →
-  false, `absent` → true); for every value operator it is
-  `{:error, %AgentBlueprintProtocol.Error{code: :predicate_path_unresolved}}`. `eq`/`ne`/`in` use `Schema.equal?/2`
-  (mathematical-value numbers, order-blind objects); `lt`/`lte`/`gt`/`gte`
-  require both operands numbers (mathematical value) or both strings (byte
-  order) — any other combination is `:predicate_path_unresolved` (the path
-  did not resolve to a value the operator can order). The n-ary `and`/`or`
-  folds are ERROR-DOMINANT: any errored operand makes the fold an error
-  regardless of the other operands' booleans, which is what makes the verdict
-  independent of operand order (a value short-circuit would not).
-  Predicates are declarative data — evaluation never authorizes anything.
+    ```elixir
+    predicate = {:object, [{"op", {:string, "present"}}, {"path", {:array, [{:string, "request"}]}}]}
+    AgentBlueprintProtocol.Predicate.validate(predicate, ["request"])
+    ```
   """
+  @moduledoc since: "1.0.0"
+  @node_ceiling 256
 
   alias AgentBlueprintProtocol.{Json, Schema}
 
@@ -69,12 +43,18 @@ defmodule AgentBlueprintProtocol.Predicate do
     "absent" => ["path"]
   }
 
-  @doc """
-  Validate a predicate's shape against `port_names`. Total and never-raising
-  on any input: malformed tagged shapes deny `:invalid_type`.
-  """
   @spec validate(Json.value(), [binary()] | :any_root) ::
           :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Checks whether the supplied predicate has a valid shape for the given ports.
+
+    ## Example
+
+        iex> predicate = {:object, [{"op", {:string, "eq"}}, {"path", {:array, [{:string, "request"}, {:string, "name"}]}}, {"value", {:string, "Ada"}}]}
+        iex> AgentBlueprintProtocol.Predicate.validate(predicate, ["request"])
+        :ok
+  """
+  @doc since: "1.0.0"
   def validate(predicate, :any_root) do
     case shape(predicate, :any_root, 0) do
       {:ok, _nodes} -> :ok
@@ -104,13 +84,19 @@ defmodule AgentBlueprintProtocol.Predicate do
     end
   end
 
-  @doc """
-  Apply `predicate` to `ports` (port name → tagged value). Validates first,
-  so a shape-invalid predicate denies instead of raising. Returns
-  `{:ok, boolean()}` or the first error encountered under the pinned orders.
-  """
   @spec evaluate(Json.value(), %{optional(binary()) => Json.value()}) ::
           {:ok, boolean()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Evaluates a predicate against the supplied port values.
+
+    ## Example
+
+        iex> predicate = {:object, [{"op", {:string, "eq"}}, {"path", {:array, [{:string, "request"}, {:string, "name"}]}}, {"value", {:string, "Ada"}}]}
+        iex> ports = %{"request" => {:object, [{"name", {:string, "Ada"}}]}}
+        iex> AgentBlueprintProtocol.Predicate.evaluate(predicate, ports)
+        {:ok, true}
+  """
+  @doc since: "1.0.0"
   def evaluate(predicate, ports) when is_map(ports) do
     # Shape-only: the root check belongs to decode-time validation against
     # DECLARED ports. At evaluation, a root the host did not supply is an

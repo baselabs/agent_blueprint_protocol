@@ -1,46 +1,45 @@
-# FAQ
+# Frequently asked questions
 
-**Does a green verification authorize anything?**
-No. Every result is structural evidence. Identity, tenancy, live
-policy, effect ownership, execution, billing, and evaluation truth are
-host-owned surfaces; the Evidence record names them in `not_verified`.
+This guide is for people evaluating Agent Blueprint Protocol. You will get short answers to common questions about its purpose, packages, and conformance.
 
-**Why canonical-first decoding?**
-Digests are only meaningful over exact bytes. Non-canonical bytes deny
-before any semantic read, so two spellings of the same value cannot
-both be "the artifact".
+## What is this?
 
-**What happens to extensions I don't know?**
-Optional extensions quarantine: retained byte-exactly, typed as
-unscanned, never executed. Critical ones deny — an unknown critical
-surface is a surface you cannot enforce.
+Agent Blueprint Protocol (ABP) defines portable JSON artifacts and verification results for describing agent capabilities, inputs, outputs, and bounds.
 
-**Can I widen a bound for a special case?**
-No. Effective bounds never widen host policy. Narrow, clamp with
-evidence, or deny — the algebra is property-tested.
+## Is it stable?
 
-**How do I upgrade an exact-pinned release without breaking
-historical replays?**
-Bind the replay-identity fields (`manifest_version`,
-`verification_semantics_version`, `protocol_revision`,
-`registry_digest`, the artifact digests, `effective_bounds`) and record
-the provenance fields (`package_version`, `corpus_digest`,
-`spec_digest`) as metadata. Upgrades between releases
-that share a semantics version and an unchanged registry census replay
-green; registry movement conflicts by design (it is the fail-closed
-vocabulary detector); a true semantics change conflicts loudly on the
-integer. The full partition and its reasoning:
-[upgrading guide](upgrading.md).
+The current package version is `1.0.0-rc.1`. Treat it as a release candidate, not a final 1.0 release.
 
-**Why is the registry compiled in?**
-Registry content is a code release: drift between shipped code and a
-shipped registry file would be unrepresentable. The governance-canonical
-JSON is compared with the Elixir module and TypeScript verifier registry
-by the registry-equality check.
+## How is it different from an A2A Agent Card?
 
-**How do I run the corpus in my own language?**
-The runner protocol is `verifier/RUNNER.md` in the repository (and in
-the standalone verifier tarball attached to every release tag): corpus
-layout, load-time integrity, the report format, and the byte-agreement
-contract. The corpus itself ships in the Hex package under
-`priv/conformance`.
+An A2A Agent Card describes an agent's discovery information and skills. A Blueprint describes protocol-defined capabilities and constraints. The federation profile defines how its task envelope can travel through A2A metadata.
+
+## How is it different from an MCP server manifest?
+
+An MCP server exposes tools and related capabilities through MCP. A Blueprint describes an agent's protocol-defined contract independently of a server. The federation profile defines MCP task metadata carriage.
+
+## How is it different from OASF?
+
+OASF is a schema framework for agent metadata and skills. ABP defines a closed artifact vocabulary, verification rules, and a conformance corpus.
+
+## Does verification grant permissions?
+
+No. A successful result is typed evidence about protocol checks. The consuming host makes its own decisions.
+
+## How do I create a Blueprint?
+
+Use the Elixir `Blueprint.from_value/2` API to construct a tagged JSON value, compute its digest, and encode it. The [compose and sign guide](compose-and-sign.md) shows the complete path.
+
+## Which package should I install?
+
+Elixir projects use [`agent_blueprint_protocol` on Hex](https://hex.pm/packages/agent_blueprint_protocol). TypeScript projects use [`@agent-blueprint-protocol/verifier` on npm](https://www.npmjs.com/package/@agent-blueprint-protocol/verifier).
+
+## How do I prove my implementation conforms?
+
+Run the published conformance corpus and compare the results document with the expected projections. The [CI guide](verifying-in-ci.md) covers both packages and the third-party harness.
+
+## Next steps
+
+- [Quickstart](quickstart.md)
+- [Architecture](architecture.md)
+- [Conformance guide](conformance.md)

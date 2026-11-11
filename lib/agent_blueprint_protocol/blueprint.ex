@@ -1,43 +1,19 @@
 defmodule AgentBlueprintProtocol.Blueprint do
   @moduledoc """
-  The Blueprint artifact (protocol §2): an immutable, portable, inert statement
-  of intent, decoded and validated through the ONE generic field-registry
-  engine (the internal registry engine) parameterized by this module's
-  18-member table.
+    This module decodes and validates Blueprint Core artifacts.
 
-  The decode pipeline, in order, each stage fail-closed:
+    Use it when reading Blueprint bytes or working with a validated Blueprint value.
 
-  1. `Canonicalization.verify/2` on the received bytes — a non-canonical
-     spelling of a byte-identical value denies `:non_canonical_bytes` BEFORE
-     any semantic read or digest comparison (the canonicality
-     obligation: digests are computed only over exact received bytes, and a
-     re-encode-then-digest shortcut must fail this gate, never
-     `verify_content`).
-  2. structure validation against the internal member table — closed world
-     (`:unknown_member`), required members, tag-strict integer typing (the
-     window-float deny: `{:float, f}` in an integer-typed core field is
-     `:invalid_type` here, because only this layer sees the decoder tag the
-     wire cannot carry), enums, cardinalities, and the per-member custom
-     checks (bounded schemas via `Schema`, signature envelopes via
-     `Signature`, the extension envelope, the assertion operands).
-  3. The portability scan (`Portability`) — full scan over the open regions
-     (extension bodies, bounded-schema documents), value-shape scan over
-     every other string including signature `key_id`, `:forbidden_portable_value`.
-  4. The content-digest comparison — `Digest.verify_content/3` over the
-     canonical bytes of the covered members (everything except
-     `content_digest`, `signatures`, `attestations`), `:digest_mismatch` on
-     divergence.
+    This module does not authorize operations.
 
-  `from_value/1` runs stages 2-3 without canonicality (there are no bytes):
-  structure only, for values that came from `verify`-ed bytes or for
-  producer-side composition — `verify_content_digest/1` is the integrity
-  half and must be called separately for the compose-then-verify flow.
+    ## Example
 
-  `to_value/1` is the identity on the held tagged value, so
-  `decode → to_value → encode` is a byte-exact fixed point (the
-  quarantine round-trip depends on it).
-  A Blueprint is an inert description: decoding one never authorizes an operation.
+    ```elixir
+    bytes = File.read!("examples/echo-blueprint.json")
+    match?({:ok, %AgentBlueprintProtocol.Blueprint{}}, AgentBlueprintProtocol.Blueprint.decode(bytes))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{
     Bounds,
@@ -117,7 +93,13 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   defstruct [:value]
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Blueprint.
+  """
   @type t :: %__MODULE__{value: Json.value()}
+  @typedoc """
+    A typed error returned by AgentBlueprintProtocol.Blueprint.
+  """
   @type reason :: AgentBlueprintProtocol.Error.t()
 
   # ---- the table --------------------------------------------------------------------
@@ -279,13 +261,33 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   # ---- decode ------------------------------------------------------------------------
 
-  @doc """
-  Decode and fully verify artifact `bytes`: canonical verify → registry
-  validation → portability scan → content-digest comparison. Total and
-  never-raising.
-  """
   @spec decode(binary(), Bounds.t() | map()) ::
           {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Decodes canonical JSON bytes and validates the Blueprint contents and digest.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:ok, %AgentBlueprintProtocol.Blueprint{}},
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+    )
+    ```
+
+    ```elixir
+    match?(
+      {:ok, %AgentBlueprintProtocol.Blueprint{}},
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json"),
+        AgentBlueprintProtocol.Bounds.maximum()
+      )
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def decode(binary, bounds \\ Bounds.maximum())
 
   def decode(binary, bounds) when is_binary(binary) do
@@ -302,25 +304,37 @@ defmodule AgentBlueprintProtocol.Blueprint do
   # of raising FunctionClauseError (the corpus floor's json surface fix).
   def decode(_binary, _bounds), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Validate an already-decoded tagged value (stages 2-3; no canonicality —
-  there are no bytes, so the canonicality ordering obligation does not apply here).
-  For values that came from `verify`-ed bytes, follow with
-  `verify_content_digest/1`.
-
-  `opts` carries `:authored_extensions` — namespaces whose critical bodies
-  negotiation validated against a digest-pinned host schema. Those
-  bodies are the legitimate channel for encoded content and SKIP the
-  portability value-shape heuristics entirely (mixed-case encoded blobs
-  are the channel's payload — the authored posture alone would still deny
-  them): their controls are the digest-pinned schema validation and the
-  reserved-semantics denylist, both at negotiation. The default (`[]`)
-  keeps the strict posture everywhere.
-  The caller is responsible for this provenance; the constructor checks only
-  that the supplied namespaces occur in this artifact's critical region.
-  `Reconcile.reconcile/3` derives the list from the current negotiation.
-  """
   @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Validates a tagged JSON value and wraps it in this artifact type.
+
+    ## Example
+
+    ```elixir
+    {:ok, value} =
+      AgentBlueprintProtocol.Json.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    match?(
+      {:ok, %AgentBlueprintProtocol.Blueprint{}},
+      AgentBlueprintProtocol.Blueprint.from_value(value)
+    )
+    ```
+
+    ```elixir
+    {:ok, value} =
+      AgentBlueprintProtocol.Json.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    match?(
+      {:ok, %AgentBlueprintProtocol.Blueprint{}},
+      AgentBlueprintProtocol.Blueprint.from_value(value, %{authored_extensions: []})
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def from_value(value, opts \\ %{})
 
   def from_value(value, opts) when is_map(opts) do
@@ -339,13 +353,41 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   def from_value(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc "The held tagged value — the identity, so the round-trip is byte-exact."
   @spec to_value(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Returns the tagged JSON value held by this artifact.
+
+    ## Example
+
+    ```elixir
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    match?({:object, _}, AgentBlueprintProtocol.Blueprint.to_value(blueprint))
+    ```
+  """
+  @doc since: "1.0.0"
   def to_value(%__MODULE__{value: value}), do: value
   def to_value(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc "The digest input: the artifact minus the three evidence members (§8.2)."
   @spec digest_input(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Returns the tagged value used to compute the artifact digest.
+
+    ## Example
+
+    ```elixir
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    match?({:object, _}, AgentBlueprintProtocol.Blueprint.digest_input(blueprint))
+    ```
+  """
+  @doc since: "1.0.0"
   def digest_input(%__MODULE__{value: {:object, members}}) do
     with {:ok, _bytes} <- Canonicalization.encode({:object, members}) do
       {:object, Enum.reject(members, fn {name, _} -> name in @evidence_members end)}
@@ -354,20 +396,63 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   def digest_input(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc "Whether `member_name` (a wire-level member name) is digest-covered."
   @spec digest_covered?(binary()) :: boolean()
+  @doc """
+    Reports whether the named artifact member contributes to its content digest.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Blueprint.digest_covered?("model_policy")
+    ```
+  """
+  @doc since: "1.0.0"
   def digest_covered?(member_name) when is_binary(member_name),
     do: member_name in @covered_members
 
   def digest_covered?(_), do: false
 
-  @doc "The canonical bytes of the whole artifact."
   @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Returns canonical JSON bytes for the supplied artifact.
+
+    ## Example
+
+    ```elixir
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    match?(
+      {:ok, bytes} when is_binary(bytes),
+      AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
   def canonical_bytes(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc "The honest content digest over the covered members' canonical bytes."
   @spec content_digest(t()) :: Digest.t() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Computes the content digest for the artifact.
+
+    ## Example
+
+    ```elixir
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    match?(
+      %AgentBlueprintProtocol.Digest{},
+      AgentBlueprintProtocol.Blueprint.content_digest(blueprint)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def content_digest(%__MODULE__{} = blueprint) do
     with {:object, _} = covered <- digest_input(blueprint),
          {:ok, jcs} <- Canonicalization.encode(covered) do
@@ -377,12 +462,22 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   def content_digest(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Compare the declared `content_digest` member against the recomputed
-  digest over the exact received (verified) bytes' canonical form:
-  `:digest_mismatch` on divergence.
-  """
   @spec verify_content_digest(t()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Checks the declared artifact digest against its covered content.
+
+    ## Example
+
+    ```elixir
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    AgentBlueprintProtocol.Blueprint.verify_content_digest(blueprint)
+    ```
+  """
+  @doc since: "1.0.0"
   def verify_content_digest(%__MODULE__{value: {:object, members}} = blueprint) do
     with {:ok, _} <- Canonicalization.encode({:object, members}) do
       verify_declared_digest(blueprint, members)

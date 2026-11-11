@@ -1,24 +1,25 @@
 defmodule AgentBlueprintProtocol.Conformance.Runner do
   @moduledoc """
-  The pure case executor over a loaded corpus: dispatches each
-  case against the package's PUBLIC module surface — the runner adds no
-  protocol capability of its own — and compares the result to the case's
-  expectation.
+    This module runs loaded conformance cases against the reference implementation.
 
-  Expectations are CODE-LEVEL and shape-agnostic: an invalid case names the
-  expected error code (`"ceiling:<key>"` renders the parameterized family),
-  and every `%Error{}` failure projects to the same code
-  string before comparison. A valid case names per-surface projection fields;
-  byte-bearing projections compare by base64url fallback (the expected value
-  decodes to the actual bytes).
+    Use it when comparing expected case outcomes with implementation results.
 
-  The `federation.decode` surface includes the carrier/state codecs (the
-  settled ruling: `federation_state_unmappable` is emitted by the codecs, not
-  by envelope decode). The `extension.resolve` surface runs Negotiation's
-  extension region walk over minimal artifact values — that walk is where
-  every extension-class code is emitted on the live substrate.
-  The runner executes corpus cases and reports outcomes; it never authorizes anything.
+    This module does not authorize operations.
+
+    ## Example
+
+    ```elixir
+    files =
+      Path.wildcard("priv/conformance/**/*")
+      |> Enum.filter(&File.regular?/1)
+      |> Map.new(fn path ->
+        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+      end)
+    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+    match?(results when is_list(results), AgentBlueprintProtocol.Conformance.Runner.run(corpus))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{
     Base64Url,
@@ -80,10 +81,30 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     "corpus_index" => :corpus_index
   }
 
+  @typedoc """
+    The result for one conformance case.
+  """
   @type result :: %{case_id: binary(), agree: boolean()}
 
-  @doc "Executes every loaded case; `%{case_id, agree}` per case, per file."
   @spec run(Corpus.t()) :: [{binary(), [result()]}] | {:error, Error.t()}
+  @doc """
+    Runs the cases in a loaded conformance corpus.
+
+    ## Example
+
+    ```elixir
+    files =
+      Path.wildcard("priv/conformance/**/*")
+      |> Enum.filter(&File.regular?/1)
+      |> Map.new(fn path ->
+        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+      end)
+
+    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+    match?(results when is_list(results), AgentBlueprintProtocol.Conformance.Runner.run(corpus))
+    ```
+  """
+  @doc since: "1.0.0"
   def run(%Corpus{cases: cases, data: data, raws: raws})
       when is_list(cases) and is_map(data) and not is_struct(data) and is_map(raws) and
              not is_struct(raws) do

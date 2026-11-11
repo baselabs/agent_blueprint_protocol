@@ -12,7 +12,7 @@ defmodule AgentBlueprintProtocol.MixProject do
       # supported line (1.19 and 1.20 today), and Mix refuses anything outside
       # the range at compile. Lockstep rule: this range, the supported-OTP
       # set in config/config.exs, .tool-versions, and the CI Elixir/OTP
-      # lanes move together in one commit — a lane outside the set, or a
+      # lanes move together in one commit. A lane outside the set, or a
       # supported OTP major with no lane, is a defect.
       elixir: "~> 1.19",
       deps: deps(),
@@ -146,6 +146,57 @@ defmodule AgentBlueprintProtocol.MixProject do
         "AgentBlueprintProtocol.Blueprint.table/0"
       ],
       source_url: @source_url,
+      groups_for_modules: [
+        Facade: [AgentBlueprintProtocol],
+        Artifacts: [
+          AgentBlueprintProtocol.Blueprint,
+          AgentBlueprintProtocol.Deployment,
+          AgentBlueprintProtocol.Deployment.Observations,
+          AgentBlueprintProtocol.Federation,
+          AgentBlueprintProtocol.Federation.Context,
+          AgentBlueprintProtocol.Federation.Mapping.Row
+        ],
+        Verification: [
+          AgentBlueprintProtocol.Signature,
+          AgentBlueprintProtocol.Signature.Attributes,
+          AgentBlueprintProtocol.Signature.PublicKey,
+          AgentBlueprintProtocol.Digest,
+          AgentBlueprintProtocol.Reconcile,
+          AgentBlueprintProtocol.Reconcile.Inputs,
+          AgentBlueprintProtocol.Evidence,
+          AgentBlueprintProtocol.Evidence.Binding,
+          AgentBlueprintProtocol.Evidence.Signatures,
+          AgentBlueprintProtocol.Compatibility,
+          AgentBlueprintProtocol.Compatibility.Observed,
+          AgentBlueprintProtocol.Negotiation,
+          AgentBlueprintProtocol.Negotiation.Outcome,
+          AgentBlueprintProtocol.Negotiation.Support,
+          AgentBlueprintProtocol.Portability,
+          AgentBlueprintProtocol.Predicate,
+          AgentBlueprintProtocol.Schema
+        ],
+        Bounds: [
+          AgentBlueprintProtocol.Bounds,
+          AgentBlueprintProtocol.BoundsAlgebra,
+          AgentBlueprintProtocol.BoundsAlgebra.Bound,
+          AgentBlueprintProtocol.BoundsAlgebra.BoundSet,
+          AgentBlueprintProtocol.BoundsAlgebra.ClampEvidence,
+          AgentBlueprintProtocol.BoundsAlgebra.Result,
+          AgentBlueprintProtocol.BoundsAlgebra.Sources
+        ],
+        Extensions: [AgentBlueprintProtocol.ExtensionRegistry],
+        Conformance: [
+          AgentBlueprintProtocol.Conformance.Corpus,
+          AgentBlueprintProtocol.Conformance.Runner,
+          AgentBlueprintProtocol.Conformance.Report
+        ],
+        Encoding: [
+          AgentBlueprintProtocol.Canonicalization,
+          AgentBlueprintProtocol.Json,
+          AgentBlueprintProtocol.Base64Url
+        ],
+        Errors: [AgentBlueprintProtocol.Error]
+      ],
       groups_for_extras: [
         "Start here": [
           "README.md",
@@ -156,23 +207,34 @@ defmodule AgentBlueprintProtocol.MixProject do
         ],
         Livebooks: ["docs/livebooks/abp-walkthrough.livemd"],
         Concepts: [
+          "documentation/architecture.md",
           "documentation/what-a-blueprint-is.md",
           "documentation/what-a-deployment-is.md",
+          "documentation/portability.md",
           "documentation/federation.md",
-          "documentation/examples.md",
+          "documentation/evidence-commitments.md",
+          "documentation/positioning.md"
+        ],
+        "How-to guides": [
+          "documentation/compose-and-sign.md",
+          "documentation/handling-errors.md",
+          "documentation/verifying-in-ci.md",
+          "documentation/reading-evidence.md",
           "documentation/producer.md",
-          "documentation/host-integration.md"
+          "documentation/host-integration.md",
+          "documentation/extensions.md"
         ],
         Reference: [
           "documentation/errors.md",
+          "documentation/cheatsheet.cheatmd",
           "documentation/faq.md",
-          "documentation/upgrading.md",
-          "documentation/registry.md",
-          "documentation/extension-author.md",
-          "documentation/evidence-commitments.md",
-          "docs/ard-mapping.md",
-          "documentation/portability.md",
           "documentation/glossary.md",
+          "documentation/security-model.md",
+          "documentation/verifying-releases.md",
+          "documentation/examples.md",
+          "documentation/upgrading.md",
+          "docs/federation-mapping.md",
+          "docs/ard-mapping.md",
           "CHANGELOG.md"
         ],
         Specification: [
@@ -226,15 +288,24 @@ defmodule AgentBlueprintProtocol.MixProject do
         "documentation/what-a-deployment-is.md",
         "documentation/portability.md",
         "documentation/federation.md",
-        "documentation/examples.md",
+        "documentation/architecture.md",
+        "documentation/evidence-commitments.md",
+        "documentation/positioning.md",
+        "documentation/compose-and-sign.md",
+        "documentation/handling-errors.md",
+        "documentation/verifying-in-ci.md",
+        "documentation/reading-evidence.md",
         "documentation/producer.md",
         "documentation/host-integration.md",
+        "documentation/extensions.md",
         "documentation/errors.md",
+        "documentation/cheatsheet.cheatmd",
         "documentation/faq.md",
         "documentation/upgrading.md",
-        "documentation/registry.md",
-        "documentation/extension-author.md",
-        "documentation/evidence-commitments.md",
+        "documentation/security-model.md",
+        "documentation/verifying-releases.md",
+        "documentation/examples.md",
+        "docs/federation-mapping.md",
         "docs/ard-mapping.md",
         "documentation/glossary.md",
         "spec/protocol.md",

@@ -1,47 +1,28 @@
 defmodule AgentBlueprintProtocol.Schema do
   @moduledoc """
-  Bounded JSON Schema 2020-12 dialect + instance validator.
+    This module parses bounded schemas and validates tagged JSON instances.
 
-  A closed 16-keyword subset — `type properties required items enum const
-  minimum maximum minLength maxLength minItems maxItems additionalProperties
-  oneOf $defs` plus document-local `$ref` — parsed from `Json`'s tagged
-  algebra and evaluated as pure, zero-dep instance validation. Serves port
-  payloads, `output_schema` assertions, and binding checks; evaluation and
-  execution TRUTH stays host-owned. Semantics follow the 2020-12 core and
-  validation specifications: assertions auto-pass instance types they do
-  not target (core §7.6.1), missing keywords never fail (core §7.3), `oneOf`
-  is exactly-one (core §10.2.1.3), boolean schemas are the substrate (core
-  §4.3.2), numbers compare by mathematical value across the integer/float
-  tags (core §4.2.2 — the tags do not survive the wire, so a non-Elixir
-  verifier cannot and must not distinguish them), and string lengths count
-  RFC 8259 characters (codepoints — not graphemes, not UTF-16 units).
+    Use it when validating a schema document or an instance against a supported dialect.
 
-  Everything outside the frozen subset denies `:schema_keyword_not_allowed`
-  (fail-closed closed world: a regex-bearing or network-fetching schema is
-  a DoS/SSRF surface in a portable artifact). Keyword recognition is
-  POSITIONAL — only members of schema-position objects are keywords;
-  `enum`/`const` values and `properties`/`$defs` member names are instance
-  data.
+    This module does not authorize operations.
 
-  Resource posture: schema complexity is metered as
-  `nodes + keywords + Σ(oneOf branches) + depth × 4` against the profile
-  ceiling 512 (`:schema_complexity_exceeded`); evaluation memoizes
-  (schema-node, instance-location) results — sound because assertion
-  results are context-free in this annotation-free dialect — which bounds
-  evaluation work to distinct pairs and closes the acyclic-`$ref`-DAG
-  blowup; references resolve only to document-local JSON Pointers landing
-  on schema positions, and any application-reachable reference cycle denies
-  `:schema_ref_cycle` (core §9.4.1 — a dead `$defs` entry is never applied
-  and may self-reference). `validate_instance/3` bounds no instance
-  itself: termination and cost rely on the caller-side parse ceilings
-  upstream (`Json`), the same posture as the decoder.
+    ## Example
 
-  Both `parse/2` and `validate_instance/3` are total and never raise on any
-  input: malformed tagged shapes deny (`:invalid_type` instance-side,
-  `:schema_keyword_value_invalid` schema-side), never crash. Errors are
-  value-free; no wire string becomes an atom before a closed-set check.
-  Schema validation is a structural fact — it never authorizes content.
+    ```elixir
+    {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
+    {:ok, schema} =
+      AgentBlueprintProtocol.Schema.parse(
+        schema_value,
+        AgentBlueprintProtocol.Schema.dialect()
+      )
+    AgentBlueprintProtocol.Schema.validate_instance(
+      schema,
+      {:string, "ready"},
+      AgentBlueprintProtocol.Schema.dialect()
+    )
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.Json
 
@@ -80,6 +61,9 @@ defmodule AgentBlueprintProtocol.Schema do
 
   @typep pointers :: %{optional([binary()]) => Json.value()}
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Schema.
+  """
   @type t :: %__MODULE__{
           dialect: binary(),
           root: Json.value(),
@@ -87,24 +71,43 @@ defmodule AgentBlueprintProtocol.Schema do
           complexity: non_neg_integer()
         }
 
-  @doc """
-  The single accepted dialect identifier — the 2020-12 dialect meta-schema
-  URI (validation §5). 2020-12 is the only published dialect; the
-  v1/2026 URI 404s.
-  """
   @spec dialect() :: binary()
+  @doc """
+    Returns the schema dialect supported by this module.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Schema.dialect()
+    ```
+  """
+  @doc since: "1.0.0"
   def dialect, do: @dialect
 
-  @doc "The profile complexity ceiling (declared profile maximum)."
   @spec ceiling() :: pos_integer()
+  @doc """
+    Returns the maximum schema complexity accepted by this module.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Schema.ceiling()
+    ```
+  """
+  @doc since: "1.0.0"
   def ceiling, do: @ceiling
 
-  @doc """
-  Meter a schema document: `nodes + keywords + Σ(oneOf branch counts) +
-  depth × 4`. Pure metering over the positional walk — unknown keywords
-  count as keywords, their values as data; no validation is performed.
-  """
   @spec complexity(Json.value()) :: non_neg_integer()
+  @doc """
+    Returns the complexity measure for a schema value.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Schema.complexity({:object, [{"ready", {:boolean, true}}]})
+    ```
+  """
+  @doc since: "1.0.0"
   def complexity(value) do
     # total like the other public calls: hand-built malformed tagged
     # values meter as 0 (they can never parse; decoder output is always
@@ -117,13 +120,25 @@ defmodule AgentBlueprintProtocol.Schema do
     end
   end
 
-  @doc """
-  Parse a schema document (the tagged algebra value) under `dialect`.
-  Validates the closed keyword subset, keyword-value syntax, document-local
-  `$ref` resolution, application-edge acyclicity, and the complexity
-  ceiling. Accepts only the exact 2020-12 dialect URI.
-  """
   @spec parse(Json.value(), binary()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Parses a schema document for the requested dialect.
+
+    ## Example
+
+    ```elixir
+    {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
+
+    match?(
+      {:ok, %AgentBlueprintProtocol.Schema{}},
+      AgentBlueprintProtocol.Schema.parse(
+        schema_value,
+        AgentBlueprintProtocol.Schema.dialect()
+      )
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def parse(value, dialect) do
     with :ok <- check_dialect(dialect),
          :ok <- root_shape(value),
@@ -141,15 +156,29 @@ defmodule AgentBlueprintProtocol.Schema do
     end
   end
 
-  @doc """
-  Validate `instance` (a tagged algebra value) against `schema` under
-  `dialect`. `schema` is the raw tagged document or a `parse/2` struct
-  (structs are re-parsed, not trusted — the `Bounds.coerce` precedent).
-  Total and never-raising on any input: malformed tagged values deny
-  `:invalid_type`, malformed schemas deny a `:schema_*` reason.
-  """
   @spec validate_instance(t() | Json.value(), Json.value(), binary()) ::
           :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Validates a tagged JSON instance against a schema.
+
+    ## Example
+
+    ```elixir
+    {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
+    {:ok, schema} =
+      AgentBlueprintProtocol.Schema.parse(
+        schema_value,
+        AgentBlueprintProtocol.Schema.dialect()
+      )
+
+    AgentBlueprintProtocol.Schema.validate_instance(
+      schema,
+      {:string, "ready"},
+      AgentBlueprintProtocol.Schema.dialect()
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def validate_instance(schema, instance, dialect) do
     with :ok <- check_dialect(dialect),
          {:ok, parsed} <- coerce(schema),
@@ -942,15 +971,17 @@ defmodule AgentBlueprintProtocol.Schema do
   ## Instance equality (core §4.2.2): numbers by mathematical value, strings
   ## codepoint-for-codepoint, objects order-blind, arrays order-sensitive.
 
-  @doc """
-  Structural equality of two tagged values per core §4.2.2: numbers compare
-  by mathematical value across the integer/float tags, strings
-  codepoint-for-codepoint, booleans and null by kind, arrays pairwise
-  order-sensitive, objects order-blind with equal member counts. Mismatched
-  kinds are unequal, never an error. Public so the artifact layers consume
-  the one equality law rather than restating it.
-  """
   @spec equal?(Json.value(), Json.value()) :: boolean()
+  @doc """
+    Compares two values for equality under this module’s rules.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Schema.equal?({:integer, 1}, {:float, 1.0})
+    ```
+  """
+  @doc since: "1.0.0"
   def equal?({:integer, a}, {:integer, b}), do: a == b
   def equal?({:integer, a}, {:float, b}), do: a == b
   def equal?({:float, a}, {:integer, b}), do: a == b

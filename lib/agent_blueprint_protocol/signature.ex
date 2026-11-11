@@ -1,73 +1,76 @@
 defmodule AgentBlueprintProtocol.Signature do
   @moduledoc """
-  Detached JWS signature envelope: RFC 7515 compact serialization with the
-  RFC 7797 `b64=false` unencoded, detached payload, Ed25519 signatures
-  verified through `:crypto`. **Verify-only** — the package never signs,
-  never accepts a private key on any function, and performs no key
-  discovery or trust selection; hosts supply the trusted keys.
+    This module parses signature entries and verifies them with host-supplied public keys.
 
-  What is signed is the RFC 7797 §3 input:
+    Use it when checking signature evidence attached to an artifact.
 
-      ASCII(BASE64URL(JCS(protected_header))) || "." || JCS(signed_attributes)
+    This module does not authorize operations.
 
-  so a standard, `b64=false`-aware JOSE implementation can verify the same
-  bytes. **Producer contract:** the
-  protected header segment must be the JCS serialization of the exact
-  four-member header; a producer using any other member order produces a
-  legitimately-signed JWS this verifier denies `:signature_not_verified`.
-  This package is deliberately narrower than generic JOSE for determinism.
+    ## Example
 
-  The envelope shape (closed world, value-free denials):
-
-      {"protected":        {"alg":"Ed25519","b64":false,"crit":["b64"],"kid":"…"},
-       "signed_attributes":{"algorithm":"Ed25519","content_digest":"sha-256:…",
-                            "created_at":"2026-08-20T00:00:00Z","key_id":"…",
-                            "purpose":"blueprint"},
-       "signature":        "<86-char unpadded base64url>"}
-
-  `kid` must equal the signed `key_id` (key substitution prevention);
-  `key_id` is a nonempty string and may contain periods. RFC 7797 §5.1
-  permits periods in this detached payload; `created_at` is
-  Z-form whole seconds. Attestations use the identical envelope with
-  `purpose`/`content_digest` replaced by a registered `kind` and a
-  `statement_digest`; the kind registry is empty until kinds become data,
-  so every attestation denies `:attestation_malformed` today (fail-closed).
-
-  Because `content_digest` and `purpose` are inside the signed bytes, a
-  signature cannot be lifted onto a different artifact, digest, or
-  purpose. Errors are value-free.
-  Signature verification produces evidence only; it never authorizes an operation.
+    ```elixir
+    match?(
+      {:error, %AgentBlueprintProtocol.Error{}},
+      AgentBlueprintProtocol.Signature.verify(nil, [])
+    )
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{Base64Url, Canonicalization, Digest, Json}
 
   defmodule PublicKey do
     @moduledoc """
-    A host-supplied Ed25519 public key, matched by the producer-chosen
-    `key_id`. The package performs no discovery or trust selection.
-    A public key is verification input that carries no authority.
+      This struct contains a public key supplied to signature verification.
+
+      Use it when providing a key to the Signature module.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Signature.PublicKey{key_id: "example.key", algorithm: :ed25519, key: <<0::256>>}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     @enforce_keys [:key_id, :algorithm, :key]
     defstruct [:key_id, :algorithm, :key]
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Signature.PublicKey.
+    """
     @type t :: %__MODULE__{key_id: binary(), algorithm: :ed25519, key: <<_::256>>}
   end
 
   defmodule Attributes do
     @moduledoc """
-    The validated signed attributes of a signature entry, with
-    `content_digest` parsed to a `Digest` value. Known purpose values include
-    `:blueprint`, `:deployment`, and `:federation_envelope`; consumers retain
-    a default branch for future revisions.
-    Signed attributes are signature evidence that carries no authority.
+      This struct contains validated attributes returned by the Signature module.
+
+      Use it when reading parsed signature attributes.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Signature.attributes(nil))
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     @enforce_keys [:algorithm, :content_digest, :created_at, :key_id, :purpose]
     defstruct [:algorithm, :content_digest, :created_at, :key_id, :purpose]
 
+    @typedoc """
+      A signature purpose value. Match known names and keep a catch-all branch.
+    """
     @type purpose :: atom()
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Signature.Attributes.
+    """
     @type t :: %__MODULE__{
             algorithm: binary(),
             content_digest: Digest.t(),
@@ -96,46 +99,63 @@ defmodule AgentBlueprintProtocol.Signature do
   @signature_attr_members ["algorithm", "content_digest", "created_at", "key_id", "purpose"]
   @attestation_attr_members ["algorithm", "created_at", "key_id", "kind", "statement_digest"]
 
-  @doc """
-  The RFC 7797 `b64=false` signing input of a signature entry (the tagged
-  algebra as decoded by `Json`): `BASE64URL(JCS(protected)) || "." ||
-  JCS(signed_attributes)`. Envelope violations deny with their
-  `verify/2` reason.
-  """
   @spec signing_input(Json.value()) ::
           {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Returns the signed input bytes represented by a signature entry.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:error, %AgentBlueprintProtocol.Error{}},
+      AgentBlueprintProtocol.Signature.signing_input(nil)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def signing_input(entry) do
     with {:ok, parts} <- parts(entry, :signature) do
       {:ok, parts.header_b64 <> "." <> parts.payload}
     end
   end
 
-  @doc """
-  The signed attributes of a signature entry as an `Attributes` value.
-  **Shape-validated only** — no signature has been checked; only `verify/2`
-  establishes the signature fact. Do not consume attributes from an
-  envelope that has not verified.
-  """
   @spec attributes(Json.value()) ::
           {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Parses the attributes carried by a signature entry.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:error, %AgentBlueprintProtocol.Error{}},
+      AgentBlueprintProtocol.Signature.attributes(nil)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def attributes(entry) do
     with {:ok, parts} <- parts(entry, :signature) do
       {:ok, parts.attributes}
     end
   end
 
-  @doc """
-  Verify a signature entry against host-supplied trusted keys. Success is
-  `{:ok, %Attributes{}}`, including the verified purpose and content digest.
-  Failures are `{:error, %AgentBlueprintProtocol.Error{code: code}}`:
-  `:signature_key_unsupported` for no matching key id;
-  `:signature_algorithm_unsupported` for an unsupported identifier or no
-  usable matching Ed25519 key; `:signature_malformed` for envelope shape;
-  `:signature_not_verified` for failed cryptographic verification.
-  These are facts, never authorization.
-  """
   @spec verify(Json.value(), [PublicKey.t()]) ::
           {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Verifies a signature entry with the supplied public keys.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:error, %AgentBlueprintProtocol.Error{}},
+      AgentBlueprintProtocol.Signature.verify(nil, [])
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def verify(entry, keys) when is_list(keys) do
     with true <- keys_shape?(keys) or {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}},
          {:ok, parts} <- parts(entry, :signature) do
@@ -145,21 +165,21 @@ defmodule AgentBlueprintProtocol.Signature do
 
   def verify(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Verify an attestation entry (identical envelope; `kind` and
-  `statement_digest` replace `purpose` and `content_digest`). The kind
-  registry is empty, so a well-formed attestation denies
-  `{:error, %AgentBlueprintProtocol.Error{code: :attestation_malformed}}` today — the fail-closed posture, not
-  a defect. Shape errors use `:attestation_malformed`; algorithm denials
-  (`alg`/`algorithm` not EdDSA/Ed25519) share the signature vocabulary by
-  design — the envelope's algorithm posture is one concern. When the first
-  kind registers, the single-clause match below fails loudly on the
-  now-possible `{:ok, _}` and the identical `check/3` wiring used by
-  `verify/2` is added deliberately; the envelope machinery (`parts/2`) is
-  already shared.
-  """
   @spec verify_attestation(Json.value(), [PublicKey.t()]) ::
           {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Checks the shape of a supplied attestation entry.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:error, %AgentBlueprintProtocol.Error{}},
+      AgentBlueprintProtocol.Signature.verify_attestation(nil, [])
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def verify_attestation(entry, keys) when is_list(keys) do
     case parts(entry, :attestation) do
       {:error, reason} -> {:error, reason}
@@ -168,12 +188,20 @@ defmodule AgentBlueprintProtocol.Signature do
 
   def verify_attestation(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  The RFC 7515 detached compact serialization
-  (`BASE64URL(JCS(protected)) .. BASE64URL(signature)`, empty payload
-  segment per Appendix F) for standard-tooling cross-checks.
-  """
   @spec to_compact(Json.value()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Formats a signature entry as compact detached serialization.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:error, %AgentBlueprintProtocol.Error{}},
+      AgentBlueprintProtocol.Signature.to_compact(nil)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def to_compact(entry) do
     with {:ok, parts} <- parts(entry, :signature) do
       {:ok, parts.header_b64 <> "." <> "." <> Base64Url.encode(parts.signature)}

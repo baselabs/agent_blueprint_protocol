@@ -1,37 +1,19 @@
 defmodule AgentBlueprintProtocol.Federation do
   @moduledoc """
-  The federation profile: the 23-member TaskEnvelope, the
-  lossy-aware A2A/MCP state codecs, and the carrier placement laws — the
-  executable half of the field-by-field mapping published as
-  `federation_mapping/0` data.
+    This module validates Federation TaskEnvelope values and converts supported state and carrier shapes.
 
-  The envelope is a closed world: one wire member per logical field of the
-  protocol's federation seam, decoded through the shared `Registry` engine
-  under this module's field table. Transport clients and wire I/O stay with
-  host adapters; the carriers built here are pure JSON shapes — the
-  Task-level placement on each transport (`Task.metadata[a2a_uri]` on A2A,
-  `_meta[namespace]` on MCP; the `_meta` key grammar forbids a URI key, so
-  the two transports key the same JCS object differently).
+    Use it when reading an envelope or mapping it to a supported task carrier.
 
-  Placement verdicts (live-re-derived against the pinned sources; see
-  docs/federation-mapping.md): `task_identity`/`recovery_handle` map to the
-  task id on both transports (a divergent handle is unmappable —
-  `:federation_mapping_conflict`), the observed state maps to
-  `status.state`, and everything else rides the extension body. A Task
-  always carries a status, so an envelope with no observed state has no
-  Task image — message-context payloads are host-adapter territory (rows
-  3/7 document the Message-level homes).
+    This module does not authorize operations.
 
-  Lossy-state rules: A2A `TASK_STATE_UNSPECIFIED` denies at intake;
-  `to_mcp` denies `:rejected` (terminal with no MCP counterpart) and
-  `:submitted`/`:auth_required` (no MCP counterpart) with
-  `:federation_state_unmappable` — never a silent degrade. Cancellation is
-  a request, never a terminal receipt: no codec path synthesizes a terminal
-  member from a cancel request or acknowledgment.
+    ## Example
 
-  Failures are typed `%Error{}` records.
-  Federation receipts are evidence records — verification never authorizes anything.
+    ```elixir
+    bytes = File.read!("examples/federation-envelope.json")
+    match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{
     Bounds,
@@ -47,30 +29,26 @@ defmodule AgentBlueprintProtocol.Federation do
 
   defstruct [:value]
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Federation.
+  """
   @type t :: %__MODULE__{value: Json.value()}
 
   defmodule Context do
     @moduledoc """
-    The receiving context `verify_commitment/2` compares a receipt
-    against: trusted keys, the issuer/subject/audience pins (each `nil` =
-    the receiver does not pin that member), and the previously-verified
-    terminal facts for conflict detection.
+      This struct contains receiver-supplied context for commitment checks.
 
-    Key attribution: `issuer_key_sets` (when non-nil) takes precedence
-    over the flat `keys` pool — the receipt's claimed `issuer` member
-    selects the pool for the signature attempt, so org-B's key never
-    verifies a receipt claiming org-A for receivers expressing the
-    stricter model. An empty map trusts no issuer (deny-all, never a
-    fallback). The claim is proven signed by the binding step after the
-    attempt; a false claim only ever narrows to the wrong or empty pool.
+      Use it when checking a Federation envelope against supplied receiver facts.
 
-    Freshness: `created_after`/`created_before` are RFC 3339 Z-form
-    bounds on the SIGNED `created_at` (inclusive both ends; the receiver
-    supplies the window, the package never invents a clock). Checked
-    after conflict detection — integrity and consistency outrank
-    receiver policy.
-    Verification context is caller-supplied data that carries no authority.
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Federation.Context{issuer: "example.issuer", subject: "example.subject", audience: "example.audience"}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     alias AgentBlueprintProtocol.Signature
 
@@ -85,12 +63,18 @@ defmodule AgentBlueprintProtocol.Federation do
       prior_receipts: []
     ]
 
+    @typedoc """
+      A verified fact returned for a receipt.
+    """
     @type receipt_fact :: %{
             required(:task_identity) => binary(),
             required(:terminal_state) => binary(),
             required(:terminal_commitment) => Digest.t()
           }
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Federation.Context.
+    """
     @type t :: %__MODULE__{
             keys: [Signature.PublicKey.t()],
             issuer: binary() | nil,
@@ -149,17 +133,30 @@ defmodule AgentBlueprintProtocol.Federation do
 
   defmodule Mapping.Row do
     @moduledoc """
-    One row of the published field-by-field mapping: the logical field
-    (bijective with an envelope wire member), the A2A location, the MCP
-    Tasks location, and the verdict (`:native` | `:partial` |
-    `:extension`) re-derived against the pinned live sources.
-    A mapping row is published data that carries no authority.
+      This module provides the row data type for the protocol.
+
+      Use it when constructing or inspecting row values.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Federation.Mapping.Row{}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [:index, :logical_field, :a2a_location, :mcp_location, :verdict]
 
+    @typedoc """
+      A mapping outcome. Match known values and keep a catch-all branch.
+    """
     @type verdict :: :native | :partial | :extension
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Federation.Mapping.Row.
+    """
     @type t :: %__MODULE__{
             index: pos_integer(),
             logical_field: binary(),
@@ -225,11 +222,16 @@ defmodule AgentBlueprintProtocol.Federation do
     ]
   end
 
-  @doc """
-  The 23-row field-by-field A2A/MCP Tasks mapping as data (the
-  published table in `docs/federation-mapping.md` mirrors these rows).
-  """
   @spec mapping() :: [Mapping.Row.t()]
+  @doc """
+    Returns the field mapping rows for the supported federation carriers.
+
+    ## Example
+
+        iex> Enum.all?(AgentBlueprintProtocol.Federation.mapping(), &is_struct(&1, AgentBlueprintProtocol.Federation.Mapping.Row))
+        true
+  """
+  @doc since: "1.0.0"
   def mapping do
     Enum.map(mapping_rows(), fn {index, logical_field, a2a, mcp, verdict} ->
       %Mapping.Row{
@@ -248,15 +250,16 @@ defmodule AgentBlueprintProtocol.Federation do
 
   # ---- terminal commitment + verify_commitment ------------------------------------
 
-  @doc """
-  The Terminal Commitment: the domain-separated digest over exactly the
-  seven named components — task identity, terminal state, result digest,
-  result classification, compatibility reference, authority-proof
-  references, checkpoint-history commitment. Two receipts for one task
-  identity diverge in commitment iff they diverge in any component, which
-  is why equivocation needs no separate code.
-  """
   @spec terminal_commitment(t()) :: {:ok, Digest.t()} | {:error, Error.t()}
+  @doc """
+    Computes the commitment for a terminal Federation envelope.
+
+    ## Example
+
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, %AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}}, AgentBlueprintProtocol.Federation.terminal_commitment(envelope))
+        true
+  """
+  @doc since: "1.0.0"
   def terminal_commitment(%__MODULE__{value: {:object, _} = value}) do
     with :ok <- bounded_shape(value),
          members = member_value_map(value),
@@ -292,21 +295,18 @@ defmodule AgentBlueprintProtocol.Federation do
   def terminal_commitment(_),
     do: {:error, %Error{code: :invalid_type, subject: ["federation_envelope"]}}
 
-  @doc """
-  Verify a terminal receipt against the receiving context. Facts, never a
-  decision — correlation grants nothing, so the success value carries the
-  task identity and terminal commitment and nothing else.
-
-  The numbered steps (design note §4): terminal members present → JWS
-  verify → the BINDING step (the signed `content_digest` must name THIS
-  envelope's covered bytes — an honestly-signed statement naming a
-  different digest is evidence over THAT digest, not this envelope) →
-  terminal-commitment recompute → issuer/subject/audience comparison →
-  conflict against prior receipts for the same task identity.
-  """
   @spec verify_commitment(t(), Context.t()) ::
           {:ok, Context.receipt_fact()}
           | {:error, Error.t()}
+  @doc """
+    Checks a Federation envelope against the supplied receiver context.
+
+    ## Example
+
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Federation.verify_commitment(envelope, %AgentBlueprintProtocol.Federation.Context{}))
+        true
+  """
+  @doc since: "1.0.0"
   def verify_commitment(%__MODULE__{value: {:object, _} = value}, %Context{} = context) do
     with :ok <- bounded_shape(value),
          members = member_value_map(value),
@@ -803,12 +803,19 @@ defmodule AgentBlueprintProtocol.Federation do
 
   # ---- decode -------------------------------------------------------------------
 
-  @doc """
-  Decode and fully verify envelope `bytes`: canonical verify → registry
-  validation → the federation portability pass. Total and never-raising;
-  failures are `%Error{}` records.
-  """
   @spec decode(binary(), Bounds.t() | map()) :: {:ok, t()} | {:error, Error.t()}
+  @doc """
+    Decodes the supplied bytes or encoded text, depending on the module.
+
+    ## Example
+
+        iex> bytes = File.read!("examples/federation-envelope.json")
+        iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes))
+        true
+        iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes, %{bytes: 5000}))
+        true
+  """
+  @doc since: "1.0.0"
   def decode(binary, bounds \\ Bounds.maximum())
 
   def decode(binary, bounds) when is_binary(binary) do
@@ -823,12 +830,16 @@ defmodule AgentBlueprintProtocol.Federation do
 
   def decode(_, _), do: {:error, %Error{code: :invalid_type, subject: ["federation_envelope"]}}
 
-  @doc """
-  Validate an already-decoded tagged value (registry walk + portability
-  pass; no canonicality — there are no bytes). The codec reconstruction
-  path; values from the wire go through `decode/2`.
-  """
   @spec from_value(Json.value()) :: {:ok, t()} | {:error, Error.t()}
+  @doc """
+    Validates a tagged JSON value and wraps it in this artifact type.
+
+    ## Example
+
+        iex> with {:ok, value} <- AgentBlueprintProtocol.Json.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_value(value))
+        true
+  """
+  @doc since: "1.0.0"
   def from_value({:object, _} = value) do
     with :ok <- bounded_shape(value),
          :ok <- Registry.validate(table(), value),
@@ -855,12 +866,16 @@ defmodule AgentBlueprintProtocol.Federation do
     end
   end
 
-  @doc """
-  The canonical bytes of the whole envelope (the raw `Canonicalization`
-  result, matching `Blueprint.canonical_bytes/1` — the encode-error shape
-  is that layer's to report).
-  """
   @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Returns canonical JSON bytes for the supplied artifact.
+
+    ## Example
+
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, bytes} when is_binary(bytes), AgentBlueprintProtocol.Federation.canonical_bytes(envelope))
+        true
+  """
+  @doc since: "1.0.0"
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
   def canonical_bytes(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
@@ -1009,13 +1024,16 @@ defmodule AgentBlueprintProtocol.Federation do
 
   # ---- state codecs: lossy-aware by construction ----------------------------------
 
-  @doc """
-  An A2A `TaskState` spelling into the logical state. The nine proto
-  values map 8-up; `TASK_STATE_UNSPECIFIED` denies
-  `:federation_state_unmappable` (never a guess), and an unknown spelling
-  denies `:invalid_constraint`.
-  """
   @spec from_a2a_state(binary()) :: {:ok, atom()} | {:error, Error.t()}
+  @doc """
+    Maps an A2A state spelling to the logical state.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Federation.from_a2a_state("TASK_STATE_COMPLETED")
+        {:ok, :completed}
+  """
+  @doc since: "1.0.0"
   def from_a2a_state(spelling) when is_binary(spelling) do
     cond do
       Map.has_key?(@a2a_to_logical, spelling) -> {:ok, @a2a_to_logical[spelling]}
@@ -1026,8 +1044,16 @@ defmodule AgentBlueprintProtocol.Federation do
 
   def from_a2a_state(_), do: {:error, %Error{code: :invalid_type, subject: ["status", "state"]}}
 
-  @doc "The logical state into its A2A spelling (all eight map; there is no logical UNSPECIFIED)."
   @spec to_a2a_state(atom()) :: {:ok, binary()} | {:error, Error.t()}
+  @doc """
+    Maps a logical state to its A2A spelling.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Federation.to_a2a_state(:completed)
+        {:ok, "TASK_STATE_COMPLETED"}
+  """
+  @doc since: "1.0.0"
   def to_a2a_state(logical) when is_atom(logical) do
     case Map.fetch(@logical_to_a2a, logical) do
       {:ok, spelling} -> {:ok, spelling}
@@ -1037,8 +1063,16 @@ defmodule AgentBlueprintProtocol.Federation do
 
   def to_a2a_state(_), do: {:error, %Error{code: :invalid_type, subject: ["status", "state"]}}
 
-  @doc "An MCP task status into the logical state (all five map upward; `cancelled` folds to `:canceled`)."
   @spec from_mcp_state(binary()) :: {:ok, atom()} | {:error, Error.t()}
+  @doc """
+    Maps an MCP state spelling to the logical state.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Federation.from_mcp_state("completed")
+        {:ok, :completed}
+  """
+  @doc since: "1.0.0"
   def from_mcp_state(spelling) when is_binary(spelling) do
     case Map.fetch(@mcp_to_logical, spelling) do
       {:ok, logical} -> {:ok, logical}
@@ -1048,13 +1082,16 @@ defmodule AgentBlueprintProtocol.Federation do
 
   def from_mcp_state(_), do: {:error, %Error{code: :invalid_type, subject: ["status"]}}
 
-  @doc """
-  The logical state into its MCP spelling — the lossy edge: `:rejected`
-  (terminal with no MCP counterpart) and `:submitted`/`:auth_required` (no
-  counterpart) deny `:federation_state_unmappable` rather than silently
-  degrading.
-  """
   @spec to_mcp_state(atom()) :: {:ok, binary()} | {:error, Error.t()}
+  @doc """
+    Maps a logical state to its MCP spelling.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Federation.to_mcp_state(:completed)
+        {:ok, "completed"}
+  """
+  @doc since: "1.0.0"
   def to_mcp_state(logical) when is_atom(logical) do
     case Map.fetch(@logical_to_mcp, logical) do
       {:ok, spelling} -> {:ok, spelling}
@@ -1069,12 +1106,28 @@ defmodule AgentBlueprintProtocol.Federation do
 
   # ---- carriers: the placement laws, per transport ----------------------------------
 
-  @doc "The A2A-side carrier key: the registry entry's `a2a_uri` (A2A's own URI-keyed metadata convention)."
   @spec a2a_carrier_key() :: binary()
+  @doc """
+    Returns the carrier key used for A2A metadata.
+
+    ## Example
+
+        iex> is_binary(AgentBlueprintProtocol.Federation.a2a_carrier_key())
+        true
+  """
+  @doc since: "1.0.0"
   def a2a_carrier_key, do: registered_entry().a2a_uri
 
-  @doc "The MCP-side carrier key: the registry namespace (the `_meta` key grammar forbids a URI key)."
   @spec mcp_carrier_key() :: binary()
+  @doc """
+    Returns the carrier key used for MCP metadata.
+
+    ## Example
+
+        iex> is_binary(AgentBlueprintProtocol.Federation.mcp_carrier_key())
+        true
+  """
+  @doc since: "1.0.0"
   def mcp_carrier_key, do: registered_entry().namespace
 
   defp registered_entry do
@@ -1082,14 +1135,16 @@ defmodule AgentBlueprintProtocol.Federation do
     entry
   end
 
-  @doc """
-  The Task-level A2A carrier: `id`, `status.state`, and the extension body
-  under `metadata[a2a_carrier_key/0]`. Native members never ride the body.
-  Requires an observed state (a Task always has one) and
-  `recovery_handle == task_identity` (the task id IS the handle on both
-  transports — a divergent handle is unmappable).
-  """
   @spec to_a2a_carrier(t()) :: {:ok, Json.value()} | {:error, Error.t()}
+  @doc """
+    Builds an A2A carrier value from a Federation envelope.
+
+    ## Example
+
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope))
+        true
+  """
+  @doc since: "1.0.0"
   def to_a2a_carrier(%__MODULE__{value: {:object, _}} = envelope) do
     with :ok <- bounded_shape(envelope.value),
          :ok <- recovery_matches(envelope),
@@ -1111,14 +1166,16 @@ defmodule AgentBlueprintProtocol.Federation do
   def to_a2a_carrier(_),
     do: {:error, %Error{code: :invalid_type, subject: ["federation_envelope"]}}
 
-  @doc """
-  Rebuild the envelope from an A2A Task carrier: the native homes supply
-  `task_identity`/`recovery_handle`/the observed state, the body supplies
-  the rest, and a native member appearing in the body denies
-  `:federation_mapping_conflict` (a double placement exists only for
-  tampering to exploit).
-  """
   @spec from_a2a_carrier(Json.value()) :: {:ok, t()} | {:error, Error.t()}
+  @doc """
+    Builds a Federation envelope from an A2A carrier value.
+
+    ## Example
+
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_a2a_carrier(carrier))
+        true
+  """
+  @doc since: "1.0.0"
   def from_a2a_carrier({:object, _} = carrier) do
     with :ok <- bounded_shape(carrier),
          {:ok, id} <- carrier_string(carrier, "id", ["id"]),
@@ -1136,13 +1193,16 @@ defmodule AgentBlueprintProtocol.Federation do
 
   def from_a2a_carrier(_), do: {:error, %Error{code: :invalid_type, subject: ["carrier"]}}
 
-  @doc """
-  The Task-level MCP carrier: `taskId`, `status`, and the extension body
-  under `_meta[mcp_carrier_key/0]` (the flat `Result & Task` merge the
-  CreateTaskResult shape defines). Requires an observed state; the lossy
-  states deny before placement.
-  """
   @spec to_mcp_carrier(t()) :: {:ok, Json.value()} | {:error, Error.t()}
+  @doc """
+    Builds an MCP carrier value from a Federation envelope.
+
+    ## Example
+
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope))
+        true
+  """
+  @doc since: "1.0.0"
   def to_mcp_carrier(%__MODULE__{value: {:object, _}} = envelope) do
     with :ok <- bounded_shape(envelope.value),
          :ok <- recovery_matches(envelope),
@@ -1164,8 +1224,16 @@ defmodule AgentBlueprintProtocol.Federation do
   def to_mcp_carrier(_),
     do: {:error, %Error{code: :invalid_type, subject: ["federation_envelope"]}}
 
-  @doc "Rebuild the envelope from an MCP Task carrier (the upward state mapping; `cancelled` folds to `:canceled`)."
   @spec from_mcp_carrier(Json.value()) :: {:ok, t()} | {:error, Error.t()}
+  @doc """
+    Builds a Federation envelope from an MCP carrier value.
+
+    ## Example
+
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_mcp_carrier(carrier))
+        true
+  """
+  @doc since: "1.0.0"
   def from_mcp_carrier({:object, _} = carrier) do
     with :ok <- bounded_shape(carrier),
          {:ok, id} <- carrier_string(carrier, "taskId", ["taskId"]),

@@ -1,6 +1,17 @@
 defmodule AgentBlueprintProtocolTest do
   use ExUnit.Case
   doctest AgentBlueprintProtocol
+  doctest AgentBlueprintProtocol.Base64Url
+  doctest AgentBlueprintProtocol.Bounds
+  doctest AgentBlueprintProtocol.Canonicalization
+  doctest AgentBlueprintProtocol.Digest
+  doctest AgentBlueprintProtocol.Error
+  doctest AgentBlueprintProtocol.ExtensionRegistry
+  doctest AgentBlueprintProtocol.Federation
+  doctest AgentBlueprintProtocol.Json
+  doctest AgentBlueprintProtocol.Negotiation
+  doctest AgentBlueprintProtocol.Portability
+  doctest AgentBlueprintProtocol.Predicate
 
   test "negotiate/2 delegates through the facade" do
     import AgentBlueprintProtocol.BlueprintFixture, only: [base_members: 1]

@@ -2,7 +2,7 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
-## [1.0.0-rc.1] — unreleased
+## [1.0.0-rc.1]: unreleased
 
 ### Breaking
 
@@ -82,6 +82,18 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 - A public module and function declaration prevents silent API expansion.
   Error descriptions distinguish overlapping conditions; evidence explicitly
   names timestamp and lifecycle facts it does not establish.
+
+### Documentation
+
+- Added `architecture.md`, `positioning.md`, `compose-and-sign.md`,
+  `handling-errors.md`, `reading-evidence.md`, `verifying-in-ci.md`,
+  `verifying-releases.md`, `security-model.md`, and `extensions.md`.
+- Added `cheatsheet.cheatmd`; rewrote `examples.md` and expanded `errors.md` and `faq.md`.
+- Reworked the Blueprint, Deployment, portability, federation, and
+  evidence-commitment concept guides.
+- Reworked `producer.md` and `host-integration.md` to link the new how-to guides.
+- Merged extension authoring and registry reference material into `extensions.md`.
+- Updated the Federation carrier mapping reference.
 
 The corpus contains 604 cases, digest
 `sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`; registry

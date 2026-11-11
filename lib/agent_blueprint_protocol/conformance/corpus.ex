@@ -1,54 +1,24 @@
 defmodule AgentBlueprintProtocol.Conformance.Corpus do
   @moduledoc """
-  The pure conformance-corpus loader and integrity verifier:
-  `load/1` takes `%{path => binary}` and performs no I/O — only
-  the CLI touches the filesystem.
+    This module loads and validates a conformance corpus.
 
-  Every failure is a typed `%Error{}` from the conformance-corpus group,
-  value-free (subjects name the corpus's own members, never offending
-  content). The check→code mapping is total over the pipeline:
+    Use it when preparing cases for the Runner or Report modules.
 
-  | check | code |
-  |---|---|
-  | index absent/undecodable/bad structure/non-canonical bytes/`corpus_digest` or `registry_digest` mismatch | `:corpus_index_invalid` |
-  | case file undecodable/wrong shape; case-level structure incl. malformed tamper, missing base, verbatim ≠ derived, lying `raw_file` reference | `:corpus_case_invalid` |
-  | per-file SHA-256 ≠ index | `:corpus_hash_mismatch` |
-  | file-set inequality (either direction) | `:corpus_file_set_mismatch` |
-  | case-id repeat or non-binary | `:corpus_case_id_duplicate` |
-  | per-file or total count disagreement | `:corpus_count_mismatch` |
-  | applicability shape / required-cell / observed-count failure | `:corpus_applicability_incomplete` |
-  | zero cases total | `:corpus_empty` |
+    This module does not authorize operations.
 
-  Applicability totality is enforced against the COMPILED-IN floor (`floor/0`,
-  the protocol's pinned 18×31 table), not merely the index's self-consistency —
-  an all-`n_a` corpus cannot load. A required cell's declared count must EQUAL
-  the observed executed count (over-counting reds too); an `n_a` cell carries
-  `{"n_a" => reason}` with a non-empty reason and zero executed cases.
+    ## Example
 
-  Corpus identity is `corpus_digest` (
-  `Digest.hash(:corpus_index, JCS(index minus corpus_digest))`), recomputed
-  at load and compared — a carried-but-unverified digest would be decorative.
-  The index file itself must BE canonical bytes. `registry_digest` binds the
-  corpus to the extension-registry state: extension verdicts depend on WHAT
-  is registered, so corpus-registry drift must red, not silently flip cases.
-
-  `load_prior_census/1` is the compatibility-replay mode: it suspends
-  exactly the two CURRENT-STATE couplings (`registry_digest` against the
-  compiled registry; applicability totality against the compiled floor) and
-  keeps every census-RELATIVE integrity check — per-file hashes, file set,
-  counts, ids, case validity, and the census's own applicability-vs-cases
-  consistency. A released census was certified against the registry and
-  floor of ITS release; replaying it under a newer verifier is a
-  compatibility question the caller (the compatibility gate) owns, not a
-  conformance claim — so the loader hands over the verified census and does
-  not decide equivalence. Case surface/class membership in the compiled
-  sets stays enforced: a floor that SHRANK cannot silently replay the cases
-  it deleted.
-
-  `.raw` sidecars are hash-bound (per-file SHA in the index + the referring
-  case's own reference hash) and carried as opaque binaries — never parsed.
-  Corpus loading and integrity are facts about test data — the loader carries no authority.
+    ```elixir
+    files =
+      Path.wildcard("priv/conformance/**/*")
+      |> Enum.filter(&File.regular?/1)
+      |> Map.new(fn path ->
+        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+      end)
+    match?({:ok, %AgentBlueprintProtocol.Conformance.Corpus{}}, AgentBlueprintProtocol.Conformance.Corpus.load(files))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{Canonicalization, Digest, Error, ExtensionRegistry, Json}
 
@@ -58,7 +28,9 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   @enforce_keys [:index, :index_bytes, :cases, :data, :raws, :case_ids, :identity]
   defstruct [:index, :index_bytes, :cases, :data, :raws, :case_ids, :identity]
 
-  @typedoc "A loaded corpus for Runner and Report; its fields are implementation details."
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Conformance.Corpus.
+  """
   @type t :: %__MODULE__{}
 
   # --- the pinned floor (spec: Corpus applicability floor, 18 x 31) ----------
@@ -207,25 +179,63 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
     }
   }
 
-  @doc "The 18 floor surfaces (the protocol's pinned applicability floor)."
   @spec surfaces() :: [binary()]
+  @doc """
+    Returns the known conformance surface names.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Conformance.Corpus.surfaces()
+    ```
+  """
+  @doc since: "1.0.0"
   def surfaces, do: @surfaces
 
-  @doc "The 31 case classes."
   @spec classes() :: [binary()]
+  @doc """
+    Returns the known conformance case classes.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Conformance.Corpus.classes()
+    ```
+  """
+  @doc since: "1.0.0"
   def classes, do: @classes
 
-  @doc """
-  The compiled-in floor: per surface, the required-class list and the
-  falsifiable `n_a` reason covering its complement. The loader enforces the
-  index against THIS table — totality is falsifiable against the design
-  commitment, not merely self-consistent.
-  """
   @spec floor() :: %{binary() => %{required: [binary()], n_a: binary()}}
+  @doc """
+    Returns the conformance corpus applicability floor.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Conformance.Corpus.floor()
+    ```
+  """
+  @doc since: "1.0.0"
   def floor, do: @floor
 
-  @doc "Loads and integrity-verifies a `%{path => binary}` corpus map."
   @spec load(%{binary() => binary()}) :: {:ok, t()} | {:error, Error.t()}
+  @doc """
+    Loads and validates the conformance files supplied as a path-to-bytes map.
+
+    ## Example
+
+    ```elixir
+    files =
+      Path.wildcard("priv/conformance/**/*")
+      |> Enum.filter(&File.regular?/1)
+      |> Map.new(fn path ->
+        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+      end)
+
+    match?({:ok, %AgentBlueprintProtocol.Conformance.Corpus{}}, AgentBlueprintProtocol.Conformance.Corpus.load(files))
+    ```
+  """
+  @doc since: "1.0.0"
   def load(map) when is_map(map), do: load_census(map, :conformance)
   def load(_), do: {:error, %Error{code: :corpus_index_invalid, subject: ["index"]}}
 

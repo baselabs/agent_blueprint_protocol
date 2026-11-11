@@ -1,40 +1,65 @@
-# The federation guide — A2A and MCP Tasks carriage
+# Federation envelopes
 
-The 23-member task envelope rides INSIDE each transport's untyped
-extension channel — A2A `Task.metadata` (URI-keyed) and MCP `_meta`
-(reverse-DNS key) — under the registered `io.github.baselabs/federation`
-namespace: the same JCS-canonical object, the same detached-Ed25519
-signature envelope on both.
+This guide is for implementers that exchange task state through A2A or MCP. You will learn the envelope members, carrier keys, and state codec boundaries.
 
-## The mapping is data
+A Federation TaskEnvelope is a portable record for task identity, commitments, state, and references. A carrier is its transport-specific representation in A2A task metadata or MCP task `_meta`. The profile defines the carrier and state codecs. It does not define a host's authorization or execution behavior.
 
-`AgentBlueprintProtocol.federation_mapping/0` returns the 23-row
-A2A/MCP field mapping: 3 native, 5 partial, 15 with no safe native
-home. Zero native wire fields were invented; the full table ships as
-the federation mapping document.
+## The 23 members
 
-## Lossy-aware state codecs
+The table lists every member in protocol revision 1. Optional members may be absent.
 
-Crossings deny rather than degrade: A2A `REJECTED`/`AUTH_REQUIRED`
-deny crossing into MCP, the logical `:submitted` state has no MCP
-status (`Federation.to_mcp_state(:submitted)`), and `UNSPECIFIED` has no
-logical state; each denies `:federation_state_unmappable`. Two terminal
-receipts for one task identity diverging in ANY commitment component
-deny `:federation_terminal_conflict`.
+| Member | Meaning |
+|---|---|
+| `task_identity` | Identifier for the task. |
+| `idempotency_identity` | Identifier associated with the task's idempotency context. |
+| `parent_execution_reference` | Optional identifier for a related parent execution. |
+| `initiating_subject` | Optional identifier for the initiating subject. |
+| `blueprint_digest` | Digest reference for the Blueprint. |
+| `deployment_digest` | Digest reference for the Deployment Manifest. |
+| `input_commitment` | Digest commitment for task input. |
+| `result_schema` | Digest identifying the result schema. |
+| `result_classification_ceiling` | Classification level and markers for a result. |
+| `time_policy` | Protocol-defined task policy data. |
+| `resource_policy` | Protocol-defined resource policy data. |
+| `recovery_handle` | Identifier used to refer to the task's recovery context. |
+| `issuer` | Issuer identifier. |
+| `subject` | Subject identifier. |
+| `audience` | Audience identifier. |
+| `identity_mapping_evidence` | Data describing a correlation between identities. |
+| `checkpoint_request` | Optional typed checkpoint request and digest. |
+| `checkpoint_status` | Optional checkpoint state. |
+| `checkpoint_commitment` | Optional digest associated with checkpoint state. |
+| `terminal_state` | Optional terminal state. |
+| `evidence_receipt` | Optional result and commitment data for a terminal state. |
+| `compatibility_reference` | One or more named compatibility identities. |
+| `authority_proof_references` | Digest references carried by the envelope. |
 
-```elixir
-{:ok, rejected} = AgentBlueprintProtocol.Federation.from_a2a_state("TASK_STATE_REJECTED")
-elem(AgentBlueprintProtocol.Federation.to_mcp_state(rejected), 1).code # => :federation_state_unmappable
-elem(AgentBlueprintProtocol.Federation.to_mcp_state(:submitted), 1).code # => :federation_state_unmappable
-elem(AgentBlueprintProtocol.Federation.from_a2a_state("TASK_STATE_UNSPECIFIED"), 1).code # => :federation_state_unmappable
-AgentBlueprintProtocol.Federation.to_mcp_state(:completed) # => {:ok, "completed"}
-```
+The decoder enforces the closed member set and the artifact rules in [protocol section 11](../spec/protocol.md#11-federation-profile).
 
-## Receiver posture
+## Carriage
 
-`AgentBlueprintProtocol.Federation.verify_commitment/2` is purpose-pinned:
-a signature whose signed `purpose` is `blueprint` or `deployment` never
-verifies a receipt; it denies `:invalid_constraint` with subject
-`["evidence_receipt", "signature"]`. Keys are labels, not issuers — per-issuer
-attribution uses the host's key sets; replay is receiver policy with
-signed-staleness windows. Correlation grants nothing.
+The active namespace is `io.github.baselabs/federation`. Producers use these carrier keys:
+
+| Carrier | Key |
+|---|---|
+| A2A task metadata | `https://baselabs.github.io/agent_blueprint_protocol/extensions/federation` |
+| MCP task `_meta` | `io.github.baselabs/federation` |
+
+The deprecated namespace remains recognized for compatibility:
+
+| Carrier | Key |
+|---|---|
+| A2A task metadata | `https://example.com/extensions/federation` |
+| MCP task `_meta` | `com.example/federation` |
+
+The carrier codecs combine the extension body with native task identity and state fields. State codecs convert between protocol states and native task states; they return typed errors for states with no defined conversion. The mapping table is data available through `federation_mapping/0` in both language packages.
+
+## Terminal commitments
+
+The shipped conformance fixtures include a valid terminal commitment and cases that return `federation_terminal_conflict`. These fixtures demonstrate terminal commitment verification and conflict detection. See the [federation commitment cases](../priv/conformance/cases/federation-verify_commitment.json).
+
+## Next steps
+
+- [Inspect the mapping table](../docs/federation-mapping.md)
+- [Run the conformance corpus](verifying-in-ci.md)
+- [Read the federation profile](../spec/protocol.md#11-federation-profile)

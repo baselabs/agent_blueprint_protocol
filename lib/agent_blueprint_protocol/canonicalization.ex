@@ -1,46 +1,19 @@
 defmodule AgentBlueprintProtocol.Canonicalization do
   @moduledoc """
-  RFC 8785 JSON Canonicalization Scheme over the closed tagged algebra
-  produced by `AgentBlueprintProtocol.Json`.
+    This module encodes tagged JSON values using RFC 8785 canonicalization and verifies canonical input bytes.
 
-  This is the package's one and only encoder: object members are sorted by
-  UTF-16 code unit (`sort_key/1`), strings use the §3.2.2.2 escape set, and
-  floats serialize exactly as ECMAScript §7.1.12.1 (including the Note 2
-  shortest round-trip rule) — digits from `:erlang.float_to_binary/2` with
-  `[:short]`, notation re-formatted per ECMA-262. Output is UTF-8 with no
-  whitespace between tokens.
+    Use it when producing canonical bytes or checking whether received JSON is already canonical.
 
-  Fail-closed guards on the encode path (a value can reach the encoder
-  without ever passing the decoder): invalid UTF-8 and lone surrogates deny
-  with `:invalid_encoding`; duplicate object names deny with
-  `:duplicate_member`; a directly-constructed tagged integer above the
-  I-JSON bound `±(2^53−1)` denies with `:integer_magnitude` — decode can no
-  longer produce one (the integer window float-tags above-bound lexemes), but a
-  hand-built value still fails closed so the package never emits bytes an
-  ECMAScript peer would serialize differently. The
-  runtime cannot materialize NaN or ±Infinity floats (arithmetic raises,
-  parsing and the external term format reject them), so no non-finite value
-  can reach this module on a stock BEAM.
+    This module does not authorize operations.
 
-  `verify/2` enforces the interchange contract: bytes are canonical only if
-  decode followed by re-encode reproduces them exactly; anything else
-  (whitespace, member reordering, needless escapes, non-ES6 number lexemes)
-  is `{:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}}`. Digests are computed over exactly
-  these verified bytes by the digest layer.
+    ## Example
 
-  The decoder's integer window (the integer-window amendment, 2026-08-21) closes the
-  former encode/verify asymmetry: a pure-digit lexeme above `±(2^53−1)`
-  decodes as `{:float, f}` iff `number/1` reproduces it, so canonical
-  pure-digit output for integral floats from 2^53 up to 10^21 (e.g.
-  `9007199254740992`, `295147905179352830000` — RFC 8785 Appendix B) now
-  round-trips through decode and `verify/2`. Above-bound lexemes that are
-  not a double's canonical ES6 spelling deny decode with
-  `:number_not_double_expressible`, which `verify/2` passes through.
-
-  Errors are **value-free**: a reason names a category, never the offending
-  bytes or values.
-  Canonical bytes are a serialization fact — encoding never authorizes anything.
+    ```elixir
+    value = {:object, [{"ready", {:boolean, true}}]}
+    {:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode(value)
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{Bounds, Json}
 
@@ -53,16 +26,20 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   @decimal_low -5
   @short_escapes %{?\b => "b", ?\t => "t", ?\n => "n", ?\f => "f", ?\r => "r"}
 
-  @doc """
-  Encode `value` (the tagged algebra) to RFC 8785 canonical JSON under
-  `bounds` (a `Bounds` struct or tighten-only overrides, defaulting to the
-  profile maxima). Every structural ceiling applies to hand-built values,
-  including container size, string and key lengths, node count, and depth;
-  the `bytes` ceiling bounds the output size. Producers cannot emit artifacts
-  that verifiers refuse to decode.
-  """
   @spec encode(Json.value(), Bounds.t() | map()) ::
           {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Encodes the supplied value as base64url or canonical JSON, depending on the module.
+
+    ## Example
+
+        iex> value = {:object, [{"a", {:integer, 1}}]}
+        iex> match?({:ok, ~S({"a":1})}, AgentBlueprintProtocol.Canonicalization.encode(value))
+        true
+        iex> match?({:ok, ~S({"a":1})}, AgentBlueprintProtocol.Canonicalization.encode(value, %{bytes: 32}))
+        true
+  """
+  @doc since: "1.0.0"
   def encode(value, bounds \\ Bounds.maximum()) do
     with {:ok, bounds} <- Bounds.coerce(bounds),
          {:ok, _nodes} <- shape(value, bounds, 0, 0),
@@ -97,15 +74,19 @@ defmodule AgentBlueprintProtocol.Canonicalization do
 
   def number(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Verify that `input` is already in canonical form: decode under `bounds`,
-  re-encode, and require byte equality. Returns the decoded value on
-  success, `{:error, %AgentBlueprintProtocol.Error{code: :non_canonical_bytes}}` on any mismatch, and passes
-  decoder errors through unchanged (so every `Json` decode reason —
-  `:number_not_double_expressible` included — can surface here).
-  """
   @spec verify(binary(), Bounds.t() | map()) ::
           {:ok, Json.value()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Checks the supplied bytes or entry against this module’s verification rules.
+
+    ## Example
+
+        iex> match?({:ok, {:object, [{"a", {:integer, 1}}]}}, AgentBlueprintProtocol.Canonicalization.verify(~S({"a":1})))
+        true
+        iex> match?({:ok, {:object, [{"a", {:integer, 1}}]}}, AgentBlueprintProtocol.Canonicalization.verify(~S({"a":1}), %{bytes: 32}))
+        true
+  """
+  @doc since: "1.0.0"
   def verify(input, bounds \\ Bounds.maximum())
 
   def verify(input, bounds) when is_binary(input) do

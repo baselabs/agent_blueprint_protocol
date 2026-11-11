@@ -1,43 +1,27 @@
-# Evidence commitments and the EU AI Act
+# Evidence commitments
 
-For high-risk systems, the EU AI Act (Regulation (EU) 2024/1689)
-requires automatic logging of events over the system's lifetime
-(Article 12) and requires deployers to keep those logs for at least six
-months (Article 26). Article 25(4) requires a provider and the third
-parties that supply it tools, services, components, or processes to set
-out, by written agreement, the information and assistance the provider
-needs to meet its obligations. The application dates of these
-high-risk obligations are set by
-[Regulation (EU) 2026/1744, Article 1(40)](https://eur-lex.europa.eu/eli/reg/2026/1744/oj/eng):
-December 2, 2027 for Article 6(2)/Annex III systems, and August 2, 2028 for
-Article 6(1)/Annex I systems (Chapter III, Sections 1, 2, and 3, except
-Article 6(5)). Procurement
-practice is converging on machine-readable conformity claims (the EU's
-model contractual clauses for AI procurement are the reference shape).
+This guide is for people who compare evidence records across systems. You will learn what an evidence commitment can establish and how it relates to the EU AI Act.
 
-What a Blueprint offers on that surface is structure, not compliance:
+An evidence commitment is a digest of protocol-defined evidence content. It lets a verifier detect whether that content differs from the value named by the commitment. A digest alone does not establish who supplied the content or whether the content is true.
 
-- **The claims are machine-checkable.** An artifact's capability
-  requirements, operational bounds, classification ceilings, effect
-  intents, and evaluation assertions are typed, registry-validated,
-  digest-covered members — not prose in a PDF. A due-diligence
-  reviewer can verify the exact bytes a producer signed.
-- **The evidence surface is named honestly.** A reconcile result is an
-  Evidence record whose `not_verified` set is non-empty by
-  construction — tenancy, live policy, authority, effect ownership,
-  execution, billing, and evaluation truth are structurally never
-  claimed by this protocol. A compliance narrative cannot quote a
-  green verification as more than it is.
-- **Bounds are pre-declared logging triggers.** The ceilings members
-  (cost, elapsed time, attempts, fan-out, descendants, tokens) are the
-  operational envelope a logging system watches; the deployment
-  manifest's evaluation binding names the evaluation corpus by digest.
+## Evidence in Agent Blueprint Protocol
 
-The protocol boundary: this package does not log anything, satisfy an
-article, or certify a system. Logging systems do the logging, and
-conformity assessment stays with the bodies that perform it. A
-blueprint makes the producer's claims verifiable so the human and
-regulatory machinery has exact, signed inputs to work from.
+The protocol defines portable artifacts, commitments, and verification results. A successful reconciliation returns typed checks and an explicit `not_verified` list. The result is not a log, compliance record, or compliance assessment.
 
-For the discovery-side counterpart — how a registry's trust manifest
-relates to blueprint identity — see the [ARD mapping](../docs/ard-mapping.md).
+The protocol does not record runtime events. Hosts choose and operate their own logging and evidence systems.
+
+## EU AI Act context
+
+The EU AI Act requires high-risk AI systems to allow automatic event recording over the system's lifetime. Providers keep generated logs to the extent they control them. Deployers keep logs under their control for a period appropriate to the system's purpose. The period is at least six months unless applicable Union or national law provides otherwise. Data protection law may affect that period. See Articles 12, 19, and 26(6) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng).
+
+Article 25(4) requires a written agreement when a third party supplies an AI system, AI model, tool, service, component, or process used in a high-risk AI system. The agreement specifies needed information, capabilities, technical access, and assistance. The exception covers third parties that make tools, services, processes, or components public under a free and open-source license. It does not cover general-purpose AI models.
+
+Regulation (EU) 2026/1744 sets the application dates for Chapter III, Sections 1 to 3, except Article 6(5). Those sections apply from December 2, 2027 for high-risk systems classified under Article 6(2) and Annex III. They apply from August 2, 2028 for systems classified under Article 6(1) and Annex I. See [Article 1(40) of Regulation (EU) 2026/1744](https://eur-lex.europa.eu/eli/reg/2026/1744/oj/eng).
+
+These obligations concern the systems and operators defined by the law. A Blueprint or evidence commitment does not satisfy them.
+
+## Next steps
+
+- [Read the evidence guide](reading-evidence.md)
+- [Review the security model](security-model.md)
+- [Read protocol sections 13 and 18](../spec/protocol.md#13-evidence-and-reconcile)

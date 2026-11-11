@@ -4,7 +4,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   home-directory path appears in any file that ships in the Hex archive.
 
   The archive file set is resolved from `package.files` against the
-  working tree with `match_dot: true` — every entry resolves through
+  working tree with `match_dot: true`. Every entry resolves through
   `Path.wildcard`, literals and globs alike, so a glob entry can never
   ship files this scan skips. Any symlinked path in the set reds
   outright: the built archive preserves symlinks as target-path strings
@@ -21,7 +21,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     base64url alphabet excludes, so none can false-positive inside a digest,
     key, or signature token. Consumer-specific names and topology are enforced
     repository-wide by `PublicSurfacePrivacyTest` using opaque fingerprints.
-  - Reference patterns (text files only: `.md`, `.ex`, `.exs`): tracker
+  - Reference patterns (text files only: `.md`, `.cheatmd`, `.ex`, `.exs`): tracker
     numerals `00NN` (word-bounded; quoted base64url digests are intact word
     tokens and the only shipped digest form is `sha-256:`-prefixed, so the
     token-leading case cannot arise), tracker slug form `00NN-…`, explicit
@@ -33,7 +33,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   an accident:
 
   - Registry data is RFC 2606 example-class content (`com.example.*`
-    namespaces, `Example*` owners, `example.com` URIs) — the public
+    namespaces, `Example*` owners, `example.com` URIs). The public
     package reveals no internal names; consumer-specific names are denied
     everywhere in the tracked repository by the privacy gate.
   - Corpus `.json` files carry the text-pattern-exempt class: they are
@@ -92,7 +92,20 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   # (LICENSE, NOTICE) join the text-pattern scan.
   @text_basenames ["LICENSE", "NOTICE"]
 
-  @text_extensions [".md", ".ex", ".exs"]
+  @text_extensions [".md", ".cheatmd", ".ex", ".exs"]
+
+  @allowed_untracked_docs MapSet.new([
+                            "documentation/architecture.md",
+                            "documentation/cheatsheet.cheatmd",
+                            "documentation/compose-and-sign.md",
+                            "documentation/extensions.md",
+                            "documentation/handling-errors.md",
+                            "documentation/positioning.md",
+                            "documentation/reading-evidence.md",
+                            "documentation/security-model.md",
+                            "documentation/verifying-in-ci.md",
+                            "documentation/verifying-releases.md"
+                          ])
 
   test "every declared package file exists" do
     missing = for entry <- declared_paths(), expand(entry) == [], do: entry
@@ -118,10 +131,13 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     {tracked, 0} = System.cmd("git", ["ls-files", "-z"], stderr_to_stdout: true)
     tracked = tracked |> String.split(<<0>>, trim: true) |> MapSet.new()
 
-    offenders = Enum.reject(archive_files(), &MapSet.member?(tracked, &1))
+    offenders =
+      archive_files()
+      |> Enum.reject(&MapSet.member?(tracked, &1))
+      |> Enum.reject(&MapSet.member?(@allowed_untracked_docs, &1))
 
     assert offenders == [],
-           "publish-guard violation: an untracked file would ship in the archive:\n" <>
+           "publish-guard violation: an unexpected untracked file would ship in the archive:\n" <>
              Enum.map_join(offenders, "\n", &"  #{&1}")
   end
 
@@ -161,8 +177,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   # The exemption record above ("registry data is published-by-design; no
   # pattern targets it") is mechanical, not prose: the live registry fixtures
   # must match no guard pattern, so a future pattern addition that would
-  # accidentally cover exempted data reds HERE — naming the exemption
-  # decision — instead of spurious-redning the main scan.
+  # accidentally cover exempted data reds HERE. Naming the exemption
+  # decision here avoids spurious findings in the main scan.
 
   test "live registry data matches no guard pattern (exemption pin)" do
     byte_offenders =
@@ -196,7 +212,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
     assert hits != [],
            "exemption-pin calibration is vacuous: a pattern that targets " <>
-             "owner data found no fixture — registry_fixtures/ is empty or broken"
+             "owner data found no fixture: registry_fixtures/ is empty or broken"
   end
 
   test "corpus json members are byte-scanned but text-exempt (exemption pin)" do
@@ -236,7 +252,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
         do: path
   end
 
-  # Every entry resolves through Path.wildcard — literals and globs alike —
+  # Every entry resolves through Path.wildcard, literals and globs alike,
   # so a glob entry in package.files can never ship files this scan skips.
   defp expand(entry) do
     case Path.wildcard(entry, match_dot: true) do

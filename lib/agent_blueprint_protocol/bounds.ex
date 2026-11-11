@@ -1,25 +1,18 @@
 defmodule AgentBlueprintProtocol.Bounds do
   @moduledoc """
-  Parse ceilings for the bounded JSON decoder — resource-exhaustion guards,
-  distinct from the eight operational ceilings an artifact declares.
+    This module defines limits for JSON decoding and canonical encoding.
 
-  Every field is a positive integer. `maximum/0` is the immutable profile
-  ceiling. `new/1` derives a *tighter* profile: an override may only lower a
-  field, never raise it, so a portable input can never widen a host's parse
-  limits.
+    Use it when an application needs tighter parse limits than the package profile.
 
-  | field | meaning |
-  |---|---|
-  | `bytes` | maximum total input size |
-  | `depth` | maximum structural nesting |
-  | `members` | maximum members in one object |
-  | `items` | maximum items in one array |
-  | `nodes` | maximum total value nodes |
-  | `string` | maximum byte length of one string value |
-  | `key` | maximum byte length of one object key |
-  | `number_lexeme` | maximum byte length of one number's source lexeme |
-  Parse ceilings are decoder limits — the profile authorizes nothing.
+    This module does not authorize operations.
+
+    ## Example
+
+    ```elixir
+    {:ok, bounds} = AgentBlueprintProtocol.Bounds.new(%{bytes: 100_000})
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   @maxima [
     bytes: 5_000_000,
@@ -37,6 +30,9 @@ defmodule AgentBlueprintProtocol.Bounds do
   @enforce_keys @fields
   defstruct @fields
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Bounds.
+  """
   @type t :: %__MODULE__{
           bytes: pos_integer(),
           depth: pos_integer(),
@@ -48,16 +44,28 @@ defmodule AgentBlueprintProtocol.Bounds do
           number_lexeme: pos_integer()
         }
 
-  @doc "The immutable profile maxima."
   @spec maximum() :: t()
+  @doc """
+    Returns the maximum parse-limit profile.
+
+    ## Example
+
+        iex> is_struct(AgentBlueprintProtocol.Bounds.maximum(), AgentBlueprintProtocol.Bounds)
+        true
+  """
+  @doc since: "1.0.0"
   def maximum, do: struct!(__MODULE__, @maxima)
 
-  @doc """
-  A tighter profile from `overrides`. Each override key must be known and its
-  value a positive integer no greater than the corresponding maximum
-  (tighten-only). Omitted fields keep their maximum.
-  """
   @spec new(map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Builds and validates a value from the supplied options.
+
+    ## Example
+
+        iex> match?({:ok, %AgentBlueprintProtocol.Bounds{bytes: 100}}, AgentBlueprintProtocol.Bounds.new(%{bytes: 100}))
+        true
+  """
+  @doc since: "1.0.0"
   def new(overrides) when is_map(overrides) do
     with :ok <- validate_keys(overrides),
          :ok <- validate_values(overrides) do
@@ -67,14 +75,16 @@ defmodule AgentBlueprintProtocol.Bounds do
 
   def new(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Validate and normalize a `Bounds` struct, or build one from an overrides map.
-
-  A struct is re-validated field-by-field, not trusted: a directly-constructed
-  `%Bounds{}` carrying a super-maximum (or non-positive) ceiling is rejected, so
-  the tighten-only invariant holds no matter how the struct was made.
-  """
   @spec coerce(t() | map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Validates and normalizes a parse-limit value.
+
+    ## Example
+
+        iex> match?({:ok, %AgentBlueprintProtocol.Bounds{bytes: 100}}, AgentBlueprintProtocol.Bounds.coerce(%{bytes: 100}))
+        true
+  """
+  @doc since: "1.0.0"
   def coerce(%__MODULE__{} = bounds), do: bounds |> Map.from_struct() |> new()
   def coerce(overrides) when is_map(overrides), do: new(overrides)
 

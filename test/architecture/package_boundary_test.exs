@@ -57,14 +57,22 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     SUPPORT.md
     documentation/errors.md
     documentation/evidence-commitments.md
-    documentation/extension-author.md
+    documentation/architecture.md
+    documentation/cheatsheet.cheatmd
+    documentation/compose-and-sign.md
+    documentation/extensions.md
     documentation/faq.md
     documentation/federation.md
+    documentation/handling-errors.md
     documentation/host-integration.md
     documentation/portability.md
+    documentation/positioning.md
     documentation/producer.md
-    documentation/registry.md
+    documentation/reading-evidence.md
+    documentation/security-model.md
     documentation/upgrading.md
+    documentation/verifying-in-ci.md
+    documentation/verifying-releases.md
     documentation/what-a-blueprint-is.md
     documentation/what-a-deployment-is.md
     documentation/quickstart.md
@@ -199,7 +207,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
   @build_dir "_build/architecture_pkg_check"
 
   # The minimum quality-alias gate set. The release-candidate check reads
-  # the LIVE alias to derive map obligations — this freezes the floor, so
+  # the LIVE alias to derive map obligations: this freezes the floor, so
   # deleting a gate step cannot silently delete its map requirement.
   @minimum_quality_steps [
     "hex.audit",
@@ -254,7 +262,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
              "  missing (declared public file dropped): #{inspect(missing)}"
 
     # The corpus subtree is verified the STRONGER way (the corpus-verification
-    # installed-package smoke): EVERY shipped file — dotfiles included —
+    # installed-package smoke): EVERY shipped file, dotfiles included,
     # feeds the loader, whose hash-indexed file-set equality reds on an
     # extra, missing, or corrupt file; then the runner must agree.
     corpus_map =

@@ -5,7 +5,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   line. The current version is read from `mix.exs`, the corpus identity
   from `priv/conformance/index.json`, the coverage threshold from the
   project config, and the test totals from a census of the live test
-  tree — never a frozen copy that could drift:
+  tree, never a frozen copy that could drift:
 
   - the README install requirement pins the exact current version;
   - SECURITY.md's supported table opens with the current `major.minor`
@@ -35,7 +35,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert pins != [], "README must carry the install requirement snippet"
 
     assert Enum.uniq(pins) == ["~> " <> version],
-           "README install requirement is stale: #{inspect(pins)} — the " <>
+           "README install requirement is stale: #{inspect(pins)}. The " <>
              "current version is #{version}"
 
     # README npm commands use the release-candidate tag. The generic npm
@@ -91,7 +91,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     first = first_version_heading(changelog)
 
     assert first == version,
-           "CHANGELOG.md's first entry is #{inspect(first)} — the current " <>
+           "CHANGELOG.md's first entry is #{inspect(first)}. The current " <>
              "release entry (#{version}) must open the changelog"
 
     entry = current_entry(changelog, version)
@@ -140,6 +140,28 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert offenders == [],
            "shipped documents carry stale concrete version claims " <>
              "(only #{version} may appear): #{inspect(offenders)}"
+
+    assert version_claims("1.0.0-rc.1") == ["1.0.0-rc.1"]
+
+    document = File.read!("documentation/errors.md")
+
+    listed =
+      document
+      |> String.split("\n")
+      |> Enum.flat_map(fn line ->
+        case Regex.run(~r/^\| ([a-z][a-z0-9_]*(?::[a-z_]+)?) \|/, line) do
+          [_, code] -> [code]
+          _ -> []
+        end
+      end)
+
+    expected_errors = Enum.map(AgentBlueprintProtocol.Error.codes(), &Atom.to_string/1)
+
+    expected_ceilings =
+      Enum.map(AgentBlueprintProtocol.Error.ceiling_keys(), &"ceiling:#{Atom.to_string(&1)}")
+
+    assert Enum.sort(listed) == Enum.sort(expected_errors ++ expected_ceilings)
+    assert length(listed) == length(Enum.uniq(listed))
   end
 
   test "the landing page's visible text names only the current version" do
@@ -157,7 +179,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
       |> Kernel.--([version])
 
     assert stale == [],
-           "site/index.html names stale versions #{inspect(stale)} — only #{version} may appear"
+           "site/index.html names stale versions #{inspect(stale)}. Only #{version} may appear"
 
     source = File.read!("site/extensions/federation/index.html")
     registry = File.read!("spec/registry/registry.json") |> Jason.decode!()
@@ -203,7 +225,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     content = Regex.replace(~r/\]\([^)]*\)/, content, "](link)")
 
     bare =
-      ~r/(?<!§)(?<!\.)\b\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\b(?!\.)/
+      ~r/(?<!§)(?<!\.)\b\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?\b(?![0-9A-Za-z-]|\.[0-9A-Za-z])/
       |> Regex.scan(content)
       |> Enum.map(&hd/1)
 
@@ -221,6 +243,15 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   # replaces. CONTRIBUTING may name the exact toolchain versions from CI.
   defp allowed_document_version?("documentation/migrating-to-1.0.md", claim, version),
     do: claim in [version, "0.8.4"]
+
+  defp allowed_document_version?("documentation/verifying-releases.md", claim, version),
+    do: claim in [version, "0.8.4", "1.0.0"]
+
+  # These guides reproduce the shipped echo Deployment Manifest, whose
+  # build identity intentionally names the fixture's original package version.
+  defp allowed_document_version?(file, claim, version)
+       when file in ["documentation/examples.md", "documentation/what-a-deployment-is.md"],
+       do: claim in [version, "0.1.0"]
 
   defp allowed_document_version?("CONTRIBUTING.md", claim, version) do
     claim == version or claim in ci_toolchain_versions()
@@ -261,13 +292,13 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert claims != [], "CONTRIBUTING.md or README.md makes no #{label} claim"
 
     stale = Enum.uniq(claims) -- [to_string(expected)]
-    assert stale == [], "#{label} claims #{inspect(stale)} — the live value is #{expected}"
+    assert stale == [], "#{label} claims #{inspect(stale)}. The live value is #{expected}"
   end
 
   defp assert_optional_claim(doc, regex, expected, label) do
     claims = regex |> Regex.scan(doc) |> Enum.map(fn [_, value] -> value end)
     stale = Enum.uniq(claims) -- [to_string(expected)]
-    assert stale == [], "#{label} claims #{inspect(stale)} — the live value is #{expected}"
+    assert stale == [], "#{label} claims #{inspect(stale)}. The live value is #{expected}"
   end
 
   # Every hex requirement string in README is an install pin; they must all
@@ -288,8 +319,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     end
   end
 
-  # The supported table's first DATA row (a stale first row — wrong line,
-  # or the current line marked no — reds; older lines may follow).
+  # The supported table's first DATA row (a stale first row, a wrong line,
+  # or the current line marked no, reds; older lines may follow).
   defp first_supported_row(security) do
     case Regex.run(
            ~r/^\| Version \| Supported \|\n\| -+ \| -+ \|\n\| ([^|]+?) \| ([^|]+?) \|/m,
@@ -319,7 +350,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   defp live_property_count, do: macro_census("property")
 
   # The census counts test/property macros across the test tree (support
-  # files carry none) — the same total ExUnit reports for this suite.
+  # files carry none), the same total ExUnit reports for this suite.
   defp macro_census(kind) do
     pattern = ~r/^\s*#{kind} "/m
 

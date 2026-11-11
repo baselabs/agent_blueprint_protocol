@@ -1,108 +1,99 @@
-# The error guide — every code, what it means, what the host does
+# Error reference
 
-The error vocabulary is a closed typed set: `%Error{code, subject,
-detail}`. An implementation MUST NOT emit an undeclared code; every
-declared code is reachable. Deny is the fail-closed outcome — never a
-repair, never a silent skip.
+This reference is for consumers handling verifier failures. It lists all 74 error codes and the eight decoder ceiling codes.
 
-The full table (code | raised when | subject | host action) ships in
-the specification's error-vocabulary section; this guide groups the
-codes by the decision the host makes.
+Elixir returns one %AgentBlueprintProtocol.Error{code, subject, detail} struct for every failure. TypeScript returns an error with the same code and subject information. A ceiling error is represented in Elixir as {:ceiling, key} and as ceiling:<key> in JSON results and TypeScript.
 
-## Reject the artifact
+Subjects contain schema-defined member names and array indexes where available. They do not contain input values or unknown member names. Denials carry no free-text detail.
 
-Bytes and structure: `invalid_syntax`, `invalid_encoding`,
-`invalid_number`, `number_not_double_expressible`, `integer_magnitude`,
-`duplicate_member`, `trailing_bytes`, `non_canonical_bytes`,
-`base64url_invalid`, `base64url_padded`.
+| Code | Check that emits it | What to do |
+|---|---|---|
+| attestation_malformed | Artifact member validation | Correct or remove the malformed optional member. |
+| audience_mismatch | Federation commitment fixture check | Review the fixture inputs and expected result. |
+| base64url_invalid | Base64url decoder | Use only unpadded base64url characters. |
+| base64url_padded | Base64url decoder | Remove padding from the encoded value. |
+| binding_attestation_stale | Deployment binding check | Review the binding data and supplied observations. |
+| binding_descriptor_mismatch | Deployment binding check | Align the descriptor with the declared binding. |
+| binding_incomplete | Deployment binding check | Supply the binding inputs required by the operation. |
+| bound_source_missing | Bounds intersection | Supply the named bound source. |
+| bound_unit_mismatch | Bounds intersection | Use compatible units for the bound values. |
+| bound_unknown | Bounds algebra validation | Use a bound name in the supported vocabulary. |
+| bound_value_invalid | Bounds validation | Correct the bound's type or allowed value. |
+| ceiling:bytes | Bounded JSON decoder | Reduce input below the 5,000,000-byte maximum. |
+| ceiling:depth | Bounded JSON decoder | Reduce nesting below the depth maximum of 64. |
+| ceiling:items | Bounded JSON decoder | Reduce array items below the per-array maximum of 10,000. |
+| ceiling:key | Bounded JSON decoder | Shorten keys below the 1,000-byte maximum. |
+| ceiling:members | Bounded JSON decoder | Reduce object members below the per-object maximum of 1,000. |
+| ceiling:nodes | Bounded JSON decoder | Reduce the total value below the maximum of 200,000 nodes. |
+| ceiling:number_lexeme | Bounded JSON decoder | Shorten the number lexeme below the 64-byte maximum. |
+| ceiling:string | Bounded JSON decoder | Shorten strings below the 100,000-byte maximum. |
+| compatibility_duplicate_entry | Compatibility check | Remove the duplicate build identity. |
+| compatibility_entry_missing | Compatibility check | Add the missing exact build identity. |
+| compatibility_identity_inexact | Compatibility check | Replace a range with an exact identity. |
+| corpus_applicability_incomplete | Corpus integrity check | Operator: complete the corpus applicability data. |
+| corpus_case_id_duplicate | Corpus integrity check | Operator: assign unique case identifiers. |
+| corpus_case_invalid | Corpus case validation | Operator: correct the case to match its schema. |
+| corpus_count_mismatch | Corpus integrity check | Operator: regenerate the corpus index. |
+| corpus_empty | Corpus integrity check | Operator: add valid cases to the corpus. |
+| corpus_file_set_mismatch | Corpus integrity check | Operator: align the files and index entries. |
+| corpus_hash_mismatch | Corpus integrity check | Operator: restore or re-index the changed file. |
+| corpus_index_invalid | Corpus index validation | Operator: correct or regenerate the index. |
+| deployment_digest_mismatch | Blueprint-to-manifest binding check | Make the referenced Blueprint release agree. |
+| digest_algorithm_unsupported | Digest parser | Use a digest algorithm supported by this revision. |
+| digest_encoding_invalid | Digest parser | Correct the tagged digest encoding. |
+| digest_mismatch | Digest verification | Recompute the digest from canonical content. |
+| duplicate_member | JSON decoder | Remove duplicate names from the JSON object. |
+| extension_criticality_conflict | Extension negotiation | Match the registry's declared criticality. |
+| extension_duplicate | Extension validation | Include the namespace only once. |
+| extension_namespace_invalid | Extension validation | Correct the namespace format. |
+| extension_payload_forbidden | Extension validation | Remove the payload for that namespace. |
+| extension_retired | Extension negotiation | Remove the retired critical namespace. |
+| extension_schema_digest_mismatch | Extension schema check | Supply the schema matching the registry entry. |
+| extension_schema_unavailable | Extension schema check | Supply the required schema document. |
+| extension_unknown_critical | Extension negotiation | Use a registered critical namespace. |
+| federation_mapping_conflict | Federation carrier codec | Correct the carrier's field placement. |
+| federation_state_unmappable | Federation state codec | Use a state supported by the requested codec. |
+| federation_terminal_conflict | Terminal commitment fixture check | Reject the conflicting fixture result. |
+| forbidden_portable_value | Portability scan | Remove the value identified by the scan. |
+| integer_magnitude | Canonical encoder | Use an integer within the supported magnitude. |
+| invalid_cardinality | Artifact validation | Correct the number of array items. |
+| invalid_constraint | Artifact validation | Correct the value that violates its constraint. |
+| invalid_encoding | Artifact validation | Use the required encoding form. |
+| invalid_number | JSON decoder | Correct the number syntax. |
+| invalid_syntax | JSON decoder | Correct the JSON syntax. |
+| invalid_type | Artifact or API validation | Use the required JSON or argument type. |
+| lifecycle_state_invalid | Deployment validation | Use a declared lifecycle state. |
+| missing_ceiling | Bounds validation | Supply the required operational bound. |
+| missing_required_field | Artifact validation | Add the required member. |
+| no_authoritative_recovery | Effect binding check | Review the effect owner's recovery value. |
+| non_canonical_bytes | Canonical byte check | Encode the artifact in canonical JSON form. |
+| nonportable_content | Portability validation | Remove the value identified by the check. |
+| number_not_double_expressible | JSON decoder | Use a number representable by the JSON profile. |
+| predicate_nodes_exceeded | Predicate validation | Reduce the predicate tree size. |
+| predicate_op_unknown | Predicate validation | Use a supported predicate operator. |
+| predicate_path_unresolved | Predicate validation | Refer to a declared port path. |
+| protected_bound_clamp_denied | Bounds intersection | Review the input bounds and clamp posture. |
+| protocol_revision_unsupported | Revision negotiation | Use a revision in the consumer's supported set. |
+| required_core_field_not_digest_covered | Required-field negotiation | Remove the evidence-only member from the list. |
+| required_core_field_unsupported | Required-field negotiation | Use a core member supported by the consumer. |
+| schema_complexity_exceeded | Schema validation | Simplify the schema within the supported limits. |
+| schema_dialect_unknown | Schema validation | Use a supported schema dialect. |
+| schema_invalid_shape | Schema validation | Correct the schema structure. |
+| schema_keyword_not_allowed | Schema validation | Remove the unsupported keyword. |
+| schema_keyword_value_invalid | Schema validation | Correct the keyword value. |
+| schema_ref_cycle | Schema reference check | Remove the reference cycle. |
+| schema_ref_unresolvable | Schema reference check | Supply a resolvable schema reference. |
+| signature_algorithm_unsupported | Signature verification | Use the supported Ed25519 profile and supplied key. |
+| signature_key_unsupported | Signature verification | Supply a key matching the entry's key identifier. |
+| signature_malformed | Signature entry parser | Correct the signature entry structure. |
+| signature_not_verified | Signature verification | Check the signature entry and supplied public key. |
+| trailing_bytes | JSON decoder | Remove bytes after the JSON value. |
+| unknown_bound | Decoder bounds validation | Use a declared decoder limit name. |
+| unknown_member | Artifact validation | Remove the member or use a supported revision. |
 
-Decoder limits: `{:ceiling, key}`, one code per limit in the bounds
-profile you pass (or `Bounds.maximum()` by default) — `:bytes`,
-`:depth`, `:members`, `:items`, `:nodes`, `:string`, `:key`,
-`:number_lexeme`. The input exceeded that decoder limit, or a requested override was
-nonpositive or above its immutable maximum; reject it, or decode under a larger profile only if your host
-policy allows one.
+The table is kept in sync with AgentBlueprintProtocol.Error.codes/0 and Error.ceiling_keys/0 by the documentation test suite.
 
-Closed worlds: `unknown_member`, `missing_required_field`,
-`invalid_type`, `invalid_constraint`, `invalid_cardinality`,
-`lifecycle_state_invalid`.
+## Next steps
 
-Digests and tamper: `digest_algorithm_unsupported`,
-`digest_encoding_invalid`, `digest_mismatch`,
-`deployment_digest_mismatch`, `attestation_malformed`.
-
-Evolution: `protocol_revision_unsupported` (both directions),
-`required_core_field_unsupported`,
-`required_core_field_not_digest_covered` (an evidence-only member
-laundered into a requirement is a tamper blind spot),
-`extension_schema_unavailable`,
-`extension_schema_digest_mismatch`.
-
-## Reject the import (reconcile halts)
-
-Signature surface: `signature_algorithm_unsupported`,
-`signature_key_unsupported`, `signature_malformed`,
-`signature_not_verified`. Binding: `binding_incomplete`,
-`binding_attestation_stale`, `binding_descriptor_mismatch`,
-`no_authoritative_recovery`. Compatibility:
-`compatibility_identity_inexact`, `compatibility_entry_missing`,
-`compatibility_duplicate_entry`.
-
-## Deny or opt in (policy)
-
-`protected_bound_clamp_denied` — a protected bound narrows; the host
-opts into the acknowledge posture or rejects.
-
-## Reject the artifact (extension + schema surface)
-
-Extension registry: `extension_duplicate`,
-`extension_namespace_invalid`, `extension_unknown_critical` (also for
-reserved namespaces declared critical), `extension_criticality_conflict`,
-`extension_retired`, `extension_payload_forbidden`. Schema documents:
-`schema_dialect_unknown`, `schema_keyword_not_allowed`,
-`schema_keyword_value_invalid`, `schema_complexity_exceeded`,
-`schema_ref_unresolvable`, `schema_ref_cycle`, `schema_invalid_shape`.
-
-## Reject the artifact (bounds + predicates + portability)
-
-Bounds families: `bound_unknown`, `bound_source_missing`,
-`bound_unit_mismatch`, `bound_value_invalid`, `missing_ceiling`,
-`unknown_bound`. Predicates: `predicate_op_unknown`,
-`predicate_path_unresolved`, `predicate_nodes_exceeded`. Portability:
-`forbidden_portable_value`, `nonportable_content` (an authority-shaped
-claim riding portable content).
-
-## Quarantine-class (retained, never executed)
-
-Unknown optional extensions round-trip byte-exactly and are typed as
-unscanned: they confer no portability claim (see the portability
-guide).
-
-## Federation
-
-`federation_state_unmappable`, `federation_mapping_conflict`,
-`federation_terminal_conflict`, `audience_mismatch` — receipts and
-crossings deny, never degrade silently.
-
-## Operator-only (never a wire condition)
-
-The `corpus_*` family — `corpus_index_invalid`, `corpus_hash_mismatch`,
-`corpus_file_set_mismatch`, `corpus_case_id_duplicate`,
-`corpus_count_mismatch`, `corpus_applicability_incomplete`,
-`corpus_empty`, `corpus_case_invalid` — loader and index integrity
-failures in the conformance tooling. If you see one, fix the corpus;
-no host artifact produces them.
-
-All fallible public Elixir operations return `{:error, %AgentBlueprintProtocol.Error{}}`.
-The code is the closed union; subjects use known member names and array
-indices, never input values. Value-returning helpers retain their success
-form and declare the error branch explicitly in their types.
-
-`bound_unknown` names the bounds-algebra set; `unknown_bound` names a
-decoder-limit override. `digest_mismatch` includes both artifact content
-digests and signed digest binding; `deployment_digest_mismatch` names the
-Deployment's Blueprint release reference. `extension_schema_digest_mismatch`
-names a supplied schema versus its registry pin.
-
-Notices are not errors: `extension_deprecated`,
-`extension_retired`, `extension_unknown_optional_retained`, and `clamp_applied`.
+- [Handle errors in application code](handling-errors.md)
+- [Read the error vocabulary](../spec/protocol.md#12-error-vocabulary)

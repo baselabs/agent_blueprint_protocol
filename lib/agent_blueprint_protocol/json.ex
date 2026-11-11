@@ -1,42 +1,27 @@
 defmodule AgentBlueprintProtocol.Json do
   @moduledoc """
-  Bounded JSON decoder over Erlang/OTP's `:json.decode/3` custom-decoder hook.
+    This module decodes bounded JSON into an order-preserving tagged value.
 
-  It produces a closed, tagged value algebra with order-preserving objects;
-  rejects duplicate members and trailing non-whitespace; enforces every parse
-  ceiling (`AgentBlueprintProtocol.Bounds`) and the I-JSON integer magnitude
-  bound `±(2^53−1)`; and never raises to the caller on malformed input (an
-  internal invariant violation still fails loud — see the decode catch). There
-  is exactly one decoder in the package — every artifact and every conformance
-  file passes through here.
+    Use it when decoding protocol JSON before passing the value to another module.
 
-  **Integer window (the amendment of 2026-08-21):** a pure-digit lexeme
-  above `±(2^53−1)` admits as `{:float, f}` — the correctly-rounded double
-  `Float.parse` yields, which is what an ECMAScript peer parses from the same
-  digits — iff that double's canonical ECMAScript serialization
-  (the canonical-number encoder) reproduces the lexeme
-  byte-exactly; every other above-bound integer lexeme denies with
-  `:number_not_double_expressible`. The bound's stated purpose is JS-peer
-  round-trip: exact doubles round-trip, silently-lossy spellings do not.
-  Core fields stay fail-closed against window floats — amended 2026-08-21
-  by design: under the frozen 2020-12 dialect semantics
-  (`Schema`), `{"type":"integer"}` matches zero-fraction numbers tag-blind
-  (validation §6.1.1; the integer/float tag does not survive the wire, so
-  no non-Elixir verifier can implement tag-narrowed integer). The core-field
-  deny therefore lives at the ARTIFACT field typing (the registry
-  engine, which sees the tag), not at the schema layer. Posture unchanged
-  — mechanism relocated.
+    This module does not authorize operations.
 
-  Errors are **value-free**: a reason names a category, never the offending
-  bytes or values.
-  The tagged value algebra is decode output — it never authorizes anything.
+    ## Example
+
+    ```elixir
+    {:ok, value} = AgentBlueprintProtocol.Json.decode(~s({"ready":true}))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{Bounds, Canonicalization}
 
   # I-JSON (RFC 7493) / RFC 8785 §3.1: every integer must round-trip a JS peer.
   @ijson_max 9_007_199_254_740_991
 
+  @typedoc """
+    A JSON value represented as a tagged scalar, array, or ordered object.
+  """
   @type value ::
           :null
           | {:boolean, boolean()}
@@ -46,13 +31,19 @@ defmodule AgentBlueprintProtocol.Json do
           | {:array, [value()]}
           | {:object, [{binary(), value()}]}
 
-  @doc """
-  Decode `input` under `bounds` (a `Bounds` struct or a tighten-only overrides
-  map, defaulting to the profile maxima). Returns the tagged value or a
-  value-free error.
-  """
   @spec decode(binary(), Bounds.t() | map()) ::
           {:ok, value()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Decodes the supplied bytes or encoded text, depending on the module.
+
+    ## Example
+
+        iex> match?({:ok, {:object, [{"ready", {:boolean, true}}]}}, AgentBlueprintProtocol.Json.decode(~S({"ready":true})))
+        true
+        iex> match?({:ok, {:object, [{"ready", {:boolean, true}}]}}, AgentBlueprintProtocol.Json.decode(~S({"ready":true}), %{bytes: 32}))
+        true
+  """
+  @doc since: "1.0.0"
   def decode(input, bounds \\ Bounds.maximum())
 
   def decode(input, bounds) when is_binary(input) do

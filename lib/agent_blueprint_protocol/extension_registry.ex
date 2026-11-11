@@ -1,32 +1,18 @@
 defmodule AgentBlueprintProtocol.ExtensionRegistry do
   @moduledoc """
-  The COMPILED-IN extension registry: entries are module-attribute
-  data, so registry content is a code release — drift is unrepresentable and
-  a beam-census architecture gate asserts nothing reads a registry file at
-  runtime.
+    This module exposes registered extension namespaces and their lifecycle data.
 
-  Entry fields: `namespace`, `owner`, `criticality` (`:critical` |
-  `:optional`), `state` (`:reserved` | `:active` | `:deprecated` |
-  `:retired`, advancing monotonically), `schema_digest` (`Digest.to_tagged`
-  string or `nil` when the owner has not authored a schema — nil denies
-  critical bodies at negotiation with `:extension_schema_unavailable`),
-  `a2a_uri` (an externally versioned declaration URI, never dereferenced by
-  this package), and `promoted_at_revision` (the promotion-governance field:
-  optional → critical moves only with a protocol revision increment, which
-  the registry author records here; demotion needs no bump).
+    Use it when inspecting the registry or its federation schema.
 
-  **Schema authoring contract:** an owner digests
-  `Digest.hash(:extension_schema, JCS(parsed_document))` — JCS of the
-  PARSED document, never raw file bytes — and the schema must lie inside
-  `Schema`'s bounded 2020-12 dialect (the digest pins that too). This
-  package owns `io.github.baselabs/federation`'s schema, shared with the
-  deprecated `com.example/federation` registration, and ships it authored
-  (`federation_schema/0`); the estate-contract product registration carries
-  the FIRST product-owned pin, bound to its corpus-resident document
-  (`priv/conformance/schemas/estate-contract.schema.json`); the remaining
-  product-owned entries carry `nil` until their owners author one.
-  Registry entries are published facts about namespaces; the registry carries no authority.
+    This module does not authorize operations.
+
+    ## Example
+
+    ```elixir
+    is_list(AgentBlueprintProtocol.ExtensionRegistry.registered_extensions())
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{Canonicalization, Digest, Json}
 
@@ -40,13 +26,23 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
     :promoted_at_revision
   ]
 
+  @typedoc """
+    A registered extension criticality value.
+  """
   @type criticality :: :critical | :optional
-  @typedoc "The closed lifecycle state accepted in negotiation support."
+  @typedoc """
+    A registered extension lifecycle value.
+  """
   @type state :: :reserved | :active | :deprecated | :retired
 
-  @typedoc "Open returned lifecycle state; consumers retain a default branch."
+  @typedoc """
+    A registry lifecycle value. Match known values and keep a catch-all branch.
+  """
   @type output_state :: atom()
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.ExtensionRegistry.
+  """
   @type t :: %__MODULE__{
           namespace: binary(),
           owner: binary(),
@@ -57,6 +53,9 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
           promoted_at_revision: pos_integer() | nil
         }
 
+  @typedoc """
+    A registry entry returned by lookup.
+  """
   @type output :: %__MODULE__{
           namespace: binary(),
           owner: binary(),
@@ -72,6 +71,15 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   # no reserved-semantics names (the denylist applies to critical bodies
   # too — a legitimate owner schema does not shadow core bound names).
   @spec federation_schema() :: Json.value()
+  @doc """
+    Returns the schema used for Federation extension content.
+
+    ## Example
+
+        iex> match?({:object, _}, AgentBlueprintProtocol.ExtensionRegistry.federation_schema())
+        true
+  """
+  @doc since: "1.0.0"
   def federation_schema do
     {:object,
      [
@@ -176,8 +184,16 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
     Map.new(entries(), fn entry -> {entry.namespace, entry} end)
   end
 
-  @doc "The compiled registry entries (the registered namespaces and their lifecycle states)."
   @spec registered_extensions() :: [output()]
+  @doc """
+    Returns the registered extension entries.
+
+    ## Example
+
+        iex> Enum.all?(AgentBlueprintProtocol.ExtensionRegistry.registered_extensions(), &is_struct(&1, AgentBlueprintProtocol.ExtensionRegistry))
+        true
+  """
+  @doc since: "1.0.0"
   def registered_extensions, do: entries()
 
   @doc false
@@ -187,16 +203,16 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
 
   def entry(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  The registry's content digest (the corpus-registry binding):
-  `Digest.hash(:extension_registry, JCS(entries projected to their declared
-  field set, keyed by namespace))`. Object member order is JCS-canonical, so
-  the entry list's order cannot leak. The conformance corpus index carries
-  this value; a corpus built for one registry state must not silently verify
-  against another — extension verdicts (unknown-critical, criticality
-  conflicts, schema digests) depend on WHAT is registered.
-  """
   @spec digest() :: Digest.t()
+  @doc """
+    Returns the digest of the compiled extension registry.
+
+    ## Example
+
+        iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.ExtensionRegistry.digest())
+        true
+  """
+  @doc since: "1.0.0"
   def digest do
     projected =
       {:object,

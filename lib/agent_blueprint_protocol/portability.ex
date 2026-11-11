@@ -1,67 +1,18 @@
 defmodule AgentBlueprintProtocol.Portability do
   @moduledoc """
-  The never-portable structural guard: member-name and
-  value-shape denylists over tagged values.
+    This module scans tagged values for nonportable names and value shapes.
 
-  Four walks, one position-aware contract — which mode applies is decided by
-  the artifact layer, which knows what each position IS:
+    Use it when checking content in open protocol fields for portability findings.
 
-  - `scan/1` — member names AND string values at any depth, identifier
-    exemption OFF. Extension bodies: host-supplied content where nothing
-    earns the identifier tolerance.
-  - `scan_authored/1` — member names AND values, identifier exemption ON.
-    Authored JSON the protocol itself carries inside open positions
-    (bounded-schema documents, predicate `value`/`values` operands): their
-    member names are attacker-choosable (must be denylisted) but their
-    VALUES legitimately contain long identifier-shaped strings (schema
-    `enum` members, compared operation names).
-  - `scan_identifier/1` — values only, exemption ON. The protocol's own
-    identifier-convention positions (port names, operation families,
-    logical operation names, assertion operand names).
-  - `scan_value/1` — values only, exemption OFF. Every other string
-    (toolchain, signature `key_id`, digests, timestamps).
+    This module does not authorize operations.
 
-  **Honest limit (necessary, not sufficient):** deciding whether an opaque
-  string IS a tenant identifier, a database key, or an engine id is
-  undecidable. The guard catches the named structural classes; the
-  compensating controls are the closed-world core, the registered-extension
-  schema requirement, and host-side review. Deny reason everywhere:
-  `:forbidden_portable_value`.
+    ## Example
 
-  Value-shape classes:
-
-  - PEM armour — a `-----BEGIN` prefix.
-  - Compact JWS — three dot-separated non-empty base64url segments whose
-    FINAL segment is ≥ `@min_signature_chars` (43) characters: a real
-    detached JWS ends in a ≥ 32-byte signature, while dotted producer
-    identities (`com.example.commerce`) end in short labels.
-  - Absolute URI with a network authority — `scheme://authority…` with a
-    non-empty authority (RFC 3986 scheme grammar).
-  - Raw key material — a clean unpadded base64url string whose floor is
-    SEPARATOR-AWARE: 24 decoded bytes (the 192-bit AES-128 hex class —
-    hex never carries separators) when the string has no `-`/`_`, and the
-    original 32-byte calibration when it does (real base64url keys carry
-    separator characters; separator-bearing identifiers like kebab-case
-    names in the 32-42-char window stay green). EXCEPT identifier-style
-    strings (single case AND containing `_` or `-`; position-scoped, never
-    a default) and hyphenated UUIDs (exempt by shape in every mode:
-    the pinned honest-limit example — a 16-byte key re-spelled as a
-    UUID is the accepted evasion class, already available at any length via
-    word encodings).
-  - Padded standard alphabets — self-identified by 1-6 `=` pad chars at 32+
-    characters (24+ decoded bytes as base64; 20 as base32 — the fail-closed
-    reading), or an unpadded ≥43-character standard-alphabet run (the
-    base64url calibration; keeps dot-free slash paths under 43 green).
-  - Colon-chunked hex fingerprints — 1-2 hex digits per `:` chunk, 24+
-    CHUNKS (each chunk is one byte in the SSH-fingerprint / EUI form, so
-    zero-stripped one-digit chunks count fully). The chunk grammar spares
-    tagged content addresses (`sha256:…` — the prefix is not a hex chunk)
-    and MAC addresses (6 chunks).
-
-  Total and never-raising: malformed tagged shapes pass through unchecked
-  (the layers below already denied them).
-  The guard reports portability facts — it does not authorize or permit anything.
+    ```elixir
+    AgentBlueprintProtocol.Portability.scan({:object, [{"label", {:string, "example"}}]})
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.Json
 
@@ -149,20 +100,52 @@ defmodule AgentBlueprintProtocol.Portability do
 
   @max_depth AgentBlueprintProtocol.Bounds.maximum().depth
 
-  @doc "Names + values, identifier exemption OFF (extension bodies)."
   @spec scan(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Scans a tagged value for portability findings.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Portability.scan({:object, [{"label", {:string, "example"}}]})
+        :ok
+  """
+  @doc since: "1.0.0"
   def scan(value), do: walk(value, true, false, 0)
 
-  @doc "Names + values, identifier exemption ON (authored JSON: schemas, predicate operands)."
   @spec scan_authored(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Scans authored tagged JSON for portability findings.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Portability.scan_authored({:object, [{"label", {:string, "example"}}]})
+        :ok
+  """
+  @doc since: "1.0.0"
   def scan_authored(value), do: walk(value, true, true, 0)
 
-  @doc "Values only, identifier exemption ON (the protocol's identifier positions)."
   @spec scan_identifier(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Scans identifier-position values for portability findings.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Portability.scan_identifier({:string, "example-name"})
+        :ok
+  """
+  @doc since: "1.0.0"
   def scan_identifier(value), do: walk(value, false, true, 0)
 
-  @doc "Values only, exemption OFF (every other string position)."
   @spec scan_value(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Scans tagged string values for portability findings.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Portability.scan_value({:string, "example"})
+        :ok
+  """
+  @doc since: "1.0.0"
   def scan_value(value), do: walk(value, false, false, 0)
 
   # Names normalize kebab/SCREAMING/camel onto the stored forms before the

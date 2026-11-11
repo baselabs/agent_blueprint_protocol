@@ -1,59 +1,54 @@
-# What a blueprint is
+# What a Blueprint is
 
-A Blueprint is the portable description of an agent capability: stable
-identity, typed ports, logical capability requirements, bounds,
-evidence commitments, and registered extensions — bound to one exact
-release by a content digest.
+This guide is for people who publish agent descriptions. You will learn what a Blueprint contains and how its members fit together.
 
-## The 18-member closed world
+A Blueprint is a portable description of an agent's declared capabilities, inputs, outputs, effects, and limits. It does not execute an agent or grant access to a host.
 
-Sixteen required members and two optional evidence envelopes. The
-member grammar in the specification lists every one with its type,
-cardinality, and constraints; the CDDL grammar under `spec/grammar/`
-is the machine-readable form. Highlights:
+## The 18 members
 
-- `blueprint_id` — a producer-qualified identity (`example.demo/echo`).
-- `capability_requirements` — what the agent may do: operation family
-  and kind, impact class, classification ceiling, authority and
-  approval traits, argument/result schemas.
-- `ceilings` — eight operational bounds (attempts, concurrency, cost,
-  depth, descendants, elapsed time, fan-out, tokens); absent is an
-  error, never infinity.
-- `classification_ceiling` — the ordinal disclosure ceiling.
-- `content_digest` — the release identity: the domain-separated
-  digest over the digest-covered members.
+The core member set is closed for protocol revision 1. The table lists every member.
 
-## Identity is the digest
+| Member | Meaning |
+|---|---|
+| `blueprint_id` | Producer-qualified identity for this Blueprint. |
+| `protocol_revision` | Revision of the artifact grammar. |
+| `producer` | Producer identity, creation metadata, and toolchain label. |
+| `release_number` | Positive integer identifying this Blueprint release. |
+| `capability_requirements` | Declared operations, schemas, impact, classification, and traits. |
+| `input_ports` | Named inputs, their schemas, classification ceilings, and required flags. |
+| `output_ports` | Named outputs, their schemas, classification ceilings, and required flags. |
+| `output_contract` | The output port and its classification ceiling. |
+| `triggers` | At least one declared trigger category. |
+| `ceilings` | Operational maxima, including cost in millionths of a currency unit. |
+| `classification_ceiling` | Highest classification declared by the Blueprint. |
+| `effect_intents` | Declared operations that may have effects. |
+| `evaluation_assertions` | Assertions describing expected evaluation properties. |
+| `extensions` | Critical and optional namespaced extension values. |
+| `required_core_fields` | Core members a consumer is asked to honor. |
+| `content_digest` | Tagged digest of the Blueprint's digest-covered content. |
+| `signatures` | Optional signature entries associated with the artifact. |
+| `attestations` | Optional additional artifact data. |
 
-Two blueprints with identical digest-covered members and identical
-canonical bytes are the same blueprint. `decode_blueprint/2` verifies
-canonicality first (non-canonical bytes deny before any semantic
-read), then structure, then the portability scan, then the declared
-digest.
+Every core member except `signatures` and `attestations` is required. A member outside the table is rejected.
 
-## Optional members
+## Cost amounts
 
-`signatures` (detached, verify-only JWS envelopes) and `attestations`
-— both excluded from the digest input; both evidence, never
-authority.
+Every `max_cost.amount` is an integer count of millionths of the currency unit named by `currency`. The scale does not follow a currency's minor-unit exponent.
 
-## The blueprint card (a derived projection)
+In the example, `amount: 1000` and `currency: "USD"` represent 0.001 USD. Values stay integers, so verifiers do not need floating-point arithmetic.
 
-For discovery and display contexts a small "card" can be derived from
-a verified blueprint — the identity and the digest, nothing more. The
-card is NOT an artifact: it asserts nothing the blueprint does not,
-carries the digest precisely so any reader can bind the summary back
-to the exact verified bytes, and is never conforming on its own
-(partial conformance is not conformance). Derive from bytes you
-verified, or treat a received card as unverified display data:
+## Example
 
-```elixir
-bytes = File.read!("examples/echo-blueprint.json")
-{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
-digest = AgentBlueprintProtocol.Blueprint.content_digest(blueprint)
-{:ok, {:object, members}} = AgentBlueprintProtocol.Json.decode(bytes)
-{"blueprint_id", {:string, id}} = List.keyfind(members, "blueprint_id", 0)
-card = %{"blueprint_id" => id, "content_digest" => AgentBlueprintProtocol.Digest.to_tagged(digest)}
-card["blueprint_id"] # => "example.demo/echo"
-card["content_digest"] # => "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8"
+This is the complete shipped example from [examples/echo-blueprint.json](../examples/echo-blueprint.json).
+
+```json
+{"blueprint_id":"example.demo/echo","capability_requirements":[{"approval_trait":"none","argument_schema":{"type":"object"},"authority_trait":"none","classification_ceiling":"internal","impact_class":"ordinary","operation_family":"example.demo.read_shape","operation_kind":"read","result_schema":{"type":"object"}}],"ceilings":{"max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},"classification_ceiling":"internal","content_digest":"sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8","effect_intents":[{"impact_class":"ordinary","logical_operation":"record_summary","operation_kind":"mutation"}],"evaluation_assertions":[{"kind":"output_schema","port":"result","schema":{"type":"object"}}],"extensions":{"critical":{},"optional":{}},"input_ports":[{"classification_ceiling":"internal","name":"request","required":true,"schema":{"type":"object"}}],"output_contract":{"classification_ceiling":"internal","port":"result"},"output_ports":[{"classification_ceiling":"internal","name":"result","required":true,"schema":{"type":"object"}}],"producer":{"created_at":"2026-08-20T00:00:00Z","identity":"example.demo","toolchain":"example.demo.toolchain"},"protocol_revision":1,"release_number":1,"required_core_fields":[],"triggers":["manual"]}
 ```
+
+The creation timestamp is fixed example data. It is not the current time.
+
+## Next steps
+
+- [Compose and sign a Blueprint](compose-and-sign.md)
+- [Read the complete protocol](../spec/protocol.md#2-artifacts-and-the-closed-world)
+- [Review the shipped examples](examples.md)

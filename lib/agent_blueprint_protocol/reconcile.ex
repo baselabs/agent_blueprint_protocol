@@ -1,56 +1,38 @@
 defmodule AgentBlueprintProtocol.Reconcile do
   @moduledoc """
-  The one call per import : the composed
-  non-authorizing pass over a Blueprint + Deployment pair under host
-  inputs. Stage order is PINNED — canonical → digest → negotiation →
-  structure → portability → signatures → bind → bounds — each stage
-  reject-or-annotate, never repair, the earliest defect reported.
+    This module runs the composed verification pass for a Blueprint and Deployment pair.
 
-  Stage machinery (each denies typed, subject naming its side):
+    Use it when an application needs one Evidence result for a pair and host inputs.
 
-  1. `canonical` — re-encode both artifacts' values (RFC 8785). A struct
-     has no bytes to compare against, so this stage catches only what
-     ENCODE denies: the ceiling family (`{:ceiling, :bytes}` — the
-     `:canonical_bytes_exceeded` name),
-     `:integer_magnitude` (a hand-built above-I-JSON integer), and the
-     encode-side Json reasons. `:non_canonical_bytes` is decode-time only
-     (it needs the original bytes).
-  2. `digest` — recompute each artifact's content digest over its covered
-     members and compare against the declared member (`:digest_mismatch`).
-  3. `negotiation` — both artifacts against `Inputs.support`. Extension
-     facts land as checks: a quarantined optional namespace is
-     `%{surface: :extensions, verified: false}` (the unscanned
-     honesty), a retained one `%{surface: :extensions, verified: false,
-     detail: :retained}`. Notices stay in the `Negotiation.Outcome` for
-     standalone callers — the frozen Evidence struct has no notices field.
-  4. `structure` — `Registry` validation against each artifact's table
-     (the closed world, cardinalities, member checks).
-  5. `portability` — the DIRECT scans under the authored channel
-     re-derived from THIS import's negotiated critical extensions:
-     non-authored extension bodies, eligibility expressions, every core
-     string, and signature key_ids (`:forbidden_portable_value`). The
-     registry half of the decode pipeline is NOT re-run here — it is
-     stage 4's own catch, and re-running it would make that stage's
-     guard unobservable.
-  6. `signatures` — every `signatures` entry verifies against
-     `Inputs.keys` AND its signed `content_digest` BINDS to the
-     artifact's recomputed digest: an honestly-signed statement naming a
-     different digest is evidence over THAT digest, not this artifact
-     (`:digest_mismatch`). Attestations need no pass here — the registry
-     table denies any non-empty attestation member today (the kind
-     registry is empty; the fail-closed posture).
-  7. `bind` — `Deployment.verify_binding/3` under `Inputs.observations`
-     (host clock, attestation age, observed descriptor digests).
-  8. `bounds` — `from_blueprint`/`from_deployment`/host intersected under
-     `Inputs.protected_clamp`. Every clamp lands as `Evidence.clamps` and
-     as one `surface: :bounds` check whose detail is the
-     `%ClampEvidence{}`; `:clamp_applied` remains the notice code for the
-     notice machinery (a clamp notice cannot ride the
-     negotiation Outcome — bounds runs after it).
+    This module does not authorize operations.
 
-  The result is `%Evidence{}` — never a decision; `not_verified` names
-  the seven host-owned surfaces by construction (`Evidence.build/1`).
+    ## Example
+
+    ```elixir
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+    {:ok, host_bounds} = AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment)
+    support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
+    inputs = %AgentBlueprintProtocol.Reconcile.Inputs{
+      host_bounds: host_bounds,
+      support: support,
+      keys: [],
+      protected_clamp: :acknowledge,
+      observations: %AgentBlueprintProtocol.Deployment.Observations{}
+    }
+    match?(
+      {:ok, %AgentBlueprintProtocol.Evidence{}},
+      AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
+    )
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{
     Blueprint,
@@ -73,16 +55,33 @@ defmodule AgentBlueprintProtocol.Reconcile do
 
   defmodule Inputs do
     @moduledoc """
-    The host inputs reconcile needs: host policy bounds, negotiation
-    support, trusted public keys, the protected-clamp posture, and the
-    bind-time observations (host clock, maximum attestation age, and observed
-    descriptor digests). Build-identity compatibility is a separate check
-    through `verify_compatibility/2`.
-    Reconcile inputs are caller-supplied facts that carry no authority.
+      This struct carries the host inputs used by reconcile.
+
+      Use it when assembling values for a reconcile call.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      {:ok, host_bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+      support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
+      %AgentBlueprintProtocol.Reconcile.Inputs{
+        host_bounds: host_bounds,
+        support: support,
+        keys: [],
+        protected_clamp: :acknowledge,
+        observations: %AgentBlueprintProtocol.Deployment.Observations{}
+      }
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [:host_bounds, :support, :keys, :protected_clamp, :observations]
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Reconcile.Inputs.
+    """
     @type t :: %__MODULE__{
             host_bounds: BoundSet.t(),
             support: Support.t(),
@@ -94,13 +93,21 @@ defmodule AgentBlueprintProtocol.Reconcile do
 
   @postures [:deny, :acknowledge]
 
-  @doc """
-  Run the eight-stage composed pass. Denies typed at the earliest failing
-  stage; every malformed input shape (either artifact, or any Inputs
-  field) denies typed without raising.
-  """
   @spec reconcile(Blueprint.t(), Deployment.t(), Inputs.t()) ::
           {:ok, Evidence.t()} | {:error, Error.t()}
+  @doc """
+    Runs the composed verification pass for a Blueprint and Deployment pair.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:error, %AgentBlueprintProtocol.Error{}},
+      AgentBlueprintProtocol.Reconcile.reconcile(nil, nil, nil)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def reconcile(%Blueprint{} = blueprint, %Deployment{} = deployment, %Inputs{} = inputs) do
     with :ok <- check_inputs(inputs) do
       run_stages(blueprint, deployment, inputs)

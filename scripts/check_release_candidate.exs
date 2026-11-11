@@ -150,10 +150,12 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "federation-validate-skip",
       path: "lib/agent_blueprint_protocol/federation.ex",
-      from:
-        "    with {:ok, value} <- Canonicalization.verify(binary, bounds),\n         :ok <- Registry.validate(table(), value),\n         :ok <- scan(value) do\n      {:ok, %__MODULE__{value: value}}\n    else\n      {:error, %Error{} = error} -> {:error, error}\n    end\n  end\n\n  def decode(_, _), do: {:error, %Error{code: :invalid_type, subject: [\"federation_envelope\"]}}\n\n  @doc \"\"\"\n  Validate an already-decoded tagged value (registry walk + portability\n  pass; no canonicality \u2014 there are no bytes). The codec reconstruction\n  path; values from the wire go through `decode/2`.\n  \"\"\"\n  @spec from_value(Json.value()) :: {:ok, t()} | {:error, Error.t()}\n  def from_value({:object, _} = value) do\n    with :ok <- bounded_shape(value),\n         :ok <- Registry.validate(table(), value),\n         :ok <- scan(value) do\n",
-      to:
-        "    with {:ok, value} <- Canonicalization.verify(binary, bounds),\n         :ok <- :ok,\n         :ok <- scan(value) do\n      {:ok, %__MODULE__{value: value}}\n    else\n      {:error, %Error{} = error} -> {:error, error}\n    end\n  end\n\n  def decode(_, _), do: {:error, %Error{code: :invalid_type, subject: [\"federation_envelope\"]}}\n\n  @doc \"\"\"\n  Validate an already-decoded tagged value (registry walk + portability\n  pass; no canonicality \u2014 there are no bytes). The codec reconstruction\n  path; values from the wire go through `decode/2`.\n  \"\"\"\n  @spec from_value(Json.value()) :: {:ok, t()} | {:error, Error.t()}\n  def from_value({:object, _} = value) do\n    with :ok <- bounded_shape(value),\n         :ok <- :ok,\n         :ok <- scan(value) do\n",
+      # Both the byte decode and the value path skip registry validation;
+      # the anchor is the validation line itself, so documentation edits
+      # beside it never move the plant.
+      from: "         :ok <- Registry.validate(table(), value),\n",
+      to: "         :ok <- :ok,\n",
+      occurrences: 2,
       command: ~w(mix test test/architecture/federation_shape_test.exs)
     },
     %{

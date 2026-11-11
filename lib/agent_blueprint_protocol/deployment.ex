@@ -1,78 +1,19 @@
 defmodule AgentBlueprintProtocol.Deployment do
   @moduledoc """
-  The Deployment Manifest artifact (protocol §2, re-derived 2026-08-22): binds
-  exactly ONE Blueprint release digest to one local environment — portable
-  as a shape, resolved values local. Decoded and validated through the ONE
-  generic field-registry engine (the internal registry engine)
-  parameterized by this module's 19-member table : the table, the
-  scan's open regions, and the digest domain are the only deltas from the
-  Blueprint pipeline.
+    This module decodes and validates Deployment Manifest artifacts.
 
-  The decode pipeline, in order, each stage fail-closed:
+    Use it when reading a manifest or checking its relation to a Blueprint.
 
-  1. `Canonicalization.verify/2` — non-canonical spellings deny
-     `:non_canonical_bytes` before any semantic read (the canonicality ordering).
-  2. structure validation against the internal member table — closed world
-     (`:unknown_member`), 16 required members, tag-strict integer typing,
-     enums, cardinalities (tool_bindings ≤ 128, data_bindings ≤ 64,
-     build_identities ≥ 1 and ≤ 128 — an empty identity manifest pins
-     nothing), the
-     exact-only build-identity versions (`:compatibility_identity_inexact`
-     on any range vocabulary), and the per-member custom checks (tagged
-     digests, Z-form timestamps, the lifecycle temporal rules
-     `:lifecycle_state_invalid`, the `as_of` total rule).
-  3. The portability scan — extension bodies and eligibility expressions
-     are the open regions (`Portability.scan` / `scan_authored`); every
-     other string position — including every `adapter_identity` and
-     `profile_identity` — is value-shape scanned strict: a network URI, PEM
-     armour, a JWS shape, or raw-key entropy denies
-     `:forbidden_portable_value`.
-  4. The content-digest comparison over the covered members' canonical
-     bytes under the `:deployment_content` domain — everything except
-     `deployment_digest`, `signatures`, `attestations`.
+    This module does not authorize operations.
 
-  ## The binding surface
+    ## Example
 
-  `binds?/2` is digest equality AND NOTHING ELSE (protocol §2's binding rule):
-  the declared release digest against the paired Blueprint's RECOMPUTED
-  content digest — never the declared member — via constant-time compare.
-  Total over the deployment side: malformed deployment input answers
-  `false`, including malformed hand-built Blueprint values.
-
-  `verify_binding/3` is the six-stage deny set, order pinned (the second-language
-  verifier contract):
-
-  1. release digest equality → `:deployment_digest_mismatch`
-  2. release identity → `:binding_incomplete` (the deployment names a
-     different `blueprint_id`/`release_number` than the Blueprint it digests)
-  3. tool-binding completeness → `:binding_incomplete` (a bound
-     `logical_operation` absent from the Blueprint's capability families
-     AND effect intents)
-  4. mutation/recovery → `:no_authoritative_recovery` (a binding whose
-     operation resolves to `mutation` under `recovery: "none"`; a name in
-     both sources with disagreeing kinds takes the stricter reading)
-  5. attestation staleness → `:binding_attestation_stale` (`age > max` or a
-     FUTURE `attested_at` — the host's clock is authoritative; fail-closed)
-  6. observed rug-pull → `:binding_descriptor_mismatch` (the host's
-     observed descriptor digest vs the attested one)
-
-  Stages 5-6 run only on the host observations that feed them: `now: nil`
-  skips EVERY staleness judgment including the future-deny; an empty
-  `observed` map skips the rug-pull. That is the host's governance choice —
-  the parameters are host observations; decode-time integrity is never
-  skippable. Reconciliation lists skipped observations in `not_verified`.
-
-  ## Honest limits
-
-  Eligibility expressions are host policy DSLs: member names are
-  denylist-scanned (`tenant_id`, `user_id`, … deny at any depth) but
-  VALUES carry the authored exemption — a resolved principal UUID passes
-  every scan mode (shape-exempt; undecidable-by-scan — necessary, not
-  sufficient, same posture as extension bodies). Timestamps are Z-form
-  whole-second RFC3339: sub-second attestations are unrepresentable, so
-  `max_attestation_age_ms` is effectively second-granular.
-  A Deployment Manifest is an inert binding description — it never authorizes execution.
+    ```elixir
+    bytes = File.read!("examples/echo-deployment.json")
+    match?({:ok, %AgentBlueprintProtocol.Deployment{}}, AgentBlueprintProtocol.Deployment.decode(bytes))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{
     Blueprint,
@@ -142,22 +83,38 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   defstruct [:value]
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Deployment.
+  """
   @type t :: %__MODULE__{value: Json.value()}
+  @typedoc """
+    A typed error returned by AgentBlueprintProtocol.Deployment.
+  """
   @type reason :: AgentBlueprintProtocol.Error.t()
 
   # ---- observations -------------------------------------------------------------------
 
   defmodule Observations do
     @moduledoc """
-    The host-supplied inputs to `verify_binding/3`'s observation-gated
-    stages: the host clock, the host's maximum tolerable attestation age,
-    and the currently OBSERVED descriptor digests by logical operation.
-    Absent inputs skip exactly their stages — see `Deployment`'s moduledoc.
-    Observed facts are host-supplied records that carry no authority.
+      This struct carries host observations used by Deployment binding checks.
+
+      Use it when passing available observation data to the binding verifier.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Deployment.Observations{observed: %{}}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct now: nil, max_attestation_age_ms: nil, observed: %{}
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Deployment.Observations.
+    """
     @type t :: %__MODULE__{
             now: DateTime.t() | nil,
             max_attestation_age_ms: pos_integer() | nil,
@@ -393,13 +350,33 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   # ---- decode ----------------------------------------------------------------------
 
-  @doc """
-  Decode and fully verify artifact `bytes`: canonical verify → registry
-  validation → portability scan → content-digest comparison. Total and
-  never-raising.
-  """
   @spec decode(binary(), Bounds.t() | map()) ::
           {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Decodes canonical JSON bytes and validates the Deployment contents and digest.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:ok, %AgentBlueprintProtocol.Deployment{}},
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+    )
+    ```
+
+    ```elixir
+    match?(
+      {:ok, %AgentBlueprintProtocol.Deployment{}},
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json"),
+        AgentBlueprintProtocol.Bounds.maximum()
+      )
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def decode(binary, bounds \\ Bounds.maximum())
 
   def decode(binary, bounds) when is_binary(binary) do
@@ -417,21 +394,37 @@ defmodule AgentBlueprintProtocol.Deployment do
   # symmetrically to the artifact decoders).
   def decode(_binary, _bounds), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Validate an already-decoded tagged value (stages 2-3; no canonicality —
-  there are no bytes, so the canonicality ordering obligation does not apply here).
-  For values that came from verified bytes, follow with
-  `verify_content_digest/1` — this function does NOT check the declared
-  digest. `opts` carries `:authored_extensions` — namespaces
-  whose critical bodies negotiation validated against a digest-pinned host
-  schema (the validated-extension channel). Those bodies skip the portability value-shape
-  heuristics; the channel is tied to THIS artifact's critical region, and
-  the default (`[]`) keeps the strict posture everywhere.
-  The caller is responsible for this provenance; the constructor checks only
-  that the supplied namespaces occur in this artifact's critical region.
-  `Reconcile.reconcile/3` derives the list from the current negotiation.
-  """
   @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Validates a tagged JSON value and wraps it in a Deployment struct.
+
+    ## Example
+
+    ```elixir
+    {:ok, value} =
+      AgentBlueprintProtocol.Json.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    match?(
+      {:ok, %AgentBlueprintProtocol.Deployment{}},
+      AgentBlueprintProtocol.Deployment.from_value(value)
+    )
+    ```
+
+    ```elixir
+    {:ok, value} =
+      AgentBlueprintProtocol.Json.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    match?(
+      {:ok, %AgentBlueprintProtocol.Deployment{}},
+      AgentBlueprintProtocol.Deployment.from_value(value, %{authored_extensions: []})
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def from_value(value, opts \\ %{})
 
   def from_value(value, opts) when is_map(opts) do
@@ -450,15 +443,43 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   def from_value(_, _), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc "The held tagged value — the identity, so the round-trip is byte-exact."
   @spec to_value(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Returns the tagged JSON value held by the Deployment.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    match?({:object, _}, AgentBlueprintProtocol.Deployment.to_value(deployment))
+    ```
+  """
+  @doc since: "1.0.0"
   def to_value(%__MODULE__{value: value}), do: value
   def to_value(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # ---- the digest surface -----------------------------------------------------------
 
-  @doc "The digest input: the artifact minus the three evidence members (§8.2)."
   @spec digest_input(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Returns the Deployment fields covered by its content digest.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    match?({:object, _}, AgentBlueprintProtocol.Deployment.digest_input(deployment))
+    ```
+  """
+  @doc since: "1.0.0"
   def digest_input(%__MODULE__{value: {:object, members}}) do
     with {:ok, _bytes} <- Canonicalization.encode({:object, members}) do
       {:object, Enum.reject(members, fn {name, _} -> name in @evidence_members end)}
@@ -467,20 +488,63 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   def digest_input(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc "Whether `member_name` (a wire-level member name) is digest-covered."
   @spec digest_covered?(binary()) :: boolean()
+  @doc """
+    Reports whether a Deployment member contributes to its content digest.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Deployment.digest_covered?("tool_bindings")
+    ```
+  """
+  @doc since: "1.0.0"
   def digest_covered?(member_name) when is_binary(member_name),
     do: member_name in @covered_members
 
   def digest_covered?(_), do: false
 
-  @doc "The canonical bytes of the whole artifact."
   @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Encodes a Deployment as canonical JSON bytes.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    match?(
+      {:ok, bytes} when is_binary(bytes),
+      AgentBlueprintProtocol.Deployment.canonical_bytes(deployment)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
   def canonical_bytes(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc "The honest content digest over the covered members' canonical bytes."
   @spec content_digest(t()) :: Digest.t() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Computes the Deployment content digest.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    match?(
+      %AgentBlueprintProtocol.Digest{},
+      AgentBlueprintProtocol.Deployment.content_digest(deployment)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def content_digest(%__MODULE__{} = deployment) do
     with {:object, _} = covered <- digest_input(deployment),
          {:ok, jcs} <- Canonicalization.encode(covered) do
@@ -490,12 +554,22 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   def content_digest(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Compare the declared `deployment_digest` member against the recomputed
-  digest over the exact received (verified) bytes' canonical form:
-  `:digest_mismatch` on divergence.
-  """
   @spec verify_content_digest(t()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Checks the declared Deployment digest against its covered content.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    AgentBlueprintProtocol.Deployment.verify_content_digest(deployment)
+    ```
+  """
+  @doc since: "1.0.0"
   def verify_content_digest(%__MODULE__{value: {:object, members}} = deployment) do
     with {:ok, _} <- Canonicalization.encode({:object, members}) do
       verify_declared_digest(deployment, members)
@@ -519,15 +593,29 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   # ---- the binding surface ------------------------------------------------------------
 
-  @doc """
-  The one bound release, parsed: `%{blueprint_id, release_number,
-  content_digest}` with the digest as a `Digest.t()`. Total: a malformed or
-  absent release denies `:invalid_type` (or the digest's own reason).
-  """
   @spec bound_release(t()) ::
           {:ok,
            %{blueprint_id: binary(), release_number: pos_integer(), content_digest: Digest.t()}}
           | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Returns the Blueprint release identity recorded by the Deployment.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    match?(
+      {:ok, %{blueprint_id: id, release_number: number, content_digest: %AgentBlueprintProtocol.Digest{}}}
+      when is_binary(id) and is_integer(number),
+      AgentBlueprintProtocol.Deployment.bound_release(deployment)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def bound_release(%__MODULE__{value: {:object, members}} = deployment) do
     with {:ok, _} <- bound_tool_bindings(deployment) do
       release_of(members)
@@ -555,13 +643,27 @@ defmodule AgentBlueprintProtocol.Deployment do
     end
   end
 
-  @doc """
-  Digest equality and nothing else (protocol §2's binding rule): the declared
-  release digest against the paired Blueprint's RECOMPUTED content digest —
-  never its declared member. Total over the deployment side: malformed
-  deployment or Blueprint input answers `false`.
-  """
   @spec binds?(t(), Blueprint.t()) :: boolean()
+  @doc """
+    Reports whether the Deployment names the supplied Blueprint release.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    AgentBlueprintProtocol.Deployment.binds?(deployment, blueprint)
+    ```
+  """
+  @doc since: "1.0.0"
   def binds?(%__MODULE__{} = deployment, %Blueprint{} = blueprint) do
     with {:ok, release} <- bound_release(deployment),
          %Digest{} = expected <- Blueprint.content_digest(blueprint) do
@@ -573,15 +675,32 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   def binds?(_, _), do: false
 
-  @doc """
-  The bind-time deny set (order pinned; see the moduledoc): stage 0 validates
-  the deployment's own shape — a non-object root, DUPLICATE root members
-  (first-wins reads must never decide a binding), or a malformed
-  `tool_bindings` member DENIES before any cross-artifact judgment. Stages
-  5-6 are observation-gated — absent host inputs skip exactly their stages.
-  """
   @spec verify_binding(t(), Blueprint.t(), Observations.t()) ::
           :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Checks the Deployment binding against a Blueprint and supplied observations.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    AgentBlueprintProtocol.Deployment.verify_binding(
+      deployment,
+      blueprint,
+      %AgentBlueprintProtocol.Deployment.Observations{}
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def verify_binding(%__MODULE__{} = deployment, %Blueprint{} = blueprint, %Observations{} = obs) do
     with {:ok, bindings} <- bound_tool_bindings(deployment),
          {:ok, _} <- canonical_bytes(deployment),

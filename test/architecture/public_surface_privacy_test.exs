@@ -252,10 +252,15 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
   defp scan_repo(repo, forbidden_hmacs, key) do
     assert_full_history!(repo)
 
-    tracked_findings =
+    tracked_paths =
       repo
       |> git!(["ls-files", "-z"])
       |> String.split(<<0>>, trim: true)
+
+    tracked_findings =
+      tracked_paths
+      # Deleted paths are still scanned from reachable history below.
+      |> Enum.filter(&File.exists?(Path.join(repo, &1)))
       |> parallel(fn path ->
         forbidden?(path <> "\n" <> File.read!(Path.join(repo, path)), forbidden_hmacs, key)
       end)

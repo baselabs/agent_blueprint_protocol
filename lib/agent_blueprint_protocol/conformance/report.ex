@@ -1,19 +1,26 @@
 defmodule AgentBlueprintProtocol.Conformance.Report do
   @moduledoc """
-  The pure report builder over a loaded corpus and runner results: overall
-  agreement, exit status, counts.
+    This module builds deterministic reports from corpus results.
 
-  Refuses vacuous green: agreement requires `total > 0` AND zero
-  disagreements — an empty-but-valid corpus must never verify anything.
-  (The loader's `:corpus_empty` denial is the first refusal; this floor is
-  the second, independent one.)
+    Use it when summarizing agreement and encoding a report for a loaded corpus.
 
-  `to_bytes/2` emits deterministic JCS-canonical bytes through the package's
-  own `Canonicalization` (one canonicalizer, no second encoder) and binds
-  the run to the exact corpus loaded via its recomputed identity — two runs
-  over two different corpora can never produce identical report bytes.
-  The report states what the corpus agreed; it is not a decision.
+    This module does not authorize operations.
+
+    ## Example
+
+    ```elixir
+    files =
+      Path.wildcard("priv/conformance/**/*")
+      |> Enum.filter(&File.regular?/1)
+      |> Map.new(fn path ->
+        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+      end)
+    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+    results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
+    match?(%AgentBlueprintProtocol.Conformance.Report{}, AgentBlueprintProtocol.Conformance.Report.build(corpus, results))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{Canonicalization, Conformance.Corpus, Conformance.Runner}
 
@@ -22,6 +29,9 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
   @enforce_keys [:agreement, :exit_status, :total, :agreed, :disagreed]
   defstruct [:agreement, :exit_status, :total, :agreed, :disagreed]
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Conformance.Report.
+  """
   @type t :: %__MODULE__{
           agreement: boolean(),
           exit_status: 0 | 1,
@@ -30,9 +40,27 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
           disagreed: non_neg_integer()
         }
 
-  @doc "Builds the agreement report from the loaded corpus and runner results."
   @spec build(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) ::
           t() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Summarizes the outcomes for each case in a loaded corpus.
+
+    ## Example
+
+    ```elixir
+    files =
+      Path.wildcard("priv/conformance/**/*")
+      |> Enum.filter(&File.regular?/1)
+      |> Map.new(fn path ->
+        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+      end)
+
+    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+    results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
+    match?(%AgentBlueprintProtocol.Conformance.Report{}, AgentBlueprintProtocol.Conformance.Report.build(corpus, results))
+    ```
+  """
+  @doc since: "1.0.0"
   def build(%Corpus{}, results) when is_list(results) do
     if results_ok?(results),
       do: build_results(results),
@@ -72,9 +100,30 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
     }
   end
 
-  @doc "Emits deterministic JCS-canonical report bytes, identity-bound."
   @spec to_bytes(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) ::
           {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Encodes the report as canonical JSON bytes.
+
+    ## Example
+
+    ```elixir
+    files =
+      Path.wildcard("priv/conformance/**/*")
+      |> Enum.filter(&File.regular?/1)
+      |> Map.new(fn path ->
+        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+      end)
+
+    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+    results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
+    match?(
+      {:ok, bytes} when is_binary(bytes),
+      AgentBlueprintProtocol.Conformance.Report.to_bytes(corpus, results)
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def to_bytes(%Corpus{identity: identity} = corpus, results) do
     with %__MODULE__{} = report <- build(corpus, results) do
       encode_report(identity, report)

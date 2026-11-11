@@ -1,67 +1,26 @@
 defmodule AgentBlueprintProtocol.Negotiation do
   @moduledoc """
-  Negotiation: the evolution gate an importing host runs
-  after canonical verification, before any semantic read. In a standalone
-  pass it runs immediately after canonical verification; in the composed
-  import (`Reconcile.reconcile/3`) the pinned stage order is
-  `canonical → digest → negotiation → structure → portability →
-  signatures → bind → bounds` — the digest stage runs BEFORE negotiation
-  (the supersession of the "integrity last" ordering).
+    This module checks an artifact against a consumer support posture.
 
-  Negotiate reads ONLY protocol machinery — `protocol_revision`,
-  `required_core_fields`, the `extensions` envelope — never semantic
-  members. Malformed machinery values reuse `Blueprint`'s decode reason
-  rules so both entry points agree (absent → `:missing_required_field`,
-  wrong tag → `:invalid_type`, revision < 1 → `:invalid_constraint`; the
-  retired `:protocol_revision_invalid` stays retired). Internal
-  precedence is PINNED: revision → required_core_fields → extensions —
-  an artifact failing several stages reports the earliest.
+    Use it when checking revision, required core fields, and registered extensions.
 
-  Revision support is an explicit SET (`Support.revisions`, never ranges);
-  a miss denies `:protocol_revision_unsupported` (above-max and below-min
-  are the same miss). `Outcome.protocol_revision` is the artifact's own,
-  exact — never negotiated down.
+    This module does not authorize operations.
 
-  `required_core_fields` runs three fail-closed checks in order: known
-  (`:required_core_field_unsupported`) → digest-covered
-  (`:required_core_field_not_digest_covered`) → supported by this
-  consumer (`:required_core_field_unsupported`).
+    ## Example
 
-  Extensions run the positional state machine (criticality match before
-  state handling for LIVE states; reserved/retired labels check state
-  first — held and dead labels do not enforce criticality; every
-  state × position cell decided):
-
-  | registry state    | artifact critical            | artifact optional              |
-  |-------------------|------------------------------|--------------------------------|
-  | unregistered      | deny `:extension_unknown_critical` | QUARANTINE (byte-exact, noticed) |
-  | criticality mismatch | deny `:extension_criticality_conflict` | deny `:extension_criticality_conflict` |
-  | active matching   | supported                    | retained, executable            |
-  | deprecated        | supported + notice           | retained + notice               |
-  | retired           | deny `:extension_retired`    | retained + notice               |
-  | reserved          | deny `:extension_unknown_critical` | retained + notice            |
-
-  Quarantined namespaces round-trip byte-exactly and are NEVER claimed
-  scanned-or-portable beyond what the structural denylists check.
-
-  Critical bodies validate ONLY against a host-supplied schema whose
-  digest matches the registry's pin: none supplied (or the registry entry
-  has none authored) → `:extension_schema_unavailable`; digest mismatch →
-  `:extension_schema_digest_mismatch`; match → `Schema.validate_instance`
-  over the body. Validated critical namespaces are the legitimate channel
-  for encoded content — thread them into `Blueprint.from_value/2`'s
-  `:authored_extensions` option.
-
-  A reserved-semantics denylist runs over ALL extension bodies (any
-  depth, camelCase twins included): bound-shaped member names deny
-  `:extension_payload_forbidden` — the bound-vocabulary smuggling the
-  portability scan cannot see.
-
-  `negotiate/2` also accepts `%Blueprint{}` (reads `to_value`): a struct
-  from `from_value` carries no integrity proof — outcomes derive from the
-  given content.
-  Negotiation reports what a support posture accepts; it never authorizes an operation.
+    ```elixir
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+    support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
+    match?(
+      {:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}},
+      AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support)
+    )
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{
     Blueprint,
@@ -161,19 +120,27 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
   defmodule Support do
     @moduledoc """
-    The consumer's negotiation posture: the revision SET it supports, the
-    core fields it implements, an optional HOST-PINNED registry view
-    (`%{namespace => ExtensionRegistry.t()}` layered over the compiled
-    registry — hosts may supply lifecycle states, never remove compiled
-    entries), and the host-supplied schemas for critical namespaces
-    (`%{namespace => schema_document}`).
-    A support posture is a consumer's declaration that carries no authority.
+      This struct describes the revisions and core fields a consumer supports.
+
+      Use it when supplying the consumer posture to negotiation.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     alias AgentBlueprintProtocol.ExtensionRegistry
 
     defstruct revisions: MapSet.new(), core_fields: MapSet.new(), registry: %{}, schemas: %{}
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Negotiation.Support.
+    """
     @type t :: %__MODULE__{
             revisions: MapSet.t(integer()),
             core_fields: MapSet.t(binary()),
@@ -184,13 +151,19 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
   defmodule Outcome do
     @moduledoc """
-    The negotiation result: the exact artifact revision, the honored
-    required-core-field list, the supported critical / retained optional /
-    quarantined namespaces, and open notice names (known values include
-    `:extension_deprecated` and `:extension_unknown_optional_retained`). Unknown
-    notices establish no familiar fact; consumers keep a default branch.
-    The outcome lists facts about revisions and extensions — it is not a decision.
+      This struct contains the result of a negotiation check.
+
+      Use it when reading the supported revision and extension outcomes.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Negotiation.Outcome{protocol_revision: 1, required_core_fields: [], critical_extensions: [], optional_retained: [], quarantined_extensions: [], notices: []}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [
       :protocol_revision,
@@ -201,6 +174,9 @@ defmodule AgentBlueprintProtocol.Negotiation do
       :notices
     ]
 
+    @typedoc """
+      The negotiation result. Notice values may grow, so match known names and keep a catch-all branch.
+    """
     @type t :: %__MODULE__{
             protocol_revision: integer(),
             required_core_fields: [binary()],
@@ -213,6 +189,15 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
   @spec negotiate(Blueprint.t() | Deployment.t() | Json.value(), Support.t()) ::
           {:ok, Outcome.t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Checks an artifact against a consumer support posture.
+
+    ## Example
+
+        iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!("examples/echo-blueprint.json")), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support))
+        true
+  """
+  @doc since: "1.0.0"
   def negotiate(%Blueprint{} = blueprint, support),
     do: negotiate(Blueprint.to_value(blueprint), support)
 

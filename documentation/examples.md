@@ -1,114 +1,114 @@
-# The examples gallery
+# Examples
 
-Complete, corpus-verified artifact pairs under `examples/` — every
-example is a byte-exact conformance corpus case (the gallery gate
-proves it against the corpus on every build; a drifted example reds).
+This guide is for readers who want to inspect valid protocol artifacts. You will see the JSON for every shipped example and learn how to verify each one.
 
-## echo (blueprint + deployment)
+The examples are stored under examples/. Their files are the source for the JSON shown here.
+Timestamp values shown in these examples are fixed artifact data, not readings from the current clock.
 
-The minimal valid pair: `echo-blueprint.json` + `echo-deployment.json`.
+From the repository root, start `iex -S mix`. Run each Elixir block below in that session.
 
-### The blueprint, member by member
+## Echo Blueprint
 
-- `blueprint_id` (`example.demo/echo`) — the producer-qualified
-  identity: producer `example.demo`, capability `echo`.
-- `capability_requirements` — one requirement: operation family
-  `example.demo.read_shape`, kind `read`, impact `ordinary`,
-  classification ceiling `internal`, authority and approval traits
-  `none`, with argument and result schemas.
-- `ceilings` — all eight operational bounds present, none absent
-  (absent is an error, never infinity).
-- `input_ports` / `output_ports` / `output_contract` — the typed
-  surface: a `request` port in, a `result` port out, ceiling `internal`.
-- `classification_ceiling` (`internal`) — the artifact-wide
-  disclosure ceiling.
-- `effect_intents` — one declared effect: `record_summary`, kind
-  `mutation`, impact `ordinary`. This is the effect the deployment's
-  `effect_owner` binding exists to own.
-- `evaluation_assertions` — an output-schema assertion on the `result`
-  port.
-- `triggers` (`["manual"]`) — how execution starts.
-- `producer` — identity, Z-form timestamp, toolchain.
-- `protocol_revision` (1), `release_number` (1) — the revision line.
-- `extensions` (`{"critical":{},"optional":{}}`) — the empty envelope.
-- `required_core_fields` (`[]`) — no extra requirements declared.
-- `content_digest` — the release identity over the digest-covered
-  members.
+This Blueprint declares one read capability, one input port, one output port, and operational ceilings. Its cost amount is expressed in millionths of USD.
 
-### The deployment, member by member
-
-- `protocol_revision` (1) — the revision line, digest-covered.
-- `blueprint_release` — the exact binding: the echo blueprint's id,
-  release, and content digest. Digest equality only.
-- `scope_projection` — the adapter the deployment projects onto.
-- `tool_bindings` — the read_shape operation bound to an adapter with
-  descriptor and schema digests (rug-pull guards).
-- `data_bindings` — the `shape_orders` dataset, classification
-  `internal`, freshness `required` within 24h.
-- `authority_requirement` / `effect_owner` — the authority profile and
-  the effect-owning adapter with host-derived idempotency and
-  authoritative recovery.
-- `signer_custody` (`host_managed`), `eligibility` (predicate
-  expressions), `model_policy`, `host_bounds`, `lifecycle`
-  (`active`), `build_identities` (exact version + digest per input),
-  `evaluation_binding` (the evaluation corpus by digest),
-  `extensions`, `required_core_fields`, `deployment_digest`.
-
-## signed (producer-signed blueprint)
-
-`signed-blueprint.json` — the echo blueprint carrying its `signatures`
-member: a detached-JWS Ed25519 envelope (RFC 7797 unencoded payload,
-`kid` bound to the signed `key_id`, `purpose` "blueprint") over the
-SAME `content_digest` as the unsigned golden — evidence members are
-digest-excluded, so signing never changes the digest it covers.
-Decode admits the member through the closed world; cryptographic
-verification is the signature surface and reconcile's signature stage
-(see the [producer signing recipe](producer.md) — it mirror-verifies
-an envelope of exactly this shape).
-
-```elixir
-{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!("examples/signed-blueprint.json"))
-{:ok, same} = AgentBlueprintProtocol.canonical_bytes(blueprint)
-same == File.read!("examples/signed-blueprint.json") # => true
+```json
+{"blueprint_id":"example.demo/echo","capability_requirements":[{"approval_trait":"none","argument_schema":{"type":"object"},"authority_trait":"none","classification_ceiling":"internal","impact_class":"ordinary","operation_family":"example.demo.read_shape","operation_kind":"read","result_schema":{"type":"object"}}],"ceilings":{"max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},"classification_ceiling":"internal","content_digest":"sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8","effect_intents":[{"impact_class":"ordinary","logical_operation":"record_summary","operation_kind":"mutation"}],"evaluation_assertions":[{"kind":"output_schema","port":"result","schema":{"type":"object"}}],"extensions":{"critical":{},"optional":{}},"input_ports":[{"classification_ceiling":"internal","name":"request","required":true,"schema":{"type":"object"}}],"output_contract":{"classification_ceiling":"internal","port":"result"},"output_ports":[{"classification_ceiling":"internal","name":"result","required":true,"schema":{"type":"object"}}],"producer":{"created_at":"2026-08-20T00:00:00Z","identity":"example.demo","toolchain":"example.demo.toolchain"},"protocol_revision":1,"release_number":1,"required_core_fields":[],"triggers":["manual"]}
 ```
 
-## extension (registered optional namespace)
-
-`extension-blueprint.json` — the echo blueprint carrying one
-REGISTERED optional extension,
-`com.example.commerce/classification-labels`, with a plain labeled
-body. No pinned schema applies (the registry entry carries none), so
-the body passes the generic value-shape heuristics; a supporting host
-RETAINS the namespace at negotiation, and a host without it
-quarantines the body byte-exactly without executing it — the
-extension state machine in practice.
+Decode the Blueprint and compare its canonical bytes with the file:
 
 ```elixir
-{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!("examples/extension-blueprint.json"))
-{:ok, same} = AgentBlueprintProtocol.canonical_bytes(blueprint)
-same == File.read!("examples/extension-blueprint.json") # => true
+bytes = File.read!("examples/echo-blueprint.json")
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
+{:ok, ^bytes} = AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
 ```
 
-## federation (task envelope)
+## Echo Deployment Manifest
 
-`federation-envelope.json` — the 23-member federation TaskEnvelope, the
-cross-transport task artifact that rides A2A task metadata and MCP
-`_meta` as the registered `io.github.baselabs/federation` critical extension
-(the field-by-field A2A/MCP mapping lives in the federation-mapping
-document). Like the echo pair, it is a byte-exact corpus case: what you
-read is what the corpus executes. Verify it the same way:
+This manifest records environment-specific bindings and bounds for the echo Blueprint.
+
+```json
+{"authority_requirement":{"adapter_identity":"example.adapters.authority","profile_identity":"example.profiles.read-only"},"blueprint_release":{"blueprint_id":"example.demo/echo","content_digest":"sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8","release_number":1},"build_identities":[{"digest":"sha-256:5JPgXuHZCEXmNHvHfvBfM6jAp9JiMTvqf6y3n4YchnY","kind":"package","name":"agent_blueprint_protocol","version":"0.1.0"}],"data_bindings":[{"as_of":{"max_age_ms":86400000,"mode":"required"},"classification_ceiling":"internal","logical_dataset":"shape_orders"}],"deployment_digest":"sha-256:tWFr0caS0AWFJd2UcB9gZv3kNjIUP8xZ08WWM_h8xgo","effect_owner":{"adapter_identity":"example.adapters.effects","idempotency":{"key_derivation":"host","recovery":"authoritative"}},"eligibility":{"beneficiary":{"band":"operator","kind":"beneficiary_band","policy":"example.policies/principal-bands"},"owner":{"band":"operator","kind":"owner_band","policy":"example.policies/principal-bands"},"runtime_principal":{"band":"operator","kind":"runtime_band","policy":"example.policies/principal-bands"}},"evaluation_binding":{"adapter_identity":"example.adapters.evaluations","corpus":{"digest":"sha-256:zenFB2mNSBmxJWG4DLIWcNyvFdf85m5Ic-BUmWOU02w","name":"example.corpora/echo"}},"extensions":{"critical":{},"optional":{}},"host_bounds":{"approval_trait":"none","authority_trait":"none","classification_ceiling":"internal","disclosure_ceiling":"summary","effect_impact_ceiling":"ordinary","max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},"lifecycle":{"activated_at":"2026-08-20T00:00:00Z","state":"active"},"model_policy":{"allowed_model_roles":["reasoner"],"max_cost":{"amount":500,"currency":"USD"},"max_tokens":50000},"protocol_revision":1,"required_core_fields":[],"scope_projection":{"adapter_identity":"example.adapters.scope"},"signer_custody":"host_managed","tool_bindings":[{"adapter_identity":"example.adapters.tools","attested_at":"2026-08-20T00:00:00Z","descriptor_digest":"sha-256:VpMcbixeDnkz4W6WwFyJVm3BG_n8s1jEZANpZLvZEKI","logical_operation":"example.demo.read_shape","schema_digest":"sha-256:4aRchkjuUMTF6Sm4-oCuZQkzYHP0CvJfGLFHhdjHvY0"},{"adapter_identity":"example.adapters.effects.tools","attested_at":"2026-08-20T00:00:00Z","descriptor_digest":"sha-256:VpMcbixeDnkz4W6WwFyJVm3BG_n8s1jEZANpZLvZEKI","logical_operation":"record_summary","schema_digest":"sha-256:4aRchkjuUMTF6Sm4-oCuZQkzYHP0CvJfGLFHhdjHvY0"}]}
+```
+
+Decode the Deployment Manifest and compare its canonical bytes with the file:
+
+```elixir
+bytes = File.read!("examples/echo-deployment.json")
+{:ok, deployment} = AgentBlueprintProtocol.decode_deployment(bytes)
+{:ok, ^bytes} = AgentBlueprintProtocol.Deployment.canonical_bytes(deployment)
+```
+
+## Signed Blueprint
+
+This example adds a signature entry to the echo Blueprint. Decoding checks the artifact structure and content digest. The signature verification operation also needs the public key supplied by the caller.
+
+```json
+{"blueprint_id":"example.demo/echo","capability_requirements":[{"approval_trait":"none","argument_schema":{"type":"object"},"authority_trait":"none","classification_ceiling":"internal","impact_class":"ordinary","operation_family":"example.demo.read_shape","operation_kind":"read","result_schema":{"type":"object"}}],"ceilings":{"max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},"classification_ceiling":"internal","content_digest":"sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8","effect_intents":[{"impact_class":"ordinary","logical_operation":"record_summary","operation_kind":"mutation"}],"evaluation_assertions":[{"kind":"output_schema","port":"result","schema":{"type":"object"}}],"extensions":{"critical":{},"optional":{}},"input_ports":[{"classification_ceiling":"internal","name":"request","required":true,"schema":{"type":"object"}}],"output_contract":{"classification_ceiling":"internal","port":"result"},"output_ports":[{"classification_ceiling":"internal","name":"result","required":true,"schema":{"type":"object"}}],"producer":{"created_at":"2026-08-20T00:00:00Z","identity":"example.demo","toolchain":"example.demo.toolchain"},"protocol_revision":1,"release_number":1,"required_core_fields":[],"signatures":[{"protected":{"alg":"EdDSA","b64":false,"crit":["b64"],"kid":"example-demo-signing-key"},"signature":"V3-RJiWxEcb6lKa66VHs8nFEzP91ikrkMM68aCrhuDBdUdHs1mfs5-m5vAyX0lFjfNALxjId292rwq1tiab7Cw","signed_attributes":{"algorithm":"Ed25519","content_digest":"sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8","created_at":"2026-08-20T00:00:00Z","key_id":"example-demo-signing-key","purpose":"blueprint"}}],"triggers":["manual"]}
+```
+
+Decode it and compare the canonical bytes:
+
+```elixir
+bytes = File.read!("examples/signed-blueprint.json")
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
+{:ok, ^bytes} = AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
+```
+
+This shipped signature uses the accepted `EdDSA` header spelling. The [compose guide](compose-and-sign.md) uses the preferred `Ed25519` header spelling.
+
+Run the conformance runner to exercise the shipped signature verification cases.
+
+## Extension Blueprint
+
+This example carries an optional classification-labels namespace in the extension member.
+
+```json
+{"blueprint_id":"example.demo/echo","capability_requirements":[{"approval_trait":"none","argument_schema":{"type":"object"},"authority_trait":"none","classification_ceiling":"internal","impact_class":"ordinary","operation_family":"example.demo.read_shape","operation_kind":"read","result_schema":{"type":"object"}}],"ceilings":{"max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},"classification_ceiling":"internal","content_digest":"sha-256:I8r9oR3-gt4xy6-UnmNl8aS97q6O4M6mBEl7K39bjTw","effect_intents":[{"impact_class":"ordinary","logical_operation":"record_summary","operation_kind":"mutation"}],"evaluation_assertions":[{"kind":"output_schema","port":"result","schema":{"type":"object"}}],"extensions":{"critical":{},"optional":{"com.example.commerce/classification-labels":{"labels":["pci"]}}},"input_ports":[{"classification_ceiling":"internal","name":"request","required":true,"schema":{"type":"object"}}],"output_contract":{"classification_ceiling":"internal","port":"result"},"output_ports":[{"classification_ceiling":"internal","name":"result","required":true,"schema":{"type":"object"}}],"producer":{"created_at":"2026-08-20T00:00:00Z","identity":"example.demo","toolchain":"example.demo.toolchain"},"protocol_revision":1,"release_number":1,"required_core_fields":[],"triggers":["manual"]}
+```
+
+Decode it and compare the canonical bytes:
+
+```elixir
+bytes = File.read!("examples/extension-blueprint.json")
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
+{:ok, ^bytes} = AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
+```
+
+## Federation TaskEnvelope
+
+This JSON excerpt comes from the shipped Federation TaskEnvelope. It is not a complete envelope. Its namespace and carrier fields are described in the [federation guide](federation.md).
+
+```json
+{
+  "task_identity": "task-7f3a2c",
+  "terminal_state": "completed",
+  "evidence_receipt": {
+    "terminal_commitment": "sha-256:BshcxIagBOfO1pAFNXbJY5qIFIHhl2lMyq6lIhH8Pfo"
+  }
+}
+```
+
+Decode it and compare the canonical bytes:
 
 ```elixir
 bytes = File.read!("examples/federation-envelope.json")
 {:ok, envelope} = AgentBlueprintProtocol.decode_federation_envelope(bytes)
-{:ok, same} = AgentBlueprintProtocol.canonical_bytes(envelope)
-same == bytes # => true
+{:ok, ^bytes} = AgentBlueprintProtocol.Federation.canonical_bytes(envelope)
 ```
 
-## Verify the pair
+The conformance corpus separately includes valid terminal commitment and conflict cases.
 
-The examples are corpus cases, including their digests, so what you read
-is what the corpus executes. The corpus
-(including these bytes) verifies on every package build; the
-standalone kit attached to each git release tag re-runs it against the
-shipped archive.
+## Verify the corpus
+
+From the repository root, run the conformance runner to check all shipped examples and fixtures:
+
+```sh
+mix conformance.verify
+```
+
+## Next steps
+
+- [Read the concept guides](what-a-blueprint-is.md)
+- [Verify in CI](verifying-in-ci.md)
+- [Read the conformance guide](conformance.md)

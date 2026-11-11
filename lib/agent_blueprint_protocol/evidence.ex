@@ -1,36 +1,66 @@
 defmodule AgentBlueprintProtocol.Evidence do
   @moduledoc """
-  The evidence record : the non-authorizing result of
-  a verification pass — per-surface checks, effective bounds, clamp
-  evidence, and extension facts.
+    This struct records checks and facts produced by verification.
 
-  Evidence is not a decision. `not_verified` is mandatory and always
-  non-empty: `build/1` unions in the seven host-owned surfaces this
-  protocol structurally cannot establish — tenancy, live policy,
-  authority, effect ownership, execution, billing, evaluation truth — so a
-  caller cannot read an `%Evidence{}` and conclude "everything is fine".
-  The seven are a module constant computed in at construction, never
-  passed; callers may only add surfaces they also did not establish.
+    Use it when inspecting results of compatibility or reconcile operations.
 
-  The `defstruct` stays public-shaped (a struct is forgeable like any
-  struct — the same ruling as the struct-bypass rim): the constructor's
-  typed denials cover every malformed input shape, and the property lane
-  pins the seven-atom law over every path the package produces.
+    This module does not authorize operations.
+
+    ## Example
+
+    ```elixir
+    match?({:ok, %AgentBlueprintProtocol.Evidence{}}, AgentBlueprintProtocol.Evidence.build())
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{BoundsAlgebra, Digest, Error}
 
   defmodule Signatures do
-    @moduledoc "Verified signer identities, supplied as evidence carrying no authority."
+    @moduledoc """
+      This struct lists key identities reported by signature verification.
+
+      Use it when reading signature detail in an Evidence check.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Evidence.Signatures{key_ids: []}
+      ```
+    """
+    @moduledoc since: "1.0.0"
     @enforce_keys [:key_ids]
     defstruct [:key_ids]
+
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Evidence.Signatures.
+    """
     @type t :: %__MODULE__{key_ids: [binary()]}
   end
 
   defmodule Binding do
-    @moduledoc "Binding checks performed and skipped. Known values include `:release_binding`, `:binding_completeness`, `:effect_recovery`, `:binding_descriptors`, and `:binding_staleness`. Future check kinds and detail variants are additive; this evidence grants no authority."
+    @moduledoc """
+      This struct records binding checks and surfaces left unverified.
+
+      Use it when reading binding detail in an Evidence check.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Evidence.Binding{checked: [], not_verified: []}
+      ```
+    """
+    @moduledoc since: "1.0.0"
     @enforce_keys [:checked, :not_verified]
     defstruct [:checked, :not_verified]
+
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Evidence.Binding.
+    """
     @type t :: %__MODULE__{checked: [atom()], not_verified: [atom()]}
   end
 
@@ -47,7 +77,9 @@ defmodule AgentBlueprintProtocol.Evidence do
     not_verified: []
   ]
 
-  @typedoc "Open evidence checks. Known surfaces include `:digest`, `:signatures`, `:bind`, and `:bounds`; known details include `Signatures`, `Binding`, clamp evidence, digests, and notice atoms. Unknown kinds or detail variants establish no familiar fact."
+  @typedoc """
+    A check record. Detail variants may grow, so match known forms and keep a catch-all branch.
+  """
   @type check :: %{
           surface: atom(),
           subject: [binary() | non_neg_integer()],
@@ -55,6 +87,9 @@ defmodule AgentBlueprintProtocol.Evidence do
           detail: term()
         }
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Evidence.
+  """
   @type t :: %__MODULE__{
           protocol_revision: pos_integer() | nil,
           blueprint_digest: Digest.t() | nil,
@@ -66,15 +101,27 @@ defmodule AgentBlueprintProtocol.Evidence do
           not_verified: [atom()]
         }
 
-  @doc """
-  The only constructor the package uses. Accepts a keyword list or map of
-  the struct's own field names; `:not_verified` extras are UNIONED after
-  the seven host-owned atoms (duplicates collapse), never replacing them.
-  Unknown keys deny `:unknown_member` (subject is the containing surface,
-  never the forged key — an error is not an echo channel); malformed
-  `:not_verified` shapes deny `:invalid_type` with the member path.
-  """
   @spec build(keyword() | map()) :: {:ok, t()} | {:error, Error.t()}
+  @doc """
+    Creates an Evidence value from validated check results and facts.
+
+    ## Example
+
+    ```elixir
+    match?(
+      {:ok, %AgentBlueprintProtocol.Evidence{}},
+      AgentBlueprintProtocol.Evidence.build()
+    )
+    ```
+
+    ```elixir
+    match?(
+      {:ok, %AgentBlueprintProtocol.Evidence{}},
+      AgentBlueprintProtocol.Evidence.build(not_verified: [:tenancy])
+    )
+    ```
+  """
+  @doc since: "1.0.0"
   def build(attrs \\ [])
 
   def build([]), do: {:ok, %__MODULE__{not_verified: @host_owned}}

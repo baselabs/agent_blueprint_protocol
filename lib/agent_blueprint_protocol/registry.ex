@@ -3,10 +3,19 @@ defmodule AgentBlueprintProtocol.Registry do
 
   alias AgentBlueprintProtocol.Json
 
+  @typedoc """
+    A field validator that returns success or a typed protocol error.
+  """
   @type check :: (Json.value() -> :ok | {:error, AgentBlueprintProtocol.Error.t()})
+  @typedoc """
+    A root validator that checks members in a tagged JSON object.
+  """
   @type root_hook :: (%{optional(binary()) => Json.value()} ->
                         :ok | {:error, AgentBlueprintProtocol.Error.t()})
 
+  @typedoc """
+    The registry field kinds used by the internal validation table.
+  """
   @type kind ::
           :string
           | :integer
@@ -19,6 +28,9 @@ defmodule AgentBlueprintProtocol.Registry do
           | {:array, spec()}
           | {:object, %{members: [spec()]}}
 
+  @typedoc """
+    A field definition used by the internal validation table.
+  """
   @type spec :: %{
           optional(:name) => binary(),
           optional(:required) => boolean(),
@@ -30,6 +42,9 @@ defmodule AgentBlueprintProtocol.Registry do
           optional(:unique_by) => binary()
         }
 
+  @typedoc """
+    A typed error returned by a registry validator.
+  """
   @type reason :: AgentBlueprintProtocol.Error.t()
 
   @doc false

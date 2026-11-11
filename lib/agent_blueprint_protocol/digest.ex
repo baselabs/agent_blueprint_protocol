@@ -1,37 +1,37 @@
 defmodule AgentBlueprintProtocol.Digest do
   @moduledoc """
-  Tagged content digests over RFC 8785 canonical bytes.
+    This module creates, parses, and compares tagged SHA-256 digests.
 
-  The wire form is the self-identifying tagged string
-  `"sha-256:<43-char unpadded base64url>"` — a consumer never guesses the
-  algorithm or encoding from length. Preimages are domain-separated —
-  `SHA-256(separator || <<0>> || jcs_bytes)` — under the registered
-  separator for the hashing domain (protocol §5), so a digest transplanted
-  across domains never verifies.
+    Use it when computing or checking a digest over canonical bytes.
 
-  **Canonicality is the caller's contract.** `hash/2` and `verify_content/3`
-  treat the covered bytes as opaque: callers MUST pass canonical JCS bytes.
-  The enforcement point is where received bytes enter the package — the
-  artifact decode path verifies canonicality first (digests are
-  computed only over exact received bytes). This module does not re-verify,
-  so hashing never double-parses a document nor leaks the JSON reason set
-  into this vocabulary.
+    This module does not authorize operations.
 
-  The algorithm set is closed (`:sha256`); algorithm succession is a data
-  change plus a protocol revision, never a format change — an unknown tag
-  denies `:digest_algorithm_unsupported` and any malformed body denies
-  `:digest_encoding_invalid`, uniformly. SHA-256 conformance (FIPS 180-4
-  known-answer vectors) is pinned in the conformance suite.
-  A digest is an identity fact about bytes; it never authorizes anything.
+    ## Example
+
+    ```elixir
+    match?(
+      "sha-256:" <> _,
+      AgentBlueprintProtocol.Digest.to_tagged(
+        AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}")
+      )
+    )
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.Base64Url
 
   @enforce_keys [:algorithm, :bytes]
   defstruct [:algorithm, :bytes]
 
+  @typedoc """
+    The digest algorithm identifier supported by this release.
+  """
   @type algorithm :: :sha256
 
+  @typedoc """
+    A closed digest domain used to separate protocol digest inputs.
+  """
   @type domain ::
           :blueprint_content
           | :deployment_content
@@ -42,6 +42,9 @@ defmodule AgentBlueprintProtocol.Digest do
           | :conformance_report
           | :corpus_index
 
+  @typedoc """
+    The public data type for AgentBlueprintProtocol.Digest.
+  """
   @type t :: %__MODULE__{algorithm: algorithm(), bytes: <<_::256>>}
 
   @tags %{sha256: "sha-256"}
@@ -60,20 +63,32 @@ defmodule AgentBlueprintProtocol.Digest do
     corpus_index: "agent-blueprint-protocol/corpus-index"
   }
 
-  @doc "SHA-256 of `data` as a tagged digest value."
   @spec of(iodata()) :: t() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Creates a SHA-256 digest from the supplied bytes.
+
+    ## Example
+
+        iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.Digest.of("abc"))
+        true
+  """
+  @doc since: "1.0.0"
   def of(data) do
     if iodata?(data),
       do: %__MODULE__{algorithm: :sha256, bytes: :crypto.hash(:sha256, data)},
       else: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
   end
 
-  @doc """
-  Domain-separated digest over canonical JCS bytes: the protocol §5 preimage
-  `separator || <<0>> || jcs_bytes` under the registered separator for
-  `domain`. An unknown domain or malformed byte input denies `:invalid_type`.
-  """
   @spec hash(domain(), iodata()) :: t() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Creates a domain-separated digest from the supplied bytes.
+
+    ## Example
+
+        iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}"))
+        true
+  """
+  @doc since: "1.0.0"
   def hash(domain, data) do
     case Map.fetch(@separators, domain) do
       {:ok, separator} -> of([separator, <<0>>, data])
@@ -81,26 +96,32 @@ defmodule AgentBlueprintProtocol.Digest do
     end
   end
 
-  @doc ~S"""
-  The wire form `"sha-256:<43-char unpadded base64url>"`. A hand-built struct with an unknown algorithm or wrong-size bytes
-  denies `:invalid_type`.
-  """
   @spec to_tagged(t()) :: binary() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Formats a digest as its tagged wire string.
+
+    ## Example
+
+        iex> digest = AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}")
+        iex> String.starts_with?(AgentBlueprintProtocol.Digest.to_tagged(digest), "sha-256:")
+        true
+  """
+  @doc since: "1.0.0"
   def to_tagged(%__MODULE__{algorithm: :sha256 = algorithm, bytes: <<_::256>> = bytes}),
     do: Map.fetch!(@tags, algorithm) <> ":" <> Base64Url.encode(bytes)
 
   def to_tagged(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Parse a tagged digest string. A string with no colon is not a tagged
-  digest (`:digest_encoding_invalid`). A tag segment that does not exactly
-  match a registered algorithm tag denies `:digest_algorithm_unsupported` —
-  case and hyphenation variants and the empty tag included. Every body
-  defect denies `:digest_encoding_invalid` uniformly: wrong length (a
-  sha-256 body decodes to exactly 32 bytes), non-alphabet characters,
-  padding, non-canonical pad bits, extra colons.
-  """
   @spec from_tagged(binary()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Parses a tagged digest string.
+
+    ## Example
+
+        iex> match?({:ok, %AgentBlueprintProtocol.Digest{algorithm: :sha256}}, AgentBlueprintProtocol.Digest.from_tagged("sha-256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"))
+        true
+  """
+  @doc since: "1.0.0"
   def from_tagged(input) when is_binary(input) do
     case String.split(input, ":", parts: 2) do
       [tag, body] ->
@@ -116,15 +137,16 @@ defmodule AgentBlueprintProtocol.Digest do
 
   def from_tagged(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Constant-time equality over the digest bytes: the comparison accumulates
-  the XOR of every byte pair and tests once at the end, so no early exit
-  leaks the position of a difference. Length and algorithm equality are
-  checked first and may short-circuit — both are public shape, carried in
-  the tagged wire form itself. This is defense-in-depth: a digest is public
-  once tagged; the guarantee matters where one side is not yet public.
-  """
   @spec equal?(t(), t()) :: boolean()
+  @doc """
+    Compares two values for equality under this module’s rules.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Digest.equal?(AgentBlueprintProtocol.Digest.hash(:signature, "input"), AgentBlueprintProtocol.Digest.hash(:signature, "input"))
+        true
+  """
+  @doc since: "1.0.0"
   def equal?(%__MODULE__{algorithm: a1, bytes: b1}, %__MODULE__{algorithm: a2, bytes: b2}) do
     binaries? = is_binary(b1) and is_binary(b2)
     binaries? and byte_size(b1) == byte_size(b2) and a1 == a2 and xor_zero?(b1, b2, 0)
@@ -132,15 +154,17 @@ defmodule AgentBlueprintProtocol.Digest do
 
   def equal?(_, _), do: false
 
-  @doc """
-  Verify that `tagged` is the honest `hash(domain, jcs_bytes)`: parse first
-  (a malformed tagged string denies with its `from_tagged/1` reason, before
-  any comparison), then constant-time equality — a well-formed but
-  divergent digest denies `:digest_mismatch`. `jcs_bytes` are the caller's
-  canonical covered bytes (see the moduledoc contract).
-  """
   @spec verify_content(domain(), binary(), binary()) ::
           :ok | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Checks a tagged digest against the supplied content and domain.
+
+    ## Example
+
+        iex> bytes = "{}"; tagged = AgentBlueprintProtocol.Digest.hash(:blueprint_content, bytes) |> AgentBlueprintProtocol.Digest.to_tagged(); AgentBlueprintProtocol.Digest.verify_content(:blueprint_content, bytes, tagged)
+        :ok
+  """
+  @doc since: "1.0.0"
   def verify_content(domain, jcs_bytes, tagged)
       when is_map_key(@separators, domain) and is_binary(jcs_bytes) and is_binary(tagged) do
     with {:ok, declared} <- from_tagged(tagged) do

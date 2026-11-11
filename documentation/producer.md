@@ -1,77 +1,15 @@
-# The producer guide — rendering artifacts
+# Producer guide
 
-The documented per-artifact constructors ARE the producer surface:
-compose the member value, construct, digest, serialize.
+This guide is for developers who publish Blueprints and Deployment Manifests. You will find the steps for composing, signing, and checking a producer artifact.
 
-```elixir
-{:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode({:object, [{"a", {:integer, 1}}]})
-AgentBlueprintProtocol.Json.decode(bytes) # => {:ok, {:object, [{"a", {:integer, 1}}]}}
-```
+Compose each artifact from the protocol's tagged JSON values, then compute its digest and encode the canonical bytes. Keep producer data portable and use the exact member set for its protocol revision.
 
-Thread `:authored_extensions` for critical namespaces whose bodies
-negotiation validated against a digest-pinned host schema — the
-authored channel spares those bodies the generic value-shape
-heuristics while staying digest-covered.
+The [compose and sign guide](compose-and-sign.md) walks through a complete Blueprint built with `Blueprint.from_value/2`. It computes the digest, signs with the producer's own Ed25519 key using `:crypto`, attaches the signature, and checks the round trip.
 
-## The round-trip guarantee
+Timestamps in shipped examples are fixed values used as artifact data. They do not represent the current time.
 
-`decode → to_value → encode` is a fixed point (property-tested): the
-bytes you serialize are the bytes a verifier recomputes. That is the
-byte-exactness guarantee a producer relies on — no facade-level
-minting functions exist or will grow (the accepted producer-surface
-decision).
+## Next steps
 
-## Signing an artifact (the producer recipe)
-
-The package verifies and never signs — so signing is a few lines with
-`:crypto` in your producer toolchain. What is signed is the RFC 7797
-§3 detached preimage: `BASE64URL(JCS(protected_header)) || "." ||
-JCS(signed_attributes)`. The recipe, mirror-tested against the shipped
-verifier:
-
-```elixir
-{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!("examples/echo-blueprint.json"))
-digest = AgentBlueprintProtocol.Blueprint.content_digest(blueprint)
-{public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
-protected = {:object, [{"alg", {:string, "Ed25519"}}, {"b64", {:boolean, false}}, {"crit", {:array, [{:string, "b64"}]}}, {"kid", {:string, "example-demo-1"}}]}
-signed_attributes = {:object, [{"algorithm", {:string, "Ed25519"}}, {"content_digest", {:string, AgentBlueprintProtocol.Digest.to_tagged(digest)}}, {"created_at", {:string, "2026-08-21T00:00:00Z"}}, {"key_id", {:string, "example-demo-1"}}, {"purpose", {:string, "blueprint"}}]}
-protected_bytes = AgentBlueprintProtocol.Canonicalization.encode(protected) |> elem(1)
-attributes_bytes = AgentBlueprintProtocol.Canonicalization.encode(signed_attributes) |> elem(1)
-preimage = AgentBlueprintProtocol.Base64Url.encode(protected_bytes) <> "." <> attributes_bytes
-signature = :crypto.sign(:eddsa, :none, preimage, [private_key, :ed25519])
-envelope = {:object, [{"protected", protected}, {"signed_attributes", signed_attributes}, {"signature", {:string, AgentBlueprintProtocol.Base64Url.encode(signature)}}]}
-key = %AgentBlueprintProtocol.Signature.PublicKey{key_id: "example-demo-1", algorithm: :ed25519, key: public_key}
-{:ok, verified} = AgentBlueprintProtocol.Signature.verify(envelope, [key])
-{verified.purpose, AgentBlueprintProtocol.Digest.equal?(verified.content_digest, digest)} # => {:blueprint, true}
-```
-
-The `envelope` value is what you attach as the artifact's `signatures`
-member (digest excluded, so signing never changes the digest it
-covers).
-
-Rules the verifier enforces (each is a typed denial otherwise): the
-protected header is the exact four members in any order (serialized by
-JCS); `kid` equals the signed `key_id`; `key_id` is a nonempty string that may contain periods (RFC 7797
-§5.1, detached payload); `created_at` is Z-form whole seconds; the signature is unpadded
-base64url (86 chars for Ed25519). Because `content_digest` and
-`purpose` are inside the signed bytes, a signature cannot be lifted
-onto a different artifact. Any `b64=false`-aware JOSE library can
-produce the same envelope — the constraint is the preimage form above,
-not this code.
-
-The [Livebook walkthrough](../docs/livebooks/abp-walkthrough.livemd)
-runs this recipe end to end on a Blueprint it composes, attaches the
-envelope, and shows each denial: a flipped signature bit, the wrong key,
-an unknown `key_id`, a small-order key, and the strict R and S rule.
-
-Canonical encoding enforces the same structural ceilings as decoding, including
-container size, string and key lengths, node count, and depth. A producer cannot
-emit an artifact that a verifier will refuse to decode.
-
-Revision 1 accepts both `Ed25519` and `EdDSA` protected-header identifiers;
-producers SHOULD use `Ed25519`. Each spelling is signed as presented.
-`Signature.verify/2` returns the verified `Signature.Attributes` value.
-
-`effect_impact_ceiling` is an obligation: the strictest source value wins.
-It does not cap a Blueprint's declared effect impact. `created_at` is
-signed and format-checked, never judged for time by this function.
+- [What a Blueprint is](what-a-blueprint-is.md)
+- [Compose and sign a Blueprint](compose-and-sign.md)
+- [Read the security model](security-model.md)

@@ -1,43 +1,47 @@
 defmodule AgentBlueprintProtocol.Compatibility do
   @moduledoc """
-  The compatibility surface : identity-exact or
-  error. A manifest identity — one `build_identities` member entry — is
-  matched only by an observed identity carrying the EXACT
-  `(kind, name, version, digest)` tuple. Version ranges deny
-  `:compatibility_identity_inexact` on BOTH sides (a range is malformed,
-  never silently unmatchable — the manifest side is decode-checked through
-  the registry table; `verify/2` re-asserts it for struct-bypassed inputs,
-  the structural-bypass rim lesson, and checks the host-built observed side, which
-  never passes a decoder).
+    This module compares manifest build identities with identities observed by a host.
 
-  A manifest identity with no exact observed counterpart denies
-  `:compatibility_entry_missing`. Two observed candidates for one
-  manifest identity — including byte-identical duplicates, a repeated
-  observation is the defect, not a dedup case — deny
-  `:compatibility_duplicate_entry`; so does a duplicated name in a
-  struct-bypassed manifest (decode denies it through `unique_by`).
-  Observed identities the manifest does not name are evidence-neutral:
-  the host's wider surface is not this manifest's concern, and no check
-  entry or denial exists for them.
+    Use it when checking whether a Deployment matches an environment report.
 
-  Subjects are schema-derived paths (`["build_identities", i]` for
-  manifest entries, `["identities", i]` for observed ones) — never input
-  values.
-  Compatibility verification reports identity facts; it never authorizes execution.
+    This module does not authorize operations.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+    observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
+    match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Compatibility.verify(deployment, observed))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{Deployment, Digest, Error, Evidence}
 
   defmodule Observed do
     @moduledoc """
-    The host's observed build identities: what the environment actually
-    resolved. Host-built (never decoded), so `verify/2` type-checks the
-    list itself.
-    Observed identities are host-supplied facts that carry no authority.
+      This struct contains build identities observed by a host.
+
+      Use it when supplying environment identity data to compatibility verification.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [:identities]
 
+    @typedoc """
+      One observed build identity.
+    """
     @type identity :: %{
             kind: binary(),
             name: binary(),
@@ -45,6 +49,9 @@ defmodule AgentBlueprintProtocol.Compatibility do
             digest: binary()
           }
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.Compatibility.Observed.
+    """
     @type t :: %__MODULE__{identities: [identity()]}
   end
 
@@ -54,15 +61,22 @@ defmodule AgentBlueprintProtocol.Compatibility do
 
   # ---- the exactness predicate ------------------------------------------------------
 
-  @doc """
-  `true` when the identity's `version` is an exact spelling — `false` for
-  any range expression (`*`, `latest`, `x`/`X` segments, comparator or
-  tilde vocabulary, charset violations). Total over junk input: any
-  non-conforming shape answers `false`, never raises. This is the public
-  binary-level predicate; the decode-side registry check applies the same
-  rule to manifest entries (their agreement is pinned by test).
-  """
   @spec exact?(term()) :: boolean()
+  @doc """
+    Reports whether a version spelling identifies one exact version.
+
+    ## Example
+
+    ```elixir
+    AgentBlueprintProtocol.Compatibility.exact?(%{
+      kind: "package",
+      name: "example.package",
+      version: "1.2.3",
+      digest: "sha-256:example"
+    })
+    ```
+  """
+  @doc since: "1.0.0"
   def exact?(%{version: version} = identity)
       when is_binary(version) and map_size(identity) == 4 do
     release =
@@ -81,14 +95,23 @@ defmodule AgentBlueprintProtocol.Compatibility do
 
   # ---- the verification -------------------------------------------------------------
 
-  @doc """
-  Verify every manifest identity against the observed identities:
-  identity-exact matching, one `%{surface: :compatibility}` check per
-  manifest identity (`detail` = the matched observed `Digest`), the seven
-  host-owned atoms in `not_verified`. Denies per the moduledoc; every
-  malformed input shape denies typed.
-  """
   @spec verify(Deployment.t(), Observed.t()) :: {:ok, Evidence.t()} | {:error, Error.t()}
+  @doc """
+    Compares a Deployment’s build identities with those reported by a host.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
+    match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Compatibility.verify(deployment, observed))
+    ```
+  """
+  @doc since: "1.0.0"
   def verify(%Deployment{} = deployment, %Observed{identities: identities})
       when is_list(identities) do
     with {:ok, _} <- deployment_shape(deployment),

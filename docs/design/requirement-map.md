@@ -204,7 +204,7 @@ verifier/b64url.ts(39,7): error TS2322: Type 'string' is not assignable to type 
 ```
 
 The missing-build form (organic, 2026-09-13): `** (RuntimeError) npm
-kit not built — run \`npm install && npm run build\` before the
+kit not built — run `npm install && npm run build` before the
 agreement gate`.
 
 ### alias: typescript.guide

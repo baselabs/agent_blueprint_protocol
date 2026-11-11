@@ -1,46 +1,46 @@
 defmodule AgentBlueprintProtocol.Base64Url do
   @moduledoc """
-  Strict unpadded base64url codec: the RFC 4648 §5 URL-safe alphabet with
-  all trailing `=` omitted (RFC 7515 §2 permits omission on the wire; this
-  protocol's wire form never carries padding, so padded input rejects).
+    This module encodes and decodes strict unpadded base64url values.
 
-  Decoding is total over binaries and rejects, in order:
+    Use it when a protocol field contains URL-safe binary data.
 
-    - any input carrying `=` anywhere — `:base64url_padded`;
-    - any character outside the URL-safe alphabet — `:base64url_invalid`
-      (RFC 4648 §3.3: non-alphabet characters MUST be rejected);
-    - any spelling that is not the byte-exact encoding of its own decoded
-      bytes — `:base64url_invalid`. This covers encoded lengths that are
-      not a whole number of octets (≡ 1 mod 4) and, per RFC 4648 §3.5,
-      non-canonical spellings whose pad bits are non-zero: those alias the
-      same bytes under a different string, and accepting one would let two
-      distinct digest bodies decode identically.
+    This module does not authorize operations.
 
-  Canonicality is enforced the same way
-  `AgentBlueprintProtocol.Canonicalization.verify/2` enforces canonical
-  JSON: decode, re-encode, require byte equality. The stdlib `Base` module
-  supplies bit assembly only — probed on this OTP, `Base.url_decode64/2`
-  alone accepts fully-padded input and non-zero pad bits, so every strict
-  rejection above is this module's own guard.
-  A pure codec — bytes in, bytes out; it never authorizes anything.
+    ## Example
+
+    ```elixir
+    encoded = AgentBlueprintProtocol.Base64Url.encode("sample")
+    {:ok, "sample"} = AgentBlueprintProtocol.Base64Url.decode(encoded)
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   @alphabet ~r/\A[A-Za-z0-9_-]*\z/
 
-  @doc """
-  Encode `data` as unpadded base64url. The empty binary encodes to the
-  empty string (RFC 7515 §2).
-  """
   @spec encode(binary()) :: binary() | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Encodes the supplied value as base64url or canonical JSON, depending on the module.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Base64Url.encode("abc")
+        "YWJj"
+  """
+  @doc since: "1.0.0"
   def encode(data) when is_binary(data), do: Base.url_encode64(data, padding: false)
 
   def encode(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
-  @doc """
-  Decode strict unpadded base64url. Never raises on binary input; errors
-  are value-free.
-  """
   @spec decode(binary()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
+  @doc """
+    Decodes the supplied bytes or encoded text, depending on the module.
+
+    ## Example
+
+        iex> AgentBlueprintProtocol.Base64Url.decode("YWJj")
+        {:ok, "abc"}
+  """
+  @doc since: "1.0.0"
   def decode(input) when is_binary(input) do
     cond do
       String.contains?(input, "=") ->

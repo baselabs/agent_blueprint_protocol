@@ -1,68 +1,59 @@
 defmodule AgentBlueprintProtocol.BoundsAlgebra do
   @moduledoc """
-  The bounds algebra: the pointwise narrowest intersection of the
-  Blueprint's declared bounds, the Deployment Manifest's `host_bounds`, and
-  the host's live policy, over the closed 13-bound vocabulary.
+    This module intersects Blueprint, Deployment, and host bound sets.
 
-  Distinct from parse bounds: `AgentBlueprintProtocol.Bounds` are
-  tighten-only decoder ceilings and are never intersection inputs (the
-  two families are never conflated).
+    Use it when an application needs effective bounds and records of any narrowing.
 
-  ## The direction law
+    This module does not authorize operations.
 
-  "Narrowest" is taken in each family's own narrowness order: for the scope families (classification, disclosure) a
-  lower ceiling is narrower, so the meet is the written-order minimum; for
-  the obligation families (authority, approval, effect impact) the STRICTER
-  value is narrower, so the meet is the strictest value. Classification
-  markers (`{pci, phi}`) are retained regulatory obligations: the
-  effective marker set is the UNION of the sources' sets — dropping a
-  marker silently disables regulated-data handling and is the widening the
-  mutation gate names.
+    ## Example
 
-  ## Posture
-
-  A protected narrowing never happens silently. Under the default `:deny`
-  posture it denies with `:protected_bound_clamp_denied` naming the member
-  path without input values; under `:acknowledge` it clamps and
-  ALWAYS emits `acknowledged: true` evidence. Because decoded artifacts
-  lift marker sets empty and the Blueprint derives `disclosure_ceiling` as
-  `:full` (it declares no disclosure member), a host asserting any marker
-  or any sub-full disclosure policy narrows a protected bound on every
-  import — a regulated or disclosure-limiting host therefore runs the
-  `:acknowledge` posture and records every narrowing. That is the designed
-  default, not a defect.
-
-  ## Lifters
-
-  `from_blueprint/1` derives the Blueprint side totally: the operational
-  eight from its `ceilings` member; classification as the WIDEST across all
-  five declaration sites (top-level, both port arrays, `output_contract`,
-  `capability_requirements`); approval/authority as the strictest claim
-  across capabilities (empty array → `:none`); effect impact as the
-  strictest across capabilities and effect intents (empty → `:ordinary`);
-  disclosure as `:full`, the identity element for the meet — the Blueprint
-  makes no disclosure claim, so the deployment and host policies govern,
-  and this derivation is a total function over the artifact's members, not
-  a missing-source default. `from_deployment/1` lifts the `host_bounds`
-  member only: `model_policy` ceilings are the deployment-local model
-  policy (not intersection inputs) and `data_bindings` classification is
-  per-dataset metadata checked against the effective bound by the composed
-  import.
-  The algebra computes facts; it never authorizes an operation.
+    ```elixir
+    base = %{
+      approval_trait: :none,
+      authority_trait: :none,
+      classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
+      disclosure_ceiling: :summary,
+      effect_impact_ceiling: :ordinary,
+      max_attempts: 3,
+      max_concurrency: 2,
+      max_cost: %{amount: 1000, currency: "USD"},
+      max_depth: 8,
+      max_descendants: 64,
+      max_elapsed_ms: 60_000,
+      max_fan_out: 4,
+      max_tokens: 100_000
+    }
+    {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
+    sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{blueprint: bounds, deployment: bounds, host: bounds}
+    match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.Result{}}, AgentBlueprintProtocol.BoundsAlgebra.intersect(sources))
+    ```
   """
+  @moduledoc since: "1.0.0"
 
   alias AgentBlueprintProtocol.{Blueprint, Deployment, Error}
 
   defmodule Bound do
     @moduledoc """
-    One named bound: `name` from the closed 13, `class` (`:operational` /
-    `:protected`), `unit` (`:count | :millisecond | :token | :money |
-    :ordinal`), and the family's value shape.
-    A bound is data about limits and carries no authority.
+      This struct represents one named bound and its value.
+
+      Use it when inspecting a bound in a validated bound set.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.BoundsAlgebra.Bound{name: :max_tokens, class: :operational, unit: :token, value: 1000}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [:name, :class, :unit, :value]
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.BoundsAlgebra.Bound.
+    """
     @type t :: %__MODULE__{
             name: atom(),
             class: :operational | :protected,
@@ -70,15 +61,24 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
             value: term()
           }
 
-    @doc """
-    Direction-encoded narrowness: `true` iff `a` is strictly
-    narrower than `b` in the bound family's own order. Total and
-    never-raising: values of different bound names, or a pair the family
-    cannot order (e.g. cross-currency money), are `false`. Classification
-    is ordered lexicographically — ordinal first, then marker strict
-    superset at equal ordinals.
-    """
     @spec narrower(t(), t()) :: boolean()
+    @doc """
+      Reports whether the first bound is strictly narrower than the second.
+
+      ## Example
+
+      ```elixir
+      narrower = %AgentBlueprintProtocol.BoundsAlgebra.Bound{
+        name: :max_tokens,
+        class: :operational,
+        unit: :token,
+        value: 100
+      }
+      wider = %{narrower | value: 200}
+      AgentBlueprintProtocol.BoundsAlgebra.Bound.narrower(narrower, wider)
+      ```
+    """
+    @doc since: "1.0.0"
     def narrower(%__MODULE__{name: name, value: a}, %__MODULE__{name: name, value: b}),
       do: AgentBlueprintProtocol.BoundsAlgebra.narrower_value(name, a, b)
 
@@ -87,28 +87,51 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule BoundSet do
     @moduledoc """
-    A (possibly partial) set of the closed 13. Construction validates every
-    PRESENT name and value (`:bound_unknown` / `:bound_value_invalid`);
-    totality — all thirteen present — is demanded of all three sources at
-    `intersect/1` time, never defaulted, because an implicit default is the
-    silent-widening hole.
-    A bound set is data about limits and carries no authority.
+      This struct represents a set of named bounds.
+
+      Use it when constructing or inspecting bound sources for intersection.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [:bounds]
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.BoundsAlgebra.BoundSet.
+    """
     @type t :: %__MODULE__{bounds: %{optional(atom()) => Bound.t()}}
 
-    @doc "The closed 13-name vocabulary, name-sorted (the clamps order, pinned for the second-language verifier)."
     @spec names() :: [atom()]
+    @doc """
+      Returns the names of the supported bounds.
+
+      ## Example
+
+      ```elixir
+      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.names()
+      ```
+    """
+    @doc since: "1.0.0"
     def names, do: AgentBlueprintProtocol.BoundsAlgebra.names()
 
-    @doc """
-    Validate and construct from a plain map. Unknown names deny
-    `:bound_unknown`; off-lattice or non-positive values deny
-    `:bound_value_invalid`. Absent names are simply absent.
-    """
     @spec new(%{optional(atom()) => term()}) :: {:ok, t()} | {:error, Error.t()}
+    @doc """
+      Builds and validates a value from the supplied options.
+
+      ## Example
+
+      ```elixir
+      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+      ```
+    """
+    @doc since: "1.0.0"
     def new(map) when is_map(map) and not is_struct(map) do
       map
       |> Enum.reduce_while({:ok, %{}}, fn {name, value}, {:ok, acc} ->
@@ -132,8 +155,20 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
     def fetch(_, _), do: :error
 
-    @doc "The plain name-to-value map (rebuild a set via `new/1`)."
     @spec to_map(t()) :: {:ok, %{optional(atom()) => term()}} | {:error, Error.t()}
+    @doc """
+      Returns the raw values stored in a bound set.
+
+      ## Example
+
+      ```elixir
+      {:ok, bounds} =
+        AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+
+      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.to_map(bounds)
+      ```
+    """
+    @doc since: "1.0.0"
     def to_map(%BoundSet{bounds: bounds}) when is_map(bounds) and not is_struct(bounds) do
       Enum.reduce_while(bounds, {:ok, %{}}, fn
         {name, %Bound{value: value}}, {:ok, acc} -> {:cont, {:ok, Map.put(acc, name, value)}}
@@ -146,13 +181,26 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule Sources do
     @moduledoc """
-    The three intersection sources plus the protected-clamp posture
-    (default `:deny`). Intersection inputs are host-supplied facts that
-    carry no authority.
+      This struct carries the three bound sets used by an intersection.
+
+      Use it when supplying Blueprint, Deployment, and host bounds to the algebra.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+      sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{blueprint: bounds, deployment: bounds, host: bounds}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [:blueprint, :deployment, :host, protected_clamp: :deny]
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.BoundsAlgebra.Sources.
+    """
     @type t :: %__MODULE__{
             blueprint: BoundSet.t(),
             deployment: BoundSet.t(),
@@ -163,12 +211,25 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule Result do
     @moduledoc """
-    The effective set plus the clamp evidence list (name-sorted). The
-    result records what the bounds imply; it is not a decision.
+      This struct contains the effective bound set and clamp records.
+
+      Use it when consuming the result of a successful intersection.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      result = %AgentBlueprintProtocol.BoundsAlgebra.Result{effective: %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{bounds: %{}}, clamps: []}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [:effective, :clamps]
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.BoundsAlgebra.Result.
+    """
     @type t :: %__MODULE__{
             effective: BoundSet.t(),
             clamps: [AgentBlueprintProtocol.BoundsAlgebra.ClampEvidence.t()]
@@ -177,16 +238,25 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule ClampEvidence do
     @moduledoc """
-    The typed evidence of one permitted narrowing (protocol §9):
-    the field, its class and unit, the requested and effective
-    values, the source that produced the effective value (a Deployment or
-    host term, never a tenant or principal), and whether the host
-    acknowledged a protected clamp.
-    Clamp evidence is a record of narrowing, not a decision.
+      This struct records one narrowing produced by a bound intersection.
+
+      Use it when reviewing the effective value and source of a narrowed bound.
+
+      This module does not authorize operations.
+
+      ## Example
+
+      ```elixir
+      %AgentBlueprintProtocol.BoundsAlgebra.ClampEvidence{field: :max_tokens, class: :operational, unit: :token, requested: 2000, effective: 1000, source: :host, acknowledged: false}
+      ```
     """
+    @moduledoc since: "1.0.0"
 
     defstruct [:field, :class, :unit, :requested, :effective, :source, :acknowledged]
 
+    @typedoc """
+      The public data type for AgentBlueprintProtocol.BoundsAlgebra.ClampEvidence.
+    """
     @type t :: %__MODULE__{
             field: atom(),
             class: :operational | :protected,
@@ -305,16 +375,39 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   # ---- the intersection --------------------------------------------------------
 
-  @doc """
-  Intersect the three sources: per-bound validation, totality (all three
-  total over the 13 — an operational absence denies `:missing_ceiling`, a
-  protected absence `:bound_source_missing`), the within-currency cost
-  rule, then the pointwise narrowest meet. Operational narrowings emit
-  unacknowledged evidence; a protected narrowing denies under `:deny`
-  (naming the member path) or clamps with `acknowledged: true` under
-  `:acknowledge`. Clamps are emitted in the name-sorted vocabulary order.
-  """
   @spec intersect(Sources.t()) :: {:ok, Result.t()} | {:error, Error.t()}
+  @doc """
+    Intersects the Blueprint, Deployment, and host bound sources.
+
+    ## Example
+
+    ```elixir
+    base = %{
+      approval_trait: :none,
+      authority_trait: :none,
+      classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
+      disclosure_ceiling: :summary,
+      effect_impact_ceiling: :ordinary,
+      max_attempts: 3,
+      max_concurrency: 2,
+      max_cost: %{amount: 1000, currency: "USD"},
+      max_depth: 8,
+      max_descendants: 64,
+      max_elapsed_ms: 60_000,
+      max_fan_out: 4,
+      max_tokens: 100_000
+    }
+
+    {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
+    sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{
+      blueprint: bounds,
+      deployment: bounds,
+      host: bounds
+    }
+    AgentBlueprintProtocol.BoundsAlgebra.intersect(sources)
+    ```
+  """
+  @doc since: "1.0.0"
   def intersect(%Sources{} = sources) do
     with :ok <- posture_ok?(sources),
          :ok <- total?(sources),
@@ -516,14 +609,34 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   # ---- widens? -----------------------------------------------------------------
 
-  @doc """
-  `true` iff `a` (an effective set) widens `b` (e.g. the host policy) on
-  any bound — per family, classification ordered lexicographically
-  (ordinal, then marker strict subset at equal ordinals). Fail-closed: a
-  bound missing from either set, or an incomparable money pair, is `true`
-  (non-widening cannot be proven).
-  """
   @spec widens?(BoundSet.t(), BoundSet.t()) :: boolean()
+  @doc """
+    Reports whether one bound set is wider than another.
+
+    ## Example
+
+    ```elixir
+    base = %{
+      approval_trait: :none,
+      authority_trait: :none,
+      classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
+      disclosure_ceiling: :summary,
+      effect_impact_ceiling: :ordinary,
+      max_attempts: 3,
+      max_concurrency: 2,
+      max_cost: %{amount: 1000, currency: "USD"},
+      max_depth: 8,
+      max_descendants: 64,
+      max_elapsed_ms: 60_000,
+      max_fan_out: 4,
+      max_tokens: 100_000
+    }
+
+    {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
+    AgentBlueprintProtocol.BoundsAlgebra.widens?(bounds, bounds)
+    ```
+  """
+  @doc since: "1.0.0"
   def widens?(%BoundSet{bounds: a}, %BoundSet{bounds: b}) when is_map(a) and is_map(b) do
     Enum.any?(names(), fn name ->
       case {Map.fetch(a, name), Map.fetch(b, name)} do
@@ -659,13 +772,22 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   # ---- lifters --------------------------------------------------------------------
 
-  @doc """
-  Lift a Blueprint's declared bounds. Present members validate
-  (`:bound_value_invalid`); the derived envelope is total over the current
-  registry; an absent `ceilings`/classification member lifts absent
-  (totality is `intersect/1`'s demand, never a default here).
-  """
   @spec from_blueprint(Blueprint.t()) :: {:ok, BoundSet.t()} | {:error, Error.t()}
+  @doc """
+    Builds a bound set from a Blueprint.
+
+    ## Example
+
+    ```elixir
+    {:ok, blueprint} =
+      AgentBlueprintProtocol.Blueprint.decode(
+        File.read!("examples/echo-blueprint.json")
+      )
+
+    match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_blueprint(blueprint))
+    ```
+  """
+  @doc since: "1.0.0"
   def from_blueprint(%Blueprint{value: {:object, members}}) when is_list(members) do
     with :ok <- value_shape({:object, members}),
          {:ok, bounds} <- lift_operational(member_of(members, "ceilings")) do
@@ -675,11 +797,22 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   def from_blueprint(_), do: {:error, %Error{code: :invalid_type, subject: ["blueprint"]}}
 
-  @doc """
-  Lift a Deployment's `host_bounds` member (the intersection's middle term,
-  the Deployment table's row 13 — `model_policy` and `data_bindings` are not inputs).
-  """
   @spec from_deployment(Deployment.t()) :: {:ok, BoundSet.t()} | {:error, Error.t()}
+  @doc """
+    Builds a bound set from a Deployment.
+
+    ## Example
+
+    ```elixir
+    {:ok, deployment} =
+      AgentBlueprintProtocol.Deployment.decode(
+        File.read!("examples/echo-deployment.json")
+      )
+
+    match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment))
+    ```
+  """
+  @doc since: "1.0.0"
   def from_deployment(%Deployment{value: {:object, members}}) when is_list(members) do
     with :ok <- value_shape({:object, members}) do
       lift_deployment_members(members)
