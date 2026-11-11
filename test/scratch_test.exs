@@ -4,18 +4,31 @@ defmodule AgentBlueprintProtocol.ScratchTest do
   alias AgentBlueprintProtocol.Scratch
   alias AgentBlueprintProtocol.Test.CensusFormatter
 
+  @posix_symlinks if(match?({:win32, _}, :os.type()),
+                    do:
+                      "Windows symlink creation requires a privilege outside the contributor contract",
+                    else: false
+                  )
+
   test "directory allocation is exclusive and validates every label" do
     Scratch.with_dir("allocation", fn root ->
       path = Scratch.dir!(root, "existing")
       assert File.dir?(path)
       assert_raise File.Error, fn -> Scratch.dir!(root, "existing") end
-      File.ln_s!(path, Path.join(root, "linked"))
-      assert_raise File.Error, fn -> Scratch.dir!(root, "linked") end
 
       for label <- [nil, "", "../escape", "UPPER", "bad_label", "valid\n"] do
         assert_raise ArgumentError, fn -> Scratch.dir!(label) end
         assert_raise ArgumentError, fn -> Scratch.dir!(root, label) end
       end
+    end)
+  end
+
+  @tag skip: @posix_symlinks
+  test "directory allocation refuses a planted symlink" do
+    Scratch.with_dir("allocation-link", fn root ->
+      path = Scratch.dir!(root, "existing")
+      File.ln_s!(path, Path.join(root, "linked"))
+      assert_raise File.Error, fn -> Scratch.dir!(root, "linked") end
     end)
   end
 
@@ -41,6 +54,7 @@ defmodule AgentBlueprintProtocol.ScratchTest do
     refute File.exists?(path)
   end
 
+  @tag skip: @posix_symlinks
   test "replicas use the Git working file set and preserve modes and symlinks" do
     Scratch.with_dir("source", fn root ->
       Scratch.init_git!(root)

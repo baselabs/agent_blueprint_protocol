@@ -34,7 +34,7 @@ The package's `mix quality` alias runs dependency audits, formatting, compilatio
 
 The publication privacy guard runs separately in the pre-push hook and CI with the same build-free command: `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
 
-The suite currently defines 996 tests (64 properties). The coverage threshold is 100% coverage.
+The suite currently defines 997 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
 
