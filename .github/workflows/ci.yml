@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - main
+      # kimosabe-land lands a commit by pushing it to kci/<sha> and moves
+      # main only after this workflow's run on that branch is green.
+      - "kci/**"
     # Docs-only pushes skip this heavy workflow to save CI minutes; the
     # lean doc-gates workflow (docs-gates.yml) triggers on exactly these
     # paths and runs every gate that reads them. The two lists are kept
