@@ -12,7 +12,7 @@ The scan applies to open regions at any depth. Names are compared after spelling
 
 ## A corpus denial
 
-The shipped case [portability-forbidden](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.2/priv/conformance/cases/portability-scan.json) passes a key-shaped value to the portability scanner:
+The shipped case [portability-forbidden](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.3/priv/conformance/cases/portability-scan.json) passes a key-shaped value to the portability scanner:
 
 ```json
 {"api_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}

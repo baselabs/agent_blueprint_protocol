@@ -76,13 +76,18 @@ defmodule AgentBlueprintProtocol.Architecture.CiTriggerFilterTest do
   @doc_marker ~r/\.md\b|"docs\/|documentation\/|"spec\//
 
   test "the privacy scan and the secret scan read every tracked path" do
-    privacy = File.read!("test/architecture/public_surface_privacy_test.exs")
+    privacy = File.read!("scripts/check_public_privacy.exs")
     assert privacy =~ ~s(["ls-files", "-z"]), "the privacy scan no longer walks git ls-files"
 
     assert File.read!(@heavy) =~ ~r/gitleaks.*\sgit\s/,
            "the CI secret scan no longer runs gitleaks over the git history"
 
     # Both read everything, so both must run in the lean workflow.
+    for workflow <- [@heavy, @lean] do
+      assert File.read!(workflow) =~
+               "elixir scripts/check_public_privacy.exs scripts/public_privacy.json"
+    end
+
     assert {:lean, "mix test"} = @gates["test --cover --seed 42"]
     assert {:lean, _} = @gates["ci:secret-scan"]
   end

@@ -6,7 +6,11 @@ defmodule AgentBlueprintProtocol.Test.CensusFormatter do
   # other generated test still shifts this number away from the census.
   use GenServer
 
-  @census_path Path.expand("../../.test_census", __DIR__)
+  # The census belongs to the test build even when a release gate runs
+  # under another Mix environment.
+  def path do
+    Path.expand("../test/.test_census", Mix.Project.build_path())
+  end
 
   @impl true
   def init(_opts), do: {:ok, 0}
@@ -17,7 +21,7 @@ defmodule AgentBlueprintProtocol.Test.CensusFormatter do
   end
 
   def handle_cast({:suite_finished, _times}, count) do
-    File.write!(@census_path, Integer.to_string(count))
+    File.write!(path(), Integer.to_string(count))
     {:noreply, count}
   end
 

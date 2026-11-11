@@ -22,7 +22,11 @@
 # these assertions, so the extraction is tested on every run and every
 # push.
 
+Code.require_file("../test/support/scratch.exs", __DIR__)
+
 defmodule AgentBlueprintProtocol.SpecExtractionCheck do
+  alias AgentBlueprintProtocol.Scratch
+
   @required_members [
     "spec/protocol.md",
     "spec/README.md",
@@ -47,17 +51,12 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
   def run do
     case System.argv() do
       [] ->
-        scratch = scratch_dir()
-
-        try do
-          File.mkdir_p!(scratch)
+        Scratch.with_dir("spec-extraction", fn scratch ->
           File.mkdir_p!(Path.join(scratch, "priv"))
           {:ok, _} = File.cp_r("spec", Path.join(scratch, "spec"))
           {:ok, _} = File.cp_r("priv/conformance", Path.join(scratch, "priv/conformance"))
           verify(scratch)
-        after
-          File.rm_rf!(scratch)
-        end
+        end)
 
       ["--tree", tree] ->
         verify(tree)
@@ -201,13 +200,6 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
     ~r/\b([A-Za-z][A-Za-z0-9-]*?)[- ]?§\s*\d/
     |> Regex.scan(source)
     |> Enum.map(fn [_, token] -> token end)
-  end
-
-  # Unpredictable scratch names in the world-writable temp dir (the same
-  # pre-planted-symlink posture as the release-candidate scratches).
-  defp scratch_dir do
-    rand = Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
-    Path.join(System.tmp_dir!(), "abp-spec-extraction-#{rand}")
   end
 end
 

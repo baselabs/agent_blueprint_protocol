@@ -916,17 +916,14 @@ publish-guard violation: a shipped text file references internal material:
 Result: 7/8 passed
 ```
 
-### case: "tracked files and reachable history contain no consumer-specific topology"
-
-```red
-$ # natural red: run before the current tree and seven reachable commits were scrubbed
-$ mix test test/architecture/public_surface_privacy_test.exs
-1) test tracked files and reachable history contain no consumer-specific topology
-code: assert result == {0, false, false, false, false}
-Result: 3/4 passed
-```
-
 ### case: "candidate normalization is red-capable without publishing protected terms"
+
+The production normalization and Git scan now live in
+`scripts/check_public_privacy.exs`; ExUnit loads that same module and uses
+only a test key and canary. The existing fences below record evidence
+from before that extraction, including the then-current line numbers
+and environment variable names. They are historical output, not current
+instructions to supply a production key to tests.
 
 ```red
 $ # plant: corrupt the generic test-canary digest
@@ -997,6 +994,67 @@ $ mix test test/architecture/public_surface_privacy_test.exs:70
 1) test a fork run whose secret is present still enforces the scan
 code:  assert {:enforce, _key} = privacy_scan_decision()
 Result: 0/1 passed, 6 excluded
+```
+
+### case: "the standalone command rejects a planted canary and accepts a clean repository"
+
+The actual `elixir` command loads a scratch JSON configuration with a test
+key and canary, accepts a clean committed Scratch repository, and rejects
+a tracked canary without disclosing the canary or key. The clean run uses
+an explicit repository path; the red run exercises the default current
+directory. Scratch removes both the repository and configuration when
+the test ends.
+
+Plant: in `scripts/check_public_privacy.exs`, change
+`if findings == [], do: 0, else: 1` to
+`if findings == [], do: 0, else: 0`. Run
+`mix test test/architecture/public_surface_privacy_test.exs` and record
+the failure of `assert status != 0`.
+
+```red
+$ # plant: the scanner exits 0 when it has findings
+$ mix test test/architecture/public_surface_privacy_test.exs test/architecture/scratch_allocation_test.exs
+3) test the standalone command rejects a planted canary and accepts a clean repository
+code: assert status != 0
+Result: 6/9 passed
+```
+
+### case: "every Elixir scratch directory comes from Scratch"
+
+The architecture scan requires every Elixir scratch allocation to use
+the shared Scratch owner and rejects independent temporary-directory
+reads and ExUnit temporary-directory tags. Its self-check proves the
+scanner recognizes forbidden forms and still sees the shared allocator.
+
+Plant: append `System.tmp_dir!()` to `test/scratch_test.exs`. Run
+`mix test test/architecture/scratch_allocation_test.exs` and record the
+`scratch directories outside Scratch` failure.
+
+```red
+$ # plant: test/scratch_test.exs reads System.tmp_dir!() directly
+$ mix test test/architecture/public_surface_privacy_test.exs test/architecture/scratch_allocation_test.exs
+2) test every Elixir scratch directory comes from Scratch
+code: assert offenders == [], "scratch directories outside Scratch: #{inspect(offenders)}"
+Result: 6/9 passed
+```
+
+### case: "every Node and TypeScript scratch directory is mkdtemp, bound and removed in finally"
+
+The architecture scan requires exclusive `mkdtempSync` allocation bound
+to a name and removal in `finally`, and rejects every independent
+`tmpdir()` use. Its known-allocator check prevents a vacuous scan.
+
+Plant: append `const scratchAllocationPlant = tmpdir();` to
+`scripts/check_release_promotion.mjs`. Run
+`mix test test/architecture/scratch_allocation_test.exs` and record the
+`scratch directories outside the rule` failure.
+
+```red
+$ # plant: scripts/check_release_promotion.mjs calls tmpdir() outside mkdtempSync
+$ mix test test/architecture/scratch_allocation_test.exs
+1) test every Node and TypeScript scratch directory is mkdtemp, bound and removed in finally
+code: assert offenders == [], "scratch directories outside the rule: #{inspect(offenders)}"
+Result: 1/2 passed
 ```
 
 ### case: "README and SECURITY.md name the current released version"

@@ -16,7 +16,11 @@
 # battery raised `mutation survived: duplicate-member-check-removal` — the
 # raise path is not decorative. Restored; the shipped entry is caught.
 
+Code.require_file("../test/support/scratch.exs", __DIR__)
+
 defmodule AgentBlueprintProtocol.ConformanceMutationGate do
+  alias AgentBlueprintProtocol.Scratch
+
   @root Path.expand("..", __DIR__)
 
   @mutations [
@@ -322,19 +326,6 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
     }
   ]
 
-  @copy_paths [
-    ".formatter.exs",
-    "lib",
-    "mix.exs",
-    "mix.lock",
-    "priv",
-    "scripts",
-    "test",
-    "spec",
-    "verifier",
-    "package.json"
-  ]
-
   def run do
     # Each distinct command's baseline once, then every mutation; all of them run in their own
     # scratch copy, so they run side by side, one per scheduler.
@@ -356,36 +347,17 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
     |> Stream.run()
   end
 
-  # Each run's own temporary directory, beside its scratch copy: tests that use fixed names
-  # under System.tmp_dir!/0 would otherwise collide when one test file runs in two copies at once.
-  defp private_tmp!(scratch) do
-    path = scratch <> ".tmp"
-    File.mkdir_p!(path)
-    path
-  end
-
   defp run_mutation(mutation) do
     baseline_green!(mutation.command)
 
-    scratch =
-      Path.join(
-        System.tmp_dir!(),
-        "abp-conformance-mutation-#{mutation.name}-#{System.unique_integer([:positive, :monotonic])}"
-      )
-
-    File.mkdir_p!(scratch)
-
-    try do
-      Enum.each(@copy_paths, &copy_path(&1, scratch))
-      File.ln_s!(Path.join(@root, "deps"), Path.join(scratch, "deps"))
-      copy_build(scratch)
+    Scratch.with_replica("conformance-mutation-#{mutation.name}", [root: @root], fn scratch ->
       mutate_once!(Path.join(scratch, mutation.path), mutation.from, mutation.to)
 
       {output, status} =
         System.cmd(hd(mutation.command), tl(mutation.command),
           cd: scratch,
           stderr_to_stdout: true,
-          env: [{"MIX_ENV", "dev"}, {"TMPDIR", private_tmp!(scratch)}]
+          env: [{"MIX_ENV", "dev"}, {"TMPDIR", Scratch.dir!(scratch, "tmp")}]
         )
 
       if status == 0 do
@@ -393,37 +365,22 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
       end
 
       IO.puts("mutation caught: #{mutation.name}")
-    after
-      File.rm_rf!(scratch)
-      File.rm_rf!(scratch <> ".tmp")
-    end
+    end)
   end
 
   # Baseline non-vacuity: the UNMUTATED command must run green in a clean
-  # scratch, or a red cannot be attributed to the mutation (the deleted-test
-  # false-green). Cached per unique command per battery run.
+  # scratch, or a red cannot be attributed to the mutation. Cached per
+  # unique command per battery run.
   defp baseline_green!(command) do
     key = {:baseline_green, command}
 
     if :persistent_term.get(key, nil) != :ok do
-      scratch =
-        Path.join(
-          System.tmp_dir!(),
-          "abp-conformance-baseline-#{System.unique_integer([:positive, :monotonic])}"
-        )
-
-      File.mkdir_p!(scratch)
-
-      try do
-        Enum.each(@copy_paths, &copy_path(&1, scratch))
-        File.ln_s!(Path.join(@root, "deps"), Path.join(scratch, "deps"))
-        copy_build(scratch)
-
+      Scratch.with_replica("conformance-baseline", [root: @root], fn scratch ->
         {output, status} =
           System.cmd(hd(command), tl(command),
             cd: scratch,
             stderr_to_stdout: true,
-            env: [{"MIX_ENV", "dev"}, {"TMPDIR", private_tmp!(scratch)}]
+            env: [{"MIX_ENV", "dev"}, {"TMPDIR", Scratch.dir!(scratch, "tmp")}]
           )
 
         if status != 0 do
@@ -431,32 +388,10 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
         end
 
         :persistent_term.put(key, :ok)
-      after
-        File.rm_rf!(scratch)
-        File.rm_rf!(scratch <> ".tmp")
-      end
+      end)
     end
 
     :ok
-  end
-
-  defp copy_path(relative, scratch) do
-    source = Path.join(@root, relative)
-    target = Path.join(scratch, relative)
-    File.mkdir_p!(Path.dirname(target))
-    {:ok, _copied} = File.cp_r(source, target)
-  end
-
-  defp copy_build(scratch) do
-    for env <- ~w(dev test) do
-      source = Path.join(@root, "_build/#{env}")
-
-      if File.dir?(source) do
-        target = Path.join(scratch, "_build/#{env}")
-        File.mkdir_p!(Path.dirname(target))
-        {:ok, _} = File.cp_r(source, target)
-      end
-    end
   end
 
   defp mutate_once!(path, source, replacement) do

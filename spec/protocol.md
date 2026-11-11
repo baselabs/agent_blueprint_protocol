@@ -491,7 +491,7 @@ federation namespace deprecation, and periods in detached signature key
 identifiers. Protocol revision remains 1. The release
 history records the increment; prior-census equivalence remains a per-case
 projection claim, not a claim that the public APIs are unchanged.
-Version 1.0.0-rc.2 uses verification-semantics version 3. It removes the five
+Verification-semantics version 3 removes the five
 product example registrations from the shipped registry. Hosts supply their own
 registrations for those namespaces. Earlier censuses that relied on those
 compiled entries diverge by the registry difference, as declared in the release
@@ -511,7 +511,7 @@ URI with a network authority (a namespace can never double as an
 endpoint). Registry content is release-governed data. The reference implementation
 compiles it into both libraries; that packaging choice is informative. The governance-canonical SOURCE is the specification
 tree's registry document (`spec/registry/registry.json`), bound to both
-compiled twins and the corpus index by the registry equality gate. The protocol registrations shipped in 1.0.0-rc.2 are:
+compiled twins and the corpus index by the registry equality gate. The shipped protocol registrations are:
 
 | Namespace | Owner | Criticality | State |
 |---|---|---|---|

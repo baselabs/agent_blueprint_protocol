@@ -1,6 +1,6 @@
 # ADR: host-supplied extension registrations
 
-Status: accepted; supersedes compiled product registrations in 1.0.0-rc.2.
+Status: accepted; supersedes compiled product registrations in the 1.0 line.
 
 ## Decision
 
@@ -28,7 +28,7 @@ cases exercise critical validation, schema availability and digest mismatch,
 criticality conflicts, optional retention, and every lifecycle state through
 host support. Product-specific schemas and fixtures stay in their product.
 
-Version 1.0.0-rc.2 changes the registry digest and verification-semantics version
+Version 1.0 changes the registry digest and verification-semantics version
 to 3. Earlier compiled product examples are unknown without host registration;
 the release manifest declares every affected prior census as
 `diverged_by_registry_census`, certified by compatibility replay.

@@ -1,26 +1,26 @@
+Code.require_file("../../scripts/check_public_privacy.exs", __DIR__)
+
 defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
   use ExUnit.Case, async: false
 
-  # The history scan fingerprints each distinct file version once, in parallel
-  # (historical_content_forbidden?/3), so it grows with file versions, not
-  # commits × files. At 0.8.2 (103 commits, 842 versions): 18s on a laptop,
-  # where the per-commit scan took 1625s in CI. A timeout here is a flake,
-  # not a privacy finding.
-  @moduletag timeout: 600_000
+  import PublicPrivacyScan,
+    only: [
+      scan_repo: 3,
+      historical_content_forbidden?: 3,
+      forbidden?: 3,
+      fingerprint: 2,
+      privacy_scan_decision: 1
+    ]
 
-  @forbidden_hmacs MapSet.new([
-                     "b588ad7e20b48289a4be8ca875a2fbfc461914717baba46fc18ba63c462205e0",
-                     "ecf032819c99d09c0807342342a626248077b33cca17575ea451b942301c0fe9",
-                     "bb5fb7f543e2c8712481de0580e61c34414cf8a37a3db958d4d7ccbb258eb9fb",
-                     "652e0e51914736b1b207b8a183e431f97088943498a3eb83aed22e6d2ff721fd",
-                     "e0cdad5e181bc30934181f34ff84c875316efc69cac4b1d09933b062d0adcf86",
-                     "02a265de3e85d26812dda2281b29f468a5e7744cd0ab3c2b6c27c4d8f75c0dce",
-                     "3b82b1451497669d7a2dd9491129ba08085980d951b29ebd7fdf7f46a2d9b699",
-                     "3bc616492d07f944a4ea8708fe80cdba21829581b17a774482972918e4976848",
-                     "c0a721664e882da1af1078d44234372f94224912c08544d479f8e3486d3f01f5"
-                   ])
+  @moduletag timeout: 600_000
   @test_canary "public privacy canary"
-  @test_key "public-test-key"
+  @test_key "public-test-key-for-privacy-scan-32-bytes"
+  @test_config %{
+    "key_env" => "PUBLIC_PRIVACY_TEST_KEY",
+    "mode_env" => "PUBLIC_PRIVACY_TEST_MODE"
+  }
+  @fork_skip_mode "fork-skip"
+
   # maintenance.auto false: a commit in the throwaway repository must not
   # start git's detached background maintenance (the geometric repack, the
   # default from git 2.54), which writes into .git after the command returns
@@ -33,55 +33,39 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     {"GIT_CONFIG_KEY_1", "maintenance.auto"},
     {"GIT_CONFIG_VALUE_1", "false"}
   ]
-  # Fork pull requests receive no repository secrets, so the enforcing scan
-  # cannot run there. The ONLY relaxation is an exact "fork-skip" mode set
-  # by CI for github.event.pull_request.head.repo.fork; every other mode
-  # value (including typos) stays enforcing and fails closed without a key.
-  @fork_skip_mode "fork-skip"
 
-  @fork_skip_banner """
-  [privacy-scan] SKIPPED: fork pull request without access to the privacy secret.
-  The full-history consumer-topology scan was NOT executed on this run.
-  The enforcing scan runs on every push, on maintainer pull requests, and on
-  any run whose secret IS present; merging requires one of those contexts.
-  """
-
-  test "tracked files and reachable history contain no consumer-specific topology" do
-    case privacy_scan_decision() do
-      {:enforce, key} ->
-        result = scan_repo(".", @forbidden_hmacs, key)
-
-        assert result == {0, false, false, false, false, false}
-
-      {:skip, banner} ->
-        IO.puts(banner)
+  test "a fork run without the secret skips loudly instead of failing" do
+    for key <- [nil, "", String.duplicate("k", 31), "  " <> String.duplicate("k", 31) <> "  "] do
+      with_env(
+        [{@test_config["mode_env"], @fork_skip_mode}, {@test_config["key_env"], key}],
+        fn ->
+          assert {:skip, banner} = privacy_scan_decision(@test_config)
+          assert banner =~ "SKIPPED"
+          assert banner =~ "NOT executed"
+        end
+      )
     end
   end
 
-  test "a fork run without the secret skips loudly instead of failing" do
-    with_env([{"ABP_PRIVACY_SCAN", @fork_skip_mode}, {"ABP_PUBLIC_PRIVACY_HMAC_KEY", nil}], fn ->
-      assert {:skip, banner} = privacy_scan_decision()
-      assert banner =~ "SKIPPED"
-      assert banner =~ "NOT executed"
-    end)
-  end
-
   test "an unknown scan-mode value fails closed like an enforcing run" do
-    with_env([{"ABP_PRIVACY_SCAN", "banana"}, {"ABP_PUBLIC_PRIVACY_HMAC_KEY", nil}], fn ->
-      assert_raise RuntimeError, ~r/privacy key is required/, fn ->
-        privacy_scan_decision()
-      end
-    end)
+    for mode <- [nil, "enforce", "banana"],
+        key <- [nil, "", String.duplicate("k", 31), "  " <> String.duplicate("k", 31) <> "  "] do
+      with_env([{@test_config["mode_env"], mode}, {@test_config["key_env"], key}], fn ->
+        assert_raise RuntimeError, ~r/privacy key is required/, fn ->
+          privacy_scan_decision(@test_config)
+        end
+      end)
+    end
   end
 
   test "a fork run whose secret is present still enforces the scan" do
     with_env(
       [
-        {"ABP_PRIVACY_SCAN", @fork_skip_mode},
-        {"ABP_PUBLIC_PRIVACY_HMAC_KEY", String.duplicate("k", 32)}
+        {@test_config["mode_env"], @fork_skip_mode},
+        {@test_config["key_env"], "  " <> @test_key <> "  "}
       ],
       fn ->
-        assert {:enforce, _key} = privacy_scan_decision()
+        assert {:enforce, @test_key} = privacy_scan_decision(@test_config)
       end
     )
   end
@@ -99,18 +83,16 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
 
   test "invalid UTF-8 is handled deterministically" do
     refute forbidden?(<<255, 254, 0, 1>>, test_hmacs(), @test_key)
+    assert forbidden?("PUBLIC" <> <<255>> <> " PRIVACY CANARY", test_hmacs(), @test_key)
+    assert forbidden?("publicpri" <> <<255>> <> "vacycanary", test_hmacs(), @test_key)
   end
 
   test "Git plumbing detects tracked, historical, merge, ref-name, and tag violations" do
-    repo =
-      Path.join(System.tmp_dir!(), "abp-public-privacy-#{System.unique_integer([:positive])}")
+    repo = AgentBlueprintProtocol.Scratch.dir!("public-privacy")
 
-    File.mkdir_p!(repo)
     on_exit(fn -> File.rm_rf!(repo) end)
 
-    git!(repo, ["init", "--initial-branch=main"])
-    git!(repo, ["config", "user.email", "privacy-gate@example.invalid"])
-    git!(repo, ["config", "user.name", "Privacy Gate"])
+    AgentBlueprintProtocol.Scratch.init_git!(repo)
 
     File.write!(Path.join(repo, "README.md"), "public protocol\n")
     git!(repo, ["add", "README.md"])
@@ -249,82 +231,43 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     end
   end
 
-  defp scan_repo(repo, forbidden_hmacs, key) do
-    assert_full_history!(repo)
+  test "the standalone command rejects a planted canary and accepts a clean repository" do
+    AgentBlueprintProtocol.Scratch.with_dir("public-privacy-command", fn repo ->
+      AgentBlueprintProtocol.Scratch.init_git!(repo)
+      File.write!(Path.join(repo, "README.md"), "public protocol\n")
+      git!(repo, ["add", "README.md"])
+      git!(repo, ["commit", "-m", "clean root"])
 
-    tracked_paths =
-      repo
-      |> git!(["ls-files", "-z"])
-      |> String.split(<<0>>, trim: true)
+      config_path = Path.join(repo, "privacy.json")
 
-    tracked_findings =
-      tracked_paths
-      # Deleted paths are still scanned from reachable history below.
-      |> Enum.filter(&File.exists?(Path.join(repo, &1)))
-      |> parallel(fn path ->
-        forbidden?(path <> "\n" <> File.read!(Path.join(repo, path)), forbidden_hmacs, key)
-      end)
-      |> Enum.count(& &1)
+      File.write!(
+        config_path,
+        JSON.encode!(Map.put(@test_config, "forbidden_hmacs", MapSet.to_list(test_hmacs())))
+      )
 
-    messages = git!(repo, ["log", "--all", "--format=fuller"])
+      script = Path.expand("scripts/check_public_privacy.exs")
+      env = [{@test_config["mode_env"], "enforce"}, {@test_config["key_env"], @test_key}]
 
-    historical_paths =
-      git!(repo, ["log", "--all", "--format=", "--name-only", "--diff-merges=separate"])
+      assert {_output, 0} =
+               System.cmd("elixir", [script, config_path, repo],
+                 env: env,
+                 stderr_to_stdout: true
+               )
 
-    tag_messages = git!(repo, ["for-each-ref", "--format=%(contents)", "refs/tags"])
-    ref_names = git!(repo, ["for-each-ref", "--format=%(refname)"])
+      File.write!(Path.join(repo, "README.md"), @test_canary <> "\n")
 
-    {tracked_findings, forbidden?(messages, forbidden_hmacs, key),
-     forbidden?(historical_paths, forbidden_hmacs, key),
-     historical_content_forbidden?(repo, forbidden_hmacs, key),
-     forbidden?(tag_messages, forbidden_hmacs, key), forbidden?(ref_names, forbidden_hmacs, key)}
-  end
+      {output, status} =
+        System.cmd("elixir", [script, config_path],
+          cd: repo,
+          env: env,
+          stderr_to_stdout: true
+        )
 
-  defp historical_content_forbidden?(repo, forbidden_hmacs, key) do
-    commits =
-      repo
-      |> git!(["rev-list", "--all"])
-      |> String.split("\n", trim: true)
-
-    # Every file of every commit, scanned once per distinct content: an unchanged file is
-    # the same blob in every commit that carries it, so the scan grows with the number of
-    # file versions, not commits × files (that was 1625s of a 1632s suite at 0.8.2).
-    commits
-    |> Enum.flat_map(fn commit ->
-      repo
-      |> git!(["ls-tree", "-r", "-z", commit])
-      |> String.split(<<0>>, trim: true)
-      |> Enum.map(&tree_entry_blob!/1)
+      assert status != 0
+      assert output =~ "tracked files"
+      refute output =~ @test_canary
+      refute output =~ @test_key
     end)
-    |> Enum.uniq()
-    |> parallel(&historical_blob_forbidden?(repo, &1, forbidden_hmacs, key))
-    |> Enum.any?()
-  end
-
-  # Fingerprinting dominates the scan and each item is independent: one task per scheduler.
-  defp parallel(items, fun) do
-    items
-    |> Task.async_stream(fun, ordered: false, timeout: :infinity)
-    |> Enum.map(fn {:ok, result} -> result end)
-  end
-
-  defp tree_entry_blob!(entry) do
-    case Regex.run(~r/\A\d+ (\w+) ([0-9a-f]+)\t/, entry, capture: :all_but_first) do
-      ["blob", id] -> id
-      _other -> raise "unexpected tree entry (only files are scanned): #{inspect(entry)}"
-    end
-  end
-
-  defp historical_blob_forbidden?(repo, id, forbidden_hmacs, key) do
-    case System.cmd(
-           "git",
-           ["--no-replace-objects", "-C", repo, "cat-file", "blob", id],
-           stderr_to_stdout: true,
-           env: @git_env
-         ) do
-      {content, 0} -> forbidden?(content, forbidden_hmacs, key)
-      {output, status} -> raise "git cat-file failed with #{status}: #{output}"
-    end
   end
 
   defp git!(repo, args) do
@@ -342,13 +285,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     output
   end
 
-  defp assert_full_history!(repo) do
-    case repo |> git!(["rev-parse", "--is-shallow-repository"]) |> String.trim() do
-      "false" -> :ok
-      state -> raise "full reachable history is required; shallow state=#{state}"
-    end
-  end
-
   defp repo_git_path(repo, name) do
     path = repo |> git_with_replacements!(["rev-parse", "--git-path", name]) |> String.trim()
 
@@ -358,64 +294,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     end
   end
 
-  defp forbidden?(content, forbidden_hmacs, key) do
-    content
-    |> String.replace_invalid("")
-    |> String.downcase()
-    |> candidates()
-    |> Enum.any?(&(fingerprint(&1, key) in forbidden_hmacs))
-  end
-
-  defp candidates(content) do
-    tokens =
-      ~r/[a-z0-9_]+(?:-[a-z0-9_]+)*/
-      |> Regex.scan(content, capture: :first)
-      |> List.flatten()
-
-    components = Enum.flat_map(tokens, &String.split(&1, ["-", "_"], trim: true))
-
-    (windows(tokens, 3) ++ windows(components, 3))
-    |> Enum.flat_map(fn parts ->
-      [Enum.join(parts), Enum.join(parts, " "), Enum.join(parts, "_"), Enum.join(parts, "-")]
-    end)
-    |> Enum.uniq()
-  end
-
-  defp windows(tokens, max_size) do
-    case length(tokens) do
-      0 ->
-        []
-
-      count ->
-        for size <- 1..min(max_size, count),
-            offset <- 0..(count - size),
-            do: Enum.slice(tokens, offset, size)
-    end
-  end
-
   defp test_hmacs do
     [@test_canary, String.replace(@test_canary, " ", "")]
     |> Enum.map(&fingerprint(&1, @test_key))
     |> MapSet.new()
-  end
-
-  defp privacy_scan_decision do
-    if fork_skip_mode?() and not valid_key?() do
-      {:skip, @fork_skip_banner}
-    else
-      {:enforce, production_key!()}
-    end
-  end
-
-  defp fork_skip_mode? do
-    System.get_env("ABP_PRIVACY_SCAN") == @fork_skip_mode
-  end
-
-  defp valid_key? do
-    case System.get_env("ABP_PUBLIC_PRIVACY_HMAC_KEY") do
-      nil -> false
-      key -> byte_size(String.trim(key)) >= 32
-    end
   end
 
   defp with_env(pairs, fun) do
@@ -434,25 +316,5 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
         {key, value} -> System.put_env(key, value)
       end)
     end
-  end
-
-  defp production_key! do
-    case System.fetch_env("ABP_PUBLIC_PRIVACY_HMAC_KEY") do
-      {:ok, key} ->
-        key = String.trim(key)
-
-        if byte_size(key) >= 32 do
-          key
-        else
-          raise "ABP public-history privacy key is required and must be at least 32 bytes"
-        end
-
-      :error ->
-        raise "ABP public-history privacy key is required and must be at least 32 bytes"
-    end
-  end
-
-  defp fingerprint(value, key) do
-    :crypto.mac(:hmac, :sha256, key, value) |> Base.encode16(case: :lower)
   end
 end

@@ -91,7 +91,7 @@ from these API and evidence changes.
 
 ## Semantics version 3
 
-Version 1.0.0-rc.2 removes the five product example registrations from the
+Version 1.0 removes the five product example registrations from the
 compiled registry. Only the protocol's active and deprecated federation
 registrations ship. Hosts supply other entries, including criticality,
 lifecycle state, schema pin, and the schema document they hold.

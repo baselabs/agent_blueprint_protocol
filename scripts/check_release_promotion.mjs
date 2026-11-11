@@ -16,43 +16,60 @@ function changelogPromotes(a,b,rc,final){
   const at=b.indexOf(entry[0]);
   return b.slice(0,at)+b.slice(at+entry[0].length)===a&&b.indexOf('## ['+rc+']')===at+entry[0].length;
 }
+// This classifier owns both the promotion diff policy and the candidate
+// tree check. A frozen file cannot shed a candidate version at promotion.
+function promotionRule(path){
+  if(['mix.exs','package.json','package-lock.json'].includes(path)||['documentation/','docs/','site/'].some(dir=>path.startsWith(dir)))return 'version';
+  if(path==='priv/release-metadata.json')return 'metadata';
+  if(path==='priv/release-history.json')return 'history';
+  if(path==='CHANGELOG.md')return 'changelog';
+  if(path==='README.md')return 'readme';
+  if(path==='SECURITY.md')return 'security';
+  return 'frozen';
+}
 function check(changes,rc,final){
   const denied=[];
   for(const [path,before,after] of changes){
     if(before===null||after===null){denied.push(path);continue;}
     const a=before.toString(),b=after.toString();
-    if(['mix.exs','package.json','package-lock.json'].includes(path)){
-      if(a.replaceAll(rc,final)!==b)denied.push(path);continue;
+    switch(promotionRule(path)){
+      case 'version':
+        if(a.replaceAll(rc,final)!==b)denied.push(path);break;
+      case 'metadata':{
+        const old=JSON.parse(a),next=JSON.parse(b);old.package_version=final;old.verifier_kit.version=final;
+        if(JSON.stringify(old)!==JSON.stringify(next))denied.push(path);break;
+      }
+      case 'history':{
+        const old=JSON.parse(a),next=JSON.parse(b);const row=old.rows.find(x=>x.package_version===rc);
+        old.rows.push({...row,package_version:final});
+        if(!row||JSON.stringify(old)!==JSON.stringify(next))denied.push(path);break;
+      }
+      case 'changelog':
+        if(!changelogPromotes(a,b,rc,final))denied.push(path);break;
+      case 'readme':{
+        const normalized=a.replaceAll(rc,final).replaceAll('@agent-blueprint-protocol/verifier@rc','@agent-blueprint-protocol/verifier');
+        if(normalized!==b)denied.push(path);break;
+      }
+      case 'security':{
+        const line=final.split('.').slice(0,2).join('.')+'.x';
+        const rcRow='| '+rc+' | yes |\n';
+        const finalRow='| '+line+' | yes |\n';
+        const normalized=a.replace(rcRow,a.includes(finalRow)?'':finalRow);
+        if(normalized!==b)denied.push(path);break;
+      }
+      case 'frozen':denied.push(path);
     }
-    if(path==='priv/release-metadata.json'){
-      const old=JSON.parse(a),next=JSON.parse(b);old.package_version=final;old.verifier_kit.version=final;
-      if(JSON.stringify(old)!==JSON.stringify(next))denied.push(path);continue;
-    }
-    if(path==='priv/release-history.json'){
-      const old=JSON.parse(a),next=JSON.parse(b);const row=old.rows.find(x=>x.package_version===rc);
-      old.rows.push({...row,package_version:final});
-      if(!row||JSON.stringify(old)!==JSON.stringify(next))denied.push(path);continue;
-    }
-    if(path==='CHANGELOG.md'){
-      if(!changelogPromotes(a,b,rc,final))denied.push(path);continue;
-    }
-    if(path==='README.md'){
-      const normalized=a.replaceAll(rc,final).replaceAll('@agent-blueprint-protocol/verifier@rc','@agent-blueprint-protocol/verifier');
-      if(normalized!==b)denied.push(path);continue;
-    }
-    if(path==='SECURITY.md'){
-      const line=final.split('.').slice(0,2).join('.')+'.x';
-      const rcRow='| '+rc+' | yes |\n';
-      const finalRow='| '+line+' | yes |\n';
-      const normalized=a.replace(rcRow,a.includes(finalRow)?'':finalRow);
-      if(normalized!==b)denied.push(path);continue;
-    }
-    if(path.startsWith('documentation/')||path.startsWith('docs/')||path.startsWith('site/')){
-      if(a.replaceAll(rc,final)!==b)denied.push(path);continue;
-    }
-    denied.push(path);
   }
   if(denied.length)throw Error('release promotion: forbidden differences: '+denied.join(', '));
+}
+function checkTree(entries,version){
+  if(!/^\d+\.\d+\.\d+-/.test(version))return;
+  const denied=entries.filter(([path,bytes])=>promotionRule(path)==='frozen'&&bytes.includes(version)).map(([path])=>path);
+  if(denied.length)throw Error('release promotion: frozen files name candidate '+version+': '+denied.join(', '));
+}
+function checkCurrentTree(){
+  const version=readFileSync('mix.exs','utf8').match(/@version\s+"([^"]+)"/)[1];
+  checkTree(paths().filter(path=>existsSync(path)).map(path=>[path,readFileSync(path)]),version);
 }
 function seeded(){
   const scratch=mkdtempSync(join(tmpdir(),'abp-promotion-'));
@@ -80,6 +97,9 @@ function selfTest(){
   for(const [path,before,after] of [['README.md',readme,Buffer.from(finalReadme.toString().replaceAll(final,rc))],['README.md',readme,Buffer.from(finalReadme.toString().replaceAll('@agent-blueprint-protocol/verifier','@agent-blueprint-protocol/verifier@rc'))],['SECURITY.md',security,Buffer.from(finalSecurity.toString().replace('| 1.0.x | yes |\n',''))]])assert.throws(()=>check([[path,before,after]],rc,final),/forbidden differences/);
   for(const [path,before,after] of [['README.md',readme,finalReadme],['SECURITY.md',security,finalSecurity]])assert.throws(()=>check([[path,before,Buffer.concat([after,Buffer.from('extra text')])]],rc,final),/forbidden differences/);
   assert.throws(()=>check([seeded()],rc,final),/forbidden differences/);
+  assert.throws(()=>checkTree([['lib/frozen.ex',Buffer.from(rc)]],rc),/frozen files name candidate/);
+  checkTree([['documentation/allowed.md',Buffer.from(rc)]],rc);
+  checkTree([['test/old_fixture.exs',Buffer.from('0.9.0-rc.1')]],rc);
   console.log('release promotion: permitted version change passed; seeded library change rejected');
 }
 try {
@@ -87,7 +107,7 @@ try {
   if(args.length===1&&args[0]==='--prove-source-rejection'){
     const rc=JSON.parse(readFileSync('package.json')).version;check([seeded()],rc,rc.split('-')[0]);
   }
-  else if(args.length===0)selfTest();
+  else if(args.length===0){selfTest();checkCurrentTree();}
   else {
     if(args.length!==2||args[0]!=='--check'||!/^v\d+\.\d+\.\d+-rc\.\d+$/.test(args[1]))throw Error('release promotion: usage --check <rc-tag>');
     const tag=args[1],rc=tag.slice(1),final=rc.split('-')[0];

@@ -28,9 +28,14 @@
 # A missing or vacuous entry, any specification drift, or a broken
 # identity-chain link is a hard failure.
 
+Code.require_file("../test/support/scratch.exs", __DIR__)
+
 Code.require_file("release_identity.exs", __DIR__)
+Code.require_file("../test/support/census_formatter.exs", __DIR__)
 
 defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
+  alias AgentBlueprintProtocol.Scratch
+
   # Citation payloads are runtime-concatenated so this script's own source
   # stays citation-clean (the repo-side citation gate scans scripts/);
   # the planted scratch files still receive the real numerals.
@@ -661,44 +666,6 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     }
   ]
 
-  @reprove_copy_paths [
-    ".formatter.exs",
-    ".test_census",
-    # The scratch must resolve its own toolchain the way the repo does
-    # (asdf shims read .tool-versions from the working directory up);
-    # without it, node resolves only via whatever else sits on PATH.
-    ".tool-versions",
-    # The release-identity derivations read the kit's package.json (the
-    # verifier_kit manifest member); a scratch without it cannot run the
-    # identity chain at all.
-    "package.json",
-    "package-lock.json",
-    # Documentation links and architecture checks read the workflow set.
-    ".github/workflows",
-    "README.md",
-    "CHANGELOG.md",
-    "CODE_OF_CONDUCT.md",
-    "CONTRIBUTING.md",
-    "SUPPORT.md",
-    "LICENSE",
-    "NOTICE",
-    "SECURITY.md",
-    "usage-rules.md",
-    "documentation",
-    "examples",
-    "docs",
-    "lib",
-    "mix.exs",
-    "mix.lock",
-    "priv",
-    "scripts",
-    # The documentation-currency gate reads the landing page's version claims.
-    "site",
-    "verifier",
-    "spec",
-    "test"
-  ]
-
   @doc "The reprove plant table (list mode for batch tooling)."
   @spec plants() :: [map()]
   def plants, do: @reprove_plants
@@ -755,15 +722,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   defp reprove_plant(plant) do
     baseline_green!(plant.command)
 
-    scratch = scratch_dir("reprove-#{plant.name}")
-
-    File.mkdir_p!(scratch)
-
-    try do
-      Enum.each(@reprove_copy_paths, &copy_path(&1, scratch))
-      File.ln_s!(Path.expand("../deps", __DIR__), Path.join(scratch, "deps"))
-      copy_build(scratch)
-      initialize_git_repo!(scratch)
+    Scratch.with_replica("reprove-#{plant.name}", [git: true], fn scratch ->
       apply_plant!(Path.join(scratch, plant.path), plant)
 
       {output, status} =
@@ -776,25 +735,14 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       if status == 0 do
         raise "reprove survived: #{plant.name}\n#{output}"
       end
-    after
-      File.rm_rf!(scratch)
-    end
+    end)
   end
 
   defp baseline_green!(command) do
     key = {:rc_baseline_green, command}
 
     if Process.get(key) != :ok do
-      scratch = scratch_dir("baseline")
-
-      File.mkdir_p!(scratch)
-
-      try do
-        Enum.each(@reprove_copy_paths, &copy_path(&1, scratch))
-        File.ln_s!(Path.expand("../deps", __DIR__), Path.join(scratch, "deps"))
-        copy_build(scratch)
-        initialize_git_repo!(scratch)
-
+      Scratch.with_replica("reprove-baseline", [git: true], fn scratch ->
         {output, status} =
           System.cmd(hd(command), tl(command),
             cd: scratch,
@@ -807,62 +755,10 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
         end
 
         Process.put(key, :ok)
-      after
-        File.rm_rf!(scratch)
-      end
+      end)
     end
 
     :ok
-  end
-
-  # Unpredictable scratch names: a predictable path in the world-writable
-  # temp dir is a pre-planted-symlink hazard (mkdir_p succeeds through it).
-  defp scratch_dir(label) do
-    rand = Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
-    Path.join(System.tmp_dir!(), "abp-rc-#{label}-#{rand}")
-  end
-
-  defp copy_path(relative, scratch) do
-    source = Path.expand(Path.join("..", relative), __DIR__)
-    target = Path.join(scratch, relative)
-    File.mkdir_p!(Path.dirname(target))
-    {:ok, _copied} = File.cp_r(source, target)
-  end
-
-  defp copy_build(scratch) do
-    for env <- ~w(dev test) do
-      source = Path.expand(Path.join(["..", "_build", env]), __DIR__)
-
-      if File.dir?(source) do
-        target = Path.join(scratch, "_build/#{env}")
-        File.mkdir_p!(Path.dirname(target))
-        {:ok, _} = File.cp_r(source, target)
-      end
-    end
-  end
-
-  # The scratch repository never runs git's automatic maintenance. From git
-  # 2.54 the default maintenance strategy is "geometric", and `git commit`
-  # starts `git maintenance run --auto --detach`: a detached repack that
-  # keeps writing packs into .git after `git commit` returns. Under load it
-  # outlived the plant command and refilled .git/objects while File.rm_rf!
-  # emptied the scratch (hosted CI, git 2.55, October 14, 2026:
-  # `could not remove files and directories recursively ... file already
-  # exists`). With maintenance.auto false, git starts no such process.
-  defp initialize_git_repo!(scratch) do
-    commands = [
-      ["init", "--initial-branch=main"],
-      ["config", "maintenance.auto", "false"],
-      ["config", "gc.auto", "0"],
-      ["config", "user.email", "release-candidate@example.invalid"],
-      ["config", "user.name", "Release Candidate"],
-      ["add", "--all"],
-      ["commit", "-m", "baseline"]
-    ]
-
-    Enum.each(commands, fn args ->
-      {_output, 0} = System.cmd("git", args, cd: scratch, stderr_to_stdout: true)
-    end)
   end
 
   # A plant is one of three ops: an exact-anchor text replacement (from/to),
@@ -1186,12 +1082,11 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   # co-version.
 
   # The suite census tie-out: the README test-count claim, the source
-  # macro census, and the suite-registered count (.test_census, written
-  # by the test step that precedes this check in the quality battery)
+  # macro census, and the suite-registered count (the test-build census,
+  # written by the test step preceding this check in the quality battery)
   # must all agree — a generated test block (runtime tests from one
   # macro) shifts the registered count away from the macro census and
   # reds here, loudly.
-  @census_path ".test_census"
   @readme_census_path "README.md"
 
   defp census_findings do
@@ -1210,8 +1105,10 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       |> Enum.sum()
       |> to_string()
 
+    census_path = AgentBlueprintProtocol.Test.CensusFormatter.path()
+
     recorded =
-      case File.read(@census_path) do
+      case File.read(census_path) do
         {:ok, count} -> String.trim(count)
         _ -> ""
       end
@@ -1221,7 +1118,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     findings =
       if recorded == "" do
         [
-          "census: #{@census_path} is missing — run the quality battery " <>
+          "census: #{census_path} is missing — run the quality battery " <>
             "before the release-candidate check"
         ] ++ findings
       else

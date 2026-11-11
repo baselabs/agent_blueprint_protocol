@@ -74,7 +74,7 @@ if (blueprint.ok && deployment.ok) {
 ### Run the embedded corpus
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.0-rc.2
+npx @agent-blueprint-protocol/verifier@1.0.0-rc.3
 ```
 
 ### Run an external implementation
@@ -82,7 +82,7 @@ npx @agent-blueprint-protocol/verifier@1.0.0-rc.2
 Command template (excerpt). Replace `./example-adapter` with the adapter executable supplied by the implementation.
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.0-rc.2 conformance run --corpus ./conformance --results results.json -- ./example-adapter
+npx @agent-blueprint-protocol/verifier@1.0.0-rc.3 conformance run --corpus ./conformance --results results.json -- ./example-adapter
 ```
 
 Cost amounts are integer millionths of the named currency unit. Verification returns evidence and does not grant permission to act.

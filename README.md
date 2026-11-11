@@ -14,7 +14,7 @@ Every successful verification is non-authorizing: it reports protocol facts and 
 - **Deployment Manifest** binds a Blueprint release to environment-specific descriptors and bounds.
 - **Federation TaskEnvelope** records a task's identity, state, and terminal commitments for carriage in Agent2Agent (A2A) task metadata and Model Context Protocol (MCP) `_meta`.
 
-This is the complete example from [`examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.2/examples/echo-blueprint.json), formatted for reading:
+This is the complete example from [`examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.3/examples/echo-blueprint.json), formatted for reading:
 
 ```json
 {
@@ -43,7 +43,7 @@ Verification decodes bounded JSON, negotiates protocol support, binds related ar
 
 | Language | Package | Install |
 | --- | --- | --- |
-| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}` |
+| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.0.0-rc.3"}` |
 | TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@rc` |
 
 The Elixir package requires Elixir 1.19 or newer on Erlang/OTP 27, 28, or 29. The npm package requires Node.js 24 or newer. Both implement protocol revision 1; the [stability policy](documentation/stability.md) lists the tested combinations.
@@ -74,7 +74,7 @@ The conformance corpus contains 626 cases. It is a collection of inputs and expe
 
 ## Documentation
 
-- [HexDocs](https://agent-blueprint-protocol.hexdocs.pm/1.0.0-rc.2/)
+- [HexDocs](https://agent-blueprint-protocol.hexdocs.pm/1.0.0-rc.3/)
 - [Quickstart](documentation/quickstart.md)
 - [TypeScript guide](documentation/typescript.md)
 - [Conformance guide](documentation/conformance.md)

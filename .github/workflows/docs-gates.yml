@@ -3,8 +3,8 @@
 # The heavy CI workflow skips a push that changes only the paths below
 # (its paths-ignore); this workflow triggers on exactly those paths and
 # runs every gate that reads, digests, or pins them: the secret scan over
-# the full history, the full test suite (the privacy history scan and
-# every documentation, specification, errata, landing-page, and ADR-pin
+# the full history, the standalone privacy scan, the full test suite (every
+# documentation, specification, errata, landing-page, and ADR-pin
 # test), the TypeScript guide's import example against the packed kit,
 # the documentation build, the specification extraction (local
 # and from a filtered clone), and the grammar, registry, compatibility,
@@ -23,10 +23,6 @@ on:
 
 permissions:
   contents: read
-
-env:
-  ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
-  ABP_PRIVACY_SCAN: enforce
 
 concurrency:
   group: docs-gates-${{ github.ref }}
@@ -76,6 +72,12 @@ jobs:
           otp-version: "29.0.3"
           install-hex: false
 
+      - name: Check public privacy over full history
+        run: elixir scripts/check_public_privacy.exs scripts/public_privacy.json
+        env:
+          ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
+          ABP_PRIVACY_SCAN: enforce
+
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
 
@@ -94,9 +96,9 @@ jobs:
       - name: TypeScript guide example
         run: mix typescript.guide
 
-      # The full suite: the privacy history scan plus every test that reads
-      # a documentation or specification path. It also writes the suite
-      # census the release-candidate check compares.
+      # The full suite includes every test that reads a documentation or
+      # specification path. It also writes the suite census the
+      # release-candidate check compares.
       - name: Run the test suite
         run: mix test --seed 42
 

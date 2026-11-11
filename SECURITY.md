@@ -4,7 +4,7 @@
 
 | Version | Supported |
 | --- | --- |
-| 1.0.0-rc.2 | yes |
+| 1.0.0-rc.3 | yes |
 | 1.0.x | yes |
 | 0.8.x | yes |
 | 0.7.x | no; upgrade to the current line |

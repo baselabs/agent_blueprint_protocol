@@ -82,8 +82,7 @@ defmodule AgentBlueprintProtocol.LivebookExtractorTest do
   end
 
   test "extracts every checked-in notebook into one script each" do
-    root =
-      Path.join(System.tmp_dir!(), "abp-livebook-extractor-#{System.unique_integer([:positive])}")
+    root = AgentBlueprintProtocol.Scratch.dir!("livebook-extractor")
 
     input = Path.expand("../docs/livebooks", __DIR__)
     output = Path.join(root, "scripts")

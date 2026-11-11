@@ -5,7 +5,11 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
   alias AgentBlueprintProtocol.Conformance.Cli
   alias AgentBlueprintProtocol.ConformanceTest.Builder
 
-  @moduletag :tmp_dir
+  setup do
+    dir = AgentBlueprintProtocol.Scratch.dir!("cli-limits")
+    on_exit(fn -> File.rm_rf!(dir) end)
+    {:ok, scratch: dir}
+  end
 
   defp elixir_run(path) do
     error =
@@ -37,7 +41,7 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
            do: "Windows symlink creation requires a privilege outside the contributor contract",
            else: false
          )
-  test "both readers reject symlink files and directories", %{tmp_dir: dir} do
+  test "both readers reject symlink files and directories", %{scratch: dir} do
     File.write!(Path.join(dir, "source"), "{}")
     File.ln_s!(Path.join(dir, "source"), Path.join(dir, "linked"))
     denied(dir)
@@ -47,13 +51,13 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
     denied(dir)
   end
 
-  test "both readers cap the aggregate bytes", %{tmp_dir: dir} do
+  test "both readers cap the aggregate bytes", %{scratch: dir} do
     File.write!(Path.join(dir, "one.json"), String.duplicate("x", 2_500_000))
     File.write!(Path.join(dir, "two.json"), String.duplicate("x", 2_500_001))
     denied(dir)
   end
 
-  test "both readers cap entry count including empty files", %{tmp_dir: dir} do
+  test "both readers cap entry count including empty files", %{scratch: dir} do
     for i <- 1..1_001, do: File.write!(Path.join(dir, "example-#{i}.json"), "")
     denied(dir)
   end
@@ -63,12 +67,12 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
            do: "POSIX FIFO creation is unavailable on Windows",
            else: false
          )
-  test "both readers reject special files before reading", %{tmp_dir: dir} do
+  test "both readers reject special files before reading", %{scratch: dir} do
     {_, 0} = System.cmd("mkfifo", [Path.join(dir, "example.json")])
     denied(dir)
   end
 
-  test "corpus certification is visible without changing report bytes", %{tmp_dir: dir} do
+  test "corpus certification is visible without changing report bytes", %{scratch: dir} do
     map =
       Builder.build(Builder.minimal_cases())
 
@@ -139,7 +143,7 @@ defmodule AgentBlueprintProtocol.Conformance.CliLimitsTest do
            else: false
          )
   test "missing roots, unreadable directories, and unreadable files return exit 2", %{
-    tmp_dir: dir
+    scratch: dir
   } do
     {2, "", missing} = elixir_run(Path.join(dir, "absent"))
     assert missing =~ "corpus integrity failure:"

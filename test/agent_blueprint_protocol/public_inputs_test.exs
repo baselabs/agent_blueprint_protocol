@@ -78,8 +78,10 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
     end
   end
 
-  @tag :tmp_dir
-  test "runner input readers deny malformed nested collections and structs", %{tmp_dir: dir} do
+  test "runner input readers deny malformed nested collections and structs" do
+    dir = AgentBlueprintProtocol.Scratch.dir!("public-inputs")
+    on_exit(fn -> File.rm_rf!(dir) end)
+
     for bad <- [MapSet.new([1]), Bounds.maximum(), %URI{}, [1 | :bad]] do
       assert {{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}, false} =
                Runner.execute(bad, %{}, %{})

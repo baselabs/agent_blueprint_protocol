@@ -15,13 +15,6 @@ on:
 permissions:
   contents: read
 
-# Both BEAM jobs consume the privacy-scan secret and the fork-skip mode;
-# fork pull requests receive no repository secrets, so the privacy test
-# skips loudly in exactly that case and enforces everywhere else.
-env:
-  ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
-  ABP_PRIVACY_SCAN: ${{ github.event.pull_request.head.repo.fork == true && 'fork-skip' || 'enforce' }}
-
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -167,6 +160,14 @@ jobs:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
           install-hex: false
+
+      # Publication guards run independently of the build and tests. Fork
+      # pull requests without the secret skip loudly; every other run enforces.
+      - name: Check public privacy over full history
+        run: elixir scripts/check_public_privacy.exs scripts/public_privacy.json
+        env:
+          ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
+          ABP_PRIVACY_SCAN: ${{ github.event.pull_request.head.repo.fork == true && 'fork-skip' || 'enforce' }}
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force

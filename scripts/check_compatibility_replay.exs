@@ -58,10 +58,14 @@
 # tag-less environments; it prints loudly and is NEVER a green claim
 # (ABP_RC_REPROVE=off's rule).
 
+Code.require_file("../test/support/scratch.exs", __DIR__)
+
 Code.require_file("release_identity.exs", __DIR__)
 Code.require_file("gate_node.exs", __DIR__)
 
 defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
+  alias AgentBlueprintProtocol.Scratch
+
   alias AgentBlueprintProtocol.Conformance.{Corpus, Report, Runner}
 
   @history_path "priv/release-history.json"
@@ -519,9 +523,9 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
 
     Enum.each(censuses, fn census ->
       unless census.current do
-        dir = write_census_dir!(census.map)
+        Scratch.with_dir("compat", fn dir ->
+          write_census_dir!(dir, census.map)
 
-        try do
           {out, status} =
             System.cmd(node, [Path.expand("../verifier/cli.ts", __DIR__), "--prior-corpus", dir],
               stderr_to_stdout: false
@@ -544,19 +548,12 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
             _other ->
               raise("kit exit #{status} disagrees with its own report over #{census.digest}")
           end
-        after
-          File.rm_rf!(dir)
-        end
+        end)
       end
     end)
   end
 
-  defp write_census_dir!(map) do
-    dir =
-      Path.join(System.tmp_dir!(), "abp-compat-#{System.unique_integer([:positive, :monotonic])}")
-
-    File.mkdir_p!(dir)
-
+  defp write_census_dir!(dir, map) do
     Enum.each(map, fn {path, bytes} ->
       # The index's path allowlist is prefix+suffix only; a hostile tree
       # could still name `cases/../../outside.json` — refuse traversal
@@ -691,21 +688,19 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         false
       rescue
         RuntimeError -> true
-      after
-        File.rm_rf!(dir)
       end
     end
 
-    empty = Path.join(System.tmp_dir!(), "abp-compat-empty-#{System.unique_integer([:positive])}")
-    File.mkdir_p!(empty)
-    unless refused?.(empty), do: raise("tag-absent seed: the git-failure refusal did not fire")
+    Scratch.with_dir("compat-empty", fn empty ->
+      unless refused?.(empty), do: raise("tag-absent seed: the git-failure refusal did not fire")
+    end)
 
-    bare = Path.join(System.tmp_dir!(), "abp-compat-bare-#{System.unique_integer([:positive])}")
-    File.mkdir_p!(bare)
-    _ = System.cmd("git", ["init", "--quiet"], cd: bare, stderr_to_stdout: true)
+    Scratch.with_dir("compat-bare", fn bare ->
+      Scratch.init_git!(bare)
 
-    unless refused?.(bare),
-      do: raise("tag-absent seed: the empty-tag-set refusal did not fire")
+      unless refused?.(bare),
+        do: raise("tag-absent seed: the empty-tag-set refusal did not fire")
+    end)
 
     IO.puts("seeded red fired: tag-absent refusal (git failure + empty tag set)")
   end

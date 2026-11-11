@@ -100,8 +100,9 @@ defmodule AgentBlueprintProtocol.Architecture.SchemaShapeTest do
     end
     """
 
-    dir = Path.join(System.tmp_dir!(), "abp-planted-#{System.unique_integer()}")
-    File.mkdir_p!(dir)
+    dir = AgentBlueprintProtocol.Scratch.dir!("planted")
+    on_exit(fn -> File.rm_rf!(dir) end)
+
     File.write!(Path.join(dir, "planted.ex"), planted)
 
     {_, 0} =
@@ -130,7 +131,5 @@ defmodule AgentBlueprintProtocol.Architecture.SchemaShapeTest do
     for target <- [:crypto, Regex] do
       assert target not in @allowed_modules
     end
-
-    File.rm_rf!(dir)
   end
 end

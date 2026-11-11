@@ -24,6 +24,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   @security_path "SECURITY.md"
   @changelog_path "CHANGELOG.md"
   @index_path "priv/conformance/index.json"
+  @case_count ~r/\b(\d+)(?:-case\b|\s+cases\b)/
 
   test "README and SECURITY.md name the current released version" do
     version = current_version()
@@ -116,15 +117,18 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
            "the CHANGELOG entry for #{version} does not carry the live " <>
              "corpus digest #{digest}"
 
-    assert Regex.match?(~r/\b#{total} cases\b/, entry),
-           "the CHANGELOG entry for #{version} does not state \"#{total} cases\""
+    assert_claim(entry, @case_count, total, "corpus case count")
+
+    for prose <- ["#{total} cases", "#{total}\ncases", "#{total} \t cases", "#{total}-case"] do
+      assert_claim(prose, @case_count, total, "corpus case count")
+    end
 
     readme = File.read!(@readme_path)
-    assert_claim(readme, ~r/\b(\d+)(?:-case\b|\s+cases\b)/, total, "corpus case count")
+    assert_claim(readme, @case_count, total, "corpus case count")
 
     assert_optional_claim(
       File.read!("CONTRIBUTING.md"),
-      ~r/\b(\d+)(?:-case\b|\s+cases\b)/,
+      @case_count,
       total,
       "corpus case count"
     )
@@ -302,7 +306,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   defp assert_claim(doc, regex, expected, label) do
     claims = regex |> Regex.scan(doc) |> Enum.map(fn [_, value] -> value end)
 
-    assert claims != [], "CONTRIBUTING.md or README.md makes no #{label} claim"
+    assert claims != [], "document makes no #{label} claim"
 
     stale = Enum.uniq(claims) -- [to_string(expected)]
     assert stale == [], "#{label} claims #{inspect(stale)}. The live value is #{expected}"
@@ -355,7 +359,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   end
 
   # CONTRIBUTING's "N tests" claim states the ExUnit total (test macros plus
-  # property macros); the suite-registered count (.test_census, written
+  # property macros); the suite-registered count (the test-build census, written
   # at suite end) is tied to this census by the release-candidate
   # check, which runs AFTER the test step of the battery.
   defp live_test_count, do: macro_census("test") + macro_census("property")

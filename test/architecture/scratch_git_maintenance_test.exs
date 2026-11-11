@@ -13,8 +13,8 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchGitMaintenanceTest do
   directories recursively ... file already exists`).
 
   Goes RED on: a file that drives such a git command without disabling
-  automatic maintenance; a scan that no longer sees the two known drivers
-  (the release-candidate reprove and the privacy-gate test), which would
+  automatic maintenance; a scan that no longer sees the known drivers
+  (the shared scratch helper, replica tests, and privacy-gate test), which would
   make the gate vacuous.
   """
 
@@ -23,9 +23,12 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchGitMaintenanceTest do
   @roots ["scripts", "test"]
   @self "test/architecture/scratch_git_maintenance_test.exs"
   @known_drivers [
-    "scripts/check_release_candidate.exs",
+    "test/support/scratch.exs",
+    "test/scratch_test.exs",
     "test/architecture/public_surface_privacy_test.exs"
   ]
+
+  @scratch "test/support/scratch.exs"
 
   # A git argument list whose first element is a subcommand that runs
   # automatic maintenance when it finishes.
@@ -42,12 +45,27 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchGitMaintenanceTest do
     assert Enum.sort(@known_drivers -- drivers) == [],
            "the scan no longer sees the known git drivers #{inspect(@known_drivers -- drivers)}"
 
-    # The setting itself, as a quoted git config key (a comment naming it
-    # does not count).
-    offenders = Enum.reject(drivers, &(File.read!(&1) =~ ~s("maintenance.auto")))
+    initializers =
+      for root <- @roots,
+          path <- Path.wildcard(Path.join(root, "**/*.{ex,exs}")),
+          path != @self,
+          File.read!(path) =~ ~r/\[\s*"init"/,
+          do: path
+
+    assert initializers == [@scratch],
+           "scratch Git initialization belongs only in Scratch: #{inspect(initializers)}"
+
+    source = File.read!(@scratch)
+    assert source =~ ~s(["config", "maintenance.auto", "false"])
+    assert source =~ ~s(["config", "gc.auto", "0"])
+
+    # Every committing fixture initializes through the same implementation.
+    offenders =
+      Enum.reject(drivers, fn path ->
+        path == @scratch or File.read!(path) =~ "Scratch.init_git!("
+      end)
 
     assert offenders == [],
-           "these files run git commands that start detached background maintenance " <>
-             "without setting maintenance.auto false: #{inspect(offenders)}"
+           "these files commit without Scratch initialization: #{inspect(offenders)}"
   end
 end

@@ -2,6 +2,17 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.0.0-rc.3] — 2026-11-11
+
+The specification no longer names a candidate version in its text, so
+the 1.0 specification is final as written. A documentation test now
+keeps any version of the current release line out of every file a final
+release must leave unchanged. Library and verifier behavior, the
+protocol revision, the verification-semantics version (3), the corpus
+and the registry are unchanged from 1.0.0-rc.2. The corpus contains
+626 cases, digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`; the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest
+is `sha-256:jh2uy3FU7ApQmFtPHHK3YY041sDgWrICmS8Hz-LaAGE`.
+
 ## [1.0.0-rc.2] — 2026-11-11
 
 Documentation corrections cover the README, npm package README, guides, Livebooks, and site. The npm package description states the verifier's checks.

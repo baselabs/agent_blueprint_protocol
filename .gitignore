@@ -4,8 +4,9 @@
 # If you run "mix test --cover", coverage assets end up here.
 /cover/
 
-# The directory Mix downloads your dependencies sources to.
-/deps/
+# Where Mix downloads dependency sources: a directory, or a symlink to one
+# (scratch replicas link the checkout's dependencies).
+/deps
 
 # Where third-party dependencies like ExDoc output generated docs.
 /doc/
@@ -39,9 +40,6 @@ agent_blueprint_protocol_conformance
 # Per-release verifier kit assets are attached to git release tags,
 # not committed to the tree (built by `mix release.asset --write`).
 verifier-*.tar.gz
-
-# Suite-run census artifact (documentation-currency gate input)
-.test_census
 
 # npm kit build state (the installable verifier is built by `npm run
 # build` from verifier/ + priv/conformance; nothing generated ships in

@@ -18,10 +18,14 @@
 # byte equality), the harness raised `seeded red did not diverge` — the
 # raise path is live. Restored; the shipped entry fires.
 
+Code.require_file("../test/support/scratch.exs", __DIR__)
+
 Code.require_file("release_identity.exs", __DIR__)
 Code.require_file("gate_node.exs", __DIR__)
 
 defmodule AgentBlueprintProtocol.VerifierAgreementGate do
+  alias AgentBlueprintProtocol.Scratch
+
   # The node runtime floor lives in the shared GateNode locator
   # (scripts/gate_node.exs), sourced from release_identity.exs.
 
@@ -47,18 +51,20 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
     IO.puts("agreement: repo corpus byte-identical")
 
-    archive_corpus = build_and_unpack_archive!()
-    archive_bytes = run_ts!(node, archive_corpus)
+    Scratch.with_dir("verifier-agreement", fn build_dir ->
+      archive_corpus = build_and_unpack_archive!(build_dir)
+      archive_bytes = run_ts!(node, archive_corpus)
 
-    if escript_bytes != archive_bytes do
-      raise """
-      report byte drift (archive corpus):
-        escript: #{escript_bytes}
-        node:    #{archive_bytes}
-      """
-    end
+      if escript_bytes != archive_bytes do
+        raise """
+        report byte drift (archive corpus):
+          escript: #{escript_bytes}
+          node:    #{archive_bytes}
+        """
+      end
 
-    IO.puts("agreement: archive corpus byte-identical")
+      IO.puts("agreement: archive corpus byte-identical")
+    end)
 
     {self_out, self_status} =
       System.cmd(node, [Path.join([@root, @verifier, "self_checks.ts"])],
@@ -112,14 +118,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     out
   end
 
-  defp build_and_unpack_archive! do
-    build_dir =
-      Path.join(
-        System.tmp_dir!(),
-        "abp-verifier-agreement-#{System.unique_integer([:positive, :monotonic])}"
-      )
-
-    File.mkdir_p!(build_dir)
+  defp build_and_unpack_archive!(build_dir) do
     unpack_dir = Path.join(build_dir, "pkg")
 
     {out, status} =
@@ -326,12 +325,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       """
     end
 
-    sweep_dir =
-      Path.join(System.tmp_dir!(), "abp-artifact-sweep-#{System.unique_integer([:positive])}")
-
-    File.mkdir_p!(sweep_dir)
-
-    try do
+    Scratch.with_dir("artifact-sweep", fn sweep_dir ->
       assert_sweep_breadth!()
 
       failures = artifact_sweep_failures(node, sweep_dir, nil)
@@ -341,9 +335,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
       inverted = artifact_sweep_failures(node, sweep_dir, :invert_first)
       if inverted == [], do: raise("single-artifact sweep seed did not diverge (vacuous sweep)")
-    after
-      File.rm_rf!(sweep_dir)
-    end
+    end)
 
     :ok
   end
@@ -685,15 +677,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   end
 
   defp run_seeded_red(seed, node, baseline_bytes) do
-    scratch =
-      Path.join(
-        System.tmp_dir!(),
-        "abp-verifier-seed-#{seed.name}-#{System.unique_integer([:positive, :monotonic])}"
-      )
-
-    File.mkdir_p!(scratch)
-
-    try do
+    Scratch.with_dir("verifier-seed-#{seed.name}", fn scratch ->
       File.cp_r!(Path.join(@root, @verifier), Path.join(scratch, "verifier"))
       File.cp_r!(Path.join(@root, @corpus), Path.join(scratch, "corpus"))
 
@@ -739,9 +723,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       end
 
       IO.puts("seeded red fired: #{seed.name}")
-    after
-      File.rm_rf!(scratch)
-    end
+    end)
   end
 
   defp mutate_once!(path, from, to) do

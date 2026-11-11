@@ -9,30 +9,25 @@
 # The CI job runs this gate on every push; a broken or drifted asset reds
 # BEFORE a release tag carries it.
 
+Code.require_file("../test/support/scratch.exs", __DIR__)
+
 defmodule AgentBlueprintProtocol.ReleaseAssetGate do
+  alias AgentBlueprintProtocol.Scratch
+
   @escript "agent_blueprint_protocol_conformance"
 
   def run(write?) do
     version = Mix.Project.config()[:version]
     name = "verifier-#{version}.tar.gz"
 
-    # The verify path builds in a scratch and never touches the
-    # canonical artifact (a --write-produced tarball must survive mix
-    # quality runs); the write path builds at the repo root.
-    dir =
+    findings =
       if write? do
-        "."
+        build_and_smoke(Path.join(".", name))
       else
-        d = Path.join(System.tmp_dir!(), "abp-release-asset-build-#{asset_rand()}")
-        File.mkdir_p!(d)
-        d
+        Scratch.with_dir("release-asset-build", fn dir ->
+          build_and_smoke(Path.join(dir, name))
+        end)
       end
-
-    tar = Path.join(dir, name)
-    build_asset(tar)
-    findings = smoke_findings(tar)
-
-    if not write?, do: File.rm_rf!(dir)
 
     if findings != [] do
       raise "release asset: FAILED\n\n#{Enum.join(findings, "\n")}"
@@ -45,6 +40,11 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
     else
       IO.puts("release asset: ok (standalone run over the archive corpus byte-identical)")
     end
+  end
+
+  defp build_and_smoke(tar) do
+    build_asset(tar)
+    smoke_findings(tar)
   end
 
   # macOS Finder droppings are never artifact content; a stray .DS_Store
@@ -93,55 +93,48 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
   # exit 0 with a report byte-identical to the escript's over the same
   # archive bytes.
   defp smoke_findings(tar) do
-    scratch = Path.join(System.tmp_dir!(), "abp-release-asset-#{asset_rand()}")
-    File.mkdir_p!(scratch)
-
-    try do
+    Scratch.with_dir("release-asset", fn scratch ->
       :ok =
         :erl_tar.extract(String.to_charlist(tar), [
           {:cwd, String.to_charlist(scratch)},
           :compressed
         ])
 
-      {_unpack, archive} = build_hex_archive()
-      corpus_dir = Path.join(archive, "priv/conformance")
-      escript_report = escript_report(archive, corpus_dir)
+      Scratch.with_dir("release-asset-hex", fn archive ->
+        build_hex_archive(archive)
+        corpus_dir = Path.join(archive, "priv/conformance")
+        escript_report = escript_report(archive, corpus_dir)
 
-      findings =
-        case run_cli(scratch, Path.join(scratch, "conformance")) do
-          {report, 0} ->
-            if report == escript_report,
-              do: [],
-              else: ["the asset's report over its own corpus diverges from the escript's"]
+        findings =
+          case run_cli(scratch, Path.join(scratch, "conformance")) do
+            {report, 0} ->
+              if report == escript_report,
+                do: [],
+                else: ["the asset's report over its own corpus diverges from the escript's"]
 
-          {_out, code} ->
-            ["the asset's standalone run over its own corpus exited #{code} (0 required)"]
-        end
+            {_out, code} ->
+              ["the asset's standalone run over its own corpus exited #{code} (0 required)"]
+          end
 
-      findings =
-        case run_cli(scratch, corpus_dir) do
-          {report, 0} ->
-            if report == escript_report,
-              do: findings,
-              else:
-                findings ++
-                  [
-                    "the asset's report over the SHIPPED archive corpus is not byte-identical to the escript's"
-                  ]
+        findings =
+          case run_cli(scratch, corpus_dir) do
+            {report, 0} ->
+              if report == escript_report,
+                do: findings,
+                else:
+                  findings ++
+                    [
+                      "the asset's report over the SHIPPED archive corpus is not byte-identical to the escript's"
+                    ]
 
-          {_out, code} ->
-            findings ++
-              ["the asset's run over the SHIPPED archive corpus exited #{code} (0 required)"]
-        end
+            {_out, code} ->
+              findings ++
+                ["the asset's run over the SHIPPED archive corpus exited #{code} (0 required)"]
+          end
 
-      findings
-    after
-      File.rm_rf!(scratch)
-    end
-  end
-
-  defp asset_rand do
-    :crypto.strong_rand_bytes(6) |> Base.encode16(case: :lower)
+        findings
+      end)
+    end)
   end
 
   defp run_cli(scratch, corpus_dir) do
@@ -151,15 +144,7 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
     )
   end
 
-  defp build_hex_archive do
-    dir =
-      Path.join(
-        System.tmp_dir!(),
-        "abp-release-asset-hex-#{:crypto.strong_rand_bytes(6) |> Base.encode16(case: :lower)}"
-      )
-
-    File.mkdir_p!(dir)
-
+  defp build_hex_archive(dir) do
     # Both builds run with cwd = the ORIGINAL tree (this gate's own mix
     # project): hex.build unpacks INTO the dir, and the escript is built
     # at the repo root and copied BESIDE the archive — inside a
@@ -178,7 +163,7 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
       )
 
     File.cp!(@escript, Path.join(dir, @escript))
-    {dir, dir}
+    dir
   end
 
   defp escript_report(dir, corpus_dir) do

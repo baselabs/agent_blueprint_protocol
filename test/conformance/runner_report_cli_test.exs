@@ -1593,7 +1593,11 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
   end
 
   describe "the CLI: --corpus required, exit-status contract" do
-    @describetag :tmp_dir
+    setup do
+      dir = AgentBlueprintProtocol.Scratch.dir!("runner-report")
+      on_exit(fn -> File.rm_rf!(dir) end)
+      {:ok, scratch: dir}
+    end
 
     test "no arguments is a usage error (exit 2)" do
       assert Cli.run([]) == 2
@@ -1604,7 +1608,7 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
     end
 
     test "a floor-valid corpus directory verifies green through the real path (exit 0)", %{
-      tmp_dir: dir
+      scratch: dir
     } do
       map = Builder.build(agreeable_minimal())
       write_corpus(dir, map)
@@ -1617,7 +1621,7 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
     end
 
     test "an over-ceiling corpus file denies value-free at read (exit 2, security lens fix)", %{
-      tmp_dir: dir
+      scratch: dir
     } do
       map = Builder.build(agreeable_minimal())
       write_corpus(dir, map)
@@ -1634,7 +1638,7 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
       assert_received {:exit, 2}
     end
 
-    test "a corrupt corpus directory denies at load (exit 2)", %{tmp_dir: dir} do
+    test "a corrupt corpus directory denies at load (exit 2)", %{scratch: dir} do
       map =
         Builder.build(Builder.minimal_cases())
 
@@ -1682,8 +1686,8 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
       root = File.cwd!()
       escript = Path.join(root, "agent_blueprint_protocol_conformance")
 
-      scratch =
-        Path.join(System.tmp_dir!(), "abp-macos-walk-#{System.unique_integer([:positive])}")
+      scratch = AgentBlueprintProtocol.Scratch.dir!("macos-walk")
+      on_exit(fn -> File.rm_rf!(scratch) end)
 
       {build_out, build_status} =
         System.cmd("mix", ["escript.build"], cd: root, stderr_to_stdout: true)
@@ -1691,7 +1695,6 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
       assert build_status == 0, "escript build failed:\n#{build_out}"
 
       on_exit(fn ->
-        File.rm_rf!(scratch)
         File.rm(escript)
       end)
 
@@ -1821,9 +1824,6 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
   end
 
   defp write_corpus(dir, map) do
-    File.rm_rf!(dir)
-    File.mkdir_p!(dir)
-
     for {path, bytes} <- map do
       target = Path.join(dir, path)
       File.mkdir_p!(Path.dirname(target))

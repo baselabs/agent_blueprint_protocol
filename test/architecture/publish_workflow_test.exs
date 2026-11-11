@@ -78,19 +78,21 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     [_, publish] = String.split(workflow, "      - name: Publish the Hex package and docs\n")
     [matcher] = Regex.run(~r/grep [^;\n]+hex-publish\.log"/, publish)
 
-    for {message, status} <- [
-          {"HTTP status code: 409", 1},
-          {"version: is awaiting approval", 0},
-          {"request 409 failed", 1},
-          {"already staged: unrelated failure", 1},
-          {"version: is awaiting approval for another request", 1}
-        ] do
-      path = Path.join(System.tmp_dir!(), "hex-publish.log")
-      File.write!(path, message <> "\n")
+    AgentBlueprintProtocol.Scratch.with_dir("publish-workflow", fn dir ->
+      for {message, status} <- [
+            {"HTTP status code: 409", 1},
+            {"version: is awaiting approval", 0},
+            {"request 409 failed", 1},
+            {"already staged: unrelated failure", 1},
+            {"version: is awaiting approval for another request", 1}
+          ] do
+        path = Path.join(dir, "hex-publish.log")
+        File.write!(path, message <> "\n")
 
-      assert {_, ^status} =
-               System.cmd("bash", ["-c", matcher], env: [{"RUNNER_TEMP", System.tmp_dir!()}])
-    end
+        assert {_, ^status} =
+                 System.cmd("bash", ["-c", matcher], env: [{"RUNNER_TEMP", dir}])
+      end
+    end)
   end
 
   defp live_hex_release(workflow) do

@@ -32,7 +32,9 @@ The command prints a canonical aggregate report. Exit `0` means agreement, `1` m
 
 The package's `mix quality` alias runs dependency audits, formatting, compilation, strict Credo, tests with the configured coverage threshold, conformance checks, the npm kit build, TypeScript checks, Dialyzer, documentation, specification checks, and release checks. CI runs this alias in its Linux quality job.
 
-The suite currently defines 987 tests (64 properties). The coverage threshold is 100% coverage.
+The publication privacy guard runs separately in the pre-push hook and CI with the same build-free command: `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
+
+The suite currently defines 996 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
 
