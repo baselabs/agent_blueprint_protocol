@@ -8,7 +8,7 @@ Agent Blueprint Protocol (ABP) defines portable JSON artifacts and verification 
 
 ## Is it stable?
 
-The current package version is `1.0.0-rc.1`. Treat it as a release candidate, not a final 1.0 release.
+The current package version is `1.0.0-rc.2`. Treat it as a release candidate, not a final 1.0 release.
 
 ## How is it different from an A2A Agent Card?
 

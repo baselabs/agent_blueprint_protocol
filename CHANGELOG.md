@@ -2,6 +2,17 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.0.0-rc.2] — 2026-11-11
+
+This candidate changes only the npm package README and release tooling.
+The npm README describes TypeScript consumers. Release checks and Livebook
+extraction work across candidate and final package versions.
+
+Protocol revision remains 1 and verification-semantics version remains 2.
+The corpus, registry, and certified results are unchanged. The corpus contains
+604 cases, digest `sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`;
+registry `sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg`.
+
 ## [1.0.0-rc.1] — 2026-11-11
 
 ### Breaking

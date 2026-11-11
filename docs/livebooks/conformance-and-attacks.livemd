@@ -2,7 +2,7 @@
 livebook:{"persist_outputs":true}
 -->
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0-rc.1/docs/livebooks/conformance-and-attacks.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0-rc.2/docs/livebooks/conformance-and-attacks.livemd)
 
 # Conformance and attacks
 
@@ -11,7 +11,7 @@ This notebook runs the shipped corpus, inspects one case, builds a results docum
 The first cell installs the published package at the release candidate requirement.
 
 ```elixir
-Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}])
+Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}])
 ```
 
 Locate the package files and load the shipped conformance corpus.

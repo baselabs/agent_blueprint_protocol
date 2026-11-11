@@ -19,7 +19,7 @@ Replace the generated `deps/0` body with this excerpt:
 
 ```elixir
 defp deps do
-  [{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}]
+  [{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}]
 end
 ```
 

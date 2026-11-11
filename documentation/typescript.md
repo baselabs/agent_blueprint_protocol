@@ -230,7 +230,7 @@ The package installs the `agent-blueprint-protocol` and `verifier` commands. Bot
 | `--serve --corpus <dir>` | Run as an adapter for the external execution protocol. | `0` clean completion, `2` invalid input or handshake, `3` internal error. |
 | `conformance run ... -- <command>` | Run the external harness against an adapter. | `0` agreement, `2` usage, corpus, or claim input failure, `3` internal error, `10` handshake mismatch, `11` duplicate response, `12` missing response, `13` extra response, `14` reordered response, `15` malformed line, `16` oversized line, `17` response timeout, `18` early exit, `19` disagreement. |
 
-For `conformance run`, the harness writes a results document only after receiving all expected responses and a clean adapter exit. See the [execution protocol](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.1/spec/conformance/execution.md) for the line format and outcomes.
+For `conformance run`, the harness writes a results document only after receiving all expected responses and a clean adapter exit. See the [execution protocol](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.2/spec/conformance/execution.md) for the line format and outcomes.
 
 ## Import migration
 

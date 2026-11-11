@@ -9,7 +9,7 @@ defmodule AgentBlueprintProtocol.LivebookExtractor do
     with true <- Regex.match?(@version_pattern, version),
          cells when cells != [] <- code_cells(markdown),
          [install | rest] <- cells,
-         true <- install == source_install(),
+         true <- source_install?(install),
          false <- Enum.any?(rest, &String.contains?(&1, "Mix.install(")) do
       {:ok, runner_script(version, rest)}
     else
@@ -75,8 +75,16 @@ defmodule AgentBlueprintProtocol.LivebookExtractor do
     |> Enum.map(&String.trim/1)
   end
 
-  defp source_install,
-    do: ~s|Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}])|
+  defp source_install?(cell) do
+    pattern = ~r/\AMix\.install\(\[\{:agent_blueprint_protocol, "(~> [^"]+)"\}\]\)\z/
+
+    with [_, requirement] <- Regex.run(pattern, cell),
+         {:ok, _requirement} <- Version.parse_requirement(requirement) do
+      true
+    else
+      _ -> false
+    end
+  end
 
   defp published_install(version),
     do: ~s|Mix.install([{:agent_blueprint_protocol, "== #{version}"}])|

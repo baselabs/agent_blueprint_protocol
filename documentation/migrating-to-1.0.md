@@ -262,7 +262,7 @@ Before, pin the previous Hex release:
 After, pin the release candidate:
 
 ```elixir
-{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}
+{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}
 ```
 
 For TypeScript, install the candidate with `npm install @agent-blueprint-protocol/verifier@rc`. The package versions carry the same complete release identity.

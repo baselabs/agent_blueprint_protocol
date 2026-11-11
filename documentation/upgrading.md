@@ -14,7 +14,7 @@ The protocol uses separate version values for separate contracts:
 The Hex and npm packages carry the same complete version, including prerelease identifiers. The 1.0 release candidate uses this Hex requirement:
 
 ```elixir
-{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}
+{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}
 ```
 
 Install the npm package with its release-candidate tag:

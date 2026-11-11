@@ -491,7 +491,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "currency-readme-stale-pin",
       path: "README.md",
-      from: "\"~> 1.0.0-rc.1\"",
+      from: "\"~> #{Mix.Project.config()[:version]}\"",
       to: "\"~> 0.0.1\"",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },

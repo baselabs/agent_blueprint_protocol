@@ -48,7 +48,7 @@ flowchart LR
 
 | Language | Package | Install |
 | --- | --- | --- |
-| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}` |
+| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}` |
 | TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@rc` |
 
 From a Mix project that depends on the package, read its shipped example:

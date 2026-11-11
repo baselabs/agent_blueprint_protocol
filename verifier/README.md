@@ -1,7 +1,8 @@
 # Agent Blueprint Protocol for TypeScript
 
 A typed, non-authorizing verifier library and conformance CLI. Node 24 or
-newer; zero runtime dependencies. The npm and Hex packages share one version.
+newer; zero runtime dependencies. For Elixir, see
+[agent_blueprint_protocol](https://hex.pm/packages/agent_blueprint_protocol).
 The specification is [published with the project](https://github.com/baselabs/agent_blueprint_protocol/blob/main/spec/protocol.md).
 
 ```sh
@@ -164,9 +165,8 @@ function deprecated(notice: Notice): boolean {
 }
 ```
 
-Elixir consumers match structs on the fields they use. Release-manifest
-readers ignore unknown additive members but reject unknown equivalence
-claims. Every unknown nonzero harness exit is failure. New revisions,
+Release-manifest readers ignore unknown additive members but reject unknown
+equivalence claims. Every unknown nonzero harness exit is failure. New revisions,
 profiles, execution versions, modes, and flags are opt-in; existing contracts
 and earlier corpus claims keep their meaning.
 

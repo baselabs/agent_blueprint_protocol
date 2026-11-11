@@ -23,6 +23,12 @@ defmodule AgentBlueprintProtocol.LivebookExtractorTest do
         "\n\n" <>
         fence <> "elixir\nvalue + 1\n" <> fence <> "\n"
 
+    for source_version <- ["1.0.0-rc.1", "1.0.0-rc.2", "1.0.0", "2.3.4", "2.3"] do
+      source = String.replace(notebook, "~> 1.0.0-rc.1", "~> " <> source_version)
+      assert {:ok, script} = LivebookExtractor.extract(source, "1.0.0-rc.7")
+      assert script =~ ~s|Mix.install([{:agent_blueprint_protocol, "== 1.0.0-rc.7"}])|
+    end
+
     assert {:ok, script} = LivebookExtractor.extract(notebook, "1.0.0-rc.7")
 
     assert String.starts_with?(
@@ -48,7 +54,7 @@ defmodule AgentBlueprintProtocol.LivebookExtractorTest do
 
     wrong_pin =
       prefix <>
-        ~s|Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])| <>
+        ~s|Mix.install([{:agent_blueprint_protocol, "== 1.0.0"}])| <>
         suffix <>
         prefix <> "value = 1" <> suffix
 
@@ -61,7 +67,17 @@ defmodule AgentBlueprintProtocol.LivebookExtractorTest do
         suffix
 
     assert {:error, :invalid_notebook} = LivebookExtractor.extract(missing, "1.0.0-rc.7")
-    assert {:error, :invalid_notebook} = LivebookExtractor.extract(wrong_pin, "1.0.0-rc.7")
+
+    for invalid <- [
+          wrong_pin,
+          String.replace(wrong_pin, "== 1.0.0", "~> invalid"),
+          String.replace(wrong_pin, "== 1.0.0", "~> "),
+          String.replace(wrong_pin, "== 1.0.0", "~> 1.0.0\"}]); :ok; #"),
+          String.replace(duplicate, ":agent_blueprint_protocol", ":other_package")
+        ] do
+      assert {:error, :invalid_notebook} = LivebookExtractor.extract(invalid, "1.0.0-rc.7")
+    end
+
     assert {:error, :invalid_notebook} = LivebookExtractor.extract(duplicate, "1.0.0-rc.7")
   end
 
@@ -78,5 +94,13 @@ defmodule AgentBlueprintProtocol.LivebookExtractorTest do
     assert length(paths) == length(Path.wildcard(Path.join(input, "*.livemd")))
     assert Enum.all?(paths, &String.ends_with?(&1, ".exs"))
     assert Enum.all?(paths, &(File.read!(&1) =~ ~s("== 1.0.0-rc.7")))
+
+    invalid_dir = Path.join(root, "invalid")
+    File.mkdir_p!(invalid_dir)
+    invalid_path = Path.join(invalid_dir, "invalid.livemd")
+    File.write!(invalid_path, "```elixir\nMix.install([])\n```\n")
+
+    assert {:error, {:invalid_notebook, ^invalid_path}} =
+             LivebookExtractor.extract_directory(invalid_dir, output, "1.0.0-rc.7")
   end
 end

@@ -153,6 +153,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
 
     assert version_claims("1.0.0-rc.1") == ["1.0.0-rc.1"]
 
+    assert allowed_document_version?("documentation/verifying-releases.md", "2.0.0", "2.0.0-rc.1")
+    refute allowed_document_version?("documentation/verifying-releases.md", "1.0.0", "2.0.0-rc.1")
+
     document = File.read!("documentation/errors.md")
 
     listed =
@@ -255,7 +258,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     do: claim in [version, "0.8.4"]
 
   defp allowed_document_version?("documentation/verifying-releases.md", claim, version),
-    do: claim in [version, "0.8.4", "1.0.0"]
+    do: claim in [version, "0.8.4", hd(String.split(version, "-"))]
 
   # These guides reproduce the shipped echo Deployment Manifest, whose
   # build identity intentionally names the fixture's original package version.

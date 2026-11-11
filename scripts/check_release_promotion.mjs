@@ -63,22 +63,30 @@ function seeded(){
 function selfTest(){
   const rc='1.0.0-rc.1',final='1.0.0';
   check([['mix.exs',Buffer.from('@version "'+rc+'"'),Buffer.from('@version "'+final+'"')]],rc,final);
-  const readme=readFileSync('README.md'),security=readFileSync('SECURITY.md');
+  const readme=Buffer.from('# Example\n\n{:agent_blueprint_protocol, "~> '+rc+'"}\n\nnpm install @agent-blueprint-protocol/verifier@rc\nnpx @agent-blueprint-protocol/verifier@rc --help\n');
+  const security=Buffer.from('# Security policy\n\n| Version | Supported |\n| --- | --- |\n| '+rc+' | yes |\n| 1.0.x | yes |\n| 0.8.x | yes |\n');
   const finalReadme=Buffer.from(readme.toString().replaceAll(rc,final).replaceAll('@agent-blueprint-protocol/verifier@rc','@agent-blueprint-protocol/verifier'));
   const finalSecurity=Buffer.from(security.toString().replace('| '+rc+' | yes |\n',''));
-  const changelog=readFileSync('CHANGELOG.md').toString(),rcHeading='## ['+rc+']';
+  const rcHeading='## ['+rc+']';
+  const changelog='# Changelog\n\n'+rcHeading+' — 2026-11-11\n\nCandidate package.\n\n## [0.8.4] — 2026-10-01\n\nEarlier package.\n';
   const finalChangelog=changelog.replace(rcHeading,'## ['+final+'] — 2026-12-01\n\nPromotes '+rc+' unchanged.\n\n'+rcHeading);
   check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog)]],rc,final);
   assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(changelog.replace(rcHeading,'## ['+final+']'))]],rc,final),/forbidden differences/);
   assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog+'edited released text\n')]],rc,final),/forbidden differences/);
+  assert.notDeepEqual(readme,finalReadme);
+  assert.notDeepEqual(security,finalSecurity);
+  assert.notEqual(changelog,finalChangelog);
   check([['README.md',readme,finalReadme],['SECURITY.md',security,finalSecurity]],rc,final);
+  for(const [path,before,after] of [['README.md',readme,Buffer.from(finalReadme.toString().replaceAll(final,rc))],['README.md',readme,Buffer.from(finalReadme.toString().replaceAll('@agent-blueprint-protocol/verifier','@agent-blueprint-protocol/verifier@rc'))],['SECURITY.md',security,Buffer.from(finalSecurity.toString().replace('| 1.0.x | yes |\n',''))]])assert.throws(()=>check([[path,before,after]],rc,final),/forbidden differences/);
   for(const [path,before,after] of [['README.md',readme,finalReadme],['SECURITY.md',security,finalSecurity]])assert.throws(()=>check([[path,before,Buffer.concat([after,Buffer.from('extra text')])]],rc,final),/forbidden differences/);
   assert.throws(()=>check([seeded()],rc,final),/forbidden differences/);
   console.log('release promotion: permitted version change passed; seeded library change rejected');
 }
 try {
   const args=process.argv.slice(2);
-  if(args.length===1&&args[0]==='--prove-source-rejection')check([seeded()],'1.0.0-rc.1','1.0.0');
+  if(args.length===1&&args[0]==='--prove-source-rejection'){
+    const rc=JSON.parse(readFileSync('package.json')).version;check([seeded()],rc,rc.split('-')[0]);
+  }
   else if(args.length===0)selfTest();
   else {
     if(args.length!==2||args[0]!=='--check'||!/^v\d+\.\d+\.\d+-rc\.\d+$/.test(args[1]))throw Error('release promotion: usage --check <rc-tag>');
