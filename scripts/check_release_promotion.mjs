@@ -7,6 +7,15 @@ import assert from 'node:assert/strict';
 const git=args=>{const r=spawnSync('git',args,{maxBuffer:20_000_000});if(r.status!==0)throw Error('release promotion: git reference unavailable');return r.stdout;};
 const hash=bytes=>createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
 const paths=()=>git(['ls-files','--cached','--others','--exclude-standard','-z']).toString().split('\0').filter(Boolean);
+// The final release adds its own dated entry directly above the candidate's
+// entry; every earlier entry, the candidate's included, stays byte-identical.
+function changelogPromotes(a,b,rc,final){
+  const escape=s=>s.replaceAll('.','\\.');
+  const entry=b.match(new RegExp('^## \\['+escape(final)+'\\] — \\d{4}-\\d{2}-\\d{2}\\n[\\s\\S]*?(?=^## \\[)','m'));
+  if(!entry)return false;
+  const at=b.indexOf(entry[0]);
+  return b.slice(0,at)+b.slice(at+entry[0].length)===a&&b.indexOf('## ['+rc+']')===at+entry[0].length;
+}
 function check(changes,rc,final){
   const denied=[];
   for(const [path,before,after] of changes){
@@ -25,8 +34,7 @@ function check(changes,rc,final){
       if(!row||JSON.stringify(old)!==JSON.stringify(next))denied.push(path);continue;
     }
     if(path==='CHANGELOG.md'){
-      const normalized=a.replace('## ['+rc+'] — unreleased','## ['+final+'] — '+(b.match(new RegExp('^## \\['+final.replaceAll('.','\\.')+'\\] — (\\d{4}-\\d{2}-\\d{2})$','m'))?.[1]??'invalid'));
-      if(normalized!==b)denied.push(path);continue;
+      if(!changelogPromotes(a,b,rc,final))denied.push(path);continue;
     }
     if(path==='README.md'){
       const normalized=a.replaceAll(rc,final).replaceAll('@agent-blueprint-protocol/verifier@rc','@agent-blueprint-protocol/verifier');
@@ -36,7 +44,7 @@ function check(changes,rc,final){
       const line=final.split('.').slice(0,2).join('.')+'.x';
       const rcRow='| '+rc+' | yes |\n';
       const finalRow='| '+line+' | yes |\n';
-      const normalized=a.replace(rcRow,a.includes(finalRow)?'':finalRow).replace('The release candidate is unreleased. ','');
+      const normalized=a.replace(rcRow,a.includes(finalRow)?'':finalRow);
       if(normalized!==b)denied.push(path);continue;
     }
     if(path.startsWith('documentation/')||path.startsWith('docs/')||path.startsWith('site/')){
@@ -57,7 +65,12 @@ function selfTest(){
   check([['mix.exs',Buffer.from('@version "'+rc+'"'),Buffer.from('@version "'+final+'"')]],rc,final);
   const readme=readFileSync('README.md'),security=readFileSync('SECURITY.md');
   const finalReadme=Buffer.from(readme.toString().replaceAll(rc,final).replaceAll('@agent-blueprint-protocol/verifier@rc','@agent-blueprint-protocol/verifier'));
-  const finalSecurity=Buffer.from(security.toString().replace('| '+rc+' | yes |\n','').replace('The release candidate is unreleased. ',''));
+  const finalSecurity=Buffer.from(security.toString().replace('| '+rc+' | yes |\n',''));
+  const changelog=readFileSync('CHANGELOG.md').toString(),rcHeading='## ['+rc+']';
+  const finalChangelog=changelog.replace(rcHeading,'## ['+final+'] — 2026-12-01\n\nPromotes '+rc+' unchanged.\n\n'+rcHeading);
+  check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog)]],rc,final);
+  assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(changelog.replace(rcHeading,'## ['+final+']'))]],rc,final),/forbidden differences/);
+  assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog+'edited released text\n')]],rc,final),/forbidden differences/);
   check([['README.md',readme,finalReadme],['SECURITY.md',security,finalSecurity]],rc,final);
   for(const [path,before,after] of [['README.md',readme,finalReadme],['SECURITY.md',security,finalSecurity]])assert.throws(()=>check([[path,before,Buffer.concat([after,Buffer.from('extra text')])]],rc,final),/forbidden differences/);
   assert.throws(()=>check([seeded()],rc,final),/forbidden differences/);

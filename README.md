@@ -88,7 +88,6 @@ The conformance corpus contains 604 cases. It is a collection of inputs and expe
 ## Status
 
 The 1.0 line follows its stability promise: documented APIs remain stable within the major version, and deprecations follow the [stability policy](documentation/stability.md).
-Version 1.0.0-rc.1 is an unreleased candidate.
 
 ## Contributing
 

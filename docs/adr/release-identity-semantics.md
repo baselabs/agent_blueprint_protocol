@@ -96,8 +96,9 @@ projection fields are unchanged, so prior-census claims remain
 ## Candidate promotion
 
 A final tree differs from its candidate only in package versions, the
-manifest's bound package and kit versions, an appended history row, the
-CHANGELOG heading/date, install pins and the site. The promotion check
+manifest's bound package and kit versions, an appended history row, a new
+dated CHANGELOG entry added directly above the candidate's unchanged entry,
+install pins, the security table's candidate row and the site. The promotion check
 rejects every other byte change, including library and verifier sources,
 public API census, specification, corpus, registry and semantics version.
 Final publication compares against the highest candidate tag for that exact

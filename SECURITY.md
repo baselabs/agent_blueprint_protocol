@@ -15,7 +15,7 @@
 | 0.2.x | no; upgrade to the current line |
 | 0.1.x | no; upgrade to the current line |
 
-The release candidate is unreleased. The 1.0 line and the 0.8 transition
+The 1.0 line and the 0.8 transition
 line receive security fixes. See the [stability policy](documentation/stability.md).
 Reports are handled on a best-effort basis; there is no guaranteed response time.
 
