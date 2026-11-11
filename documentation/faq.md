@@ -8,7 +8,7 @@ Agent Blueprint Protocol (ABP) defines portable JSON artifacts and verification 
 
 ## Is it stable?
 
-The packages follow Semantic Versioning, and the [stability policy](stability.md) lists the surfaces that stay stable within 1.x. This documentation describes package version `1.0.0-rc.3`.
+The packages follow Semantic Versioning, and the [stability policy](stability.md) lists the surfaces that stay stable within 1.x. This documentation describes package version `1.0.0`.
 
 ## How is it different from an A2A Agent Card?
 

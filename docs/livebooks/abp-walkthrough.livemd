@@ -2,7 +2,7 @@
 livebook:{"persist_outputs":true}
 -->
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0-rc.3/docs/livebooks/abp-walkthrough.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0/docs/livebooks/abp-walkthrough.livemd)
 
 # Agent Blueprint Protocol walkthrough
 
@@ -11,7 +11,7 @@ This tour reads the shipped artifacts, checks one typed denial, negotiates suppo
 The first cell installs the published package.
 
 ```elixir
-Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.3"}])
+Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
 ```
 
 This cell locates the installed package files and falls back to the source checkout when run from the repository.

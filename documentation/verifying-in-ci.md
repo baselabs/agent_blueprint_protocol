@@ -26,7 +26,7 @@ The command writes the canonical results document to standard output and a corpu
 From the repository root, run the npm CLI against the repository corpus:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.0-rc.3 --results --corpus ./priv/conformance > results.json
+npx @agent-blueprint-protocol/verifier@1.0.0 --results --corpus ./priv/conformance > results.json
 ```
 
 The results document has the format name, corpus and registry digests, and one result row per case. It contains no implementation identity.
@@ -63,7 +63,7 @@ The [runner contract](../spec/conformance/runner.md) defines result projections 
 Copy the corpus to `./conformance` from `node_modules/@agent-blueprint-protocol/verifier/dist/corpus/` or the release asset's `conformance/` directory. Then run the npm harness with the adapter executable after `--`, replacing `./example-adapter` with the implementation's adapter.
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.0-rc.3 conformance run --corpus ./conformance --results results.json -- ./example-adapter
+npx @agent-blueprint-protocol/verifier@1.0.0 conformance run --corpus ./conformance --results results.json -- ./example-adapter
 ```
 
 The harness compares the adapter's complete result projections. It writes a results document after a clean run.

@@ -14,13 +14,13 @@ The protocol uses separate version values for separate contracts:
 The Hex and npm packages carry the same complete version, including prerelease identifiers. Pin this release with this Hex requirement:
 
 ```elixir
-{:agent_blueprint_protocol, "~> 1.0.0-rc.3"}
+{:agent_blueprint_protocol, "~> 1.0.0"}
 ```
 
 Install the same version from npm:
 
 ```sh
-npm install @agent-blueprint-protocol/verifier@1.0.0-rc.3
+npm install @agent-blueprint-protocol/verifier@1.0.0
 ```
 
 ## Release identity

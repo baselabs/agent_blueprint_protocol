@@ -2,7 +2,7 @@
 livebook:{"persist_outputs":true}
 -->
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0-rc.3/docs/livebooks/extensions-and-federation.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0/docs/livebooks/extensions-and-federation.livemd)
 
 # Extensions and federation
 
@@ -11,7 +11,7 @@ This notebook inspects the extension registry and negotiation outcomes, then dec
 The first cell installs the published package.
 
 ```elixir
-Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.3"}])
+Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
 ```
 
 Locate and decode the shipped Blueprint and Federation example files.

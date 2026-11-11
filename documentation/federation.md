@@ -56,7 +56,7 @@ The carrier codecs combine the extension body with native task identity and stat
 
 ## Terminal commitments
 
-The public `AgentBlueprintProtocol.Federation.verify_commitment/2` function performs federation commitment verification. The shipped fixtures demonstrate a valid terminal commitment and cases that return `federation_terminal_conflict`. See the [federation commitment cases](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.3/priv/conformance/cases/federation-verify_commitment.json).
+The public `AgentBlueprintProtocol.Federation.verify_commitment/2` function performs federation commitment verification. The shipped fixtures demonstrate a valid terminal commitment and cases that return `federation_terminal_conflict`. See the [federation commitment cases](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0/priv/conformance/cases/federation-verify_commitment.json).
 
 ## Next steps
 

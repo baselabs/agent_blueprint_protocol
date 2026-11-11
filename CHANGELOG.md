@@ -2,6 +2,16 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.0.0] — 2026-11-11
+
+The 1.0 release of the Agent Blueprint Protocol. It promotes 1.0.0-rc.3
+without changes: library and verifier behavior, the protocol revision,
+the verification-semantics version (3), the corpus, the registry and the
+specification are those of 1.0.0-rc.3. The corpus contains 626 cases,
+digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`; the registry
+digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the
+specification digest is `sha-256:jh2uy3FU7ApQmFtPHHK3YY041sDgWrICmS8Hz-LaAGE`.
+
 ## [1.0.0-rc.3] — 2026-11-11
 
 The specification no longer names a candidate version in its text, so
