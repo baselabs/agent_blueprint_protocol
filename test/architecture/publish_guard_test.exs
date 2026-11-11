@@ -186,7 +186,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   end
 
   test "the exemption pin can fire (calibration)" do
-    planted = ~r/\b(ExampleCommerce|ExamplePlatform)\b/
+    planted = ~r/\bAgent Blueprint Protocol\b/
 
     hits =
       for fixture <- registry_fixtures(),

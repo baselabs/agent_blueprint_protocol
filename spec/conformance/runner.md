@@ -93,7 +93,10 @@ Support members: `revisions` (integer array, default `[1]`), `core_fields`
 `schemas` (namespace-to-schema object). Registry-entry members: `owner`
 string, `criticality` string, `state` string, nullable `schema_digest` and
 `a2a_uri` strings, nullable integer `promoted_at_revision`. Absent overrides
-use the compiled registry. Schemas are digest-pinned by that registry.
+use the compiled registry. A host-supplied entry resolves a namespace absent
+from the compiled registry. For compiled entries, an override changes only
+lifecycle state; criticality and schema digest remain compiled. Held schemas
+must match the resolved entry's digest pin.
 
 Bound maps use the thirteen names in the protocol. Costs are
 `{amount,currency}`; classification is `{ordinal,markers}`; other protected

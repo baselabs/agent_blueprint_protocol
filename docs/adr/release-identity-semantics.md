@@ -79,8 +79,8 @@ guide.
 
 ## Semantics version 2
 
-Version 1.0.0-rc.2 increments `verification_semantics_version` once,
-from 1 to 2, while retaining protocol revision 1. Failures have one typed
+Verification-semantics version 2 replaces version 1 while retaining protocol
+revision 1. Failures have one typed
 shape, evidence no longer marks skipped checks verified, signature
 verification returns signed attributes, duplicate signers deny, the
 protected header accepts the Ed25519 identifier, and the federation
@@ -88,10 +88,20 @@ namespace is deprecated in favor of its controlled replacement. The
 release history appends the candidate identity; published rows remain
 immutable. Prior-census claims describe projected verdicts separately
 from these API and evidence changes.
-The `negotiation-estate-contract-valid` case gains an
-`extension_deprecated` notice. Its valid verdict and previously declared
-projection fields are unchanged, so prior-census claims remain
-`equivalent`; the current census explicitly pins the added notice.
+
+## Semantics version 3
+
+Version 1.0.0-rc.2 removes the five product example registrations from the
+compiled registry. Only the protocol's active and deprecated federation
+registrations ship. Hosts supply other entries, including criticality,
+lifecycle state, schema pin, and the schema document they hold.
+
+The registry difference changes prior negotiation and composed-import results.
+All six prior censuses are declared `diverged_by_registry_census`; replay
+checks every disagreement against the registry difference. The classifier
+includes `reconcile` because it composes the same negotiation operation.
+It still refuses disagreements on surfaces that do not use the registry or
+inputs that carry no changed namespace. Published history rows remain frozen.
 
 ## Candidate promotion
 

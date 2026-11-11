@@ -1097,6 +1097,7 @@ for (const [text, projection] of [
 }
 
 import * as negotiation from "./negotiation.ts";
+import * as registry from "./registry.ts";
 const exampleNamespace = "com.example/host";
 const exampleSchema = obj([["type", str("object")]]);
 const exampleSchemaBytes = encode(exampleSchema);
@@ -1210,6 +1211,31 @@ for (const kind of [null, undefined, { enum: [] }, { array: null }, { object: nu
 }
 check("registry: malformed check denies", resultCode(() => registryEngine.validate(
   [{ name: "example", kind: "any", check: 1 } as unknown as registryEngine.Spec], obj([["example", nil]]))), "invalid_type");
+
+
+check("registry: only protocol federation entries ship", registry.registeredExtensions().map(e => e.namespace).sort().join(","), "com.example/federation,io.github.baselabs/federation");
+
+// The package-root support type exposes host registrations and held schema documents.
+const hostValue = {
+  content_digest: "example", protocol_revision: 1, required_core_fields: [],
+  extensions: {critical: {[exampleNamespace]: {}}, optional: {}},
+};
+const hostSupport: facade.Support = {
+  revisions: new Set([1]), coreFields: new Set(),
+  registry: {[exampleNamespace]: exampleEntry}, schemas: {[exampleNamespace]: {type: "object"}},
+};
+const hostArtifact: facade.Blueprint = {kind: "blueprint", value: hostValue, contentDigest: "example", canonicalBytes: new Uint8Array()};
+check("facade: host-supplied critical registration", facade.negotiate(hostArtifact, hostSupport).ok, true);
+const wrongHostSchema = facade.negotiate(hostArtifact, {...hostSupport, schemas: {[exampleNamespace]: {type: "array"}}});
+check("facade: host schema pin is enforced", wrongHostSchema.ok ? "valid" : wrongHostSchema.error.code, "extension_schema_digest_mismatch");
+const compiledArtifact: facade.Blueprint = {...hostArtifact, value: {...hostValue,
+  extensions: {critical: {"io.github.baselabs/federation": {}}, optional: {}},
+}};
+const repinned = facade.negotiate(compiledArtifact, {...hostSupport,
+  registry: {"io.github.baselabs/federation": exampleEntry},
+  schemas: {"io.github.baselabs/federation": {type: "object"}},
+});
+check("facade: compiled schema pin cannot be replaced", repinned.ok ? "valid" : repinned.error.code, "extension_schema_digest_mismatch");
 
 // ---- summary --------------------------------------------------------------------
 

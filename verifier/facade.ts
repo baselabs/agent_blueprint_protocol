@@ -56,7 +56,7 @@ export type Deployment=Artifact & {readonly kind:'deployment';readonly contentDi
 export type FederationEnvelope=Artifact & {readonly kind:'federation'};
 /** Raw Ed25519 public key supplied by the caller. */
 export interface PublicKey {readonly keyId:string;readonly algorithm:'ed25519';readonly key:Uint8Array}
-/** Negotiation support and digest-pinned schema documents. */
+/** Negotiation support with host registrations and held schema documents. Compiled entries preserve their criticality and schema pins. */
 export interface Support {readonly revisions:ReadonlySet<number>;readonly coreFields:ReadonlySet<string>;readonly registry:Readonly<Record<string,{readonly owner:string;readonly criticality:'critical'|'optional';readonly state:'reserved'|'active'|'deprecated'|'retired';readonly schemaDigest:string|null;readonly a2aUri:string|null;readonly promotedAtRevision:number|null}>>;readonly schemas:Readonly<Record<string,JsonValue>>}
 /** An ordinal classification and its retained regulatory markers. */
 export interface Classification {readonly ordinal:'public'|'internal'|'confidential'|'restricted';readonly markers:readonly ('pci'|'phi')[]}

@@ -352,13 +352,13 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       name: "publish-guard-exemption-pin-plant",
       path: "test/architecture/publish_guard_test.exs",
       from: "    ~r/\\b(BAP|BARA)\\b/\n  ]\n",
-      to: "    ~r/\\b(BAP|BARA)\\b/,\n    ~r/\\bExampleCommerce\\b/\n  ]\n",
+      to: "    ~r/\\b(BAP|BARA)\\b/,\n    ~r/\\bAgent Blueprint Protocol\\b/\n  ]\n",
       command: ~w(mix test test/architecture/publish_guard_test.exs)
     },
     %{
       name: "publish-guard-calibration-swap",
       path: "test/architecture/publish_guard_test.exs",
-      from: "    planted = ~r/\\b(ExampleCommerce|ExamplePlatform)\\b/\n",
+      from: "    planted = ~r/\\bAgent Blueprint Protocol\\b/\n",
       to: "    planted = ~r/Zz9NoFixtureEver/\n",
       command: ~w(mix test test/architecture/publish_guard_test.exs)
     },
@@ -584,8 +584,10 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "registry-twin-edit",
       path: "lib/agent_blueprint_protocol/extension_registry.ex",
-      from: "owner: \"ExampleCommerce\",\n        criticality: :critical",
-      to: "owner: \"ExampleCommerceX\",\n        criticality: :critical",
+      from:
+        "namespace: \"io.github.baselabs/federation\",\n        owner: \"Agent Blueprint Protocol\",",
+      to:
+        "namespace: \"io.github.baselabs/federation\",\n        owner: \"Agent Blueprint Protocol Example\",",
       command: ~w(mix registry.equality)
     },
     %{

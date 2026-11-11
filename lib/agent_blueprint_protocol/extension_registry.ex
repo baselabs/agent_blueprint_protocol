@@ -103,62 +103,8 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   # Compile-time content as a literal-returning function (module attributes
   # cannot hold the defining module's own structs); a change here is a code
   # release either way — the drift-unrepresentable acceptance holds.
-  #
-  # The estate-contract product registration: the FIRST product-owned critical
-  # namespace with an authored schema pin. The document itself is corpus data
-  # (priv/conformance/schemas/estate-contract.schema.json — hash-bound in the
-  # corpus index, shipped in the archive); the pin below is
-  # Digest.hash(:extension_schema, JCS(parsed document)), and the binding test
-  # in ExtensionRegistryTest proves pin and shipped document agree. The
-  # placeholder estate namespace deprecates in the same release: its payload
-  # role (a free-object condition body) is superseded by the validated channel.
   defp entries do
     [
-      %__MODULE__{
-        namespace: "com.example.commerce/graph",
-        owner: "ExampleCommerce",
-        criticality: :critical,
-        state: :active,
-        schema_digest: nil,
-        a2a_uri: "https://example.com/extensions/commerce-graph",
-        promoted_at_revision: nil
-      },
-      %__MODULE__{
-        namespace: "com.example.commerce/classification-labels",
-        owner: "ExampleCommerce",
-        criticality: :optional,
-        state: :active,
-        schema_digest: nil,
-        a2a_uri: "https://example.com/extensions/commerce-classification-labels",
-        promoted_at_revision: nil
-      },
-      %__MODULE__{
-        namespace: "com.example.commerce/rubric-assertion",
-        owner: "ExampleCommerce",
-        criticality: :optional,
-        state: :active,
-        schema_digest: nil,
-        a2a_uri: "https://example.com/extensions/commerce-rubric-assertion",
-        promoted_at_revision: nil
-      },
-      %__MODULE__{
-        namespace: "com.example.platform/estate",
-        owner: "ExamplePlatform",
-        criticality: :optional,
-        state: :deprecated,
-        schema_digest: nil,
-        a2a_uri: "https://example.com/extensions/platform-estate",
-        promoted_at_revision: nil
-      },
-      %__MODULE__{
-        namespace: "com.example.platform/estate-contract",
-        owner: "ExamplePlatform",
-        criticality: :critical,
-        state: :active,
-        schema_digest: "sha-256:s_ToZWwxrhhd4vVxAyUh2Q6Gddston4tBSLHTLvCQAw",
-        a2a_uri: "https://example.com/extensions/platform-estate-contract",
-        promoted_at_revision: nil
-      },
       %__MODULE__{
         namespace: "com.example/federation",
         owner: "Agent Blueprint Protocol",

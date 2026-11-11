@@ -8,9 +8,35 @@ Documentation corrections cover the README, npm package README, guides, Livebook
 The unused TypeScript `Context` type is no longer exported; no exported function
 accepted it. Release tooling works for any candidate or final version.
 
-Library and verifier behavior are unchanged. Protocol revision remains 1 and verification-semantics version remains 2. The corpus and registry are unchanged. The corpus contains
-604 cases, digest `sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`;
-registry `sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg`.
+The shipped registry contains only the protocol's federation registrations:
+`io.github.baselabs/federation` (active) and `com.example/federation`
+(deprecated), both critical and schema-pinned. Hosts that negotiated the five
+earlier product example namespaces supply their own entries through the host
+support registry and provide the schema documents they hold. Compiled entries
+retain their criticality and schema pins under host overrides. The product
+schema and product-specific projection fixture are removed.
+
+The registry digest changes and verification-semantics version is now 3;
+protocol revision remains 1. All six prior censuses, covering 0.3.0 through
+0.8.4 and 1.0.0-rc.1, are declared `diverged_by_registry_census`. In each,
+`negotiation-estate-contract-valid` now denies `extension_unknown_critical`;
+the digest-mismatch, schema-absent, and tier-bound cases deny the same code;
+the criticality-conflict case becomes valid with the optional body quarantined;
+and `extension-resolve-estate-deprecated-retained` changes from a deprecated
+notice to unknown-optional quarantine. For 1.0.0-rc.1, the two
+`*-deprecated-optional-notice` cases also report unknown-optional quarantine,
+and `reconcile-deprecated-optional` changes its extension evidence from
+retained to quarantined and removes it from the retained list. All other
+prior-census projections remain equivalent. Compatibility replay checks these
+changes against the registry difference, including composed imports.
+
+Generic host registrations replace the earlier examples in the current corpus.
+The corpus contains 626 cases, including 22 new host lifecycle and schema-pin
+cases. Its digest is `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`;
+the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`.
+
+The obsolete `verifier/RUNNER.md` redirect is removed from the repository and
+the standalone archive. The runner contract is `spec/conformance/runner.md`.
 
 ## [1.0.0-rc.1] — 2026-11-11
 

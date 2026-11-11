@@ -122,7 +122,11 @@ defmodule AgentBlueprintProtocol.Negotiation do
     @moduledoc """
       This struct describes the revisions and core fields a consumer supports.
 
-      Use it when supplying the consumer posture to negotiation.
+      Use it when supplying the consumer posture to negotiation. `registry`
+      accepts host-owned entries for namespaces absent from the shipped registry;
+      `schemas` holds the corresponding parsed schema documents. For shipped
+      entries, only lifecycle state can be overridden, preserving criticality and
+      schema digest pins.
 
       This module does not authorize operations.
 

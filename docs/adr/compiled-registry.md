@@ -1,92 +1,36 @@
 # ADR: compiled-in extension registry
 
-Status: accepted (2026-08-20); closes the package-boundary
-contradiction of record (see below).
-
-## Context
-
-The extension registry could ship as a data file loaded at runtime, or
-as compiled-in module data. The package-boundary decision's early draft
-listed a registry directory gaining a seat in the Hex archive — a line
-that predates the registry decision itself, leaving two contradictory
-statements of record.
+Status: accepted.
 
 ## Decision
 
-The registry is COMPILED-IN data (module attributes in
-`lib/agent_blueprint_protocol/extension_registry.ex`): registry content
-is a code release. No registry directory exists, none ships in the
-archive, and drift between shipped code and shipped registry is
-unrepresentable. A beam-census gate asserts no shipped module touches
-the filesystem, which a file-loading registry would violate.
+The release ships only the protocol's federation registrations:
+`io.github.baselabs/federation` is critical and active;
+`com.example/federation` is critical and deprecated. Both pin the protocol's
+federation schema. The deprecated spelling remains supported throughout 1.x.
+Product and third-party registrations are supplied by the host through
+negotiation support, with the schema documents the host holds.
 
-Contradiction closure: the early "package.files gains `priv/registry`"
-line is superseded by this decision. The archive's registry-relevant
-addition is exactly `spec/protocol.md` (the normative protocol
-document) and the previously frozen set; the requirement map records
-the reconciliation.
+`spec/registry/registry.json` is the canonical source for shipped entries.
+Elixir and TypeScript compile equivalent data into their libraries. Runtime
+registry lookup performs no file I/O. The registry equality check binds both
+compiled forms, the canonical document, and the corpus index to one digest.
 
-Registry pinning for artifact verification uses `build_identities`
-(kind `extension`, digest-exact) — an artifact stays verifiable against
-a registry that legitimately gained entries after it was produced. The
-registry's own digest is bound into the corpus index, not into
-artifacts.
+## Host registrations
 
-## Consequences
+An entry for a namespace absent from the shipped registry supplies its own
+criticality, state, and schema digest pin. A host entry for a compiled namespace
+can select its lifecycle state but cannot reclassify it or replace its pin.
+Critical bodies validate against a held schema whose canonical digest matches
+the resolved entry. Optional bodies retain their lifecycle behavior.
 
-Entry changes (add, promote, deprecate, retire) are owner-made code
-changes: changelog-recorded, ADR-recorded, and reviewable as diffs.
-Owners register namespaces when real; no placeholder third-party
-entries ship. The compiled form also gives the second-language verifier
-a stable, corpus-anchored view of registry semantics.
+## Identity and lifecycle
 
-## Amendment 2026-08-23 — owner identity superseded
+The registry digest identifies shipped content and is bound into the corpus
+index. Artifact digests cover extension content rather than the registry
+itself. Hosts can pin extension build identities separately.
 
-The original decision published real owner identities (project and
-domain names) as first-release registry content. Superseded by user
-directive the same release cycle: the package is public, and public
-content reveals no internal names. Registry data now uses RFC 2606
-example-class values (`com.example.*` namespaces, `Example*` owners,
-`example.com` declaration URIs); the real names are banned bytes in the
-publish guard. Everything else in this ADR (compiled-in form, digest
-binding, state machine) stands unchanged. The 2026-08-23 registry edit
-moved `ExtensionRegistry.digest/0`'s pinned value consciously, per the
-corpus-registry binding test.
-
-
-## Amendment — governance-canonical source (2026-08-26)
-
-`spec/registry/registry.json` is the governance-canonical registry
-source: registry changes are made THERE first, then mirrored into the
-two compiled twins, which remain hand-written (no codegen — the
-deferred technical trigger stands: a third implementation, or an
-unported registry change surviving a cycle). The binding is the LOCAL
-offline digest-equality gate (`mix registry.equality`, a quality-battery
-step): the canonical digest over registry.json's entries — projected
-exactly as the compiled digest derives them (entries keyed by
-namespace, the declared field set, JCS, the `extension_registry` domain
-separator) — must equal the Elixir twin's digest, the TypeScript
-twin's digest, and the corpus index's pinned registry digest.
-
-The one-time identical-serialization assertion, quoted from the
-gate's founding run:
-
-    registry equality: ok (6 entries; governance json, Elixir twin,
-    TypeScript twin, and corpus index all carry
-    sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs)
-
-A hand-edit on any carrier reds: declared-field edits via the digest
-comparison (both directions red-proven — a twin edit, a
-governance-json edit), and any other byte of the governance json via
-the gate's closed-world shape check (the format member and undeclared
-entry members red; red-proven) — the file's own bytes are additionally
-covered end-to-end by the release identity chain's specification
-digest.
-
-## Controlled federation registration
-
-The federation profile uses `io.github.baselabs/federation` and its
-project-hosted A2A declaration URI. Its previous example namespace is
-deprecated, remains supported in 1.x, and retains the same schema pin.
-The five product placeholder namespaces remain unchanged. Registration
-validates MCP metadata key syntax without narrowing artifact decoding.
+Shipped namespaces deprecate and never retire within 1.x. Host-owned entries
+retain the general reserved, active, deprecated, and retired state mechanism.
+A registry change that moves prior-census verdicts increments verification
+semantics and declares the divergence through compatibility replay.

@@ -74,7 +74,7 @@ sample =
 
 ```
 %{
-  total: 604,
+  total: 626,
   agreement: true,
   sample: %{case_id: "blueprint-decode-header-Ed25519", agree: true}
 }
@@ -115,8 +115,8 @@ case_response =
 
 ```
 %{
-  handshake_request: "{\"corpus_digest\":\"sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg\",\"version\":1}",
-  handshake_response: "{\"corpus_digest\":\"sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg\",\"version\":1}",
+  handshake_request: "{\"corpus_digest\":\"sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk\",\"version\":1}",
+  handshake_response: "{\"corpus_digest\":\"sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk\",\"version\":1}",
   case_request: "{\"id\":\"base64url-decode-valid\",\"input\":{\"base64url\":\"-_8\"},\"surface\":\"base64url.decode\"}",
   case_response: "{\"id\":\"base64url-decode-valid\",\"result\":{\"decoded\":\"-_8\",\"verdict\":\"valid\"}}"
 }

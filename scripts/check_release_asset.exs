@@ -72,16 +72,6 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
       |> Enum.reject(fn path -> macos_artifact?(path) or File.dir?(path) end)
       |> Enum.map(&{&1, File.read!(&1)})
 
-    files =
-      Enum.map(files, fn
-        {"RUNNER.md", _} ->
-          {"RUNNER.md",
-           "# Conformance runner\n\nSee [the normative contract](spec/conformance/runner.md).\n"}
-
-        entry ->
-          entry
-      end)
-
     # erl_tar.add wants binaries, not charlists, for name/value pairs
     entries =
       Enum.map(

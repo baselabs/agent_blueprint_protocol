@@ -1,8 +1,6 @@
-// The compiled-in extension registry twin: the six entries (five
-// first-release rows plus the estate-contract product registration) and
-// the federation schema, with the registry content digest the corpus binds
-// to. Agreement with the Elixir twin is proven by the corpus's own
-// registry_digest check at load — neither side reads the other's source.
+// The protocol-owned federation registry and schema. Hosts supply other
+// registrations through negotiation support. The corpus binds both runtimes
+// to the same registry content digest.
 
 import * as digest from "./digest.ts";
 import { encode } from "./canonical.ts";
@@ -47,55 +45,6 @@ function taggedFederationDigest(): string {
 
 function entries(): RegistryEntry[] {
   return [
-    {
-      namespace: "com.example.commerce/graph",
-      owner: "ExampleCommerce",
-      criticality: "critical",
-      state: "active",
-      schema_digest: null,
-      a2a_uri: "https://example.com/extensions/commerce-graph",
-      promoted_at_revision: null,
-    },
-    {
-      namespace: "com.example.commerce/classification-labels",
-      owner: "ExampleCommerce",
-      criticality: "optional",
-      state: "active",
-      schema_digest: null,
-      a2a_uri: "https://example.com/extensions/commerce-classification-labels",
-      promoted_at_revision: null,
-    },
-    {
-      namespace: "com.example.commerce/rubric-assertion",
-      owner: "ExampleCommerce",
-      criticality: "optional",
-      state: "active",
-      schema_digest: null,
-      a2a_uri: "https://example.com/extensions/commerce-rubric-assertion",
-      promoted_at_revision: null,
-    },
-    {
-      namespace: "com.example.platform/estate",
-      owner: "ExamplePlatform",
-      criticality: "optional",
-      state: "deprecated",
-      schema_digest: null,
-      a2a_uri: "https://example.com/extensions/platform-estate",
-      promoted_at_revision: null,
-    },
-    {
-      // The product-extension registration: the first product-owned critical
-      // pin. The document is corpus data (schemas/estate-contract.schema.json);
-      // this digest is JCS-of-parsed-document under the extension-schema
-      // domain, bound to the shipped file by the Elixir pin test.
-      namespace: "com.example.platform/estate-contract",
-      owner: "ExamplePlatform",
-      criticality: "critical",
-      state: "active",
-      schema_digest: "sha-256:s_ToZWwxrhhd4vVxAyUh2Q6Gddston4tBSLHTLvCQAw",
-      a2a_uri: "https://example.com/extensions/platform-estate-contract",
-      promoted_at_revision: null,
-    },
     {
       namespace: "com.example/federation",
       owner: "Agent Blueprint Protocol",

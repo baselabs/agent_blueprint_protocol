@@ -1828,11 +1828,11 @@ pattern that accidentally covers exempted data reds here, naming the
 exemption decision, instead of spurious-redning the main scans.
 
 ```red
-$ # plant: ~r/\bExampleCommerce\b/ added to @text_patterns
+$ # plant: ~r/\bAgent Blueprint Protocol\b/ added to @text_patterns
 $ mix test test/architecture/publish_guard_test.exs
 publish-guard pattern covers exempted registry data (update the exemption decision, not the data):
-  pattern "\\bExampleCommerce\\b" covers ExampleCommerce
-Result: 2/8 passed
+  pattern "\\bAgent Blueprint Protocol\\b" covers Agent Blueprint Protocol
+Result: 6/8 passed
 ```
 
 ### case: "the exemption pin can fire (calibration)"

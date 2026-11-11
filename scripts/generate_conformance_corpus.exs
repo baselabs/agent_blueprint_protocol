@@ -979,8 +979,7 @@ extension_bp_value =
     extensions:
       BlueprintFixture.extensions(
         optional: %{
-          "com.example.commerce/classification-labels" =>
-            {:object, [{"labels", {:array, [{:string, "pci"}]}}]}
+          "com.example.vendor/labels" => {:object, [{"labels", {:array, [{:string, "pci"}]}}]}
         }
       )
   )
@@ -1268,246 +1267,41 @@ fed_support = %{
   }
 }
 
-# The registered product-extension document, single-sourced here (the generator
-# writes it to schemas/estate-contract.schema.json; the registry pin binds to
-# the parsed document, and ExtensionRegistryTest proves pin and shipped file
-# agree — a stale regeneration reds that binding).
-estate_contract_schema = %{
+# A host owns this example registration and holds its pinned schema document.
+vendor_schema = %{
   "type" => "object",
   "additionalProperties" => false,
-  "properties" => %{
-    "asset_materialization_window" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "definition" => %{"$ref" => "#/$defs/definition_ref"},
-        "window_days" => %{"type" => ["integer", "null"], "minimum" => 1}
-      },
-      "required" => ["definition", "window_days"]
-    },
-    "objective_condition" => %{
-      "oneOf" => [
-        %{"$ref" => "#/$defs/leaf"},
-        %{"$ref" => "#/$defs/tier_1"},
-        %{"$ref" => "#/$defs/tier_2"},
-        %{"$ref" => "#/$defs/tier_3"}
-      ]
-    }
-  },
-  "required" => ["asset_materialization_window", "objective_condition"],
-  "$defs" => %{
-    "definition_ref" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        # maxLength bounds the one free-form string in the body: validated
-        # critical bodies skip the portability value-shape heuristics, so the
-        # schema itself is the bound on that unscanned surface.
-        "name" => %{"type" => "string", "minLength" => 1, "maxLength" => 128},
-        "version" => %{"type" => "integer", "minimum" => 1}
-      },
-      "required" => ["name", "version"]
-    },
-    "leaf_present" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "materialization_present"},
-        "definition" => %{"$ref" => "#/$defs/definition_ref"}
-      },
-      "required" => ["op", "definition"]
-    },
-    "leaf_stale" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "materialization_stale"},
-        "definition" => %{"$ref" => "#/$defs/definition_ref"},
-        "max_age_days" => %{"type" => "integer", "minimum" => 1}
-      },
-      "required" => ["op", "definition", "max_age_days"]
-    },
-    "leaf_count_within" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "materialization_count_within"},
-        "definition" => %{"$ref" => "#/$defs/definition_ref"},
-        "days" => %{"type" => "integer", "minimum" => 1},
-        "max" => %{"type" => "integer", "minimum" => 0}
-      },
-      "required" => ["op", "definition", "days", "max"]
-    },
-    "leaf" => %{
-      "oneOf" => [
-        %{"$ref" => "#/$defs/leaf_present"},
-        %{"$ref" => "#/$defs/leaf_stale"},
-        %{"$ref" => "#/$defs/leaf_count_within"}
-      ]
-    },
-    "tier_1" => %{
-      "oneOf" => [
-        %{"$ref" => "#/$defs/and_over_leaf"},
-        %{"$ref" => "#/$defs/or_over_leaf"},
-        %{"$ref" => "#/$defs/not_over_leaf"}
-      ]
-    },
-    "and_over_leaf" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "and"},
-        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/leaf"}, "minItems" => 1}
-      },
-      "required" => ["op", "args"]
-    },
-    "or_over_leaf" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "or"},
-        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/leaf"}, "minItems" => 1}
-      },
-      "required" => ["op", "args"]
-    },
-    "not_over_leaf" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "not"},
-        "args" => %{
-          "type" => "array",
-          "items" => %{"$ref" => "#/$defs/leaf"},
-          "minItems" => 1,
-          "maxItems" => 1
-        }
-      },
-      "required" => ["op", "args"]
-    },
-    "tier_2" => %{
-      "oneOf" => [
-        %{"$ref" => "#/$defs/and_over_tier_1"},
-        %{"$ref" => "#/$defs/or_over_tier_1"},
-        %{"$ref" => "#/$defs/not_over_tier_1"}
-      ]
-    },
-    "and_over_tier_1" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "and"},
-        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/tier_1"}, "minItems" => 1}
-      },
-      "required" => ["op", "args"]
-    },
-    "or_over_tier_1" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "or"},
-        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/tier_1"}, "minItems" => 1}
-      },
-      "required" => ["op", "args"]
-    },
-    "not_over_tier_1" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "not"},
-        "args" => %{
-          "type" => "array",
-          "items" => %{"$ref" => "#/$defs/tier_1"},
-          "minItems" => 1,
-          "maxItems" => 1
-        }
-      },
-      "required" => ["op", "args"]
-    },
-    "tier_3" => %{
-      "oneOf" => [
-        %{"$ref" => "#/$defs/and_over_tier_2"},
-        %{"$ref" => "#/$defs/or_over_tier_2"},
-        %{"$ref" => "#/$defs/not_over_tier_2"}
-      ]
-    },
-    "and_over_tier_2" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "and"},
-        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/tier_2"}, "minItems" => 1}
-      },
-      "required" => ["op", "args"]
-    },
-    "or_over_tier_2" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "or"},
-        "args" => %{"type" => "array", "items" => %{"$ref" => "#/$defs/tier_2"}, "minItems" => 1}
-      },
-      "required" => ["op", "args"]
-    },
-    "not_over_tier_2" => %{
-      "type" => "object",
-      "additionalProperties" => false,
-      "properties" => %{
-        "op" => %{"const" => "not"},
-        "args" => %{
-          "type" => "array",
-          "items" => %{"$ref" => "#/$defs/tier_2"},
-          "minItems" => 1,
-          "maxItems" => 1
-        }
-      },
-      "required" => ["op", "args"]
-    }
-  }
+  "required" => ["value"],
+  "properties" => %{"value" => %{"oneOf" => [%{"const" => "one"}, %{"const" => "two"}]}}
 }
 
-# The host posture for the product extension: the compiled registry resolves
-# the entry (criticality, pin); the host supplies the authored document.
-estate_support = %{
+vendor_entry = %{
+  "owner" => "ExampleVendor",
+  "criticality" => "critical",
+  "state" => "active",
+  "schema_digest" =>
+    CorpusGen.tagged_digest(:extension_schema, CorpusGen.json_text!(vendor_schema))
+}
+
+vendor_support = %{
   "revisions" => [1],
+  "registry" => %{"com.example.vendor/record" => vendor_entry},
   "schemas" => %{
     "com.example/federation" => fed_support["schemas"]["com.example/federation"],
-    "com.example.platform/estate-contract" => estate_contract_schema
+    "com.example.vendor/record" => vendor_schema
   }
 }
 
-# Reference product bodies: the window contract and the condition AST in the
-# tier_1 reference shape.
-estate_window = %{
-  "definition" => %{"name" => "daily_position_summary", "version" => 7},
-  "window_days" => nil
-}
+legacy_entry = %{"owner" => "ExampleVendor", "criticality" => "optional", "state" => "deprecated"}
+legacy_support = put_in(fed_support, ["registry", "com.example.vendor/legacy"], legacy_entry)
 
-estate_leaf_present = %{
-  "op" => "materialization_present",
-  "definition" => %{"name" => "daily_position_summary", "version" => 7}
-}
+vendor_body = %{"value" => "one"}
 
-estate_leaf_stale = %{
-  "op" => "materialization_stale",
-  "definition" => %{"name" => "daily_position_summary", "version" => 7},
-  "max_age_days" => 7
-}
-
-estate_condition = %{"op" => "and", "args" => [estate_leaf_present, estate_leaf_stale]}
-
-estate_body = %{
-  "asset_materialization_window" => estate_window,
-  "objective_condition" => estate_condition
-}
-
-estate_artifact = fn condition ->
+vendor_artifact = fn body ->
   Map.put(base_artifact, "extensions", %{
     "critical" => %{
       "com.example/federation" => %{"issuer" => "org-a"},
-      "com.example.platform/estate-contract" => %{
-        "asset_materialization_window" => estate_window,
-        "objective_condition" => condition
-      }
+      "com.example.vendor/record" => body
     },
     "optional" => %{}
   })
@@ -1597,85 +1391,163 @@ negotiation_cases = [
     "expected" => %{"verdict" => "invalid", "code" => "extension_criticality_conflict"}
   },
   %{
-    "id" => "negotiation-estate-contract-valid",
+    "id" => "negotiation-vendor-record-valid",
     "surface" => "negotiation.negotiate",
     "class" => "valid",
-    "input" => %{"artifact" => estate_artifact.(estate_condition), "support" => estate_support},
+    "input" => %{"artifact" => vendor_artifact.(vendor_body), "support" => vendor_support},
     "expected" => %{
       "verdict" => "valid",
       "revision" => 1,
-      "critical" => ["com.example.platform/estate-contract", "com.example/federation"],
+      "critical" => ["com.example.vendor/record", "com.example/federation"],
       "notices" => ["extension_deprecated"]
     }
   },
   %{
-    "id" => "negotiation-estate-contract-schema-absent",
+    "id" => "negotiation-vendor-record-schema-absent",
     "surface" => "negotiation.negotiate",
     "class" => "extension_schema_unavailable",
     "input" => %{
-      "artifact" => estate_artifact.(estate_condition),
-      "support" => %{"revisions" => [1], "schemas" => %{}}
+      "artifact" => vendor_artifact.(vendor_body),
+      "support" => %{vendor_support | "schemas" => %{}}
     },
     "expected" => %{"verdict" => "invalid", "code" => "extension_schema_unavailable"}
   },
   %{
-    "id" => "negotiation-estate-contract-digest-mismatch",
+    "id" => "negotiation-vendor-record-digest-mismatch",
     "surface" => "negotiation.negotiate",
     "class" => "invalid_constraint",
     "input" => %{
-      "artifact" => estate_artifact.(estate_condition),
+      "artifact" => vendor_artifact.(vendor_body),
       "support" => %{
         "revisions" => [1],
+        "registry" => vendor_support["registry"],
         "schemas" => %{
           "com.example/federation" => fed_support["schemas"]["com.example/federation"],
-          "com.example.platform/estate-contract" => %{"type" => "object"}
+          "com.example.vendor/record" => %{"type" => "object"}
         }
       }
     },
     "expected" => %{"verdict" => "invalid", "code" => "extension_schema_digest_mismatch"}
   },
   %{
-    "id" => "negotiation-estate-contract-tier-bound",
+    "id" => "negotiation-vendor-schema-cardinality",
     "surface" => "negotiation.negotiate",
     "class" => "invalid_cardinality",
     "input" => %{
-      "artifact" =>
-        estate_artifact.(%{
-          "op" => "and",
-          "args" => [
-            # Uniform tiers 1..3 then one more composite level: the portable
-            # depth bound denies at the top selector (oneOf exactly-one).
-            %{"op" => "and", "args" => [estate_leaf_present, estate_leaf_stale]}
-            |> then(fn t1 ->
-              %{"op" => "and", "args" => [t1, t1]}
-            end)
-            |> then(fn t2 ->
-              %{"op" => "and", "args" => [t2, t2]}
-            end)
-            |> then(fn t3 ->
-              %{"op" => "and", "args" => [t3, t3]}
-            end)
-          ]
-        }),
-      "support" => estate_support
+      "artifact" => vendor_artifact.(%{"value" => "three"}),
+      "support" => vendor_support
     },
     "expected" => %{"verdict" => "invalid", "code" => "invalid_cardinality"}
   },
   %{
-    "id" => "negotiation-estate-contract-criticality-conflict",
+    "id" => "negotiation-vendor-record-criticality-conflict",
     "surface" => "negotiation.negotiate",
     "class" => "extension_criticality_conflict",
     "input" => %{
       "artifact" =>
         Map.put(base_artifact, "extensions", %{
           "critical" => %{"com.example/federation" => %{"issuer" => "org-a"}},
-          "optional" => %{"com.example.platform/estate-contract" => estate_body}
+          "optional" => %{"com.example.vendor/record" => vendor_body}
         }),
-      "support" => estate_support
+      "support" => vendor_support
     },
     "expected" => %{"verdict" => "invalid", "code" => "extension_criticality_conflict"}
   }
 ]
+
+# Host registrations exercise the complete lifecycle in both negotiation surfaces.
+host_registration_cases =
+  for surface <- ["negotiation.negotiate", "extension.resolve"],
+      position <- ["critical", "optional"],
+      state <- ["active", "deprecated", "reserved", "retired"] do
+    namespace = "com.example.vendor/record"
+    entry = %{vendor_entry | "criticality" => position, "state" => state}
+
+    input = %{
+      "artifact" =>
+        Map.put(base_artifact, "extensions", %{
+          "critical" => if(position == "critical", do: %{namespace => vendor_body}, else: %{}),
+          "optional" => if(position == "optional", do: %{namespace => vendor_body}, else: %{})
+        }),
+      "support" => %{
+        "registry" => %{namespace => entry},
+        "schemas" => %{namespace => vendor_schema}
+      }
+    }
+
+    expected =
+      case {position, state} do
+        {"critical", "reserved"} ->
+          %{"verdict" => "invalid", "code" => "extension_unknown_critical"}
+
+        {"critical", "retired"} ->
+          %{"verdict" => "invalid", "code" => "extension_retired"}
+
+        _ ->
+          %{
+            "verdict" => "valid",
+            "critical" => if(position == "critical", do: [namespace], else: []),
+            "quarantined" => [],
+            "notices" =>
+              case state do
+                "deprecated" -> ["extension_deprecated"]
+                "reserved" -> ["extension_unknown_optional_retained"]
+                "retired" -> ["extension_retired"]
+                _ -> []
+              end
+          }
+      end
+
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-host-" <> position <> "-" <> state,
+      "surface" => surface,
+      "class" => if(expected["verdict"] == "valid", do: "valid", else: "invalid_constraint"),
+      "input" => input,
+      "expected" => expected
+    }
+  end
+
+host_pin_cases =
+  for surface <- ["negotiation.negotiate", "extension.resolve"],
+      variant <- ["missing-pin", "mismatched-schema", "compiled-pin-override"] do
+    namespace =
+      if(variant == "compiled-pin-override",
+        do: "io.github.baselabs/federation",
+        else: "com.example.vendor/record"
+      )
+
+    entry =
+      if(variant == "missing-pin",
+        do: Map.put(vendor_entry, "schema_digest", nil),
+        else: vendor_entry
+      )
+
+    document = if(variant == "mismatched-schema", do: %{"type" => "object"}, else: vendor_schema)
+
+    %{
+      "id" => String.replace(surface, ".", "-") <> "-host-" <> variant,
+      "surface" => surface,
+      "class" => "invalid_constraint",
+      "input" => %{
+        "artifact" =>
+          Map.put(base_artifact, "extensions", %{
+            "critical" => %{namespace => vendor_body},
+            "optional" => %{}
+          }),
+        "support" => %{"registry" => %{namespace => entry}, "schemas" => %{namespace => document}}
+      },
+      "expected" => %{
+        "verdict" => "invalid",
+        "code" =>
+          if(variant == "missing-pin",
+            do: "extension_schema_unavailable",
+            else: "extension_schema_digest_mismatch"
+          )
+      }
+    }
+  end
+
+negotiation_cases = negotiation_cases ++ host_registration_cases ++ host_pin_cases
 
 # ---- extension.resolve (7) ----
 extension_cases = [
@@ -1759,16 +1631,16 @@ extension_cases = [
     "expected" => %{"verdict" => "invalid", "code" => "extension_schema_digest_mismatch"}
   },
   %{
-    "id" => "extension-resolve-estate-deprecated-retained",
+    "id" => "extension-resolve-vendor-deprecated-retained",
     "surface" => "extension.resolve",
     "class" => "extension_deprecated_retained",
     "input" => %{
       "artifact" =>
         Map.put(base_artifact, "extensions", %{
           "critical" => %{"com.example/federation" => %{"issuer" => "org-a"}},
-          "optional" => %{"com.example.platform/estate" => %{"payload" => 1}}
+          "optional" => %{"com.example.vendor/legacy" => %{"payload" => 1}}
         }),
-      "support" => fed_support
+      "support" => legacy_support
     },
     "expected" => %{
       "verdict" => "valid",
@@ -2890,8 +2762,9 @@ notice_projection_cases =
         "artifact" =>
           Map.put(base_artifact, "extensions", %{
             "critical" => %{},
-            "optional" => %{"com.example.platform/estate" => %{"label" => "archive"}}
-          })
+            "optional" => %{"com.example.vendor/legacy" => %{"label" => "archive"}}
+          }),
+        "support" => legacy_support
       },
       "expected" => %{"verdict" => "valid", "notices" => ["extension_deprecated"]}
     }
@@ -3270,9 +3143,18 @@ defmodule ImportCases do
 
     optional =
       put_in(bp, ["extensions", "optional"], %{
-        "com.example.platform/estate" => %{"label" => "example"}
+        "com.example.vendor/legacy" => %{"label" => "example"}
       })
       |> honest.()
+
+    optional_host =
+      put_in(host, ["support", "registry"], %{
+        "com.example.vendor/legacy" => %{
+          "owner" => "ExampleVendor",
+          "criticality" => "optional",
+          "state" => "deprecated"
+        }
+      })
 
     optional_dep =
       put_in(dep, ["blueprint_release", "content_digest"], optional["content_digest"])
@@ -3391,8 +3273,8 @@ defmodule ImportCases do
         "valid",
         optional,
         optional_dep,
-        host,
-        expectation(optional, optional_dep, host)
+        optional_host,
+        expectation(optional, optional_dep, optional_host)
       )
     ]
 
@@ -3629,7 +3511,7 @@ defmodule ImportCases do
 
     retired_host =
       put_in(host, ["support", "registry"], %{
-        "com.example.platform/estate" => %{"criticality" => "optional", "state" => "retired"}
+        "com.example.vendor/legacy" => %{"criticality" => "optional", "state" => "retired"}
       })
 
     retired_notice = %{
@@ -3791,7 +3673,6 @@ golden_deployment_value = CorpusGen.add_empty_attestations(DeploymentFixture.wit
 
 data = %{
   "schemas/object.schema.json" => object_schema,
-  "schemas/estate-contract.schema.json" => estate_contract_schema,
   "vectors/blueprint-golden.json" => CorpusGen.plain_value(golden_blueprint_value),
   "vectors/deployment-golden.json" => CorpusGen.plain_value(golden_deployment_value),
   "vectors/rfc8785-numbers.json" => %{

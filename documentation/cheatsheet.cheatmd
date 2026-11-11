@@ -32,6 +32,14 @@ Excerpt. Supply host bounds, revision support, keys, and observations in an `Age
 {:ok, evidence} = AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
 ```
 
+### Supply host extensions
+
+`Negotiation.Support.registry` maps namespaces to `ExtensionRegistry` entries.
+Supply criticality, state, and a schema digest pin; put the held schema in
+`schemas`. In TypeScript, the public `Support` type exposes the same fields
+with `schemaDigest` spelling. Only the protocol's two federation entries ship.
+See the [complete examples](extensions.md#register-a-namespace-with-the-host).
+
 ### Run the corpus
 
 From a checkout of the repository:

@@ -224,7 +224,7 @@ Map.take(report, [:agreement, :agreed, :disagreed, :total])
 <!-- livebook:{"output":true} -->
 
 ```
-%{total: 604, agreed: 604, agreement: true, disagreed: 0}
+%{total: 626, agreed: 626, agreement: true, disagreed: 0}
 ```
 
 ## Next

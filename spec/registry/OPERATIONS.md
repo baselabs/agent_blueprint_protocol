@@ -1,9 +1,18 @@
 # Registry operations process
 
-How namespaces enter and leave the compiled extension registry. The
-registry is governance-canonical in `registry.json` (this directory);
-the compiled counterparts (Elixir module and TypeScript verifier) are
-hand-mirrored and bound by the registry-equality gate.
+The shipped registry contains the protocol's two federation registrations.
+`registry.json` is its canonical source; the compiled Elixir and TypeScript
+forms are bound to it by the registry equality check. Product and third-party
+entries belong in the host support registry, not in these packages.
+
+## Host registrations
+
+A host supplies a namespace-keyed entry through `Negotiation.Support.registry`
+in Elixir or `Support.registry` in TypeScript. Each entry declares criticality
+and lifecycle state, and a critical entry pins the canonical schema digest.
+The host supplies the schema document through `schemas`. Namespaces absent from
+the shipped registry resolve from this input. Overrides for shipped entries
+can change only lifecycle state; compiled criticality and schema pins prevail.
 
 ## Qualification
 
@@ -11,19 +20,18 @@ A registration request MUST provide: the namespace (reverse-DNS-plus-
 path, not parseable as a network endpoint), an owner, the declared
 criticality, and, for critical namespaces, a schema document whose JCS
 digest is pinned. A request SHOULD state the A2A declaration URI.
-Example-class identities are the norm until a product is public.
+Examples use generic reserved-domain identities.
 
 ## Registration steps
 
-1. The owner submits the entry (and, for critical entries, the schema
+1. For a protocol-owned namespace, the owner submits the entry (and, for critical entries, the schema
    document) as a change to `registry.json` and implements it in both
    language packages.
 2. The registry-equality check, corpus checks, and CI checks must pass.
    Corpus verification fails when cases were generated for a different
    registry state.
 3. The change lands with a CHANGELOG entry and an ADR record when it
-   sets a precedent (the product-extension registration is the
-   recorded example).
+   sets a precedent.
 
 ## Lifecycle
 
@@ -31,7 +39,8 @@ Example-class identities are the norm until a product is public.
 critical declaration requires a protocol revision increment (the
 digest-covered evolution rule); demotion does not. A retired namespace
 is never reused. Deprecated entries retain verifiable artifacts with a
-typed notice.
+typed notice. Entries the release ships deprecate and never retire within
+1.x. The retired state remains available for host-owned entries.
 
 ## Decision rights
 

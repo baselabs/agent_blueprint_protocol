@@ -21,6 +21,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
     Digest,
     Error,
     Evidence,
+    ExtensionRegistry,
     Reconcile
   }
 
@@ -67,7 +68,18 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
   defp inputs(opts \\ []) do
     %Reconcile.Inputs{
       host_bounds: Keyword.get(opts, :host_bounds, host_bounds()),
-      support: Keyword.get(opts, :support, %Support{revisions: MapSet.new([1])}),
+      support:
+        Keyword.get(opts, :support, %Support{
+          revisions: MapSet.new([1]),
+          registry: %{
+            "com.example.vendor/labels" => %ExtensionRegistry{
+              namespace: "com.example.vendor/labels",
+              owner: "ExampleVendor",
+              criticality: :optional,
+              state: :active
+            }
+          }
+        }),
       keys: Keyword.get(opts, :keys, []),
       protected_clamp: Keyword.get(opts, :protected_clamp, :deny),
       observations: Keyword.get(opts, :observations, default_observations())
@@ -129,8 +141,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
         extensions:
           BlueprintFixture.extensions(
             optional: %{
-              "com.example.commerce/classification-labels" =>
-                {:object, [{"labels", {:array, [{:string, "pci"}]}}]}
+              "com.example.vendor/labels" => {:object, [{"labels", {:array, [{:string, "pci"}]}}]}
             }
           )
       )
@@ -142,7 +153,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
               protocol_revision: 1,
               clamps: [],
               effective_bounds: %BoundSet{},
-              optional_extensions_retained: ["com.example.commerce/classification-labels"],
+              optional_extensions_retained: ["com.example.vendor/labels"],
               not_verified: not_verified
             } = evidence} = Reconcile.reconcile(blueprint, deployment, inputs())
 
@@ -490,7 +501,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
   end
 
   test "a namespace retained by both artifacts appears once in the retained list" do
-    ns = "com.example.commerce/classification-labels"
+    ns = "com.example.vendor/labels"
     body = {:object, [{"labels", {:array, [{:string, "pci"}]}}]}
 
     blueprint =

@@ -32,7 +32,7 @@ The command prints a canonical aggregate report. Exit `0` means agreement, `1` m
 
 The package's `mix quality` alias runs dependency audits, formatting, compilation, strict Credo, tests with the configured coverage threshold, conformance checks, the npm kit build, TypeScript checks, Dialyzer, documentation, specification checks, and release checks. CI runs this alias in its Linux quality job.
 
-The suite currently defines 1001 tests (64 properties). The coverage threshold is 100% coverage.
+The suite currently defines 987 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
 

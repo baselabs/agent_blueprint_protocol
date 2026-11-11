@@ -13,7 +13,7 @@ The stable surfaces are:
   results and unsigned claim formats, and the execution protocol.
 - Error-code spelling and meaning, and value-free denial subjects.
 - Artifact member vocabulary and signed bytes within each protocol revision.
-- Registry lifecycle rules; namespaces deprecate and never retire within a
+- Registry lifecycle rules for entries the release ships; those namespaces deprecate and never retire within a
   major. Optional-to-critical promotion requires a protocol revision.
 - Corpus growth within a verification-semantics version is additive only.
   Released cases, fixture signatures, identities and history rows are immutable.
@@ -63,7 +63,7 @@ and adapters keep execution version 1 throughout 1.x.
 `ErrorCode` and the meaning of every code are closed for all of 1.x.
 New mechanisms reuse an existing code whose meaning fits or wait for 2.0.
 Inputs certified under a released census keep their verdicts at the same
-verification-semantics version. A security correction or registry addition
+verification-semantics version. A security correction or registry change
 that moves a verdict increments that version, declares it in the release
 history, and records prior-census equivalence or divergence. Artifact member
 sets and signed-byte formats for existing revisions stay fixed. Every

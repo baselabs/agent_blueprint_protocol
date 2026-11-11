@@ -189,12 +189,12 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
   end
 
   test "criticality conflict denies in BOTH directions, before state handling" do
-    # registry says critical, artifact says optional (the real graph entry).
+    # registry says critical, artifact says optional (the compiled federation entry).
     assert {:error, %AgentBlueprintProtocol.Error{code: :extension_criticality_conflict}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions:
-                   extensions(optional: %{"com.example.commerce/graph" => {:object, []}})
+                   extensions(optional: %{"io.github.baselabs/federation" => {:object, []}})
                ),
                support()
              )
@@ -300,33 +300,40 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
     assert {:ok, outcome} =
              Negotiation.negotiate(
                artifact_value(
-                 extensions:
-                   extensions(
-                     optional: %{"com.example.commerce/classification-labels" => {:object, []}}
-                   )
+                 extensions: extensions(optional: %{"com.example.vendor/labels" => {:object, []}})
                ),
-               support()
+               support(
+                 registry: %{
+                   "com.example.vendor/labels" =>
+                     entry(namespace: "com.example.vendor/labels", criticality: :optional)
+                 }
+               )
              )
 
-    assert outcome.optional_retained == ["com.example.commerce/classification-labels"]
+    assert outcome.optional_retained == ["com.example.vendor/labels"]
     assert outcome.quarantined_extensions == []
     assert outcome.notices == []
   end
 
   test "a deprecated optional namespace retains its body WITH a typed notice" do
-    # The placeholder estate namespace, deprecated at the estate-contract
-    # registration: retained (old artifacts stay verifiable) but never silently —
-    # the notice is the honesty record.
     assert {:ok, outcome} =
              Negotiation.negotiate(
                artifact_value(
-                 extensions:
-                   extensions(optional: %{"com.example.platform/estate" => {:object, []}})
+                 extensions: extensions(optional: %{"com.example.vendor/legacy" => {:object, []}})
                ),
-               support()
+               support(
+                 registry: %{
+                   "com.example.vendor/legacy" =>
+                     entry(
+                       namespace: "com.example.vendor/legacy",
+                       criticality: :optional,
+                       state: :deprecated
+                     )
+                 }
+               )
              )
 
-    assert outcome.optional_retained == ["com.example.platform/estate"]
+    assert outcome.optional_retained == ["com.example.vendor/legacy"]
     assert outcome.notices == [:extension_deprecated]
   end
 
@@ -501,43 +508,34 @@ defmodule AgentBlueprintProtocol.NegotiationTest do
              Negotiation.negotiate(junk_region, support())
 
     # A host override cannot re-classify a compiled entry.
-    {:ok, compiled} = ExtensionRegistry.entry("com.example.commerce/graph")
-    flipped = %{"com.example.commerce/graph" => struct!(compiled, criticality: :optional)}
+    {:ok, compiled} = ExtensionRegistry.entry("io.github.baselabs/federation")
+    flipped = %{"io.github.baselabs/federation" => struct!(compiled, criticality: :optional)}
 
     assert {:error, %AgentBlueprintProtocol.Error{code: :extension_criticality_conflict}} =
              Negotiation.negotiate(
                artifact_value(
                  extensions:
-                   extensions(optional: %{"com.example.commerce/graph" => {:object, []}})
+                   extensions(optional: %{"io.github.baselabs/federation" => {:object, []}})
                ),
                support(registry: flipped)
              )
 
-    # lens-F4: a malformed override (bogus state atom, non-struct) falls
-    # back to compiled behavior — never a raise.
-    bogus = %{"com.example.platform/estate" => %{state: :bogus}}
+    # Malformed overrides fall back to the compiled registration.
+    for override <- [%{state: :bogus}, :not_an_entry] do
+      assert {:ok, outcome} =
+               Negotiation.negotiate(
+                 artifact_value(
+                   extensions: extensions(critical: %{"com.example/federation" => {:object, []}})
+                 ),
+                 support(
+                   registry: %{"com.example/federation" => override},
+                   schemas: %{"com.example/federation" => ExtensionRegistry.federation_schema()}
+                 )
+               )
 
-    assert {:ok, outcome} =
-             Negotiation.negotiate(
-               artifact_value(
-                 extensions:
-                   extensions(optional: %{"com.example.platform/estate" => {:object, []}})
-               ),
-               support(registry: bogus)
-             )
-
-    assert outcome.optional_retained == ["com.example.platform/estate"]
-
-    not_struct = %{"com.example.platform/estate" => :not_an_entry}
-
-    assert {:ok, _} =
-             Negotiation.negotiate(
-               artifact_value(
-                 extensions:
-                   extensions(optional: %{"com.example.platform/estate" => {:object, []}})
-               ),
-               support(registry: not_struct)
-             )
+      assert outcome.critical_extensions == ["com.example/federation"]
+      assert outcome.notices == [:extension_deprecated]
+    end
   end
 
   test "review finding: case-collapsed and kebab denylist spellings deny" do

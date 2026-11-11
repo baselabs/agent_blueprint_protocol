@@ -233,7 +233,7 @@ Use the documented functions in the [Elixir reference](https://agent-blueprint-p
 
 ## 6. Update package and release identity pins
 
-Version 1.0 changes the registry digest and sets `verification_semantics_version` to `2`. The protocol revision remains `1`.
+Version 1.0 changes the registry digest and sets `verification_semantics_version` to `3`. The protocol revision remains `1`.
 
 Before, pin the previous Hex release:
 
@@ -272,3 +272,7 @@ Use `io.github.baselabs/federation` for new federation artifacts. The previous `
 - [TypeScript guide](typescript.md)
 - [Stability policy](stability.md)
 - [Upgrading and identity guidance](upgrading.md)
+
+The shipped registry contains only the two federation registrations. Hosts that
+used earlier example namespaces supply their registrations and held schemas
+through negotiation support, as shown in the [extensions guide](extensions.md).

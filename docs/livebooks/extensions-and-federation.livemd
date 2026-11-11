@@ -52,7 +52,7 @@ true = is_binary(package_root)
 
 Registry states may grow. This reader matches the names used here and preserves an unknown state as unknown.
 
-Read the active and deprecated federation namespaces from the registry.
+The shipped registry contains only the active and deprecated federation registrations. Read both entries.
 
 ```elixir
 alias AgentBlueprintProtocol.ExtensionRegistry
@@ -60,20 +60,16 @@ alias AgentBlueprintProtocol.ExtensionRegistry
 registry = ExtensionRegistry.registered_extensions()
 
 registry_view =
-  Enum.flat_map(registry, fn entry ->
-    if entry.namespace in ["io.github.baselabs/federation", "com.example/federation"] do
-      state =
-        case entry.state do
-          :active -> :active
-          :deprecated -> :deprecated
-          :retired -> :retired
-          other -> {:unknown_state, other}
-        end
+  Enum.map(registry, fn entry ->
+    state =
+      case entry.state do
+        :active -> :active
+        :deprecated -> :deprecated
+        :retired -> :retired
+        other -> {:unknown_state, other}
+      end
 
-      [{entry.namespace, entry.criticality, state, entry.schema_digest != nil}]
-    else
-      []
-    end
+    {entry.namespace, entry.criticality, state, entry.schema_digest != nil}
   end)
 
 registry_view
@@ -126,27 +122,27 @@ end
   make_blueprint.(regions.([{"com.example/federation", empty_body}], []))
 
 {:ok, unknown_optional} =
-  make_blueprint.(regions.([], [{"org.example.weather/units", empty_body}]))
+  make_blueprint.(regions.([], [{"com.example.vendor/unknown", empty_body}]))
 
 {:ok, unknown_critical} =
-  make_blueprint.(regions.([{"org.example.weather/alerts", empty_body}], []))
+  make_blueprint.(regions.([{"com.example.vendor/absent", empty_body}], []))
 
 retired_entry = %ExtensionRegistry{
-  namespace: "org.example.weather/archive",
-  owner: "ExampleWeather",
+  namespace: "com.example.vendor/archive",
+  owner: "ExampleVendor",
   criticality: :optional,
   state: :retired,
   schema_digest: nil,
-  a2a_uri: "https://example.com/extensions/weather-archive",
+  a2a_uri: "https://example.com/extensions/archive",
   promoted_at_revision: nil
 }
 
 {:ok, retired_optional} =
-  make_blueprint.(regions.([], [{"org.example.weather/archive", empty_body}]))
+  make_blueprint.(regions.([], [{"com.example.vendor/archive", empty_body}]))
 
 support = %Negotiation.Support{
   revisions: MapSet.new([1]),
-  registry: %{"org.example.weather/archive" => retired_entry},
+  registry: %{"com.example.vendor/archive" => retired_entry},
   schemas: %{
     "com.example/federation" => ExtensionRegistry.federation_schema(),
     "io.github.baselabs/federation" => ExtensionRegistry.federation_schema()
@@ -218,6 +214,55 @@ schema_support = %Negotiation.Support{
 
 ```
 %{schema_available: true, negotiated: true}
+```
+
+## Register a host-owned critical namespace
+
+The host supplies a generic example registration and its schema document. It
+computes the pin from canonical schema bytes. The compiled registry is unchanged.
+
+```elixir
+namespace = "com.example.vendor/record"
+{:ok, document} = AgentBlueprintProtocol.Json.decode(~s({"additionalProperties":false,"properties":{"value":{"type":"string"}},"required":["value"],"type":"object"}))
+{:ok, schema_bytes} = Canonicalization.encode(document)
+pin = Digest.to_tagged(Digest.hash(:extension_schema, schema_bytes))
+
+host_entry = %ExtensionRegistry{
+  namespace: namespace,
+  owner: "ExampleVendor",
+  criticality: :critical,
+  state: :active,
+  schema_digest: pin,
+  a2a_uri: "https://example.com/extensions/record",
+  promoted_at_revision: nil
+}
+
+host_support = %Negotiation.Support{
+  revisions: MapSet.new([1]),
+  registry: %{namespace => host_entry},
+  schemas: %{namespace => document}
+}
+{:ok, host_blueprint} = make_blueprint.(regions.([{namespace, {:object, [{"value", {:string, "one"}}]}}], []))
+
+%{
+  registered: outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, host_support)),
+  missing_registration: outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, %Negotiation.Support{revisions: MapSet.new([1])})),
+  missing_schema: outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, %{host_support | schemas: %{}})),
+  mismatched_schema: outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, %{host_support | schemas: %{namespace => {:object, [{"type", {:string, "object"}}]}}})),
+  shipped_entries: length(ExtensionRegistry.registered_extensions())
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  registered: [],
+  missing_registration: :extension_unknown_critical,
+  missing_schema: :extension_schema_unavailable,
+  mismatched_schema: :extension_schema_digest_mismatch,
+  shipped_entries: 2
+}
 ```
 
 ## Read the shipped envelope and state codecs

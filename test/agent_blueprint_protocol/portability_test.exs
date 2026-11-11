@@ -106,7 +106,7 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
 
     # Three b64url segments, but the last is a producer label, not a
     # signature: the final-segment length discriminates.
-    assert :ok = Portability.scan_value({:string, "com.example.commerce"})
+    assert :ok = Portability.scan_value({:string, "com.example.vendor"})
     assert :ok = Portability.scan_value({:string, "com.example.tools.internal_platform"})
   end
 
@@ -126,7 +126,7 @@ defmodule AgentBlueprintProtocol.PortabilityTest do
     assert {:error, %AgentBlueprintProtocol.Error{code: :forbidden_portable_value}} =
              Portability.scan_value({:string, "//db-host.internal:5432/prod"})
 
-    assert :ok = Portability.scan_value({:string, "com.example.commerce/graph"})
+    assert :ok = Portability.scan_value({:string, "com.example.vendor/record"})
     assert :ok = Portability.scan_value({:string, "2026-08-20T00:00:00Z"})
     assert :ok = Portability.scan_value({:string, "a//non-network//path"})
 

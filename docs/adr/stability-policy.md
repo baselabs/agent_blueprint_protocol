@@ -8,7 +8,7 @@ Two distributions share artifact identities and need an explicit compatibility c
 
 ## Decision
 
-Both packages use one Semantic Versioning line. The stability policy freezes the pinned Elixir census, package-root TypeScript API, documented CLI modes and formats, errors, wire revisions and registry lifecycle. Deprecations arrive in a minor and removals wait for the next major; namespaces do not retire within a major.
+Both packages use one Semantic Versioning line. The stability policy freezes the pinned Elixir census, package-root TypeScript API, documented CLI modes and formats, errors, wire revisions and registry lifecycle. Deprecations arrive in a minor and removals wait for the next major; namespaces the release ships do not retire within a major. Hosts manage the lifecycle of their own registrations.
 
 ## Consequences
 
@@ -28,7 +28,7 @@ remains unchanged.
 
 Error codes and meanings remain closed throughout 1.x. Inputs certified
 under a released census keep their verdicts at the same verification-semantics
-version. A security correction or registry addition that moves a verdict
+version. A security correction or registry change that moves a verdict
 increments that version, declares it in the release history, and records
 prior-census equivalence or divergence. Artifact member sets and signed-byte
 formats for existing revisions, and released results, claims, and corpus

@@ -29,6 +29,13 @@ Runner exit codes: 0 for agreement, a valid artifact, help, or version; 1 for di
 
 ## Library
 
+The shipped extension registry contains only the protocol's active and
+deprecated federation registrations. Supply other namespaces through
+`Support.registry`, including criticality, lifecycle state, and `schemaDigest`;
+put held schema documents in `Support.schemas`. A host cannot change the
+criticality or schema pin of a compiled entry. See the
+[host registration examples](https://github.com/baselabs/agent_blueprint_protocol/blob/main/documentation/extensions.md#register-a-namespace-with-the-host).
+
 The package is ESM-only; `require()` is not supported.
 Only the package root and `package.json` are exported. Import has no command
 or filesystem side effects. Every function returns `Result<T>`:

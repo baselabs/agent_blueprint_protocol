@@ -15,7 +15,7 @@
 # 2. Prior-census replay: each distinct census loads through
 #    Corpus.load_prior_census (the census's OWN index integrity; the two
 #    current-state couplings suspended) and runs under the current
-#    Runner. Disagreements are classified: an extension-surface
+#    Runner. Disagreements are classified: a registry-sensitive surface
 #    disagreement is explained ONLY by a spec/registry/registry.json
 #    diff between the census's release and HEAD naming a namespace the
 #    case's input carries; every other disagreement is unexplained.
@@ -40,8 +40,8 @@
 #    exit must equal the report's own exit_status. (The current census's
 #    TS agreement is the verifier.agreement gate's own duty.)
 # 6. The classifier self-check proves the divergence classifier's three
-#    outcomes on synthetic inputs every run — the vacuity guard for the
-#    arm no real registry divergence exercises yet.
+#    outcomes on synthetic inputs every run. Real prior censuses also
+#    exercise registry-removal divergence.
 #
 # Seeded reds (self-proving, the agreement-gate pattern): claim flips
 #    (including a self-contradictory not_equivalent claim), a tampered
@@ -67,7 +67,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
   @history_path "priv/release-history.json"
   @history_format "agent-blueprint-protocol-release-history"
   @verdicts ~w(equivalent diverged_by_registry_census not_equivalent)
-  @registry_surfaces ~w(extension.resolve negotiation.negotiate)
+  @registry_surfaces ~w(extension.resolve negotiation.negotiate reconcile)
   @registry_path "spec/registry/registry.json"
 
   def run do
@@ -77,6 +77,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
           "operator override, never a green claim"
       )
     else
+      classifier_self_check!()
       expected = AgentBlueprintProtocol.ReleaseIdentity.expected_metadata()
       tags = manifest_tags!(nil)
       claims = expected["prior_census_verdicts"]
@@ -97,7 +98,6 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         do: raise("compatibility replay: FAILED\n\n" <> Enum.join(findings, "\n"))
 
       replay_kit!(censuses)
-      classifier_self_check!()
       seeded_reds!(censuses, tags, claims)
 
       prior = Enum.count(censuses, &(!&1.current))
@@ -262,7 +262,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
     |> Enum.into(%{}, fn entry -> {entry["namespace"], entry} end)
   end
 
-  # The divergence classifier: an extension-surface disagreement whose
+  # The divergence classifier: a registry-sensitive surface disagreement whose
   # input carries a CHANGED namespace is registry-explained; everything
   # else is unexplained. Pure — proven by the self-check every run.
   def classify(disagreements, changed) do
@@ -581,13 +581,20 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
       "input" => %{"artifact" => %{"extensions" => %{"com.example/changed" => %{}}}}
     }
 
+    reconcile_case = %{
+      "surface" => "reconcile",
+      "input" => %{
+        "blueprint" => %{"extensions" => %{"optional" => %{"com.example/changed" => %{}}}}
+      }
+    }
+
     plain_case = %{"surface" => "blueprint.decode", "input" => %{"text" => "{}"}}
     changed = MapSet.new(["com.example/changed"])
 
-    {explained, unexplained} = classify([extension_case, plain_case], changed)
+    {explained, unexplained} = classify([extension_case, reconcile_case, plain_case], changed)
 
-    unless explained == [extension_case],
-      do: raise("classifier self-check: extension case not explained")
+    unless explained == [extension_case, reconcile_case],
+      do: raise("classifier self-check: registry-sensitive case not explained")
 
     unless unexplained == [plain_case],
       do: raise("classifier self-check: plain case wrongly explained")

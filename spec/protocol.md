@@ -3,7 +3,7 @@
 Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`, 604 cases) are
+`sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`, 626 cases) are
 certified against this document at every release through the release
 identity chain — the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -469,7 +469,7 @@ certified under a released census at the same verification-semantics version. **
 release's computational meaning for previously-certified inputs:
 canonicalization, digest computation, decode verdicts, bounds
 computation, negotiation outcomes, and signature verification behavior.
-A security correction or registry addition that moves a verdict is a
+A security correction or registry change that moves a verdict is a
 verification-semantics change. A release that changes verification
 semantics MUST name it by incrementing the release's semantics version (the reference
 implementation carries it in its release manifest), and its release
@@ -491,9 +491,11 @@ federation namespace deprecation, and periods in detached signature key
 identifiers. Protocol revision remains 1. The release
 history records the increment; prior-census equivalence remains a per-case
 projection claim, not a claim that the public APIs are unchanged.
-The legacy federation namespace adds an `extension_deprecated` notice to
-`negotiation-estate-contract-valid`; its valid verdict and previously
-declared projection fields are unchanged.
+Version 1.0.0-rc.2 uses verification-semantics version 3. It removes the five
+product example registrations from the shipped registry. Hosts supply their own
+registrations for those namespaces. Earlier censuses that relied on those
+compiled entries diverge by the registry difference, as declared in the release
+manifest and certified by replay. Protocol revision remains 1.
 
 Released identities are immutable: a published digest, corpus, registry,
 manifest, or release-history row is never mutated in place; a correction
@@ -503,21 +505,16 @@ replay), never over the input space at large.
 
 ## 8. Extension registry
 
-Namespace form: reverse-DNS-plus-path (`com.example.commerce/graph`),
+Namespace form: reverse-DNS-plus-path (`com.example.vendor/record`),
 lowercase, one `/`, length-ceilinged, and not parseable as an absolute
 URI with a network authority (a namespace can never double as an
 endpoint). Registry content is release-governed data. The reference implementation
 compiles it into both libraries; that packaging choice is informative. The governance-canonical SOURCE is the specification
 tree's registry document (`spec/registry/registry.json`), bound to both
-compiled twins and the corpus index by the registry equality gate. Registered at this release:
+compiled twins and the corpus index by the registry equality gate. The protocol registrations shipped in 1.0.0-rc.2 are:
 
 | Namespace | Owner | Criticality | State |
 |---|---|---|---|
-| `com.example.commerce/graph` | ExampleCommerce | critical | active |
-| `com.example.commerce/classification-labels` | ExampleCommerce | optional | active |
-| `com.example.commerce/rubric-assertion` | ExampleCommerce | optional | active |
-| `com.example.platform/estate` | ExamplePlatform | optional | deprecated |
-| `com.example.platform/estate-contract` | ExamplePlatform | critical | active |
 | `com.example/federation` | Agent Blueprint Protocol | critical | deprecated |
 | `io.github.baselabs/federation` | Agent Blueprint Protocol | critical | active |
 
@@ -541,13 +538,12 @@ two-label restrictions are stricter than the MCP grammar. Prefixes whose second 
 are reserved. The registry applies these rules at registration, without
 narrowing revision 1 artifact decoding.
 
-`com.example.platform/estate-contract` is the product-extension registration:
-the first product-owned critical namespace with an authored schema pin. The
-document ships as corpus data
-(`priv/conformance/schemas/estate-contract.schema.json`); `lib/` carries only
-the digest pin, test-bound to the shipped file. The deprecated
-`com.example.platform/estate` placeholder retains its optional bodies with a
-typed notice — existing artifacts stay verifiable.
+The shipped registry contains only the protocol's federation registrations.
+Hosts supply product and third-party registrations through negotiation support:
+a namespace-keyed registry with criticality, lifecycle state, and schema digest,
+plus the schema documents they hold. An unshipped namespace uses that host entry.
+For a compiled entry, a host can supply lifecycle state but MUST NOT change its
+criticality or schema pin. Both implementations expose this registration surface.
 
 Critical-extension bodies validate only against a host-supplied schema
 whose digest matches the registry's `schema_digest`; a missing schema
@@ -941,10 +937,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-604 cases covering every required cell of the 18-surface × 31-class
+626 cases covering every required cell of the 18-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`. Corpus identity
+`sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over an in-memory path-to-bytes map and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
@@ -1071,7 +1067,7 @@ base64url — unchanged across every release to date), the wire
 compatibility matrix: per prior census digest,
 `equivalent` — per-case verdict agreement, certified by replay; or
 `diverged_by_registry_census` — divergences explained by registry
-growth; or `not_equivalent` — an authored semantics-break claim), the
+differences; or `not_equivalent`, an authored semantics-break claim), the
 specification, corpus, and registry digests, the corpus index hash, the
 verifier runtime floor, the verifier-kit identity (name, registry,
 version), and the archive-authorization stance. The companion
@@ -1164,6 +1160,9 @@ domains, and artifact member sets. Registry operations follow
 
 ### Evolution within a major version
 
+The namespace deprecation and non-retirement guarantee applies to registered
+entries shipped by the release. Hosts manage the lifecycle of their own entries.
+
 A minor release MAY add the following opt-in capabilities. It MUST NOT
 change existing bytes, defaults, required inputs, or documented return
 contracts of existing calls:
@@ -1173,7 +1172,7 @@ contracts of existing calls:
   A new signature algorithm MUST enter through a new protocol revision.
 - Registered namespaces and federation profiles. An incompatible federation
   envelope MUST use a new registered critical namespace beside the existing
-  profiles; existing profiles MUST NOT retire during the major. The current
+  profiles; existing shipped profiles MUST NOT retire during the major. The current
   envelope and commitment preimage remain unchanged.
 - Conformance surfaces and corpus cases. Each new corpus is a new census;
   claims against an earlier corpus digest remain valid for that digest.
@@ -1187,7 +1186,7 @@ unchanged. `ErrorCode` is closed for all of 1.x. A new mechanism MUST reuse
 an existing code whose meaning fits; otherwise it waits for the next major.
 Inputs certified under a released census MUST keep their verdicts at the
 same verification-semantics version. A security correction or registry
-addition that moves a verdict MUST increment that version and declare it
+change that moves a verdict MUST increment that version and declare it
 in the release history, recording prior-census equivalence or divergence
 as specified in section 7. Artifact member sets and signed-byte formats
 for existing revisions, and the format of every released results document,
