@@ -2,14 +2,14 @@
 
 This reference is for consumers handling verifier failures. It lists all 74 error codes and the eight decoder ceiling codes.
 
-Elixir returns one %AgentBlueprintProtocol.Error{code, subject, detail} struct for every failure. TypeScript returns an error with the same code and subject information. A ceiling error is represented in Elixir as {:ceiling, key} and as ceiling:<key> in JSON results and TypeScript.
+Elixir returns one `%AgentBlueprintProtocol.Error{code, subject, detail}` struct for every failure. TypeScript returns an error with the same code and subject information. A ceiling error is represented in Elixir as `{:ceiling, key}` and as `ceiling:<key>` in JSON results and TypeScript.
 
 Subjects contain schema-defined member names and array indexes where available. They do not contain input values or unknown member names. Denials carry no free-text detail.
 
 | Code | Check that emits it | What to do |
 |---|---|---|
 | attestation_malformed | Artifact member validation | Correct or remove the malformed optional member. |
-| audience_mismatch | Federation commitment fixture check | Review the fixture inputs and expected result. |
+| audience_mismatch | Federation commitment verification | Correct the commitment inputs. |
 | base64url_invalid | Base64url decoder | Use only unpadded base64url characters. |
 | base64url_padded | Base64url decoder | Remove padding from the encoded value. |
 | binding_attestation_stale | Deployment binding check | Review the binding data and supplied observations. |
@@ -53,7 +53,7 @@ Subjects contain schema-defined member names and array indexes where available. 
 | extension_unknown_critical | Extension negotiation | Use a registered critical namespace. |
 | federation_mapping_conflict | Federation carrier codec | Correct the carrier's field placement. |
 | federation_state_unmappable | Federation state codec | Use a state supported by the requested codec. |
-| federation_terminal_conflict | Terminal commitment fixture check | Reject the conflicting fixture result. |
+| federation_terminal_conflict | Federation commitment verification | Correct the conflicting terminal commitment. |
 | forbidden_portable_value | Portability scan | Remove the value identified by the scan. |
 | integer_magnitude | Canonical encoder | Use an integer within the supported magnitude. |
 | invalid_cardinality | Artifact validation | Correct the number of array items. |
@@ -91,7 +91,7 @@ Subjects contain schema-defined member names and array indexes where available. 
 | unknown_bound | Decoder bounds validation | Use a declared decoder limit name. |
 | unknown_member | Artifact validation | Remove the member or use a supported revision. |
 
-The table is kept in sync with AgentBlueprintProtocol.Error.codes/0 and Error.ceiling_keys/0 by the documentation test suite.
+The table lists every value of `AgentBlueprintProtocol.Error.codes/0` and `Error.ceiling_keys/0`.
 
 ## Next steps
 

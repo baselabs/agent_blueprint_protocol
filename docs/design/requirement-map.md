@@ -2,7 +2,7 @@
 
 A gate without a red proof is not a gate. This map records, for every
 build-failing gate the package ships, the exact mutation that reddens it,
-the command that observes the red, and the verbatim failing output. All
+the command that observes the red, and a failing-output excerpt. All
 proofs on this page were re-derived live on **2026-08-23** against the
 release-candidate tree, with the CI toolchain entry re-derived on
 **2026-08-24** (plant → run → reverse-restore; the restored suite is green:
@@ -359,7 +359,7 @@ requirement-map: missing entry for case: "no shipped module/function/atom carrie
 EXIT=1
 $ # plant M4: "spec/protocol.md" dropped from package.files
 $ mix release.candidate
-release candidate: spec/protocol.md missing from package.files
+spec/protocol.md missing from package.files
 EXIT=1
 reprove caught: publish-guard-toolpath-plant   # the M1-M4 acceptance plants
 reprove caught: spec-coverage-undocumented-fn  # are replanted in scratch copies
@@ -390,7 +390,7 @@ archive-authorization stance; the file is never trusted:
 ```red
 $ # plant: one identity-chain link tampered (the format field)
 $ mix release.candidate
-release candidate: FAILED
+FAILED
 identity chain: format is "tampered-release-metadata" — the live value is "agent-blueprint-protocol-release-metadata"
 EXIT=1
 ```
@@ -398,7 +398,7 @@ EXIT=1
 ```red
 $ # plant: a specification file edited without regenerating the metadata
 $ mix release.candidate
-release candidate: FAILED
+FAILED
 identity chain: spec_digest is "sha-256:SystAAJPBzc8Uhbaoih3PT9-1cEwdyiW1V0Fu12aChY" — the live value is "sha-256:6xyHdg2qFDEJMRUVQnnw9UEWWHoHR_XG26O2Tq9Pgmk"
 EXIT=1
 ```
@@ -406,15 +406,15 @@ EXIT=1
 ```red
 $ # plant: a second copy of the normative document at docs/protocol.md
 $ mix release.candidate
-release candidate: FAILED
-release candidate: docs/protocol.md exists — the normative document is spec/protocol.md; a second copy reds
+FAILED
+docs/protocol.md exists — the normative document is spec/protocol.md; a second copy reds
 EXIT=1
 ```
 
 ```red
 $ # plant: a generated test block (one macro, three runtime tests) — the census tie-out
 $ mix release.candidate
-release candidate: FAILED
+FAILED
 census: the source macro census (914) and the suite-registered count (913) disagree — a generated test block shifts the real total; reconcile
 EXIT=1
 ```
@@ -422,7 +422,7 @@ EXIT=1
 ```red
 $ # plant: README test-count claim drifted
 $ mix release.candidate
-release candidate: FAILED
+FAILED
 census: README claims ["912"] tests — the registered count is 913
 EXIT=1
 ```

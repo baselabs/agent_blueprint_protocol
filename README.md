@@ -8,13 +8,13 @@ Agent developers need a portable format for describing an agent's capabilities a
 
 Every successful verification is non-authorizing: it reports protocol facts and never grants permission to act.
 
-## [Artifacts](documentation/glossary.md#artifact)
+## Artifacts
 
 - **Blueprint Core** describes an agent's identity, input and output ports, capability requirements, bounds, and content digest.
 - **Deployment Manifest** binds a Blueprint release to environment-specific descriptors and bounds.
-- **Federation TaskEnvelope** records a task's identity, state, and terminal commitments for transport between A2A and MCP.
+- **Federation TaskEnvelope** records a task's identity, state, and terminal commitments for carriage in Agent2Agent (A2A) task metadata and Model Context Protocol (MCP) `_meta`.
 
-This excerpt comes from [`examples/echo-blueprint.json`](examples/echo-blueprint.json):
+This is the complete example from [`examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.2/examples/echo-blueprint.json), formatted for reading:
 
 ```json
 {
@@ -39,17 +39,14 @@ This excerpt comes from [`examples/echo-blueprint.json`](examples/echo-blueprint
 
 Verification decodes bounded JSON, negotiates protocol support, binds related artifacts, reconciles [host](documentation/glossary.md#host) inputs, and returns evidence.
 
-```mermaid
-flowchart LR
-  A[Decode] --> B[Negotiate] --> C[Bind] --> D[Reconcile] --> E[Evidence]
-```
-
 ## Which package?
 
 | Language | Package | Install |
 | --- | --- | --- |
 | Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}` |
 | TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@rc` |
+
+The Elixir package requires Elixir 1.19 or newer on Erlang/OTP 27, 28, or 29. The npm package requires Node.js 24 or newer. Both implement protocol revision 1; the [stability policy](documentation/stability.md) lists the tested combinations.
 
 From a Mix project that depends on the package, read its shipped example:
 
@@ -71,13 +68,13 @@ const result = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
 console.log(result.ok ? "valid" : result.error.code); // valid
 ```
 
-`npm view @agent-blueprint-protocol/verifier version` shows the package version available from npm.
+`npm view @agent-blueprint-protocol/verifier dist-tags` lists the published version for each npm tag.
 
 The conformance corpus contains 604 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
 
 ## Documentation
 
-- [HexDocs](https://agent-blueprint-protocol.hexdocs.pm/)
+- [HexDocs](https://agent-blueprint-protocol.hexdocs.pm/1.0.0-rc.2/)
 - [Quickstart](documentation/quickstart.md)
 - [TypeScript guide](documentation/typescript.md)
 - [Conformance guide](documentation/conformance.md)

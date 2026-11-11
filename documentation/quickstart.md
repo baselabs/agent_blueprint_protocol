@@ -4,7 +4,7 @@ This guide is for Elixir developers who want to verify an [artifact](glossary.md
 
 ## Prerequisites
 
-Install Elixir 1.19 or newer with OTP 27, 28, or 29.
+Install Elixir 1.19 or newer on Erlang/OTP 27, 28, or 29.
 
 ## Install
 
@@ -15,7 +15,7 @@ mix new verify_blueprint
 cd verify_blueprint
 ```
 
-Replace the generated `deps/0` body with this excerpt:
+Replace the generated `deps/0` function with:
 
 ```elixir
 defp deps do

@@ -73,7 +73,6 @@ export interface Observed {readonly identities:readonly {readonly kind:string;re
 /** The inputs for the eight-stage non-authorizing import pass. */
 export interface Inputs {readonly hostBounds:BoundSet;readonly support:Support;readonly keys:readonly PublicKey[];readonly protectedClamp:'deny'|'acknowledge';readonly observations:Observations}
 /** Receiving context for existing federation receipt verification. */
-export interface Context {readonly keys:readonly PublicKey[];readonly issuer?:string|null;readonly subject?:string|null;readonly audience?:string|null;readonly issuerKeySets?:Readonly<Record<string,readonly PublicKey[]>>|null;readonly createdAfter?:string|null;readonly createdBefore?:string|null;readonly priorReceipts:readonly {readonly taskIdentity:string;readonly terminalState:string;readonly terminalCommitment:string}[]}
 /** Verified signed attributes, including the digest and purpose. */
 export interface SignedAttributes {readonly algorithm:SignatureAlgorithm;readonly contentDigest:string;readonly createdAt:string;readonly keyId:string;readonly purpose:SignaturePurpose}
 /** Negotiated extension facts. */

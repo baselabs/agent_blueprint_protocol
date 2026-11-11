@@ -6,36 +6,6 @@ The protocol defines three artifact types: a Blueprint, a Deployment Manifest, a
 
 ## Pipeline
 
-```mermaid
-flowchart LR
-  blueprint["Blueprint"]
-  deployment["Deployment Manifest"]
-  canonical["Canonical bytes"]
-  digest["Digest"]
-  negotiation["Negotiation"]
-  structure["Structure"]
-  portability["Portability"]
-  signatures["Signatures"]
-  bind["Bind"]
-  bounds["Bounds"]
-  evidence["Typed Evidence"]
-  host["Host responsibilities begin"]
-  federation["Federation TaskEnvelope"]
-  codecs["A2A + MCP carrier and state codecs"]
-  elixir["Elixir reference implementation"]
-  typescript["TypeScript verifier"]
-  corpus["Shared specification + conformance corpus"]
-
-  blueprint --> canonical
-  deployment --> canonical
-  canonical --> digest --> negotiation --> structure --> portability --> signatures --> bind --> bounds --> evidence --> host
-  federation --> codecs
-  codecs --> elixir
-  codecs --> typescript
-  corpus -.-> elixir
-  corpus -.-> typescript
-```
-
 Reconciliation runs the eight stages in the order shown: canonical, digest, negotiation, structure, portability, signatures, bind, then bounds. A failure returns a typed error. A successful pass returns Evidence.
 
 The host's responsibilities begin after it receives the result. The host applies its own local policy and decides what to do with the evidence. Protocol success is not permission to act.

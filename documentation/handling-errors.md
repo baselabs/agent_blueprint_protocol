@@ -29,7 +29,7 @@ Use `subject` to find the relevant part of the artifact. Read [the complete erro
 
 ## Handle a TypeScript `ErrorCode`
 
-The npm package exports a closed `ErrorCode` union for all of 1.x. The following switch lists the current code set and uses `assertNever` to catch any omission at compile time.
+The npm package exports a closed `ErrorCode` union for all of 1.x. The following switch lists every code and uses `assertNever` to catch any omission at compile time.
 
 Compile this function in a TypeScript project that installs the npm package.
 

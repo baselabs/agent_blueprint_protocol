@@ -8,7 +8,7 @@ livebook:{"persist_outputs":true}
 
 This notebook starts with the shipped Blueprint and Deployment Manifest, changes their values, recomputes their digests, and creates a Blueprint signature with a throwaway key.
 
-The first cell installs the published package at the release candidate requirement.
+The first cell installs the published package.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}])
@@ -42,8 +42,6 @@ true = is_binary(package_root)
 ## Change the Blueprint and compute its digest
 
 The Blueprint value comes from the shipped example. This cell changes its release number, validates the value, recomputes the content digest, and encodes canonical bytes.
-
-Decode the shipped value, update one member, compute its digest, and produce canonical bytes.
 
 ```elixir
 alias AgentBlueprintProtocol.{Blueprint, Canonicalization, Digest, Json}
@@ -101,8 +99,6 @@ blueprint_value =
 
 The manifest now points to the changed Blueprint release and digest. It also changes one model-policy value before computing its own digest.
 
-Update the shipped Deployment Manifest to bind the new Blueprint value, then recompute and verify the Deployment digest.
-
 ```elixir
 alias AgentBlueprintProtocol.Deployment
 
@@ -140,9 +136,7 @@ deployment_value = put_member.(deployment_value, "deployment_digest", {:string, 
 
 ## Sign with Ed25519
 
-The producer creates a throwaway Ed25519 key with OTP crypto. The protected header uses Ed25519, and the signature is attached to the Blueprint value. No key bytes are printed.
-
-Create and attach a detached signature, then verify the canonical round trip.
+The producer creates a throwaway Ed25519 key with Erlang/OTP's `:crypto` module. The protected header uses Ed25519, and the signature is attached to the Blueprint value. No key bytes are printed.
 
 ```elixir
 alias AgentBlueprintProtocol.{Base64Url, Signature}
@@ -233,8 +227,6 @@ eddsa_entry = entry_with.(eddsa_header, eddsa_signature)
 ## Three producer errors
 
 These examples show the typed error value for a missing artifact shape, an unsupported member, and a nonportable value.
-
-Collect three representative typed errors and retain their code, subject, and detail fields.
 
 ```elixir
 alias AgentBlueprintProtocol.Error

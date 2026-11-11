@@ -6,9 +6,9 @@ livebook:{"persist_outputs":true}
 
 # Host import
 
-This notebook decodes the shipped artifacts, compares declared build identities with host observations, intersects bounds, calls reconcile/3, and reads each part of the resulting evidence.
+This notebook decodes the shipped artifacts, compares declared build identities with host observations, intersects bounds, calls `reconcile/3`, and reads each part of the resulting evidence.
 
-The first cell installs the published package at the release candidate requirement.
+The first cell installs the published package.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}])
@@ -52,8 +52,6 @@ deployment_json = JSON.decode!(deployment_bytes)
 
 Compatibility compares each manifest identity with an exact observed identity. The empty list and a matching list illustrate the two results.
 
-Build the observed identity list from the shipped Deployment Manifest and compare both an empty and matching observation.
-
 ```elixir
 alias AgentBlueprintProtocol.Compatibility.Observed
 support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
@@ -91,8 +89,6 @@ full = AgentBlueprintProtocol.verify_compatibility(deployment, %Observed{identit
 ## Intersect bounds
 
 A host can narrow an operational value. A protected narrowing returns a denial under the deny posture and a clamp record under the acknowledge posture.
-
-Narrow the example bounds and compare the deny and acknowledge postures.
 
 ```elixir
 alias AgentBlueprintProtocol.BoundsAlgebra
@@ -136,7 +132,7 @@ denied = BoundsAlgebra.intersect(sources)
 
 Descriptor observations can be absent, partial, or complete. The example Deployment has two tool bindings, so each map is made directly from those values.
 
-Check none, partial, and full descriptor observations, then pass the complete set to reconcile/3.
+Check none, partial, and full descriptor observations, then pass the complete set to `reconcile/3`.
 
 ```elixir
 alias AgentBlueprintProtocol.{Reconcile, BoundsAlgebra}
@@ -186,8 +182,6 @@ inputs = %Reconcile.Inputs{
 ## Read every evidence field
 
 Check names and detail shapes can grow. This reader matches known shapes and keeps a catch-all. It reports the verified flag and summarizes each evidence member.
-
-Read all Evidence fields, including verified check flags and not_verified entries, with catch-all branches for future additions.
 
 ```elixir
 alias AgentBlueprintProtocol.{BoundsAlgebra, Digest, Evidence}
@@ -283,8 +277,6 @@ unverified_view =
 ## Decoder limits and error shape
 
 A lower byte limit returns the same typed Error struct used by other fallible calls.
-
-Decode with a deliberately small byte limit and read the stable error fields.
 
 ```elixir
 {:error, %AgentBlueprintProtocol.Error{} = limit_error} =

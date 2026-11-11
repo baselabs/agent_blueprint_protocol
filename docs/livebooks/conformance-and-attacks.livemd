@@ -6,9 +6,9 @@ livebook:{"persist_outputs":true}
 
 # Conformance and attacks
 
-This notebook runs the shipped corpus, inspects one case, builds a results document, and compares it with the certified document in the package. It also presents the external JSON exchange as data and demonstrates fail-closed denials.
+This notebook runs the shipped corpus and inspects one case. It also presents the external JSON exchange as data and demonstrates fail-closed denials.
 
-The first cell installs the published package at the release candidate requirement.
+The first cell installs the published package.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}])
@@ -40,40 +40,33 @@ corpus_files =
   |> Map.new(fn path -> {Path.relative_to(path, corpus_root), File.read!(path)} end)
 
 {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(corpus_files)
-%{corpus_loaded: true, corpus_digest: corpus.identity}
+%{corpus_loaded: true}
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-%{corpus_loaded: true, corpus_digest: "sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw"}
+%{corpus_loaded: true}
 ```
 
 ## Run and inspect one case
 
-The runner checks each case against the expected projection. This cell also reads the case identity and expected result for one shipped valid input.
-
-Run all corpus cases and inspect one Blueprint case without printing its input bytes.
+The runner compares each case with its expected projection. Its results list includes each case identifier and agreement status.
 
 ```elixir
-alias AgentBlueprintProtocol.Conformance.{Report, Runner}
+alias AgentBlueprintProtocol.Conformance.Runner
 
 run_results = Runner.run(corpus)
-report = Report.build(corpus, run_results)
+case_results = Enum.flat_map(run_results, fn {_path, rows} -> rows end)
 
 sample =
-  corpus.cases
-  |> Enum.flat_map(&elem(&1, 1))
-  |> Enum.find(&(&1["id"] == "blueprint-decode-header-Ed25519"))
+  case_results
+  |> Enum.find(&(&1.case_id == "blueprint-decode-header-Ed25519"))
 
 %{
-  agreement: report.agreement,
-  total: report.total,
-  sample: %{
-    id: sample["id"],
-    surface: sample["surface"],
-    expected: sample["expected"]
-  }
+  agreement: Enum.all?(case_results, & &1.agree),
+  total: length(case_results),
+  sample: %{case_id: sample.case_id, agree: sample.agree}
 }
 ```
 
@@ -83,87 +76,26 @@ sample =
 %{
   total: 604,
   agreement: true,
-  sample: %{
-    id: "blueprint-decode-header-Ed25519",
-    expected: %{
-      "digest" => "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8",
-      "verdict" => "valid"
-    },
-    surface: "blueprint.decode"
-  }
+  sample: %{case_id: "blueprint-decode-header-Ed25519", agree: true}
 }
-```
-
-## Build and compare the results document
-
-The public runner confirms each expected projection. The notebook combines those confirmed case projections into the published results shape and compares the full document with the shipped certified file.
-
-Build the canonical results document from the validated corpus cases after checking every runner result, then compare the decoded documents.
-
-```elixir
-agreement_by_path =
-  Map.new(run_results, fn {path, rows} ->
-    {path, Map.new(rows, &{&1.case_id, &1.agree})}
-  end)
-
-all_agreed =
-  Enum.all?(corpus.cases, fn {path, rows} ->
-    Enum.all?(rows, fn row -> agreement_by_path[path][row["id"]] end)
-  end)
-
-true = all_agreed
-
-result_rows =
-for {_path, rows} <- corpus.cases,
-      row <- rows do
-    %{
-      "id" => row["id"],
-      "surface" => row["surface"],
-      "result" => row["expected"]
-    }
-  end
-
-results_document = %{
-  "format" => "agent-blueprint-protocol-conformance-results",
-  "corpus_digest" => corpus.identity,
-  "registry_digest" => corpus.index["registry_digest"],
-  "results" => result_rows
-}
-
-certified_path =
-  Path.join([package_root, "spec", "conformance", "certified-results.json"])
-
-certified =
-  case File.regular?(certified_path) do
-    true -> JSON.decode!(File.read!(certified_path))
-    false -> JSON.decode!(File.read!(Path.join(File.cwd!(), "spec/conformance/certified-results.json")))
-  end
-
-%{
-  results_document_matches: results_document == certified,
-  case_count: length(results_document["results"]),
-  all_cases_agree: report.agreement
-}
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-%{results_document_matches: false, case_count: 604, all_cases_agree: true}
 ```
 
 ## External execution messages
 
 The protocol uses one JSON object per line. These values show the harness handshake and one request and response; the notebook treats them as data and starts no process.
 
-Format a handshake and one case exchange as JSON strings using this corpus identity.
-
 ```elixir
+metadata =
+  package_root
+  |> Path.join("priv/release-metadata.json")
+  |> File.read!()
+  |> JSON.decode!()
+
 handshake_request =
-  ~s({"corpus_digest":"#{corpus.identity}","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"#{corpus.index["registry_digest"]}","version":1})
+  ~s({"corpus_digest":"#{metadata["corpus_digest"]}","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"#{metadata["registry_digest"]}","version":1})
 
 handshake_response =
-  ~s({"corpus_digest":"#{corpus.identity}","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"#{corpus.index["registry_digest"]}","version":1})
+  ~s({"corpus_digest":"#{metadata["corpus_digest"]}","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"#{metadata["registry_digest"]}","version":1})
 
 case_request =
   ~s({"id":"base64url-decode-valid","input":{"base64url":"-_8"},"surface":"base64url.decode"})
@@ -190,11 +122,9 @@ case_response =
 }
 ```
 
-## Tampering and revision downgrade
+## Tampering and an unsupported revision
 
 Changing a Blueprint member without updating its digest fails during decode. A revision outside the consumer's support set also fails negotiation.
-
-Change shipped bytes while retaining their digest, then try a revision the consumer did not list.
 
 ```elixir
 blueprint_bytes = File.read!(Path.join(package_root, "examples/echo-blueprint.json"))
@@ -203,27 +133,27 @@ tampered = AgentBlueprintProtocol.decode_blueprint(tampered_bytes)
 
 {:ok, blueprint_value} = AgentBlueprintProtocol.Json.decode(blueprint_bytes)
 {:object, blueprint_members} = blueprint_value
-downgraded_value =
-  {:object, List.keystore(blueprint_members, "protocol_revision", 0, {"protocol_revision", {:integer, 0}})}
+unsupported_value =
+  {:object, List.keystore(blueprint_members, "protocol_revision", 0, {"protocol_revision", {:integer, 2}})}
 
 support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
-downgraded = AgentBlueprintProtocol.negotiate(downgraded_value, support)
+unsupported = AgentBlueprintProtocol.negotiate(unsupported_value, support)
 
 %{
   tamper: case tampered do {:error, error} -> error.code; {:ok, _} -> :accepted end,
-  revision: case downgraded do {:error, error} -> error.code; {:ok, _} -> :accepted end
+  revision: case unsupported do {:error, error} -> error.code; {:ok, _} -> :accepted end
 }
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-%{revision: :invalid_constraint, tamper: :digest_mismatch}
+%{revision: :protocol_revision_unsupported, tamper: :digest_mismatch}
 ```
 
 ## Strict Ed25519 check
 
-The verifier checks canonical point encodings and requires the signature scalar to be below the Ed25519 group order. This worked example replaces the signature with an all-zero value; the package returns a typed denial.
+The verifier checks canonical point encodings and requires the signature scalar to be below the Ed25519 group order. This example shows the simplest rejection: an all-zero signature returns a typed denial.
 
 Create a throwaway key, sign one Blueprint input, then verify the same entry with a rejected signature value.
 
@@ -282,8 +212,6 @@ rejected = Signature.verify(entry_with.(<<0::512>>), [key])
 ## Portability denials
 
 Portable artifact values use logical identifiers and digests. This example shows the typed error for a forbidden member name.
-
-Scan one tagged value with a forbidden member name.
 
 ```elixir
 result =

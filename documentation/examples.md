@@ -2,7 +2,7 @@
 
 This guide is for readers who want to inspect valid protocol artifacts. You will see the JSON for every shipped example and learn how to verify each one.
 
-The examples are stored under examples/. Their files are the source for the JSON shown here.
+The examples are stored under `examples/`. Their files are the source for the JSON shown here.
 Timestamp values shown in these examples are fixed artifact data, not readings from the current clock.
 
 From the repository root, start `iex -S mix`. Run each Elixir block below in that session.
@@ -56,8 +56,6 @@ bytes = File.read!("examples/signed-blueprint.json")
 ```
 
 This shipped signature uses the accepted `EdDSA` header spelling. The [compose guide](compose-and-sign.md) uses the preferred `Ed25519` header spelling.
-
-Run the conformance runner to exercise the shipped signature verification cases.
 
 ## Extension Blueprint
 

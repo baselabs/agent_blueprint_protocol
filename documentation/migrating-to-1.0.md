@@ -1,6 +1,6 @@
 # Migrating to 1.0
 
-This guide is for Elixir and TypeScript consumers moving from 0.8.x to the 1.0 release candidate. You will update imports, denial handling, evidence reads, and package pins.
+This guide is for Elixir and TypeScript consumers moving from 0.8.x to 1.0. You will update imports, denial handling, evidence reads, and package pins.
 
 The [glossary](glossary.md) defines the artifact and verification terms used here. The [stability policy](stability.md) describes the supported 1.x contract.
 
@@ -23,18 +23,6 @@ Deep imports no longer resolve. Replace internal imports and names with the pack
 | `dist/verifier/report.js`: `build`, `toBytes` | `buildReport`, `buildResultsDocument` |
 
 The TypeScript blocks below are excerpts. Elixir's public decode call is unchanged.
-
-Before (Elixir excerpt):
-
-```elixir
-{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
-```
-
-After (Elixir excerpt):
-
-```elixir
-{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
-```
 
 Before, TypeScript imported an internal module and read `v`:
 
@@ -121,12 +109,16 @@ const code: ErrorCode = "ceiling:depth";
 
 TypeScript represents the same ceiling as a string code. These TypeScript blocks are excerpts.
 
-Denial details are now `nil`; the schema-derived path is in `subject`. These are Elixir excerpts for a protected-bound denial:
+Denial details are `nil`; the schema-derived path is in `subject`. These Elixir excerpts show a protected-bound denial.
+
+Before, callers read the denial detail:
 
 ```elixir
 {:error, %AgentBlueprintProtocol.Error{code: :protected_bound_clamp_denied, detail: detail}} =
   AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
 ```
+
+After, `detail` is `nil` and the member path is in `subject`:
 
 ```elixir
 {:error, %AgentBlueprintProtocol.Error{code: :protected_bound_clamp_denied, detail: nil, subject: subject}} =
@@ -221,17 +213,7 @@ if (!result.ok) result.error.code; // "invalid_constraint"
 
 Implementation modules and helpers are not part of the supported public API.
 
-Before (Elixir excerpt):
-
-```elixir
-AgentBlueprintProtocol.Blueprint.decode(bytes)
-```
-
-After (Elixir excerpt):
-
-```elixir
-AgentBlueprintProtocol.decode_blueprint(bytes)
-```
+In Elixir, these 0.8 modules and helpers are no longer documented: `AgentBlueprintProtocol.Extension`, `AgentBlueprintProtocol.Registry`, <code>AgentBlueprintProtocol.Conformance.Cli</code>, and helpers including `Blueprint.table/0`, `Deployment.table/0`, and `ExtensionRegistry.entry/1`. To look up a namespace, search `ExtensionRegistry.registered_extensions/0` as the [extensions guide](extensions.md#read-the-registry) shows. `Blueprint.decode/2` and the other functions in the Elixir reference remain public.
 
 Before (TypeScript excerpt), use a deep import:
 
@@ -247,11 +229,11 @@ import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 const newResult = decodeBlueprint(bytes);
 ```
 
-Use the documented functions in the [Elixir reference](https://agent-blueprint-protocol.hexdocs.pm/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
+Use the documented functions in the [Elixir reference](https://agent-blueprint-protocol.hexdocs.pm/1.0.0-rc.2/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
 
 ## 6. Update package and release identity pins
 
-The 1.0 release candidate changes the registry digest and sets `verification_semantics_version` to `2`. The protocol revision remains `1`.
+Version 1.0 changes the registry digest and sets `verification_semantics_version` to `2`. The protocol revision remains `1`.
 
 Before, pin the previous Hex release:
 
@@ -259,22 +241,22 @@ Before, pin the previous Hex release:
   {:agent_blueprint_protocol, "~> 0.8.4"}
 ```
 
-After, pin the release candidate:
+After, pin the 1.0 release:
 
 ```elixir
 {:agent_blueprint_protocol, "~> 1.0.0-rc.2"}
 ```
 
-For TypeScript, install the candidate with `npm install @agent-blueprint-protocol/verifier@rc`. The package versions carry the same complete release identity.
+For TypeScript, install the same version with `npm install @agent-blueprint-protocol/verifier@1.0.0-rc.2`. The Hex and npm packages carry the same version.
 
-Before, install the previous npm release; after, select the candidate tag:
+Before, install the previous npm release; after, install the 1.0 release:
 
 ```sh
 npm install @agent-blueprint-protocol/verifier@0.8.4
-npm install @agent-blueprint-protocol/verifier@rc
+npm install @agent-blueprint-protocol/verifier@1.0.0-rc.2
 ```
 
-## Adopt current identifiers
+## 7. Use the preferred identifiers
 
 Revision 1 accepts both `EdDSA` and `Ed25519` in the protected header. Producers should emit `Ed25519`:
 

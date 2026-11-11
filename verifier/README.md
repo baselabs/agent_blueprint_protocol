@@ -10,10 +10,7 @@ npm install @agent-blueprint-protocol/verifier
 npx @agent-blueprint-protocol/verifier --help
 ```
 
-For a candidate, append `@rc` to the install and npx package name. Stable
-releases use `latest`. A staged version is
-installable only after its npm approval. `npm view
-@agent-blueprint-protocol/verifier@rc version` identifies the live candidate.
+Install the published package and run its CLI with `npx @agent-blueprint-protocol/verifier`. `npm view @agent-blueprint-protocol/verifier version` identifies the published package version.
 
 ## CLI
 
@@ -21,21 +18,14 @@ installable only after its npm approval. `npm view
 |---|---|
 | no arguments | run the embedded certified corpus |
 | `--corpus <dir>` | run an integrity-checked corpus, emit the aggregate report |
-| `--prior-corpus <dir>` | replay the prior census under current semantics |
+| `--prior-corpus <dir>` | verify an earlier released corpus under this release's semantics |
 | `--results --corpus <dir>` | emit canonical per-case results |
 | `--serve --corpus <dir>` | speak the external execution protocol |
 | `--artifact <file>` | decode a Blueprint, Deployment, or federation envelope |
 | `--help`, `--version` | usage or package version |
 | `conformance run --corpus <dir> --results <file> -- <command...>` | drive and judge another implementation |
 
-Runner exits: 0 agreement/valid/help/version, 1 disagreement/invalid artifact,
-2 usage/readability/integrity failure, 3 internal invariant failure. Corpus
-stderr states whether the digest matches the release-certified corpus.
-Readers reject symlinks and nonregular files and cap a tree at 1,000 entries
-and 5,000,000 bytes. Stdout reports and results are JCS without a trailing LF.
-Harness exits 10–19 identify handshake mismatch, duplicate, missing, extra,
-reordered, malformed, oversized, timeout, early-exit and disagreement outcomes
-in that order. The execution contract in the specification defines each.
+Runner exit codes: 0 for agreement, a valid artifact, help, or version; 1 for disagreement or an invalid artifact; 2 for a usage, read, or corpus-integrity failure; 3 for an internal error. On a corpus run, standard error states whether the digest matches the release-certified corpus. Corpus readers reject symbolic links and non-regular files, and cap a corpus at 1,000 files and 5,000,000 bytes. Reports and results on standard output are JSON Canonicalization Scheme (JCS, RFC 8785) bytes without a trailing newline. Harness exit codes 10 to 19 mean, in order: handshake mismatch, duplicate, missing, extra, or reordered response, malformed line, oversized line, timeout, early exit, and disagreement. The execution contract in the specification defines each.
 
 ## Library
 
@@ -46,6 +36,8 @@ or filesystem side effects. Every function returns `Result<T>`:
 `Uint8Array` and strings; consumers need no Node global declarations.
 `ErrorCode` is exhaustive, including `ceiling:<key>` denials.
 
+Save [`examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/examples/echo-blueprint.json) beside the script; the npm package does not include it.
+
 ```js
 // verify.mjs — run beside echo-blueprint.json
 import { readFileSync } from "node:fs";
@@ -54,10 +46,7 @@ const result = decodeBlueprint(readFileSync("echo-blueprint.json"));
 console.log(result.ok ? "valid" : result.error.code); // valid
 ```
 
-The following examples use canonical example bytes `blueprintBytes`,
-`deploymentBytes`, `envelopeBytes`, caller-supplied `keys` and `observed`,
-and integrity-checked corpus files `files`. They return evidence, never
-permission. Check `ok` before reading `value`.
+The following examples assume canonical artifact bytes `blueprintBytes`, `deploymentBytes`, and `envelopeBytes`; caller-supplied `keys`, `observed`, `signatureEntry`, `requestedBounds`, `deploymentBounds`, and `hostBounds`; and `files`, a `Map` from corpus-relative path to file bytes. They return evidence, never permission. Check `ok` before reading `value`.
 
 ```ts
 import {
@@ -97,8 +86,7 @@ if (corpus.ok) {
 
 Decoded views expose read-only JSON `value`, `canonicalBytes`, and
 `contentDigest` (null for a federation envelope, whose commitment is a
-separate identity). `Support`, `Inputs`, `Observations`, `Observed`,
-`Context`, `PublicKey`, `BoundSet`, and decoder `Bounds` describe the
+separate identity). `Support`, `Inputs`, `Observations`, `Observed`, `PublicKey`, `BoundSet`, and decoder `Bounds` describe the
 caller-supplied facts. `Evidence` includes typed checks, effective bounds,
 clamps, and a nonempty `not_verified` list. Unsigned artifacts succeed with
 signature verification explicitly unestablished; absent descriptor and
@@ -115,37 +103,21 @@ After a pass, add `--claim claim.json --implementation example-verifier
 --platform example-platform --date 2026-11-10` before `--`. A claim is unsigned
 and identifies the implementation, corpus, registry and results bytes. A
 non-certified corpus requires `--prior-corpus-digest <exact-digest>` to name
-the prior census explicitly. Publish the claim and exact results document
-beside source and the reproducible command. A public corpus pass proves
-neither honest computation nor behavior outside the census nor any host
-behavior. The kit includes the runner and execution contracts under `dist/spec/`.
+the prior released corpus explicitly. Publish the claim and exact results
+document beside source and the reproducible command. A public corpus pass
+proves neither honest computation nor behavior outside the corpus nor any
+host behavior. The package includes the runner and execution contracts under
+`dist/spec/`.
 
-## Import migration
+## Migrating from 0.8
 
-| Previous internal import and symbol | Package-root replacement |
-|---|---|
-| `dist/verifier/blueprint.js`: `decode` | `decodeBlueprint` |
-| `dist/verifier/deployment.js`: `decode` | `decodeDeployment` |
-| `dist/verifier/federation.js`: `decode` | `decodeFederationEnvelope` |
-| artifact modules: `canonicalBytes` | `canonicalBytes` |
-| `dist/verifier/negotiation.js`: `negotiate` | `negotiate` |
-| `dist/verifier/bounds_algebra.js`: `intersect` | `intersect` with a Sources object |
-| `dist/verifier/compatibility.js`: `verify` | `verifyCompatibility` |
-| `dist/verifier/signature.js`: `verify` | `verifySignature` |
-| `dist/verifier/corpus.js`: `load` | `loadCorpus` |
-| `dist/verifier/runner.js`: `run` | `runCorpus` |
-| `dist/verifier/report.js`: `build`, `toBytes` | `buildReport`, `buildResultsDocument` |
-
-Deep imports no longer resolve. Internal `{ok,v,e}` records become public
-`{ok,value,error}` results. `reconcile` and `federationMapping` are new root
-operations. Internal byte, schema and codec helpers have no supported deep
-import replacement. The package-root surface is the supported TypeScript API.
+Deep imports from `dist/verifier/` no longer resolve; import from the package root. The [TypeScript guide](https://github.com/baselabs/agent_blueprint_protocol/blob/main/documentation/typescript.md#import-migration) maps each previous import to its replacement.
 
 ## Compatibility within 1.x
 
 Node 24 remains the runtime floor for all of 1.x; Node 26 is also supported.
 TypeScript 5.0.2 is the compiler floor. Packed declarations are checked at
-that floor and the current compiler with `moduleResolution: "nodenext"`,
+that floor and at the TypeScript version used in CI with `moduleResolution: "nodenext"`,
 `skipLibCheck: false`, and no `@types/node` dependency.
 
 `ErrorCode` stays a closed union throughout 1.x, so exhaustive switches are

@@ -8,16 +8,12 @@ The host supplies its supported protocol revisions, bounds, public keys, and any
 
 ## Set decoder bounds
 
-Decoder bounds limit the size and complexity of JSON input. This example lowers the depth limit:
-
-In a Mix project that depends on the package, run:
+Decoder bounds limit the size and complexity of JSON input. This example lowers the depth limit. In a Mix project that depends on the package, run:
 
 ```elixir
 {:ok, profile} = AgentBlueprintProtocol.Bounds.new(%{depth: 32})
 profile.depth # => 32
 ```
-
-The configured depth of 32 is an example limit.
 
 ## Read the result
 

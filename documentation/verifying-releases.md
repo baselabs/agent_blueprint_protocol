@@ -2,7 +2,7 @@
 
 This guide is for people checking installed or downloaded packages. You will compare the Hex checksum, npm signatures and integrity, release metadata, corpus digest, and GitHub release asset digest.
 
-Use the package version you installed. For the current release candidate, set VERSION to 1.0.0-rc.2. For the final release, set it to 1.0.0.
+Set VERSION to the package version you installed, for example 1.0.0-rc.2. The worked values below are for the published 0.8.4 release.
 
 ## Verify a Hex package
 
@@ -23,7 +23,7 @@ node -e 'const fs = require("node:fs"); const crypto = require("node:crypto"); c
 
 For published version 0.8.4, Hex reports checksum 2d6b7c972e6d6df04f099017c7d09e517de4cd3e1bc06d627a86d76fd27a35b2. The command prints the archive checksum. The values must match.
 
-For a candidate or final release, replace the first line with VERSION=1.0.0-rc.2 or VERSION=1.0.0. Compare the fetched archive value with the checksum reported by Hex.
+For this release, replace the first line with VERSION=1.0.0-rc.2 and compare the fetched archive value with the checksum reported by Hex.
 
 ## Verify npm signatures and tarball integrity
 
@@ -43,7 +43,7 @@ npm pack "@agent-blueprint-protocol/verifier@$VERSION" --json
 
 For 0.8.4, both values are sha512-TiYvqPJbjiv7iiUDHDjbkuA/nifUHMaqBETNdRTxFddCw5sQmrzq7yi1ruaxJK63loND+3enA47ULCv3K1Wn2Q==. Compare the registry's dist.integrity value with the integrity field in the pack output.
 
-Use VERSION=1.0.0-rc.2 for the candidate or VERSION=1.0.0 for the final release. Run npm audit signatures after installing that exact version in the project you are checking.
+For this release, use VERSION=1.0.0-rc.2. Run npm audit signatures after installing that exact version in the project you are checking.
 
 ## Compare release metadata and corpus identity
 
@@ -66,7 +66,7 @@ VERSION=0.8.4
 node --input-type=module -e 'import fs from "node:fs"; const [version, metadataPath, indexPath] = process.argv.slice(1); const m = JSON.parse(fs.readFileSync(metadataPath, "utf8")); const i = JSON.parse(fs.readFileSync(indexPath, "utf8")); const p = JSON.parse(fs.readFileSync("node_modules/@agent-blueprint-protocol/verifier/package.json", "utf8")); if (p.version !== version || m.package_version !== version || m.corpus_digest !== i.corpus_digest) process.exit(1); console.log(m.package_version + " " + m.corpus_digest);' "$VERSION" node_modules/@agent-blueprint-protocol/verifier/dist/release-metadata.json node_modules/@agent-blueprint-protocol/verifier/dist/corpus/index.json
 ```
 
-For a candidate or final release, replace `VERSION=0.8.4` with its package version. Use the matching Hex archive and npm installation.
+For another release, replace `VERSION=0.8.4` with its package version. Use the matching Hex archive and npm installation.
 
 The 0.8.4 corpus digest is sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8. The release metadata and conformance index must both report it.
 
@@ -83,10 +83,10 @@ node -e 'const fs = require("node:fs"); const crypto = require("node:crypto"); c
 
 The 0.8.4 release asset digest is sha256:d0e161be34bdfebaab2c9b991b40fac3867110f28504763a95f9cfc8a4d86fd6. Compare it with the value reported by the command.
 
-For the release candidate or final release, set VERSION to 1.0.0-rc.2 or 1.0.0. The asset contains release-metadata.json and conformance/index.json for the same corpus comparison.
+For this release, set VERSION to 1.0.0-rc.2. The asset contains release-metadata.json and conformance/index.json for the same corpus comparison.
 
 ## Next steps
 
 - [Read the conformance guide](conformance.md)
-- [Inspect the release metadata](../priv/release-metadata.json)
+- [Inspect the release metadata](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0-rc.2/priv/release-metadata.json)
 - [Read the stability policy](stability.md)

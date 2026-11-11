@@ -23,10 +23,10 @@ The command writes the canonical results document to standard output and a corpu
 
 ## npm
 
-Run the release-candidate CLI against the repository corpus:
+From the repository root, run the npm CLI against the repository corpus:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@rc --results --corpus ./priv/conformance > results.json
+npx @agent-blueprint-protocol/verifier@1.0.0-rc.2 --results --corpus ./priv/conformance > results.json
 ```
 
 The results document has the format name, corpus and registry digests, and one result row per case. It contains no implementation identity.
@@ -42,7 +42,9 @@ The results document has the format name, corpus and registry digests, and one r
 | npm corpus runner | 1 | Disagreement or invalid artifact. |
 | npm corpus runner | 2 | Usage, read, or corpus-integrity failure. |
 | npm corpus runner | 3 | Internal invariant failure. |
+| External harness | 0 | All results agree. |
 | External harness | 2 | Usage, corpus-integrity, or claim-input failure. |
+| External harness | 3 | Internal error. |
 | External harness | 10 | Handshake mismatch. |
 | External harness | 11 | Duplicate response identifier. |
 | External harness | 12 | A successful adapter exit omitted a response. |
@@ -58,10 +60,10 @@ The [runner contract](../spec/conformance/runner.md) defines result projections 
 
 ## Check another implementation
 
-Extract the corpus to ./conformance, then run the npm harness with the adapter executable after --. This command template is an excerpt. Replace `./example-adapter` with the adapter supplied by the implementation.
+Copy the corpus to `./conformance` from `node_modules/@agent-blueprint-protocol/verifier/dist/corpus/` or the release asset's `conformance/` directory. Then run the npm harness with the adapter executable after `--`, replacing `./example-adapter` with the implementation's adapter.
 
 ```sh
-npx @agent-blueprint-protocol/verifier@rc conformance run --corpus ./conformance --results results.json -- ./example-adapter
+npx @agent-blueprint-protocol/verifier@1.0.0-rc.2 conformance run --corpus ./conformance --results results.json -- ./example-adapter
 ```
 
 The harness compares the adapter's complete result projections. It writes a results document after a clean run.

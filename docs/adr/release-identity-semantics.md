@@ -79,7 +79,7 @@ guide.
 
 ## Semantics version 2
 
-The release candidate increments `verification_semantics_version` once,
+Version 1.0.0-rc.2 increments `verification_semantics_version` once,
 from 1 to 2, while retaining protocol revision 1. Failures have one typed
 shape, evidence no longer marks skipped checks verified, signature
 verification returns signed attributes, duplicate signers deny, the

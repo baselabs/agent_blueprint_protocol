@@ -8,7 +8,7 @@ livebook:{"persist_outputs":true}
 
 This tour reads the shipped artifacts, checks one typed denial, negotiates support, reconciles the pair, reads evidence, and runs the shipped corpus. Each notebook in the set can run on its own.
 
-The first cell installs the published package at the release candidate requirement.
+The first cell installs the published package.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}])
@@ -43,8 +43,6 @@ true = is_binary(package_root)
 
 The package contains a Blueprint and a Deployment Manifest. Decode both and compare the Blueprint's canonical bytes with the file bytes.
 
-Decode both shipped examples and check that the Blueprint round-trips to its original canonical bytes.
-
 ```elixir
 blueprint_bytes = File.read!(Path.join(package_root, "examples/echo-blueprint.json"))
 deployment_bytes = File.read!(Path.join(package_root, "examples/echo-deployment.json"))
@@ -66,8 +64,6 @@ deployment_bytes = File.read!(Path.join(package_root, "examples/echo-deployment.
 
 This input has an unknown top-level member. Inspect the stable error fields rather than depending on an exception.
 
-Decode a small invalid input and keep the typed error shape.
-
 ```elixir
 {:error, %AgentBlueprintProtocol.Error{} = error} =
   AgentBlueprintProtocol.decode_blueprint(~s({"unknown":true}))
@@ -84,8 +80,6 @@ Decode a small invalid input and keep the typed error shape.
 ## Negotiate support
 
 The support value lists the protocol revision accepted by this consumer. Notices are an open set, so this example matches the known name and keeps a catch-all.
-
-Negotiate the decoded Blueprint and classify known notices while preserving a catch-all branch.
 
 ```elixir
 support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
@@ -113,7 +107,7 @@ notices =
 
 Reconciliation compares the artifacts with host inputs and returns protocol evidence. The summary reads every evidence field while leaving any new check shape unknown.
 
-Call reconcile/3 with the example Deployment bounds and no supplied keys, then summarize all evidence fields.
+Call `reconcile/3` with the example Deployment bounds and no supplied keys, then summarize all evidence fields.
 
 ```elixir
 alias AgentBlueprintProtocol.{BoundsAlgebra, Evidence, Reconcile}
@@ -208,8 +202,6 @@ not_verified =
 ## Run the shipped corpus
 
 The corpus loader checks the installed files before the runner evaluates the cases. The report shows the agreement totals.
-
-Load every shipped corpus file, run the cases, and build the aggregate report.
 
 ```elixir
 alias AgentBlueprintProtocol.Conformance.{Corpus, Report, Runner}

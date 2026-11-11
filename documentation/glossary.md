@@ -38,7 +38,7 @@ A digest of protocol-defined evidence content that lets a verifier compare the r
 
 ## Federation carrier
 
-An A2A task-metadata or MCP `_meta` representation that carries a Federation TaskEnvelope.
+An Agent2Agent (A2A) task-metadata or Model Context Protocol (MCP) `_meta` representation that carries a Federation TaskEnvelope.
 
 ## Federation state codec
 
@@ -46,7 +46,7 @@ A conversion between a protocol state and the corresponding native A2A or MCP ta
 
 ## Terminal commitment
 
-A digest commitment associated with terminal Federation evidence and checked by the Federation verifier.
+A digest commitment associated with terminal Federation evidence. `AgentBlueprintProtocol.Federation.verify_commitment/2` performs federation commitment verification. The shipped fixtures demonstrate valid and conflicting terminal commitments.
 
 ## Decoder ceiling
 
@@ -67,6 +67,10 @@ A canonical JSON document containing the corpus identity and a result projection
 ## Verification-semantics version
 
 The release identity field that marks changes to computed outcomes for previously certified inputs. It is separate from the wire protocol revision and package version.
+
+## Census
+
+The conformance corpus digest and extension-registry digest that a release certifies. See [protocol section 7](../spec/protocol.md#verification-semantics-and-census-normative).
 
 ## Protocol revision
 

@@ -6,8 +6,6 @@ Compose each artifact from the protocol's tagged JSON values, then compute its d
 
 The [compose and sign guide](compose-and-sign.md) walks through a complete Blueprint built with `Blueprint.from_value/2`. It computes the digest, signs with the producer's own Ed25519 key using `:crypto`, attaches the signature, and checks the round trip.
 
-Timestamps in shipped examples are fixed values used as artifact data. They do not represent the current time.
-
 ## Next steps
 
 - [What a Blueprint is](what-a-blueprint-is.md)

@@ -8,10 +8,10 @@ Use Node.js 24 or newer. The package is ESM-only and has no runtime dependencies
 
 ## Install and decode
 
-Install the release candidate:
+Install the package:
 
 ```sh
-npm install @agent-blueprint-protocol/verifier@rc
+npm install @agent-blueprint-protocol/verifier@1.0.0-rc.2
 ```
 
 This example runs from a repository checkout beside `examples/echo-blueprint.json`:
@@ -181,7 +181,7 @@ console.log(result.value.not_verified.length > 0); // true
 
 ## Verify a signature
 
-`verifySignature` accepts a signature entry and the [host](glossary.md#host)'s public keys. This real corpus vector returns its verified attributes:
+`verifySignature` accepts a signature entry and the [host](glossary.md#host)'s public keys. This corpus vector returns its verified attributes:
 
 ```ts
 import {
@@ -252,19 +252,11 @@ Import from `@agent-blueprint-protocol/verifier`. Deep imports are not part of t
 
 The public `Result<T>` shape uses `value` on success and a typed `error` on denial. Internal `{ok, v, e}` records and deep imports no longer resolve. The [migration guide](migrating-to-1.0.md) covers the Elixir changes.
 
-## Next steps
-
-- [Quickstart](quickstart.md)
-- [Conformance guide](conformance.md)
-- [Migration guide](migrating-to-1.0.md)
-- [Glossary](glossary.md)
-- [Protocol specification](../spec/protocol.md)
-
 ## Compatibility within 1.x
 
 Node 24 remains the runtime floor for all of 1.x; Node 26 is also supported.
 TypeScript 5.0.2 is the compiler floor. Packed declarations are checked at
-that floor and the current compiler with `moduleResolution: "nodenext"`,
+that floor and at the TypeScript version used in CI with `moduleResolution: "nodenext"`,
 `skipLibCheck: false`, and no `@types/node` dependency.
 
 `ErrorCode` stays a closed union throughout 1.x, so exhaustive switches are
@@ -296,3 +288,11 @@ exponent. For example, `{amount: 1000, currency: "USD"}` means 0.001 USD.
 Amounts compare as integers; mixed currencies deny. Federation
 `resource_policy.cost` has the same scale in the bound Deployment Manifest's
 `host_bounds.max_cost.currency`.
+
+## Next steps
+
+- [Quickstart](quickstart.md)
+- [Conformance guide](conformance.md)
+- [Migration guide](migrating-to-1.0.md)
+- [Glossary](glossary.md)
+- [Protocol specification](../spec/protocol.md)

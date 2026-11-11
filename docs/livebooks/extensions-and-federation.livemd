@@ -8,7 +8,7 @@ livebook:{"persist_outputs":true}
 
 This notebook inspects the extension registry and negotiation outcomes, then decodes the shipped Federation envelope and exercises its supported state and carrier codecs.
 
-The first cell installs the published package at the release candidate requirement.
+The first cell installs the published package.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.2"}])
@@ -52,7 +52,7 @@ true = is_binary(package_root)
 
 Registry states may grow. This reader matches the names used here and preserves an unknown state as unknown.
 
-Read the active federation namespace and the deprecated optional namespace from the registry.
+Read the active and deprecated federation namespaces from the registry.
 
 ```elixir
 alias AgentBlueprintProtocol.ExtensionRegistry
@@ -61,7 +61,7 @@ registry = ExtensionRegistry.registered_extensions()
 
 registry_view =
   Enum.flat_map(registry, fn entry ->
-    if entry.namespace in ["io.github.baselabs/federation", "com.example.platform/estate"] do
+    if entry.namespace in ["io.github.baselabs/federation", "com.example/federation"] do
       state =
         case entry.state do
           :active -> :active
@@ -83,7 +83,7 @@ registry_view
 
 ```
 [
-  {"com.example.platform/estate", :optional, :deprecated, false},
+  {"com.example/federation", :critical, :deprecated, true},
   {"io.github.baselabs/federation", :critical, :active, true}
 ]
 ```
@@ -122,8 +122,8 @@ end
 {:ok, active_critical} =
   make_blueprint.(regions.([{"io.github.baselabs/federation", empty_body}], []))
 
-{:ok, deprecated_optional} =
-  make_blueprint.(regions.([], [{"com.example.platform/estate", empty_body}]))
+{:ok, deprecated_critical} =
+  make_blueprint.(regions.([{"com.example/federation", empty_body}], []))
 
 {:ok, unknown_optional} =
   make_blueprint.(regions.([], [{"org.example.weather/units", empty_body}]))
@@ -146,7 +146,11 @@ retired_entry = %ExtensionRegistry{
 
 support = %Negotiation.Support{
   revisions: MapSet.new([1]),
-  registry: %{"org.example.weather/archive" => retired_entry}
+  registry: %{"org.example.weather/archive" => retired_entry},
+  schemas: %{
+    "com.example/federation" => ExtensionRegistry.federation_schema(),
+    "io.github.baselabs/federation" => ExtensionRegistry.federation_schema()
+  }
 }
 
 outcome = fn result ->
@@ -166,7 +170,7 @@ end
 
 %{
   active_critical: outcome.(AgentBlueprintProtocol.negotiate(active_critical, support)),
-  deprecated_optional: outcome.(AgentBlueprintProtocol.negotiate(deprecated_optional, support)),
+  deprecated_critical: outcome.(AgentBlueprintProtocol.negotiate(deprecated_critical, support)),
   unknown_optional: outcome.(AgentBlueprintProtocol.negotiate(unknown_optional, support)),
   unknown_critical: outcome.(AgentBlueprintProtocol.negotiate(unknown_critical, support)),
   retired_optional: outcome.(AgentBlueprintProtocol.negotiate(retired_optional, support))
@@ -178,8 +182,8 @@ end
 ```
 %{
   unknown_optional: [:unknown_optional],
-  deprecated_optional: [:deprecated],
-  active_critical: :extension_schema_unavailable,
+  active_critical: [],
+  deprecated_critical: [:deprecated],
   unknown_critical: :extension_unknown_critical,
   retired_optional: [:retired]
 }
@@ -220,8 +224,6 @@ schema_support = %Negotiation.Support{
 
 The decoder reads the package example. The state codecs map a logical state to each carrier vocabulary, and the carrier codecs round-trip the decoded envelope.
 
-Inspect only the example's task identity and state, exercise A2A and MCP state codecs, and round-trip both carriers.
-
 ```elixir
 alias AgentBlueprintProtocol.Federation
 
@@ -237,7 +239,7 @@ alias AgentBlueprintProtocol.Federation
 {:ok, mcp_spelling} = Federation.to_mcp_state(mcp_state)
 
 %{
-  task_identity_present: is_struct(federation, Federation),
+  envelope_decoded: is_struct(federation, Federation),
   state_codecs_agree: a2a_state == mcp_state,
   a2a_spelling: a2a_spelling,
   mcp_spelling: mcp_spelling,
@@ -254,7 +256,7 @@ alias AgentBlueprintProtocol.Federation
   mcp_round_trip: true,
   a2a_spelling: "TASK_STATE_COMPLETED",
   mcp_spelling: "completed",
-  task_identity_present: true,
+  envelope_decoded: true,
   state_codecs_agree: true
 }
 ```
@@ -262,8 +264,6 @@ alias AgentBlueprintProtocol.Federation
 ## Read the mapping table
 
 The mapping rows are data. Match the known row fields and keep a catch-all for rows with a future shape.
-
-Read every current mapping row as logical field, A2A location, MCP location, and outcome.
 
 ```elixir
 mapping =
@@ -334,9 +334,7 @@ mapping
 
 ## Check shipped commitment fixtures
 
-This cell reads the valid and conflict cases from the shipped conformance fixture file. It sends those fixture values to the public verifier and reports only the verdict.
-
-Decode the shipped valid fixture, verify its commitment, then use the shipped conflict fixture to read its typed denial.
+The shipped conformance cases demonstrate a valid terminal commitment and a conflicting terminal commitment.
 
 ```elixir
 case_path = Path.join([Application.app_dir(:agent_blueprint_protocol, "priv/conformance"), "cases", "federation-verify_commitment.json"])

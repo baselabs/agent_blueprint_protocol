@@ -6,7 +6,7 @@ This guide is for implementers of another Agent Blueprint Protocol verifier. You
 
 The [Hex package](https://hex.pm/packages/agent_blueprint_protocol) includes the corpus under `priv/conformance/`. In an installed Elixir project, find it at `Application.app_dir(:agent_blueprint_protocol, "priv/conformance")`.
 
-The npm kit includes the same files under `node_modules/@agent-blueprint-protocol/verifier/dist/corpus/`. The [release asset](https://github.com/baselabs/agent_blueprint_protocol/releases/download/v1.0.0-rc.2/verifier-1.0.0-rc.2.tar.gz) stores them under `conformance/`.
+The npm package includes the same files under `node_modules/@agent-blueprint-protocol/verifier/dist/corpus/`. The [release asset](https://github.com/baselabs/agent_blueprint_protocol/releases/download/v1.0.0-rc.2/verifier-1.0.0-rc.2.tar.gz) stores them under `conformance/`.
 
 ## Case format and schemas
 
@@ -41,7 +41,7 @@ The successful reconcile projection also uses [`evidence.schema.json`](https://g
 
 An [execution adapter](glossary.md#execution-adapter) reads one JSON object per line from standard input and writes one JSON response per line. It first answers the handshake with the same protocol, version, corpus digest, and registry digest. It then handles requests in order. A response contains the request `id` and the complete result projection for that case.
 
-The following transcript was captured while the kit harness ran the kit's own `--serve` adapter over its shipped corpus. The handshake request was:
+The following transcript was captured while the npm package's harness ran its own `--serve` adapter over its shipped corpus. The handshake request was:
 
 ```json
 {"corpus_digest":"sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg","version":1}
@@ -65,10 +65,10 @@ The adapter response was:
 {"id":"base64url-decode-exact-bound","result":{"decoded":"QQQ","verdict":"valid"}}
 ```
 
-The command below runs the harness against the kit's own adapter. Run it from a directory that contains the extracted corpus at `./conformance`:
+The command below runs the harness against the npm package's own adapter. Run it from a directory that contains the extracted corpus at `./conformance`:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@rc conformance run --corpus ./conformance --results results.json -- npx @agent-blueprint-protocol/verifier@rc --serve --corpus ./conformance
+npx @agent-blueprint-protocol/verifier@1.0.0-rc.2 conformance run --corpus ./conformance --results results.json -- npx @agent-blueprint-protocol/verifier@1.0.0-rc.2 --serve --corpus ./conformance
 ```
 
 ## Read and compare results

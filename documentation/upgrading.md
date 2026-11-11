@@ -11,16 +11,16 @@ The protocol uses separate version values for separate contracts:
 - **Package version** identifies the supported APIs and distribution.
 - **Corpus and registry digests** identify the exact conformance cases and extension vocabulary.
 
-The Hex and npm packages carry the same complete version, including prerelease identifiers. The 1.0 release candidate uses this Hex requirement:
+The Hex and npm packages carry the same complete version, including prerelease identifiers. Pin this release with this Hex requirement:
 
 ```elixir
 {:agent_blueprint_protocol, "~> 1.0.0-rc.2"}
 ```
 
-Install the npm package with its release-candidate tag:
+Install the same version from npm:
 
 ```sh
-npm install @agent-blueprint-protocol/verifier@rc
+npm install @agent-blueprint-protocol/verifier@1.0.0-rc.2
 ```
 
 ## Release identity

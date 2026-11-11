@@ -16,7 +16,7 @@ Excerpt. Provide the artifact bytes before running these calls.
 
 ### Encode and compute identity
 
-Excerpt. The artifact value must already have passed its constructor.
+Excerpt. `blueprint` is a decoded Blueprint.
 
 ```elixir
 {:ok, canonical_bytes} = AgentBlueprintProtocol.canonical_bytes(blueprint)
@@ -26,13 +26,15 @@ tagged_digest = AgentBlueprintProtocol.Digest.to_tagged(digest)
 
 ### Reconcile artifacts
 
-Excerpt. Supply host bounds, revision support, keys, and observations in the Inputs struct.
+Excerpt. Supply host bounds, revision support, keys, and observations in an `AgentBlueprintProtocol.Reconcile.Inputs` struct.
 
 ```elixir
 {:ok, evidence} = AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
 ```
 
 ### Run the corpus
+
+From a checkout of the repository:
 
 ```sh
 mix conformance.verify
@@ -64,7 +66,7 @@ if (blueprint.ok && deployment.ok) {
 ### Run the embedded corpus
 
 ```sh
-npx @agent-blueprint-protocol/verifier@rc
+npx @agent-blueprint-protocol/verifier@1.0.0-rc.2
 ```
 
 ### Run an external implementation
@@ -72,7 +74,7 @@ npx @agent-blueprint-protocol/verifier@rc
 Command template (excerpt). Replace `./example-adapter` with the adapter executable supplied by the implementation.
 
 ```sh
-npx @agent-blueprint-protocol/verifier@rc conformance run --corpus ./conformance --results results.json -- ./example-adapter
+npx @agent-blueprint-protocol/verifier@1.0.0-rc.2 conformance run --corpus ./conformance --results results.json -- ./example-adapter
 ```
 
 Cost amounts are integer millionths of the named currency unit. Verification returns evidence and does not grant permission to act.

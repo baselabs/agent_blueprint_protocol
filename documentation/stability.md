@@ -1,13 +1,12 @@
 # Stability and support
 
 Both packages follow Semantic Versioning on one 1.x release line. The Hex
-and npm versions, including prerelease identifiers, are equal. An rc version
-is a prerelease; npm selects it through the `rc` tag. A final release does
+and npm versions, including prerelease identifiers, are equal. A version marked `rc` is a prerelease; npm selects it through the `rc` tag. A final release does
 not change certified behavior from its candidate.
 
 The stable surfaces are:
 
-- The Elixir public modules and functions pinned by the public API census.
+- The Elixir modules and functions documented on HexDocs.
 - The TypeScript package-root exports and their documented types. Internal
   modules are inaccessible through package deep imports.
 - Documented CLI modes and exit codes, the aggregate report, per-case
@@ -34,18 +33,14 @@ before final publication.
 | Elixir compatibility jobs | Elixir 1.19 / OTP 28; Elixir 1.20 / OTP 27 or 28 | Linux |
 | Elixir library and contributor platform jobs | Elixir 1.20 / OTP 29 / Node 24 | Linux, macOS, Windows |
 | TypeScript library, CLI, and harness | Node 24 and 26; TypeScript 5.0.2 or newer | Linux, macOS, Windows |
-| Maintainer release tooling | pinned toolchain; POSIX shell, Go, Git | Linux |
 
 Exact toolchain patch pins are in [CI](https://github.com/baselabs/agent_blueprint_protocol/blob/main/.github/workflows/ci.yml).
 
-The current 1.0 line, including its candidate, and the 0.8 transition line
-receive security fixes. Older lines do not. Reports are handled on a
+The 1.0 line and the 0.8 transition line receive security fixes. Older lines do not. Reports are handled on a
 best-effort basis; there is no guaranteed response time. Added runtime
 versions and changes to maintained release lines are announced in release notes; the 1.x runtime floors never rise. The [security
 policy](../SECURITY.md) defines reporting; the [upgrading guide](upgrading.md)
-defines identity-aware upgrades. CI exercises supported platform jobs; a
-listed platform is a support commitment, not a claim about an unexecuted
-local run.
+defines identity-aware upgrades. CI runs every listed platform job.
 
 ## Evolution within 1.x
 
@@ -61,8 +56,8 @@ corpus digest. Corpus file-count and total-byte caps are runner tooling
 limits, separate from artifact limits, and may rise in a minor release.
 
 An incompatible federation envelope uses a new registered critical namespace
-beside the current profiles. Existing profiles never retire during 1.x.
-The current envelope stays unchanged. A successor execution protocol is explicitly selected; harnesses
+beside the existing profiles. Existing profiles never retire during 1.x.
+The existing envelope format stays unchanged. A successor execution protocol is explicitly selected; harnesses
 and adapters keep execution version 1 throughout 1.x.
 
 `ErrorCode` and the meaning of every code are closed for all of 1.x.
@@ -78,9 +73,7 @@ Node 24 and Elixir 1.19 remain the floors throughout 1.x. The library retains
 support for the OTP majors supported at 1.0: 27, 28, and 29, with compatible
 Elixir builds. TypeScript 5.0.2 is the compiler floor, checked with NodeNext
 resolution, `skipLibCheck: false`, and no Node global declarations.
-Additional runtime versions expand this set. The checkout's OTP gate and
-exact contributor toolchain pins govern development, not the shipped Hex
-library: `config/` is not packaged.
+Additional runtime versions expand this set. The OTP check in `config/` and the exact toolchain pins apply only to development in a checkout; `config/` is not in the Hex package.
 
 ## Consumer compatibility
 

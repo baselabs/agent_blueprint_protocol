@@ -16,7 +16,7 @@ The verifier treats artifact bytes and caller-supplied data as untrusted input. 
 | Invalid extension schemas | Check schema shape and the registered schema identity. |
 | Invalid signatures | Verify the entry against caller-supplied Ed25519 public keys. |
 | Private or environment-specific values | Apply structural portability checks. |
-| Conflicting terminal commitment fixtures | Return a typed conflict for the shipped conformance examples. |
+| Federation commitment verification | Return a typed conflict for an inconsistent terminal commitment. |
 
 The conformance corpus includes cases for these checks. See the security and privacy considerations in [protocol sections 17 and 18](../spec/protocol.md#17-security-considerations-normative).
 
@@ -28,9 +28,9 @@ The library uses only keys supplied by the caller. It verifies bytes against tho
 
 ## Ed25519 profile
 
-The signature profile uses Ed25519. A public key is 32 bytes, and a signature is 64 bytes. The protected header may use Ed25519 or its EdDSA alias. The signed algorithm attribute is Ed25519.
+The signature profile uses Ed25519. A public key is 32 bytes, and a signature is 64 bytes. The protected header may use `Ed25519` or its `EdDSA` alias. The signed `algorithm` attribute is `Ed25519`.
 
-Producers should write alg as Ed25519. The verifier checks the signature against the supplied public key and the protocol-defined signed input. It rejects malformed encodings and signatures that fail verification.
+Producers should write `alg` as `Ed25519`. The verifier checks the signature against the supplied public key and the protocol-defined signed input. It rejects malformed encodings and signatures that fail verification.
 
 The package does not decide whether a key is trusted for a real-world identity. That relationship comes from outside the protocol.
 
