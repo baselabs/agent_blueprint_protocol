@@ -1,0 +1,400 @@
+<!--
+livebook:{"persist_outputs":true}
+-->
+
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0-rc.1/docs/livebooks/extensions-and-federation.livemd)
+
+# Extensions and federation
+
+This notebook inspects the extension registry and negotiation outcomes, then decodes the shipped Federation envelope and exercises its supported state and carrier codecs.
+
+The first cell installs the published package at the release candidate requirement.
+
+```elixir
+Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}])
+```
+
+Locate and decode the shipped Blueprint and Federation example files.
+
+```elixir
+dependency_path =
+  try do
+    Mix.Project.deps_paths() |> Map.get(:agent_blueprint_protocol)
+  rescue
+    _ -> nil
+  end
+
+package_root =
+  [dependency_path, Application.app_dir(:agent_blueprint_protocol), File.cwd!()]
+  |> Enum.reject(&is_nil/1)
+  |> Enum.find(fn path -> File.regular?(Path.join(path, "examples/echo-blueprint.json")) end)
+
+true = is_binary(package_root)
+{:ok, base_value} =
+  File.read!(Path.join(package_root, "examples/echo-blueprint.json"))
+  |> AgentBlueprintProtocol.Json.decode()
+
+{:ok, federation} =
+  AgentBlueprintProtocol.decode_federation_envelope(
+    File.read!(Path.join(package_root, "examples/federation-envelope.json"))
+  )
+
+%{blueprint_value: true, envelope_decoded: true}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{blueprint_value: true, envelope_decoded: true}
+```
+
+## Inspect the registry
+
+Registry states may grow. This reader matches the names used here and preserves an unknown state as unknown.
+
+Read the active federation namespace and the deprecated optional namespace from the registry.
+
+```elixir
+alias AgentBlueprintProtocol.ExtensionRegistry
+
+registry = ExtensionRegistry.registered_extensions()
+
+registry_view =
+  Enum.flat_map(registry, fn entry ->
+    if entry.namespace in ["io.github.baselabs/federation", "com.example.platform/estate"] do
+      state =
+        case entry.state do
+          :active -> :active
+          :deprecated -> :deprecated
+          :retired -> :retired
+          other -> {:unknown_state, other}
+        end
+
+      [{entry.namespace, entry.criticality, state, entry.schema_digest != nil}]
+    else
+      []
+    end
+  end)
+
+registry_view
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  {"com.example.platform/estate", :optional, :deprecated, false},
+  {"io.github.baselabs/federation", :critical, :active, true}
+]
+```
+
+## Negotiate extension outcomes
+
+The helper composes each extension map from the shipped Blueprint value and recomputes the Blueprint digest. A supplied support registry can include a retired namespace without changing the compiled registry.
+
+Create Blueprints for active critical, deprecated, unknown, and retired namespace cases, then negotiate each one.
+
+```elixir
+alias AgentBlueprintProtocol.{Blueprint, Canonicalization, Digest, Negotiation}
+alias AgentBlueprintProtocol.ExtensionRegistry
+
+put_member = fn {:object, members}, name, value ->
+  {:object, List.keystore(members, name, 0, {name, value})}
+end
+
+make_blueprint = fn regions ->
+  value = put_member.(base_value, "extensions", regions)
+  {:ok, draft} = Blueprint.from_value(value)
+  digest = draft |> Blueprint.content_digest() |> Digest.to_tagged()
+  value = put_member.(value, "content_digest", {:string, digest})
+  {:ok, bytes} = Canonicalization.encode(value)
+  AgentBlueprintProtocol.decode_blueprint(bytes)
+end
+
+empty_body = {:object, []}
+regions = fn critical, optional ->
+  {:object, [
+    {"critical", {:object, critical}},
+    {"optional", {:object, optional}}
+  ]}
+end
+
+{:ok, active_critical} =
+  make_blueprint.(regions.([{"io.github.baselabs/federation", empty_body}], []))
+
+{:ok, deprecated_optional} =
+  make_blueprint.(regions.([], [{"com.example.platform/estate", empty_body}]))
+
+{:ok, unknown_optional} =
+  make_blueprint.(regions.([], [{"org.example.weather/units", empty_body}]))
+
+{:ok, unknown_critical} =
+  make_blueprint.(regions.([{"org.example.weather/alerts", empty_body}], []))
+
+retired_entry = %ExtensionRegistry{
+  namespace: "org.example.weather/archive",
+  owner: "ExampleWeather",
+  criticality: :optional,
+  state: :retired,
+  schema_digest: nil,
+  a2a_uri: "https://example.com/extensions/weather-archive",
+  promoted_at_revision: nil
+}
+
+{:ok, retired_optional} =
+  make_blueprint.(regions.([], [{"org.example.weather/archive", empty_body}]))
+
+support = %Negotiation.Support{
+  revisions: MapSet.new([1]),
+  registry: %{"org.example.weather/archive" => retired_entry}
+}
+
+outcome = fn result ->
+  case result do
+    {:ok, value} ->
+      Enum.map(value.notices, fn
+        :extension_deprecated -> :deprecated
+        :extension_retired -> :retired
+        :extension_unknown_optional_retained -> :unknown_optional
+        other -> {:unknown_notice, other}
+      end)
+
+    {:error, error} ->
+      error.code
+  end
+end
+
+%{
+  active_critical: outcome.(AgentBlueprintProtocol.negotiate(active_critical, support)),
+  deprecated_optional: outcome.(AgentBlueprintProtocol.negotiate(deprecated_optional, support)),
+  unknown_optional: outcome.(AgentBlueprintProtocol.negotiate(unknown_optional, support)),
+  unknown_critical: outcome.(AgentBlueprintProtocol.negotiate(unknown_critical, support)),
+  retired_optional: outcome.(AgentBlueprintProtocol.negotiate(retired_optional, support))
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  unknown_optional: [:unknown_optional],
+  deprecated_optional: [:deprecated],
+  active_critical: :extension_schema_unavailable,
+  unknown_critical: :extension_unknown_critical,
+  retired_optional: [:retired]
+}
+```
+
+## Supply a schema-pinned critical extension
+
+The active federation namespace has a registered schema digest. Negotiation checks the supplied schema against that registry entry.
+
+Negotiate an empty federation extension body using the registered schema document.
+
+```elixir
+federation_namespace = "io.github.baselabs/federation"
+schema = ExtensionRegistry.federation_schema()
+
+schema_support = %Negotiation.Support{
+  revisions: MapSet.new([1]),
+  schemas: %{federation_namespace => schema}
+}
+
+%{
+  schema_available: is_map(schema_support.schemas),
+  negotiated:
+    match?(
+      {:ok, %Negotiation.Outcome{critical_extensions: [^federation_namespace]}},
+      AgentBlueprintProtocol.negotiate(active_critical, schema_support)
+    )
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{schema_available: true, negotiated: true}
+```
+
+## Read the shipped envelope and state codecs
+
+The decoder reads the package example. The state codecs map a logical state to each carrier vocabulary, and the carrier codecs round-trip the decoded envelope.
+
+Inspect only the example's task identity and state, exercise A2A and MCP state codecs, and round-trip both carriers.
+
+```elixir
+alias AgentBlueprintProtocol.Federation
+
+{:ok, envelope_bytes} = Federation.canonical_bytes(federation)
+{:ok, a2a_carrier} = Federation.to_a2a_carrier(federation)
+{:ok, mcp_carrier} = Federation.to_mcp_carrier(federation)
+{:ok, a2a_round_trip} = Federation.from_a2a_carrier(a2a_carrier)
+{:ok, mcp_round_trip} = Federation.from_mcp_carrier(mcp_carrier)
+
+{:ok, a2a_state} = Federation.from_a2a_state("TASK_STATE_COMPLETED")
+{:ok, mcp_state} = Federation.from_mcp_state("completed")
+{:ok, a2a_spelling} = Federation.to_a2a_state(a2a_state)
+{:ok, mcp_spelling} = Federation.to_mcp_state(mcp_state)
+
+%{
+  task_identity_present: is_struct(federation, Federation),
+  state_codecs_agree: a2a_state == mcp_state,
+  a2a_spelling: a2a_spelling,
+  mcp_spelling: mcp_spelling,
+  a2a_round_trip: Federation.canonical_bytes(a2a_round_trip) == {:ok, envelope_bytes},
+  mcp_round_trip: Federation.canonical_bytes(mcp_round_trip) == {:ok, envelope_bytes}
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  a2a_round_trip: true,
+  mcp_round_trip: true,
+  a2a_spelling: "TASK_STATE_COMPLETED",
+  mcp_spelling: "completed",
+  task_identity_present: true,
+  state_codecs_agree: true
+}
+```
+
+## Read the mapping table
+
+The mapping rows are data. Match the known row fields and keep a catch-all for rows with a future shape.
+
+Read every current mapping row as logical field, A2A location, MCP location, and outcome.
+
+```elixir
+mapping =
+  AgentBlueprintProtocol.federation_mapping()
+  |> Enum.map(fn
+    %{logical_field: field, a2a_location: a2a, mcp_location: mcp, verdict: verdict} ->
+      {field, a2a, mcp, verdict}
+
+    other ->
+      {:unknown_row, is_struct(other)}
+  end)
+
+mapping
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  {"task_identity", "Task.id (a2a.proto:170)", "Task.taskId (mcp-schema.ts:47)", :native},
+  {"idempotency_identity",
+   "none — Message.message_id (a2a.proto:262) is a message id, not an idempotency key", "none",
+   :extension},
+  {"parent_execution_reference",
+   "Message.reference_task_ids (a2a.proto:276), Task.context_id (a2a.proto:173) — a reference, not a parent execution",
+   "none", :partial},
+  {"initiating_subject",
+   "none — SecurityScheme/SecurityRequirement (a2a.proto:495-517) are transport-level",
+   "none — transport auth", :extension},
+  {"blueprint_digest", "none", "none", :extension},
+  {"deployment_digest", "none", "none", :extension},
+  {"input_commitment",
+   "Message.parts[].data (a2a.proto:233), Part.metadata (a2a.proto:236) — a payload home, not a digest commitment",
+   "request params", :partial},
+  {"result_schema",
+   "Part.media_type (a2a.proto:241), AgentSkill.output_modes (a2a.proto:449) — media type is not a schema identity",
+   "CompletedTask.result {[key: string]: unknown} (mcp-schema.ts:135)", :extension},
+  {"result_classification_ceiling", "none", "none", :extension},
+  {"time_policy", "SendMessageConfiguration (a2a.proto:143-161) has no time bound",
+   "Task.ttlMs (mcp-schema.ts:82) — a storage TTL, NOT an execution bound", :partial},
+  {"resource_policy", "none", "none", :extension},
+  {"recovery_handle", "Task.id + GetTask (a2a.proto:45)",
+   "taskId + tasks/get (mcp-tasks.md Task Polling)", :native},
+  {"issuer", "transport-level only (SecurityScheme)", "transport auth", :extension},
+  {"subject", "none", "none", :extension},
+  {"audience", "none", "none", :extension},
+  {"identity_mapping_evidence", "none", "none", :extension},
+  {"checkpoint_request",
+   "TASK_STATE_INPUT_REQUIRED (a2a.proto:201) + TaskStatus.message — free-form, not typed",
+   "status input_required + inputRequests: InputRequest union (mcp-schema.ts:111-119, mcp-spec.types.ts:545)",
+   :partial},
+  {"checkpoint_status", "TaskStatus.state (a2a.proto:213)", "Task.status (mcp-schema.ts:31-36)",
+   :native},
+  {"checkpoint_commitment", "none",
+   "tasks/update inputResponses (mcp-schema.ts:232-246) carries responses, no commitment digest",
+   :extension},
+  {"terminal_state", "TASK_STATE_COMPLETED/FAILED/CANCELED/REJECTED (a2a.proto:194-205)",
+   "completed/failed/cancelled (mcp-schema.ts:31-36) — lossy both directions", :partial},
+  {"evidence_receipt",
+   "AgentCardSignature (a2a.proto:455-467) signs the AgentCard, not a task result", "none",
+   :extension},
+  {"compatibility_reference",
+   "AgentCard.version (a2a.proto:374-376) — a version string, not an exact build identity",
+   "none", :extension},
+  {"authority_proof_references", "transport-level only", "transport auth", :extension}
+]
+```
+
+## Check shipped commitment fixtures
+
+This cell reads the valid and conflict cases from the shipped conformance fixture file. It sends those fixture values to the public verifier and reports only the verdict.
+
+Decode the shipped valid fixture, verify its commitment, then use the shipped conflict fixture to read its typed denial.
+
+```elixir
+case_path = Path.join([Application.app_dir(:agent_blueprint_protocol, "priv/conformance"), "cases", "federation-verify_commitment.json"])
+fixture_cases = JSON.decode!(File.read!(case_path))["cases"]
+valid_case = Enum.find(fixture_cases, &(&1["id"] == "commitment-valid"))
+conflict_case = Enum.find(fixture_cases, &(&1["id"] == "commitment-terminal-conflict"))
+
+key_from = fn item ->
+  {:ok, key_bytes} = Base.url_decode64(item["key"], padding: false)
+  %AgentBlueprintProtocol.Signature.PublicKey{
+    key_id: item["key_id"],
+    algorithm: :ed25519,
+    key: key_bytes
+  }
+end
+
+{:ok, valid_envelope} = Federation.decode(valid_case["input"]["envelope"])
+valid_keys = Enum.map(valid_case["input"]["context"]["keys"], key_from)
+valid_result =
+  Federation.verify_commitment(valid_envelope, %Federation.Context{keys: valid_keys})
+
+{:ok, conflict_envelope} = Federation.decode(conflict_case["input"]["envelope"])
+conflict_context = conflict_case["input"]["context"]
+conflict_keys = Enum.map(conflict_context["keys"], key_from)
+prior =
+  Enum.map(conflict_context["prior_receipts"], fn item ->
+    {:ok, digest} = AgentBlueprintProtocol.Digest.from_tagged(item["commitment"])
+    %{
+      task_identity: item["task_identity"],
+      terminal_state: item["terminal_state"],
+      terminal_commitment: digest
+    }
+  end)
+
+conflict_result =
+  Federation.verify_commitment(
+    conflict_envelope,
+    %Federation.Context{keys: conflict_keys, prior_receipts: prior}
+  )
+
+%{
+  valid_fixture: match?({:ok, %{terminal_commitment: %AgentBlueprintProtocol.Digest{}}}, valid_result),
+  conflict_fixture: case conflict_result do
+    {:error, error} -> error.code
+    {:ok, _} -> :accepted
+  end
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{valid_fixture: true, conflict_fixture: :federation_terminal_conflict}
+```
+
+## Next
+
+- [Producing artifacts](producing-artifacts.livemd)
+- [Host import](host-import.livemd)
+- [Conformance and attacks](conformance-and-attacks.livemd)
+- [Walkthrough](abp-walkthrough.livemd)

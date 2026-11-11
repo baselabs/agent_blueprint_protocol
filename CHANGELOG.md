@@ -94,6 +94,9 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 - Reworked `producer.md` and `host-integration.md` to link the new how-to guides.
 - Merged extension authoring and registry reference material into `extensions.md`.
 - Updated the Federation carrier mapping reference.
+- Added five standalone Livebook walkthroughs for the tour, producing artifacts, host import,
+  extensions and federation, and conformance and attacks. Each notebook runs with persisted
+  outputs and is included in the Hex package.
 
 The corpus contains 604 cases, digest
 `sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`; registry

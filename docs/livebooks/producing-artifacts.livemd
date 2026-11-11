@@ -1,0 +1,275 @@
+<!--
+livebook:{"persist_outputs":true}
+-->
+
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0-rc.1/docs/livebooks/producing-artifacts.livemd)
+
+# Producing artifacts
+
+This notebook starts with the shipped Blueprint and Deployment Manifest, changes their values, recomputes their digests, and creates a Blueprint signature with a throwaway key.
+
+The first cell installs the published package at the release candidate requirement.
+
+```elixir
+Mix.install([{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}])
+```
+
+Locate the shipped examples from the installed package or the current source checkout.
+
+```elixir
+dependency_path =
+  try do
+    Mix.Project.deps_paths() |> Map.get(:agent_blueprint_protocol)
+  rescue
+    _ -> nil
+  end
+
+package_root =
+  [dependency_path, Application.app_dir(:agent_blueprint_protocol), File.cwd!()]
+  |> Enum.reject(&is_nil/1)
+  |> Enum.find(fn path -> File.regular?(Path.join(path, "examples/echo-blueprint.json")) end)
+
+true = is_binary(package_root)
+%{example_files_found?: true}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{example_files_found?: true}
+```
+
+## Change the Blueprint and compute its digest
+
+The Blueprint value comes from the shipped example. This cell changes its release number, validates the value, recomputes the content digest, and encodes canonical bytes.
+
+Decode the shipped value, update one member, compute its digest, and produce canonical bytes.
+
+```elixir
+alias AgentBlueprintProtocol.{Blueprint, Canonicalization, Digest, Json}
+
+put_member = fn {:object, members}, name, value ->
+  {:object, List.keystore(members, name, 0, {name, value})}
+end
+
+replace_path = fn replace_path, {:object, members}, [name | rest], value ->
+  if rest == [] do
+    put_member.({:object, members}, name, value)
+  else
+    {^name, nested} = List.keyfind(members, name, 0)
+    updated = replace_path.(replace_path, nested, rest, value)
+    put_member.({:object, members}, name, updated)
+  end
+end
+
+blueprint_path = Path.join(package_root, "examples/echo-blueprint.json")
+{:ok, blueprint_value} = File.read!(blueprint_path) |> Json.decode()
+{:ok, original_blueprint} = Blueprint.from_value(blueprint_value)
+original_digest = original_blueprint |> Blueprint.content_digest() |> Digest.to_tagged()
+
+blueprint_value = put_member.(blueprint_value, "release_number", {:integer, 2})
+{:ok, blueprint_draft} = Blueprint.from_value(blueprint_value)
+blueprint_digest = blueprint_draft |> Blueprint.content_digest() |> Digest.to_tagged()
+
+blueprint_value =
+  put_member.(blueprint_value, "content_digest", {:string, blueprint_digest})
+
+{:ok, blueprint_bytes} = Canonicalization.encode(blueprint_value)
+{:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(blueprint_bytes)
+{:ok, ^blueprint_bytes} = AgentBlueprintProtocol.canonical_bytes(blueprint)
+
+%{
+  release_number: 2,
+  digest_changed: original_digest != blueprint_digest,
+  digest: blueprint_digest,
+  canonical_byte_size: byte_size(blueprint_bytes)
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  digest: "sha-256:RN6KYFSvPFYnoQj5dqA8B2_tjjm2bYGfwCpSYGqmMIE",
+  release_number: 2,
+  digest_changed: true,
+  canonical_byte_size: 1361
+}
+```
+
+## Change the Deployment Manifest
+
+The manifest now points to the changed Blueprint release and digest. It also changes one model-policy value before computing its own digest.
+
+Update the shipped Deployment Manifest to bind the new Blueprint value, then recompute and verify the Deployment digest.
+
+```elixir
+alias AgentBlueprintProtocol.Deployment
+
+deployment_path = Path.join(package_root, "examples/echo-deployment.json")
+{:ok, deployment_value} = File.read!(deployment_path) |> Json.decode()
+
+deployment_value =
+replace_path.(replace_path, deployment_value, ["blueprint_release", "release_number"], {:integer, 2})
+  |> then(&replace_path.(replace_path, &1, ["blueprint_release", "content_digest"], {:string, blueprint_digest}))
+  |> then(&replace_path.(replace_path, &1, ["model_policy", "max_tokens"], {:integer, 40_000}))
+
+{:ok, deployment_draft} = Deployment.from_value(deployment_value)
+deployment_digest = deployment_draft |> Deployment.content_digest() |> Digest.to_tagged()
+deployment_value = put_member.(deployment_value, "deployment_digest", {:string, deployment_digest})
+
+{:ok, deployment_bytes} = Canonicalization.encode(deployment_value)
+{:ok, deployment} = AgentBlueprintProtocol.decode_deployment(deployment_bytes)
+
+%{
+  digest: deployment_digest,
+  binds_changed_release: Deployment.binds?(deployment, blueprint),
+  canonical_byte_size: byte_size(deployment_bytes)
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  digest: "sha-256:F9n_bnRsD_pTbtsFk6uwRgx3pgQpDfGcXNVRhvwyBcs",
+  canonical_byte_size: 2539,
+  binds_changed_release: true
+}
+```
+
+## Sign with Ed25519
+
+The producer creates a throwaway Ed25519 key with OTP crypto. The protected header uses Ed25519, and the signature is attached to the Blueprint value. No key bytes are printed.
+
+Create and attach a detached signature, then verify the canonical round trip.
+
+```elixir
+alias AgentBlueprintProtocol.{Base64Url, Signature}
+alias AgentBlueprintProtocol.Signature.PublicKey
+
+{public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
+
+protected = {:object, [
+  {"alg", {:string, "Ed25519"}},
+  {"b64", {:boolean, false}},
+  {"crit", {:array, [{:string, "b64"}]}},
+  {"kid", {:string, "example-producer-key"}}
+]}
+
+signed_attributes = {:object, [
+  {"algorithm", {:string, "Ed25519"}},
+  {"content_digest", {:string, blueprint_digest}},
+  {"created_at", {:string, "2026-08-20T00:00:00Z"}},
+  {"key_id", {:string, "example-producer-key"}},
+  {"purpose", {:string, "blueprint"}}
+]}
+
+entry_with = fn header, signature_bytes ->
+  {:object, [
+    {"protected", header},
+    {"signed_attributes", signed_attributes},
+    {"signature", {:string, Base64Url.encode(signature_bytes)}}
+  ]}
+end
+
+unsigned_entry = entry_with.(protected, <<0::512>>)
+{:ok, signing_input} = Signature.signing_input(unsigned_entry)
+signature_bytes = :crypto.sign(:eddsa, :none, signing_input, [private_key, :ed25519])
+entry = entry_with.(protected, signature_bytes)
+
+public_key_record = %PublicKey{
+  key_id: "example-producer-key",
+  algorithm: :ed25519,
+  key: public_key
+}
+
+{:ok, signed_value} =
+  blueprint
+  |> Blueprint.to_value()
+  |> put_member.("signatures", {:array, [entry]})
+  |> Canonicalization.encode()
+
+{:ok, signed_blueprint} = AgentBlueprintProtocol.decode_blueprint(signed_value)
+{:ok, ^signed_value} = AgentBlueprintProtocol.canonical_bytes(signed_blueprint)
+
+%{
+  signature_verifies: match?({:ok, %Signature.Attributes{}}, Signature.verify(entry, [public_key_record])),
+  digest_unchanged: Digest.to_tagged(Blueprint.content_digest(signed_blueprint)) == blueprint_digest,
+  canonical_round_trip: true
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{canonical_round_trip: true, signature_verifies: true, digest_unchanged: true}
+```
+
+## Accept the EdDSA header spelling
+
+The protected header also accepts the EdDSA spelling. The signed attributes keep the Ed25519 algorithm name.
+
+Sign the same input with the EdDSA protected-header spelling and verify it with the same public key.
+
+```elixir
+eddsa_header =
+  put_member.(protected, "alg", {:string, "EdDSA"})
+
+eddsa_entry = entry_with.(eddsa_header, <<0::512>>)
+{:ok, eddsa_input} = Signature.signing_input(eddsa_entry)
+eddsa_signature = :crypto.sign(:eddsa, :none, eddsa_input, [private_key, :ed25519])
+eddsa_entry = entry_with.(eddsa_header, eddsa_signature)
+
+%{eddsa_header_verifies: match?({:ok, %Signature.Attributes{}}, Signature.verify(eddsa_entry, [public_key_record]))}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{eddsa_header_verifies: true}
+```
+
+## Three producer errors
+
+These examples show the typed error value for a missing artifact shape, an unsupported member, and a nonportable value.
+
+Collect three representative typed errors and retain their code, subject, and detail fields.
+
+```elixir
+alias AgentBlueprintProtocol.Error
+
+missing_blueprint = Blueprint.from_value({:object, []})
+unknown_member = AgentBlueprintProtocol.decode_blueprint(~s({"unknown":true}))
+portable_value =
+  AgentBlueprintProtocol.Portability.scan({:object, [{"credential", {:string, "example"}}]})
+
+errors =
+  Enum.map([missing_blueprint, unknown_member, portable_value], fn
+    {:error, %Error{} = error} -> error
+    other -> other
+  end)
+
+errors
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %AgentBlueprintProtocol.Error{
+    code: :missing_required_field,
+    detail: nil,
+    subject: ["blueprint_id"]
+  },
+  %AgentBlueprintProtocol.Error{code: :unknown_member, detail: nil, subject: []},
+  %AgentBlueprintProtocol.Error{code: :forbidden_portable_value, detail: nil, subject: []}
+]
+```
+
+## Next
+
+- [Host import](host-import.livemd)
+- [Extensions and federation](extensions-and-federation.livemd)
+- [Conformance and attacks](conformance-and-attacks.livemd)
+- [Walkthrough](abp-walkthrough.livemd)

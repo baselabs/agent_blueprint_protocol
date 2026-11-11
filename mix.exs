@@ -80,6 +80,10 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/federation-mapping.md",
         "docs/ard-mapping.md",
         "docs/livebooks/abp-walkthrough.livemd",
+        "docs/livebooks/producing-artifacts.livemd",
+        "docs/livebooks/host-import.livemd",
+        "docs/livebooks/extensions-and-federation.livemd",
+        "docs/livebooks/conformance-and-attacks.livemd",
         "docs/adr/compiled-registry.md",
         "docs/adr/dependency-currency-gate.md",
         "docs/adr/deny-default-clamps.md",
@@ -205,7 +209,13 @@ defmodule AgentBlueprintProtocol.MixProject do
           "documentation/migrating-to-1.0.md",
           "documentation/stability.md"
         ],
-        Livebooks: ["docs/livebooks/abp-walkthrough.livemd"],
+        Livebooks: [
+          "docs/livebooks/abp-walkthrough.livemd",
+          "docs/livebooks/producing-artifacts.livemd",
+          "docs/livebooks/host-import.livemd",
+          "docs/livebooks/extensions-and-federation.livemd",
+          "docs/livebooks/conformance-and-attacks.livemd"
+        ],
         Concepts: [
           "documentation/architecture.md",
           "documentation/what-a-blueprint-is.md",
@@ -284,6 +294,10 @@ defmodule AgentBlueprintProtocol.MixProject do
         "documentation/migrating-to-1.0.md",
         "documentation/stability.md",
         "docs/livebooks/abp-walkthrough.livemd",
+        "docs/livebooks/producing-artifacts.livemd",
+        "docs/livebooks/host-import.livemd",
+        "docs/livebooks/extensions-and-federation.livemd",
+        "docs/livebooks/conformance-and-attacks.livemd",
         "documentation/what-a-blueprint-is.md",
         "documentation/what-a-deployment-is.md",
         "documentation/portability.md",

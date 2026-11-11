@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Published npm package version
+        description: Published package version
         required: true
         type: string
 permissions:
@@ -28,4 +28,38 @@ jobs:
         env:
           ABP_VERSION: ${{ inputs.version }}
         run: node scripts/postpublish_smoke.mjs "$env:ABP_VERSION"
+        shell: pwsh
+
+  livebooks:
+    name: Published Livebooks - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    steps:
+      - name: Check out notebook extractor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "29.0.3"
+          install-hex: false
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
+        shell: pwsh
+      - name: Extract every notebook at the published version
+        env:
+          ABP_VERSION: ${{ inputs.version }}
+        run: elixir scripts/extract_livebooks.exs --version "$env:ABP_VERSION" --input docs/livebooks --output "$env:RUNNER_TEMP/livebooks"
+        shell: pwsh
+      - name: Run every published-package notebook
+        run: |
+          $scripts = Get-ChildItem (Join-Path $env:RUNNER_TEMP "livebooks") -Filter "*.exs" -File
+          if ($scripts.Count -ne 5) { throw "Expected five notebook scripts, found $($scripts.Count)" }
+          foreach ($script in $scripts) {
+            elixir $script.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         shell: pwsh

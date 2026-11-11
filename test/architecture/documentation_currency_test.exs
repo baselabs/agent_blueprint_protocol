@@ -38,6 +38,16 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
            "README install requirement is stale: #{inspect(pins)}. The " <>
              "current version is #{version}"
 
+    notebooks = Path.wildcard("docs/livebooks/*.livemd")
+    assert notebooks != [], "the Livebook set is missing"
+
+    for notebook <- notebooks do
+      pins = requirement_pins(File.read!(notebook))
+
+      assert pins == ["~> " <> version],
+             "#{notebook} must pin the current package version, found #{inspect(pins)}"
+    end
+
     # README npm commands use the release-candidate tag. The generic npm
     # view sentence lets readers check the version available in the registry.
     npm_pins =

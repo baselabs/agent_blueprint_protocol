@@ -23,6 +23,10 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/federation-mapping.md
     docs/ard-mapping.md
     docs/livebooks/abp-walkthrough.livemd
+    docs/livebooks/producing-artifacts.livemd
+    docs/livebooks/host-import.livemd
+    docs/livebooks/extensions-and-federation.livemd
+    docs/livebooks/conformance-and-attacks.livemd
     docs/adr/compiled-registry.md
     docs/adr/dependency-currency-gate.md
     docs/adr/deny-default-clamps.md
@@ -160,6 +164,10 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/federation-mapping.md
     docs/ard-mapping.md
     docs/livebooks/abp-walkthrough.livemd
+    docs/livebooks/producing-artifacts.livemd
+    docs/livebooks/host-import.livemd
+    docs/livebooks/extensions-and-federation.livemd
+    docs/livebooks/conformance-and-attacks.livemd
     docs/adr/compiled-registry.md
     docs/adr/dependency-currency-gate.md
     docs/adr/deny-default-clamps.md

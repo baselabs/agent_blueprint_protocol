@@ -76,6 +76,6 @@ report.agreement # => true
 
 - [TypeScript guide](typescript.md)
 - [Conformance guide](conformance.md)
-- [Livebook walkthrough](../docs/livebooks/abp-walkthrough.livemd)
+- [Livebook walkthroughs](../docs/livebooks/abp-walkthrough.livemd): [producing artifacts](../docs/livebooks/producing-artifacts.livemd), [host import](../docs/livebooks/host-import.livemd), [extensions and federation](../docs/livebooks/extensions-and-federation.livemd), and [conformance and attacks](../docs/livebooks/conformance-and-attacks.livemd).
 - [Glossary](glossary.md)
 - [Protocol specification](../spec/protocol.md)

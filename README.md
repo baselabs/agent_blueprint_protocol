@@ -83,8 +83,7 @@ The conformance corpus contains 604 cases. It is a collection of inputs and expe
 - [Conformance guide](documentation/conformance.md)
 - [Protocol specification](spec/protocol.md)
 - [Stability policy](documentation/stability.md)
-- [Livebook walkthrough](docs/livebooks/abp-walkthrough.livemd)
-- [![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0-rc.1/docs/livebooks/abp-walkthrough.livemd)
+- [Livebook walkthroughs](docs/livebooks/abp-walkthrough.livemd): [producing artifacts](docs/livebooks/producing-artifacts.livemd), [host import](docs/livebooks/host-import.livemd), [extensions and federation](docs/livebooks/extensions-and-federation.livemd), and [conformance and attacks](docs/livebooks/conformance-and-attacks.livemd).
 
 ## Status
 

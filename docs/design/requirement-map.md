@@ -1186,6 +1186,37 @@ pages.yml deploys on a branch push; it must deploy only on a release tag
 Result: 2/3 passed (when the file held three cases)
 ```
 
+### case: "the manual published-version workflow runs every notebook on three platforms"
+
+The post-publish job extracts the complete notebook set and runs each script
+against the selected package version on Linux, macOS, and Windows. Removing
+a platform or the notebook run check reds.
+
+```red
+$ # plant: remove windows-2025 from the Livebook job's OS matrix
+$ mix test test/architecture/postpublish_livebooks_workflow_test.exs
+1) test the manual published-version workflow runs every notebook on three platforms
+Assertion with =~ failed
+code: assert job =~ "os: [ubuntu-24.04, macos-15, windows-2025]"
+Result: 1/2 passed
+Failed: 1 test
+```
+
+### case: "the existing published kit check still uses the requested version"
+
+The existing smoke job must receive the version selected by the manual
+workflow input. Replacing that value reds this check.
+
+```red
+$ # plant: pass WRONG_VERSION to the published kit smoke script
+$ mix test test/architecture/postpublish_livebooks_workflow_test.exs
+1) test the existing published kit check still uses the requested version
+Assertion with =~ failed
+code: assert workflow =~ "node scripts/postpublish_smoke.mjs \"$env:ABP_VERSION\""
+Result: 1/2 passed
+Failed: 1 test
+```
+
 ### case: "every literal workflow toolchain pin equals the .tool-versions dev pin"
 
 Toolchain lockstep: `.tool-versions` owns the Elixir, Erlang/OTP, and
