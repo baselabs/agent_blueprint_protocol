@@ -94,19 +94,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
   @text_extensions [".md", ".cheatmd", ".ex", ".exs"]
 
-  @allowed_untracked_docs MapSet.new([
-                            "documentation/architecture.md",
-                            "documentation/cheatsheet.cheatmd",
-                            "documentation/compose-and-sign.md",
-                            "documentation/extensions.md",
-                            "documentation/handling-errors.md",
-                            "documentation/positioning.md",
-                            "documentation/reading-evidence.md",
-                            "documentation/security-model.md",
-                            "documentation/verifying-in-ci.md",
-                            "documentation/verifying-releases.md"
-                          ])
-
   test "every declared package file exists" do
     missing = for entry <- declared_paths(), expand(entry) == [], do: entry
 
@@ -131,10 +118,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     {tracked, 0} = System.cmd("git", ["ls-files", "-z"], stderr_to_stdout: true)
     tracked = tracked |> String.split(<<0>>, trim: true) |> MapSet.new()
 
-    offenders =
-      archive_files()
-      |> Enum.reject(&MapSet.member?(tracked, &1))
-      |> Enum.reject(&MapSet.member?(@allowed_untracked_docs, &1))
+    offenders = Enum.reject(archive_files(), &MapSet.member?(tracked, &1))
 
     assert offenders == [],
            "publish-guard violation: an unexpected untracked file would ship in the archive:\n" <>
