@@ -23,8 +23,8 @@ conformance surfaces and census cases, CLI modes and flags, explicitly
 selected execution versions, notices, evidence check kinds and detail
 variants, and runtime support. Earlier revisions, federation profiles, and
 execution version 1 remain supported for the whole major. A successor
-federation profile uses a new critical namespace and binds its identity
-into its commitment preimage; the current envelope remains unchanged.
+federation profile uses a new critical namespace; the current envelope
+remains unchanged.
 
 Error codes and meanings remain closed throughout 1.x. Inputs certified
 under a released census keep their verdicts at the same verification-semantics

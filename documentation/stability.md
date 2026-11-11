@@ -62,9 +62,7 @@ limits, separate from artifact limits, and may rise in a minor release.
 
 An incompatible federation envelope uses a new registered critical namespace
 beside the current profiles. Existing profiles never retire during 1.x.
-A successor binds its own profile identity into its commitment preimage,
-preventing presentation as an earlier profile. The current envelope stays
-unchanged. A successor execution protocol is explicitly selected; harnesses
+The current envelope stays unchanged. A successor execution protocol is explicitly selected; harnesses
 and adapters keep execution version 1 throughout 1.x.
 
 `ErrorCode` and the meaning of every code are closed for all of 1.x.

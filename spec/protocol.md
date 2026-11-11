@@ -1173,10 +1173,8 @@ contracts of existing calls:
   A new signature algorithm MUST enter through a new protocol revision.
 - Registered namespaces and federation profiles. An incompatible federation
   envelope MUST use a new registered critical namespace beside the existing
-  profiles; existing profiles MUST NOT retire during the major. A successor
-  profile MUST bind its own profile identity into its commitment preimage
-  so it cannot be presented as an earlier profile. The current envelope and
-  commitment preimage remain unchanged.
+  profiles; existing profiles MUST NOT retire during the major. The current
+  envelope and commitment preimage remain unchanged.
 - Conformance surfaces and corpus cases. Each new corpus is a new census;
   claims against an earlier corpus digest remain valid for that digest.
 - CLI modes and flags, explicitly selected execution-protocol versions, notices,
