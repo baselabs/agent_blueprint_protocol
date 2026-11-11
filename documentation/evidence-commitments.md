@@ -7,9 +7,11 @@ months (Article 26). Article 25(4) requires a provider and the third
 parties that supply it tools, services, components, or processes to set
 out, by written agreement, the information and assistance the provider
 needs to meet its obligations. The application dates of these
-high-risk obligations were moved by Regulation (EU) 2026/1744, the
-Digital Omnibus on AI; check the consolidated text of Regulation (EU)
-2024/1689 on EUR-Lex for the dates that currently apply. Procurement
+high-risk obligations are set by
+[Regulation (EU) 2026/1744, Article 1(40)](https://eur-lex.europa.eu/eli/reg/2026/1744/oj/eng):
+December 2, 2027 for Article 6(2)/Annex III systems, and August 2, 2028 for
+Article 6(1)/Annex I systems (Chapter III, Sections 1, 2, and 3, except
+Article 6(5)). Procurement
 practice is converging on machine-readable conformity claims (the EU's
 model contractual clauses for AI procurement are the reference shape).
 

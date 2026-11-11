@@ -29,12 +29,13 @@
     "NOTICE"
   ],
   "scripts": {
-    "build": "node scripts/build_kit.mjs --clean && tsc -p tsconfig.json && node scripts/build_kit.mjs",
+    "build": "node scripts/build_kit.mjs --clean && node node_modules/typescript/bin/tsc -p tsconfig.json && node scripts/build_kit.mjs",
     "prepack": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "typescript-floor": "npm:typescript@5.0.2"
   },
   "keywords": [
     "agent",

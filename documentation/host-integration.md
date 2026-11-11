@@ -27,6 +27,12 @@ Effective bounds never widen host policy (property-tested). Operational
 narrowings clamp with evidence; protected narrowings deny unless you
 opt into the acknowledge posture.
 
+`max_cost.amount` counts millionths (10^-6) of one unit of its uppercase
+ISO 4217 currency, independent of minor-unit exponents. The example's
+`amount: 1000` with `currency: "USD"` means 0.001 USD. Verifiers compare integers and deny mixed
+currencies. Federation `resource_policy.cost` uses the same scale and the
+currency of the bound Deployment Manifest's `host_bounds.max_cost`.
+
 ## Import wiring
 
 A host embeds reconcile into its import path: artifacts arrive from
@@ -96,9 +102,9 @@ lists performed and skipped checks; absent or unrelated observations do
 not establish freshness or descriptor equality. False checks and skipped
 surfaces appear in `not_verified`.
 
-`signature_created_at`, `lifecycle_state`, `key_time_validity`, and
-`signature_time_validity` also appear there. Signed timestamps are format-
-checked; lifecycle state is shape-checked. Reconcile judges neither.
+`signature_created_at` and `lifecycle_state` also appear there. Timestamps
+are signed and format-checked; lifecycle state is shape-checked. Reconcile
+judges neither.
 
 Despite its name, `effect_impact_ceiling` is an obligation. The strictest
 source value wins; a Blueprint's `secret` remains `secret` when deployment

@@ -16,7 +16,7 @@ for(const path of ['blueprint','deployment','both']) {
   for(const row of rows){const outcome=value(api.negotiate({kind:'blueprint',value:row.input.artifact},support));assert.deepEqual(outcome.optionalRetained,[]);assert.deepEqual(outcome.quarantinedExtensions,['com.example.z/y']);}
 }
 const composed=JSON.parse(readFileSync(join(root,'priv/conformance/cases/reconcile.json'))).cases;
-for(const row of composed.filter(row=>/^reconcile-signature-(blueprint|deployment)-/.test(row.id)&&row.expected.subject.length===4)) {
+for(const row of composed.filter(row=>/^reconcile-signature-(blueprint|deployment)-/.test(row.id)&&row.expected.verdict==='invalid'&&row.expected.subject.length===4)) {
   const side=row.expected.subject[0];const result=(side==='blueprint'?api.decodeBlueprint:api.decodeDeployment)(Buffer.from(row.input[side]));
   assert.equal(result.ok,false,row.id);assert.deepEqual(result.error.subject,row.expected.subject.slice(1),row.id);
 }
@@ -40,5 +40,5 @@ const malformed=[undefined,null,true,1,NaN,Infinity,'',[],{},()=>{},Symbol(),new
 const cyclic={};cyclic.value=cyclic;malformed.push(cyclic);
 let seed=73;
 for(let i=0;i<256;i++) {seed=(Math.imul(seed,1664525)+1013904223)>>>0;const sample=malformed[seed%14];malformed.push(i%3===0?{value:sample,bounds:{depth:sample}}:i%3===1?[sample,{hostBounds:sample}]:String.fromCharCode(seed%65536));}
-for(const [name,fn] of Object.entries(api))for(const input of malformed){const r=fn(input,input,input);assert.ok(r&&typeof r.ok==='boolean',name);if(!r.ok)assert.ok(typeof r.error.code==='string'&&Array.isArray(r.error.subject),name);}
+for(const [name,fn] of Object.entries(api).filter(([,value])=>typeof value==='function'))for(const input of malformed){const r=fn(input,input,input);assert.ok(r&&typeof r.ok==='boolean',name);if(!r.ok)assert.ok(typeof r.error.code==='string'&&Array.isArray(r.error.subject),name);}
 console.log('consumer: every facade, corpus, malformed inputs, and deep-import denial passed');

@@ -44,13 +44,13 @@ An [execution adapter](glossary.md#execution-adapter) reads one JSON object per 
 The following transcript was captured while the kit harness ran the kit's own `--serve` adapter over its shipped corpus. The handshake request was:
 
 ```json
-{"corpus_digest":"sha-256:4QfFYGA7V6GqgN0XF8TuLICznCdoxcL5deU3OT0EScw","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg","version":1}
+{"corpus_digest":"sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg","version":1}
 ```
 
 The adapter answered:
 
 ```json
-{"corpus_digest":"sha-256:4QfFYGA7V6GqgN0XF8TuLICznCdoxcL5deU3OT0EScw","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg","version":1}
+{"corpus_digest":"sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg","version":1}
 ```
 
 The first case request was:

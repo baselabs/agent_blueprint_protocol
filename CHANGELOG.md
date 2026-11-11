@@ -32,6 +32,19 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Changed
 
+- The 1.x evolution contract preserves existing revisions and error codes,
+  keeps runtime and compiler floors, and defines additive paths for new
+  revisions, profiles, execution versions, and evidence identifiers.
+- Detached signatures accept dotted key identifiers under RFC 7797 §5.1.
+  Monetary amounts consistently count millionths of a currency unit.
+- Federation carriage describes native reconstruction; discovery signature
+  envelopes remain distinct. The EU AI Act guide states the enacted dates.
+- TypeScript output identifiers are open with known-value constants;
+  packed declarations support TypeScript 5.0.2 and newer. Node 26 joins
+  the platform matrix while Node 24 remains the runtime floor.
+- GitHub release publication waits for a live Hex version whose checksum
+  matches the verified archive, including after staged approval.
+
 - The specification separates protocol requirements from implementation notes
   and states the byte, grammar, lattice, predicate and schema profiles with
   pinned normative references.
@@ -39,6 +52,7 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 - Byte-error precedence and malformed conformance inputs agree across the
   implementations. Binding evidence requires every descriptor observation
   and a complete age check before reporting those checks verified.
+- Dotted key identifiers are accepted in detached signatures.
 - Revision 1 accepts `EdDSA` and `Ed25519` protected-header identifiers;
   producers SHOULD emit `Ed25519`. Existing signed bytes remain valid.
 - `io.github.baselabs/federation` is active with the existing schema pin.
@@ -67,10 +81,10 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
   both federation namespaces, and effect impact as an obligation.
 - A public module and function declaration prevents silent API expansion.
   Error descriptions distinguish overlapping conditions; evidence explicitly
-  names timestamp, lifecycle, and time-validity facts it does not establish.
+  names timestamp and lifecycle facts it does not establish.
 
-The corpus contains 583 cases, digest
-`sha-256:4QfFYGA7V6GqgN0XF8TuLICznCdoxcL5deU3OT0EScw`; registry
+The corpus contains 604 cases, digest
+`sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`; registry
 `sha-256:d98vF3duE_8P7N5aGLrmaqcj3uSDf0NsI4dzF7bXBDg`.
 Prior released verdicts remain equivalent. The
 `negotiation-estate-contract-valid` case now projects the

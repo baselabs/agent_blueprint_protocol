@@ -2413,6 +2413,54 @@ algorithm_cases =
     |> strict_expectation.()
   end
 
+dotted_key_cases =
+  for alg <- ["EdDSA", "Ed25519"],
+      {label, kid} <- [
+        {"named", "example.prod.2026"},
+        {"period", "."},
+        {"repeated", "example..key."}
+      ] do
+    {text, pub} = CorpusGen.signature_entry(fixture_label, kid, sig_digest, alg)
+    keys = [%{"key_id" => kid, "key" => CorpusGen.b64(pub)}]
+
+    %{
+      "id" => "signature-dotted-key-" <> alg <> "-" <> label,
+      "surface" => "signature.verify",
+      "class" => "valid",
+      "input" => %{"entry" => text, "keys" => keys},
+      "expected" => %{"verdict" => "valid", "verified" => true}
+    }
+    |> strict_expectation.()
+  end
+
+{dotted_entry, dotted_pub} =
+  CorpusGen.signature_entry(fixture_label, "example.prod.2026", sig_digest, "Ed25519")
+
+dotted_denial_cases =
+  for {label, text, keys, code} <- [
+        {"empty", String.replace(dotted_entry, "example.prod.2026", ""), [],
+         "signature_malformed"},
+        {"non-string",
+         String.replace(dotted_entry, ~s("key_id":"example.prod.2026"), ~s("key_id":7)), [],
+         "signature_malformed"},
+        {"mismatch",
+         String.replace(dotted_entry, ~s("kid":"example.prod.2026"), ~s("kid":"other.key")), [],
+         "signature_malformed"},
+        {"missing-key", dotted_entry, [], "signature_key_unsupported"},
+        {"changed-label", String.replace(dotted_entry, "example.prod.2026", "example.prod.2027"),
+         [%{"key_id" => "example.prod.2027", "key" => CorpusGen.b64(dotted_pub)}],
+         "signature_not_verified"}
+      ] do
+    %{
+      "id" => "signature-dotted-key-" <> label,
+      "surface" => "signature.verify",
+      "class" => "signature_invalid",
+      "input" => %{"entry" => text, "keys" => keys},
+      "expected" => %{"verdict" => "invalid", "code" => code}
+    }
+    |> strict_expectation.()
+  end
+
 # Let T=(0,p-1), an order-two point, and a be the test seed's clamped scalar.
 # A=[a]B (+T for a mixed key), R=[r]B (+T for mixed R), k=H(R||A||M) mod L,
 # S=r+k*a mod L. The prime-order components cancel exactly. The residual
@@ -2569,6 +2617,25 @@ carrier_cases =
     }
   end
 
+carrier_native_member_cases =
+  for {lane, encoder, member, key} <- [
+        {"a2a", &Federation.to_a2a_carrier/1, "metadata", Federation.a2a_carrier_key()},
+        {"mcp", &Federation.to_mcp_carrier/1, "_meta", Federation.mcp_carrier_key()}
+      ],
+      native <- ["task_identity", "terminal_state", "recovery_handle", "checkpoint_status"] do
+    {:ok, carrier} = encoder.(carrier_envelope)
+    plain = CorpusGen.plain(carrier)
+    body = Map.put(plain[member][key], native, "example-native")
+
+    %{
+      "id" => "federation-carrier-" <> lane <> "-body-" <> native,
+      "surface" => "federation.decode",
+      "class" => "invalid_constraint",
+      "input" => %{("from_" <> lane <> "_carrier") => put_in(plain, [member, key], body)},
+      "expected" => %{"verdict" => "invalid", "code" => "federation_mapping_conflict"}
+    }
+  end
+
 all_cases =
   json_cases ++
     canonicalization_cases ++
@@ -2596,7 +2663,14 @@ all_cases =
     predicate_content_cases ++
     signature_key_scan_cases ++
     algorithm_cases ++
-    mixed_cases ++ duplicate_signer_cases ++ [impact_case] ++ namespace_cases ++ carrier_cases
+    dotted_key_cases ++
+    dotted_denial_cases ++
+    mixed_cases ++
+    duplicate_signer_cases ++
+    [impact_case] ++
+    namespace_cases ++
+    carrier_cases ++
+    carrier_native_member_cases
 
 # Every artifact signature position accepts the same protected-header identifiers.
 artifact_algorithm_cases =
@@ -3118,9 +3192,7 @@ defmodule ImportCases do
         "billing",
         "evaluation_truth",
         "signature_created_at",
-        "lifecycle_state",
-        "key_time_validity",
-        "signature_time_validity"
+        "lifecycle_state"
       ] ++ for(c <- checks, c["verified"] == false, do: c["surface"]) ++ skipped
 
     %{
@@ -3475,7 +3547,7 @@ defmodule ImportCases do
               {"b64", ["protected", "b64"], true, "signature_malformed"},
               {"digest", ["signed_attributes", "content_digest"], "sha-256:bad",
                "signature_malformed"},
-              {"key-id", ["signed_attributes", "key_id"], "example.forbidden",
+              {"kid-key-id-mismatch", ["signed_attributes", "key_id"], "example.forbidden",
                "signature_malformed"}
             ]
 
@@ -3491,7 +3563,11 @@ defmodule ImportCases do
                 b,
                 d,
                 signed_host,
-                deny.(code, [side, "signatures", 0, hd(path)])
+                deny.(
+                  code,
+                  [side, "signatures", 0] ++
+                    if(name == "kid-key-id-mismatch", do: [], else: [hd(path)])
+                )
               ),
               %{
                 "id" => side <> "-decode-signature-" <> name,
@@ -3510,8 +3586,35 @@ defmodule ImportCases do
 
         {b, d} = if side == "blueprint", do: {bad, dep}, else: {bp, bad}
 
+        dotted_key = "example.import.key"
+
+        {dotted_text, dotted_pub} =
+          CorpusGen.signature_entry(
+            "example conformance import seed",
+            dotted_key,
+            artifact[field],
+            "Ed25519",
+            side
+          )
+
+        dotted_artifact = Map.put(artifact, "signatures", [:json.decode(dotted_text)])
+
+        {dotted_bp, dotted_dep} =
+          if side == "blueprint", do: {dotted_artifact, dep}, else: {bp, dotted_artifact}
+
+        dotted_host =
+          Map.put(host, "keys", [%{"key_id" => dotted_key, "key" => CorpusGen.b64(dotted_pub)}])
+
         malformed ++
           [
+            row.(
+              "signature-" <> side <> "-dotted-key-id",
+              "valid",
+              dotted_bp,
+              dotted_dep,
+              dotted_host,
+              expectation(dotted_bp, dotted_dep, dotted_host)
+            ),
             row.(
               "signature-" <> side <> "-invalid",
               "signature_invalid",

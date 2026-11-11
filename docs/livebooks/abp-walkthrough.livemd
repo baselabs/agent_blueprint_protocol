@@ -348,7 +348,9 @@ live endpoint or credential.
 `reconcile/3` is the one call per import. It runs eight stages in a fixed order (canonical,
 digest, negotiation, structure, portability, signatures, bind, bounds) and returns an
 `%Evidence{}`. The host bounds below are narrower than the Blueprint's ceilings. Narrowing an
-operational bound (attempts, cost, elapsed time) is recorded as clamp evidence. Narrowing a
+operational bound (attempts, cost, elapsed time) is recorded as clamp evidence.
+Cost amounts count millionths of one currency unit: an `amount` of 200
+with `currency: "EUR"` means 0.0002 EUR, independent of currency minor units. Narrowing a
 protected bound (here `disclosure_ceiling`) denies under the default `:deny` posture; the
 `:acknowledge` posture records it as clamp evidence instead. The signature stage verifies the
 Blueprint's signature against the keys the host supplies, so the same import without the
@@ -507,8 +509,7 @@ acknowledged = %{inputs | protected_clamp: :acknowledge}
 ```
 %{
   not_verified: [:tenancy, :live_policy, :authority, :effect_ownership, :execution, :billing,
-   :evaluation_truth, :signature_created_at, :lifecycle_state, :key_time_validity,
-   :signature_time_validity, :signatures, :bind, :binding_descriptors],
+   :evaluation_truth, :signature_created_at, :lifecycle_state, :signatures, :bind, :binding_descriptors],
   binds?: true,
   deny_posture: :protected_bound_clamp_denied,
   without_the_producer_key: :signature_key_unsupported,
@@ -553,7 +554,7 @@ Map.take(report, [:agreement, :agreed, :disagreed, :total])
 <!-- livebook:{"output":true} -->
 
 ```
-%{total: 583, agreed: 583, agreement: true, disagreed: 0}
+%{total: 604, agreed: 604, agreement: true, disagreed: 0}
 ```
 
 ## 7. Attacks on the signature and the bytes fail closed

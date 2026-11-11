@@ -69,6 +69,7 @@ defmodule AgentBlueprintProtocol.Architecture.CiTriggerFilterTest do
     "ci:compatibility" => {:lean, "mix test"},
     # Its steps are the quality steps above plus the kit build.
     "ci:platforms" => {:lean, "mix test"},
+    "ci:typescript-consumers" => {:lean, "mix typescript.guide"},
     "ci:quality" => {:reads, []}
   }
 

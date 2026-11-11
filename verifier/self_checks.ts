@@ -31,12 +31,30 @@ import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 
+import * as facade from "./facade.ts";
+
 const failures: string[] = [];
 let checks = 0;
 
 function check(name: string, got: unknown, want: unknown): void {
   checks++;
   if (got !== want) failures.push(`${name}: got ${String(got)} want ${String(want)}`);
+}
+
+// Public known-value objects retain their contents across consumer calls.
+for (const [name, values] of Object.entries(facade).filter(([name]) => name.startsWith("KNOWN_"))) {
+  const inspect = (value: object, path: string): void => {
+    check(path + ": frozen", Object.isFrozen(value), true);
+    const [key, original] = Object.entries(value)[0];
+    try { Reflect.set(value, key, "changed"); } catch {}
+    check(path + ": retained", Reflect.get(value, key), original);
+    // Restore a mutable object so a failed check cannot affect later checks.
+    if (!Object.isFrozen(value)) Reflect.set(value, key, original);
+    for (const [key, nested] of Object.entries(value)) {
+      if (nested !== null && typeof nested === "object") inspect(nested, path + "." + key);
+    }
+  };
+  inspect(values, name);
 }
 
 // The installable CLI accepts a signed artifact through the shared parser.

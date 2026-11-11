@@ -19,6 +19,17 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
   end
 
   test "the six entries are registered with their owners and criticalities" do
+    {:ok, types} = Code.Typespec.fetch_types(ExtensionRegistry)
+
+    {:type, {:state, {:type, _, :union, states}, []}} =
+      Enum.find(types, fn {_, {name, _, _}} -> name == :state end)
+
+    assert Enum.map(states, fn {:atom, _, state} -> state end) ==
+             [:reserved, :active, :deprecated, :retired]
+
+    assert {:type, {:output_state, {:type, _, :atom, []}, []}} =
+             Enum.find(types, fn {_, {name, _, _}} -> name == :output_state end)
+
     entries = ExtensionRegistry.registered_extensions()
 
     by_ns = Map.new(entries, fn e -> {e.namespace, e} end)

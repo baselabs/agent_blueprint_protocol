@@ -918,7 +918,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
   end
 
   # The one free string inside an evidence entry: the envelope constrains key_id only
-  # to non-empty and dot-free, and evidence members are digest-UNCOVERED —
+  # to nonempty; evidence members are digest-UNCOVERED, so
   # a secret-shaped key there must still red.
   defp scan_evidence_key_ids(members) do
     members

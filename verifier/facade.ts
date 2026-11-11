@@ -15,6 +15,25 @@ import { tagged,plain,jsonValue } from './plain.ts';
 import { rows } from './mapping.ts';
 import { toTagged } from './digest.ts';
 
+/** Known output identifiers; future values remain valid strings throughout 1.x. */
+export const KNOWN_NOTICES=Object.freeze({clamp_applied:'clamp_applied',extension_deprecated:'extension_deprecated',extension_retired:'extension_retired',extension_unknown_optional_retained:'extension_unknown_optional_retained'} as const);
+export type KnownNotice=typeof KNOWN_NOTICES[keyof typeof KNOWN_NOTICES];
+export type Notice=KnownNotice|(string & {});
+/** Known evidence surfaces, never an exhaustive proof checklist. */
+export const KNOWN_EVIDENCE_SURFACES=Object.freeze({canonical:'canonical',digest:'digest',negotiation:'negotiation',structure:'structure',portability:'portability',signatures:'signatures',extensions:'extensions',bind:'bind',bounds:'bounds',compatibility:'compatibility',tenancy:'tenancy',live_policy:'live_policy',authority:'authority',effect_ownership:'effect_ownership',execution:'execution',billing:'billing',evaluation_truth:'evaluation_truth',signature_created_at:'signature_created_at',lifecycle_state:'lifecycle_state',binding_descriptors:'binding_descriptors',binding_staleness:'binding_staleness'} as const);
+export type KnownEvidenceSurface=typeof KNOWN_EVIDENCE_SURFACES[keyof typeof KNOWN_EVIDENCE_SURFACES];
+export type EvidenceSurface=KnownEvidenceSurface|(string & {});
+/** Known binding check kinds; unknown kinds establish no familiar check. */
+export const KNOWN_EVIDENCE_CHECK_KINDS=Object.freeze({release_binding:'release_binding',binding_completeness:'binding_completeness',effect_recovery:'effect_recovery',binding_descriptors:'binding_descriptors',binding_staleness:'binding_staleness'} as const);
+export type KnownEvidenceCheckKind=typeof KNOWN_EVIDENCE_CHECK_KINDS[keyof typeof KNOWN_EVIDENCE_CHECK_KINDS];
+export type EvidenceCheckKind=KnownEvidenceCheckKind|(string & {});
+/** Known returned signature identifiers; verification inputs retain their strict types. */
+export const KNOWN_SIGNATURE_ALGORITHMS=Object.freeze({ed25519:'Ed25519'} as const);
+export type KnownSignatureAlgorithm=typeof KNOWN_SIGNATURE_ALGORITHMS[keyof typeof KNOWN_SIGNATURE_ALGORITHMS];
+export type SignatureAlgorithm=KnownSignatureAlgorithm|(string & {});
+export const KNOWN_SIGNATURE_PURPOSES=Object.freeze({blueprint:'blueprint',deployment:'deployment',federation_envelope:'federation-envelope'} as const);
+export type KnownSignaturePurpose=typeof KNOWN_SIGNATURE_PURPOSES[keyof typeof KNOWN_SIGNATURE_PURPOSES];
+export type SignaturePurpose=KnownSignaturePurpose|(string & {});
 /** A JSON value without runtime-specific types. */
 export type JsonValue=null|boolean|number|string|readonly JsonValue[]|{readonly [key:string]:JsonValue};
 /** A closed denial and its value-free member path. */
@@ -41,7 +60,7 @@ export interface PublicKey {readonly keyId:string;readonly algorithm:'ed25519';r
 export interface Support {readonly revisions:ReadonlySet<number>;readonly coreFields:ReadonlySet<string>;readonly registry:Readonly<Record<string,{readonly owner:string;readonly criticality:'critical'|'optional';readonly state:'reserved'|'active'|'deprecated'|'retired';readonly schemaDigest:string|null;readonly a2aUri:string|null;readonly promotedAtRevision:number|null}>>;readonly schemas:Readonly<Record<string,JsonValue>>}
 /** An ordinal classification and its retained regulatory markers. */
 export interface Classification {readonly ordinal:'public'|'internal'|'confidential'|'restricted';readonly markers:readonly ('pci'|'phi')[]}
-/** A positive monetary magnitude in one ISO-style currency unit. */
+/** An integer count of millionths of one unit of the named ISO 4217 currency. */
 export interface Cost {readonly amount:number;readonly currency:string}
 /** The closed operational and protected bound vocabulary. */
 export interface BoundSet {readonly max_attempts?:number;readonly max_concurrency?:number;readonly max_cost?:Cost;readonly max_depth?:number;readonly max_descendants?:number;readonly max_elapsed_ms?:number;readonly max_fan_out?:number;readonly max_tokens?:number;readonly classification_ceiling?:Classification;readonly disclosure_ceiling?:'none'|'summary'|'detail'|'full';readonly effect_impact_ceiling?:'ordinary'|'money'|'authority'|'secret';readonly authority_trait?:'none'|'local_policy'|'external_authority_required';readonly approval_trait?:'none'|'human_required'|'separated_human_required'}
@@ -56,17 +75,17 @@ export interface Inputs {readonly hostBounds:BoundSet;readonly support:Support;r
 /** Receiving context for existing federation receipt verification. */
 export interface Context {readonly keys:readonly PublicKey[];readonly issuer?:string|null;readonly subject?:string|null;readonly audience?:string|null;readonly issuerKeySets?:Readonly<Record<string,readonly PublicKey[]>>|null;readonly createdAfter?:string|null;readonly createdBefore?:string|null;readonly priorReceipts:readonly {readonly taskIdentity:string;readonly terminalState:string;readonly terminalCommitment:string}[]}
 /** Verified signed attributes, including the digest and purpose. */
-export interface SignedAttributes {readonly algorithm:'Ed25519';readonly contentDigest:string;readonly createdAt:string;readonly keyId:string;readonly purpose:'blueprint'|'deployment'|'federation-envelope'}
+export interface SignedAttributes {readonly algorithm:SignatureAlgorithm;readonly contentDigest:string;readonly createdAt:string;readonly keyId:string;readonly purpose:SignaturePurpose}
 /** Negotiated extension facts. */
-export interface Negotiated {readonly protocolRevision:number;readonly criticalExtensions:readonly string[];readonly quarantinedExtensions:readonly string[];readonly optionalRetained:readonly string[];readonly notices:readonly string[]}
+export interface Negotiated {readonly protocolRevision:number;readonly criticalExtensions:readonly string[];readonly quarantinedExtensions:readonly string[];readonly optionalRetained:readonly string[];readonly notices:readonly Notice[]}
 /** A clamp records the requested and effective values and narrowing source. */
 export interface Clamp {readonly field:keyof BoundSet;readonly class:'operational'|'protected';readonly unit:'count'|'millisecond'|'token'|'money'|'ordinal';readonly requested:JsonValue;readonly effective:JsonValue;readonly source:'deployment'|'host';readonly acknowledged:boolean}
 /** Pointwise effective bounds and their clamp evidence. */
 export interface Intersection {readonly effective:BoundSet;readonly clamps:readonly Clamp[]}
 /** One performed or explicitly unverified check. */
-export interface Check {readonly surface:string;readonly subject:readonly (string|number)[];readonly verified:boolean;readonly detail:JsonValue}
+export interface Check {readonly surface:EvidenceSurface;readonly subject:readonly (string|number)[];readonly verified:boolean;readonly detail:JsonValue}
 /** Typed import evidence; its unverified surfaces never form an empty set. */
-export interface Evidence {readonly protocol_revision:number|null;readonly blueprint_digest:string|null;readonly deployment_digest:string|null;readonly checks:readonly Check[];readonly effective_bounds:BoundSet|null;readonly clamps:readonly Clamp[];readonly optional_extensions_retained:readonly string[];readonly not_verified:readonly string[]}
+export interface Evidence {readonly protocol_revision:number|null;readonly blueprint_digest:string|null;readonly deployment_digest:string|null;readonly checks:readonly Check[];readonly effective_bounds:BoundSet|null;readonly clamps:readonly Clamp[];readonly optional_extensions_retained:readonly string[];readonly not_verified:readonly EvidenceSurface[]}
 /** One transport mapping row, returned as inert data. */
 export interface MappingRow {readonly index:number;readonly logical_field:string;readonly a2a_location:string;readonly mcp_location:string;readonly verdict:'native'|'partial'|'extension'}
 /** An integrity-checked, in-memory corpus handle. */

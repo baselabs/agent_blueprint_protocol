@@ -149,6 +149,9 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
     assert Enum.take(not_verified, 7) ==
              ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth)a
 
+    assert not_verified ==
+             ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth signature_created_at lifecycle_state extensions signatures bind binding_descriptors)a
+
     assert surfaces(evidence) == [
              :canonical,
              :canonical,

@@ -26,8 +26,8 @@ defmodule AgentBlueprintProtocol.Signature do
        "signature":        "<86-char unpadded base64url>"}
 
   `kid` must equal the signed `key_id` (key substitution prevention);
-  `key_id` is dot-free so the unencoded payload can never contain `.`
-  (RFC 7797 §5.2 forbids it in compact serializations); `created_at` is
+  `key_id` is a nonempty string and may contain periods. RFC 7797 §5.1
+  permits periods in this detached payload; `created_at` is
   Z-form whole seconds. Attestations use the identical envelope with
   `purpose`/`content_digest` replaced by a registered `kind` and a
   `statement_digest`; the kind registry is empty until kinds become data,
@@ -57,15 +57,16 @@ defmodule AgentBlueprintProtocol.Signature do
   defmodule Attributes do
     @moduledoc """
     The validated signed attributes of a signature entry, with
-    `content_digest` parsed to a `Digest` value and `purpose` the closed
-    purpose atom.
+    `content_digest` parsed to a `Digest` value. Known purpose values include
+    `:blueprint`, `:deployment`, and `:federation_envelope`; consumers retain
+    a default branch for future revisions.
     Signed attributes are signature evidence that carries no authority.
     """
 
     @enforce_keys [:algorithm, :content_digest, :created_at, :key_id, :purpose]
     defstruct [:algorithm, :content_digest, :created_at, :key_id, :purpose]
 
-    @type purpose :: :blueprint | :deployment | :federation_envelope
+    @type purpose :: atom()
 
     @type t :: %__MODULE__{
             algorithm: binary(),
@@ -87,8 +88,7 @@ defmodule AgentBlueprintProtocol.Signature do
   # kinds become data when real consumers exist.
   @kinds %{}
 
-  # RFC 3339 Z-form, whole seconds, no offset (deterministic JCS bytes; the
-  # no-fraction rule also keeps the unencoded payload dot-and-dot-free).
+  # RFC 3339 Z-form, whole seconds, no offset: the timestamp format profile.
   @created_at ~r/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/
 
   @entry_members ["protected", "signature", "signed_attributes"]
@@ -299,7 +299,7 @@ defmodule AgentBlueprintProtocol.Signature do
       with :ok <- algorithm_ed25519(attrs["algorithm"]),
            :ok <- tagged_digest(attrs["content_digest"] || attrs["statement_digest"]),
            :ok <- z_form_timestamp(attrs["created_at"]),
-           :ok <- dot_free_key_id(attrs["key_id"]),
+           :ok <- nonempty_key_id(attrs["key_id"]),
            :ok <- closed_member(attrs["purpose"] || attrs["kind"], shape) do
         {:ok, attrs}
       else
@@ -341,11 +341,9 @@ defmodule AgentBlueprintProtocol.Signature do
 
   defp z_form_timestamp(_), do: :error
 
-  defp dot_free_key_id({:string, key_id}) when key_id != "" do
-    if String.contains?(key_id, "."), do: :error, else: :ok
-  end
+  defp nonempty_key_id({:string, key_id}) when key_id != "", do: :ok
 
-  defp dot_free_key_id(_), do: :error
+  defp nonempty_key_id(_), do: :error
 
   defp closed_member({:string, value}, :signature) do
     if Map.has_key?(@purposes, value), do: :ok, else: :error
@@ -375,11 +373,8 @@ defmodule AgentBlueprintProtocol.Signature do
   defp parse_signature(_, shape), do: {:error, malformed(shape)}
 
   defp canonical_input(header, attrs) do
-    # RFC 7797 5.2: an unencoded payload containing "." can never appear in
-    # a compact serialization. The dot-free key_id validation makes that
-    # invariant hold by construction; every other member is dot-free from
-    # its closed shape. (A belt re-check here would be an unreachable
-    # branch — the coverage contract keeps guards live, not decorative.)
+    # RFC 7797 §5.1: detached payloads allow periods. The payload is signed
+    # as JCS bytes and omitted from the compact serialization.
     {:ok, header_json} = Canonicalization.encode(header)
     {:ok, attrs_json} = Canonicalization.encode(attrs)
     {:ok, Base64Url.encode(header_json), attrs_json}

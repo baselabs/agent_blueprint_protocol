@@ -28,7 +28,7 @@ defmodule AgentBlueprintProtocol.Evidence do
   end
 
   defmodule Binding do
-    @moduledoc "Binding checks performed and skipped; this evidence grants no authority."
+    @moduledoc "Binding checks performed and skipped. Known values include `:release_binding`, `:binding_completeness`, `:effect_recovery`, `:binding_descriptors`, and `:binding_staleness`. Future check kinds and detail variants are additive; this evidence grants no authority."
     @enforce_keys [:checked, :not_verified]
     defstruct [:checked, :not_verified]
     @type t :: %__MODULE__{checked: [atom()], not_verified: [atom()]}
@@ -47,19 +47,12 @@ defmodule AgentBlueprintProtocol.Evidence do
     not_verified: []
   ]
 
+  @typedoc "Open evidence checks. Known surfaces include `:digest`, `:signatures`, `:bind`, and `:bounds`; known details include `Signatures`, `Binding`, clamp evidence, digests, and notice atoms. Unknown kinds or detail variants establish no familiar fact."
   @type check :: %{
           surface: atom(),
           subject: [binary() | non_neg_integer()],
           verified: boolean(),
-          detail:
-            nil
-            | BoundsAlgebra.ClampEvidence.t()
-            | Digest.t()
-            | Signatures.t()
-            | Binding.t()
-            | :no_signatures_present
-            | :retained
-            | :quarantined
+          detail: term()
         }
 
   @type t :: %__MODULE__{

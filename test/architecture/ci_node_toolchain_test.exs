@@ -31,6 +31,20 @@ defmodule AgentBlueprintProtocol.CiNodeToolchainTest do
 
     assert position!(quality_job, setup_node) < position!(quality_job, "run: mix quality"),
            "the selected Node runtime must be active before the complete quality gate"
+
+    consumer_lanes(workflow)
+  end
+
+  defp consumer_lanes(workflow) do
+    [_, consumers] = String.split(workflow, "\n  typescript-consumers:", parts: 2)
+    assert consumers =~ "os: [ubuntu-24.04, macos-15, windows-2025]"
+    assert consumers =~ ~s(node: ["26.13.0"])
+    assert consumers =~ "node-version: ${{ matrix.node }}"
+    assert consumers =~ "node scripts/check_typescript_consumer.mjs"
+    assert consumers =~ "node scripts/check_conformance_product.mjs"
+    assert consumers =~ "node dist/kit/cli.mjs"
+    assert consumers =~ "actions/setup-node@#{@setup_node_sha}"
+    assert :json.decode(File.read!("package.json"))["engines"]["node"] == ">=24"
   end
 
   defp position!(content, needle) do

@@ -186,8 +186,9 @@ defmodule AgentBlueprintProtocol.Negotiation do
     @moduledoc """
     The negotiation result: the exact artifact revision, the honored
     required-core-field list, the supported critical / retained optional /
-    quarantined namespaces, and typed notices (reason atoms — the typed
-    Error notices are the Evidence surface).
+    quarantined namespaces, and open notice names (known values include
+    `:extension_deprecated` and `:extension_unknown_optional_retained`). Unknown
+    notices establish no familiar fact; consumers keep a default branch.
     The outcome lists facts about revisions and extensions — it is not a decision.
     """
 

@@ -76,6 +76,10 @@ jobs:
         with:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
+          install-hex: false
+
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
 
       # The submission-time extraction, tested: the two governed paths are
       # filtered out of a scratch clone, and the extracted tree must render
@@ -122,6 +126,10 @@ jobs:
         with:
           elixir-version: ${{ matrix.elixir }}
           otp-version: ${{ matrix.otp }}
+          install-hex: false
+
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
 
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -158,6 +166,10 @@ jobs:
         with:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
+          install-hex: false
+
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
 
       - name: Install dependencies
         run: mix deps.get
@@ -203,6 +215,10 @@ jobs:
         with:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
+          install-hex: false
+
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
       - name: Install dependencies and compile
         run: |
           mix deps.get
@@ -218,3 +234,43 @@ jobs:
           mix conformance.verify
           mix conformance.product
           mix typescript.guide
+
+  typescript-consumers:
+    name: TypeScript consumer / Node ${{ matrix.node }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        node: ["26.13.0"]
+    steps:
+      - name: Check out byte-exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Build the typed library and CLI
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          node dist/kit/cli.mjs
+          node scripts/check_typescript_consumer.mjs
+      - name: Exercise both conformance adapters and the harness
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "29.0.3"
+          install-hex: false
+
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
+      - name: Verify the harness
+        run: |
+          mix deps.get
+          mix escript.build
+          node scripts/check_conformance_product.mjs

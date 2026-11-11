@@ -226,6 +226,22 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     claim == version or claim in ci_toolchain_versions()
   end
 
+  defp allowed_document_version?(file, claim, version)
+       when file in [
+              "documentation/stability.md",
+              "documentation/typescript.md",
+              "docs/adr/stability-policy.md",
+              "spec/protocol.md",
+              "verifier/README.md"
+            ] do
+    package = :json.decode(File.read!("package.json"))
+
+    floor =
+      String.replace_prefix(package["devDependencies"]["typescript-floor"], "npm:typescript@", "")
+
+    claim == version or claim == floor
+  end
+
   defp allowed_document_version?(_file, claim, version), do: claim == version
 
   defp ci_toolchain_versions do

@@ -73,7 +73,7 @@ console.log(result.ok ? "valid" : result.error.code); // valid
 
 `npm view @agent-blueprint-protocol/verifier version` shows the package version available from npm.
 
-The conformance corpus contains 583 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
+The conformance corpus contains 604 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
 
 ## Documentation
 

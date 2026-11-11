@@ -259,3 +259,40 @@ The public `Result<T>` shape uses `value` on success and a typed `error` on deni
 - [Migration guide](migrating-to-1.0.md)
 - [Glossary](glossary.md)
 - [Protocol specification](../spec/protocol.md)
+
+## Compatibility within 1.x
+
+Node 24 remains the runtime floor for all of 1.x; Node 26 is also supported.
+TypeScript 5.0.2 is the compiler floor. Packed declarations are checked at
+that floor and the current compiler with `moduleResolution: "nodenext"`,
+`skipLibCheck: false`, and no `@types/node` dependency.
+
+`ErrorCode` stays a closed union throughout 1.x, so exhaustive switches are
+safe. Output identifiers are open string types: `Notice`, `EvidenceSurface`,
+`EvidenceCheckKind`, `SignatureAlgorithm`, and `SignaturePurpose`. Their
+`KNOWN_*` constants list known values. Inputs remain strict. Evidence check
+kinds and detail variants can grow; look up the names you know and never
+interpret an unknown entry as proof. Keep a default branch:
+
+```ts
+import { KNOWN_NOTICES, type Notice } from "@agent-blueprint-protocol/verifier";
+function deprecated(notice: Notice): boolean {
+  switch (notice) {
+    case KNOWN_NOTICES.extension_deprecated: return true;
+    default: return false;
+  }
+}
+```
+
+Elixir consumers match structs on the fields they use. Release-manifest
+readers ignore unknown additive members but reject unknown equivalence
+claims. Every unknown nonzero harness exit is failure. New revisions,
+profiles, execution versions, modes, and flags are opt-in; existing contracts
+and earlier corpus claims keep their meaning.
+
+Every `max_cost.amount` is an integer count of millionths (10^-6) of one unit
+of its uppercase ISO 4217 currency, independent of the currency's minor-unit
+exponent. For example, `{amount: 1000, currency: "USD"}` means 0.001 USD.
+Amounts compare as integers; mixed currencies deny. Federation
+`resource_policy.cost` has the same scale in the bound Deployment Manifest's
+`host_bounds.max_cost.currency`.

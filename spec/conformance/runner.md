@@ -171,6 +171,9 @@ Before corpus output, stderr has exactly one certification line:
 The label never changes stdout JSON. Readers reject symlinks and nonregular
 files, cap the tree at 1,000 entries and 5,000,000 file bytes, ignore Finder
 metadata, and disclose no unreadable path or contents in their error line.
+These corpus file-count and total-byte caps are tooling limits, separate
+from artifact decoder limits. They MAY be raised in a minor release without
+changing artifact limits or earlier corpus identities and claims.
 
 The deprecated federation import is paired with
 `negotiation-import-deprecated-federation`: reconcile accepts its schema-pinned

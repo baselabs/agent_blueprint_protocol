@@ -51,8 +51,8 @@ covers).
 
 Rules the verifier enforces (each is a typed denial otherwise): the
 protected header is the exact four members in any order (serialized by
-JCS); `kid` equals the signed `key_id`; `key_id` is dot-free (RFC 7797
-§5.2); `created_at` is Z-form whole seconds; the signature is unpadded
+JCS); `kid` equals the signed `key_id`; `key_id` is a nonempty string that may contain periods (RFC 7797
+§5.1, detached payload); `created_at` is Z-form whole seconds; the signature is unpadded
 base64url (86 chars for Ed25519). Because `content_digest` and
 `purpose` are inside the signed bytes, a signature cannot be lifted
 onto a different artifact. Any `b64=false`-aware JOSE library can

@@ -18,7 +18,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
       step = Enum.find(steps, &String.starts_with?(&1, name <> "\n"))
       assert step, "missing publish step: #{name}"
 
-      refute Regex.match?(~r/^\s+if:/m, step),
+      refute Regex.match?(~r/^\s+if:/m, step) and
+               name != "Attach the verifier kit to the GitHub release",
              "publish step overrides the default success condition: #{name}"
 
       assert step =~ "if "
@@ -32,6 +33,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     locked_installs()
     token_scope()
     verified_artifacts()
+    pinned_hex_clients(workflow)
+    staged_hex_message(workflow)
+    live_hex_release(workflow)
     prerelease_versions(workflow)
     assert workflow =~ "if: needs.npm-publish.outputs.live == 'true'"
     assert workflow =~ "live=false"
@@ -43,6 +47,61 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     {hex_publish, _} = :binary.match(workflow, "name: Publish the Hex package and docs")
     assert live_check < hex_publish
     refute workflow =~ "/tmp/"
+  end
+
+  defp pinned_hex_clients(workflow) do
+    [_, verify, _, publish] = Regex.split(~r/^  (?:verify|npm-publish|publish):\n/m, workflow)
+
+    pins =
+      for job <- [verify, publish] do
+        assert job =~ "install-hex: false"
+        assert [[_, pin]] = Regex.scan(~r/mix local.hex (\d+\.\d+\.\d+) --force/, job)
+        {installed, _} = :binary.match(job, "mix local.hex " <> pin <> " --force")
+        {build, _} = :binary.match(job, "mix hex.build")
+        assert installed < build
+        pin
+      end
+
+    assert pins == ["2.7.0", "2.7.0"]
+
+    for path <- Path.wildcard(".github/workflows/*.yml"),
+        job <- Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, File.read!(path)),
+        String.contains?(job, "uses: erlef/setup-beam@") do
+      assert job =~ "install-hex: false", path
+
+      assert Regex.scan(~r/mix local.hex (\d+\.\d+\.\d+) --force/, job) ==
+               [["mix local.hex 2.7.0 --force", "2.7.0"]]
+    end
+  end
+
+  defp staged_hex_message(workflow) do
+    [_, publish] = String.split(workflow, "      - name: Publish the Hex package and docs\n")
+    [matcher] = Regex.run(~r/grep [^;\n]+hex-publish\.log"/, publish)
+
+    for {message, status} <- [
+          {"HTTP status code: 409", 1},
+          {"version: is awaiting approval", 0},
+          {"request 409 failed", 1},
+          {"already staged: unrelated failure", 1},
+          {"version: is awaiting approval for another request", 1}
+        ] do
+      path = Path.join(System.tmp_dir!(), "hex-publish.log")
+      File.write!(path, message <> "\n")
+
+      assert {_, ^status} =
+               System.cmd("bash", ["-c", matcher], env: [{"RUNNER_TEMP", System.tmp_dir!()}])
+    end
+  end
+
+  defp live_hex_release(workflow) do
+    {check, _} = :binary.match(workflow, "name: Report live or pending Hex state")
+    {release, _} = :binary.match(workflow, "name: Attach the verifier kit to the GitHub release")
+    assert check < release
+    assert workflow =~ "id: hex-live"
+    assert workflow =~ "if: steps.hex-live.outputs.live == 'true'"
+    assert workflow =~ "node scripts/check_hex_release.mjs"
+    assert workflow =~ "hex: already staged"
+    refute workflow =~ "stage publish ships with npm 11.19"
   end
 
   defp prerelease_versions(workflow) do

@@ -38,7 +38,7 @@ permissions:
 jobs:
   verify:
     name: Verify the tagged source
-    # A manual dispatch resumes publishing after npm approval; it must run on
+    # A manual dispatch resumes publishing after registry approval; it must run on
     # a release tag, never on a branch that merely carries a tag-like name.
     if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
@@ -61,6 +61,10 @@ jobs:
         with:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
+          install-hex: false
+
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
 
       - name: Require a release tag
         run: |
@@ -158,9 +162,8 @@ jobs:
           if npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
             echo "npm: ${NPM_PACKAGE}@${VERSION} already published — skipping (idempotent re-run or local bootstrap)"
           else
-            # npm stage publish ships with npm 11.19; the Node-bundled npm
-            # is older and knows no staging, which turns every attempt into
-            # a forbidden direct publish (403, action not permitted).
+            # npm stage first shipped in npm 11.15. Pin the tested patch
+            # independently of the runtime's bundled npm version.
             npm install -g --ignore-scripts npm@11.19.1 >/dev/null
             npm --version
             NPM_TAG=latest
@@ -213,6 +216,10 @@ jobs:
         with:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
+          install-hex: false
+
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
 
       - name: Download the verified release artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -259,16 +266,32 @@ jobs:
             exit 1
           fi
           VERSION="${GITHUB_REF_NAME#v}"
-          # The releases LIST lives on the package object (the /releases
-          # suffix 404s with an HTML page, which grep never matches — the
-          # old guard only ever passed by luck when nothing was published).
-          if curl -sf "https://hex.pm/api/packages/agent_blueprint_protocol" | grep -q "\"version\":\"${VERSION}\""; then
-            echo "hex: ${VERSION} already published — skipping (idempotent re-run or local bootstrap)"
+          curl --fail --silent --show-error "https://hex.pm/api/packages/agent_blueprint_protocol" > "$RUNNER_TEMP/hex-package.json"
+          HEX_LIVE=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const pkg=JSON.parse(readFileSync(process.argv[1])); if(!Array.isArray(pkg.releases))throw Error("Invalid Hex release list"); process.stdout.write(pkg.releases.some(release=>release.version===process.argv[2])?"true":"false");' "$RUNNER_TEMP/hex-package.json" "$VERSION")
+          if [ "$HEX_LIVE" = true ]; then
+            echo "hex: already live; verifying its bytes before the GitHub release"
           else
-            yes | mix hex.publish
+            # Hex 2.7.0 prints API validation errors as field: message.
+            # https://github.com/hexpm/hex/blob/v2.7.0/lib/hex/utils.ex#L216-L248
+            # https://github.com/hexpm/hexpm/blob/7fcc788cde63fe0a1d3e3cd1ec58372d8c17bfbe/lib/hexpm/repository/staged_releases.ex#L129
+            if mix hex.publish --yes > "$RUNNER_TEMP/hex-publish.log" 2>&1; then
+              cat "$RUNNER_TEMP/hex-publish.log"
+            elif grep -Fxq 'version: is awaiting approval' "$RUNNER_TEMP/hex-publish.log"; then
+              echo "hex: already staged; the public release check still gates publication"
+            else
+              cat "$RUNNER_TEMP/hex-publish.log"
+              exit 1
+            fi
           fi
 
+      - name: Report live or pending Hex state
+        id: hex-live
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/check_hex_release.mjs "$VERSION" "verified-release/agent_blueprint_protocol-${VERSION}.tar"
+
       - name: Attach the verifier kit to the GitHub release
+        if: steps.hex-live.outputs.live == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

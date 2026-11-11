@@ -3,7 +3,7 @@
 Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:4QfFYGA7V6GqgN0XF8TuLICznCdoxcL5deU3OT0EScw`, 583 cases) are
+`sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`, 604 cases) are
 certified against this document at every release through the release
 identity chain — the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -198,6 +198,14 @@ reference implementation's to enforce.
 | `attestations` | 0..1 | array<any> | max 16 |
 | `deployment_digest` | 1 | string | value: tagged digest |
 
+Every `max_cost.amount`, including Blueprint `ceilings`, Deployment
+`host_bounds`, and `model_policy`, is an integer count of millionths
+(10^-6) of one unit of the currency named by `currency`. The currency is an
+three-uppercase-letter string matching `[A-Z]{3}`; verifiers check that
+pattern, and the currency's meaning is ISO 4217. The scale never depends on the
+currency's minor-unit exponent. Thus `amount: 1000, currency: "USD"` means
+0.001 USD, with no floating-point amount.
+
 ### Identifier and timestamp profiles
 
 The following ABNF uses ASCII code points. Each identifier or qualified
@@ -224,7 +232,8 @@ cases on `extension.resolve`.
 `created_at`, binding `attested_at`, and lifecycle timestamp members use a
 calendar-valid RFC 3339 profile: exactly `YYYY-MM-DDTHH:MM:SSZ`, four-digit
 year, uppercase `T` and `Z`, whole seconds, no offset, fraction, leap second,
-or zone annotation. This is a format profile, not a time-validity check.
+or zone annotation. Verifiers check the timestamp format and never judge
+its time.
 Signature `created_at` is authenticated and never compared to a clock by
 signature verification or reconcile. The signature algorithm cases and
 `reconcile-partial-observations` exercise these distinctions.
@@ -356,6 +365,10 @@ The `signature.verify` algorithm cases pin this shape.
   separator is part of it. A producer whose protected-header segment is
   not the JCS serialization of that header produces a signature that
   MUST deny `signature_not_verified`.
+- `key_id` MUST be a nonempty string and `kid` MUST equal it. Periods are
+  permitted: RFC 7797 §5.1 governs this detached payload; §5.2's period
+  restriction applies to unencoded non-detached compact payloads. Other
+  signature shape, canonicality, and artifact portability checks still apply.
 - Because the digest covers `protocol_revision`, identity members,
   extensions, and `required_core_fields`, a signature cannot be lifted
   onto a different artifact, revision, or purpose; `key_id` prevents key
@@ -409,7 +422,7 @@ structure validation. A successful standalone signature verification
 returns its verified signed attributes, including purpose and content digest.
 `created_at` is signed and format-checked as a valid RFC 3339 Z-form
 whole-second timestamp; standalone signature verification and reconcile
-never judge its time. Key and signature time validity belong to the host.
+never judge its time.
 
 ## 7. Evolution and negotiation
 
@@ -450,16 +463,18 @@ demotion does not. A retired namespace MUST never be reused.
 
 Two independent identities govern a verifier release. **Census** is the
 record of what the release certifies: the conformance corpus digest and
-the extension-registry digest. Census growth — added corpus cases,
-added or widened registry entries — MUST NOT alter verdicts for inputs
-certified under a prior census. **Verification semantics** is the
+the extension-registry digest. Census growth, meaning added corpus cases and
+added or widened registry entries, MUST NOT alter verdicts for inputs
+certified under a released census at the same verification-semantics version. **Verification semantics** is the
 release's computational meaning for previously-certified inputs:
 canonicalization, digest computation, decode verdicts, bounds
 computation, negotiation outcomes, and signature verification behavior.
-A release that changes verification semantics MUST name it by
-incrementing the release's semantics version (the reference
+A security correction or registry addition that moves a verdict is a
+verification-semantics change. A release that changes verification
+semantics MUST name it by incrementing the release's semantics version (the reference
 implementation carries it in its release manifest), and its release
-history MUST record the break; a release whose semantics version is
+history MUST record the increment and prior-census equivalence or
+divergence; a release whose semantics version is
 unchanged MUST produce, for every input certified under a prior census
 of the same semantics version, the same verdict that prior release
 produced. A registry change that alters negotiation outcomes for
@@ -471,8 +486,9 @@ axes are independent of `protocol_revision`, which governs what
 artifacts may say; one event may move more than one axis.
 
 Verification-semantics version 2 replaces version 1 for structured failures, non-vacuous evidence, verified signed
-attributes, duplicate-signer rejection, the accepted algorithm alias, and
-federation namespace deprecation. Protocol revision remains 1. The release
+attributes, duplicate-signer rejection, the accepted algorithm alias,
+federation namespace deprecation, and periods in detached signature key
+identifiers. Protocol revision remains 1. The release
 history records the increment; prior-census equivalence remains a per-case
 projection claim, not a claim that the public APIs are unchanged.
 The legacy federation namespace adds an `extension_deprecated` notice to
@@ -572,6 +588,15 @@ effective bounds MUST NOT widen host policy (the effective value does not widen 
 operational field. `model_policy` and `data_bindings` are not
 intersection inputs.
 
+### Monetary units
+
+Every `max_cost.amount` uses the millionths scale defined in protocol §2.
+Verifiers compare amounts as integers and MUST deny mixed currencies with
+`bound_unit_mismatch`; they perform no currency conversion.
+Federation `resource_policy.cost` uses the same millionths scale in the
+currency of the bound Deployment Manifest's `host_bounds.max_cost`.
+This unit definition adds no new federation comparison or host operation.
+
 ### Lattice ordering and marker placement
 
 The orders below run from first to last. Classification and disclosure
@@ -649,13 +674,41 @@ rug-pull case).
 
 ## 11. Federation profile
 
-A 23-member task envelope carried in A2A `Task.metadata` / MCP `_meta`
-under the registered `io.github.baselabs/federation` extension (or its
-deprecated `com.example/federation` spelling); the full
-field-by-field A2A/MCP mapping (3 native, 5 partial, 15 extension
-members) also ships with the reference implementation's document set.
-Zero native wire fields; no native transport. State codecs MUST be
-lossy-aware: A2A `REJECTED`/`AUTH_REQUIRED` deny crossing into MCP,
+The logical TaskEnvelope has 23 possible members. Its transport carriers
+combine native fields with an extension body under the registered
+`io.github.baselabs/federation` profile or its deprecated
+`com.example/federation` spelling. No new transport-native field is defined.
+The mapping's 3 native, 5 partial, and 15 extension classifications describe
+semantic correspondence; the following placement rules define carriage.
+
+| Logical members | A2A Task carrier | MCP Task carrier |
+|---|---|---|
+| `task_identity`, `recovery_handle` | both reconstructed from `id` | both reconstructed from `taskId` |
+| `checkpoint_status` or `terminal_state` | reconstructed from `status.state` through the A2A state codec | reconstructed from `status` through the MCP state codec |
+| Every other present envelope member | `metadata["https://baselabs.github.io/agent_blueprint_protocol/extensions/federation"]` body | `_meta["io.github.baselabs/federation"]` body |
+
+The deprecated A2A key is `https://example.com/extensions/federation`;
+the deprecated MCP key is `com.example/federation`. A carrier MUST contain
+exactly one supported federation key. Both supported keys together, or any
+of the four native logical member names inside its extension body, MUST
+deny `federation_mapping_conflict`. To encode a carrier, `recovery_handle`
+MUST equal `task_identity`, and an observed checkpoint or terminal state
+MUST be present. A missing observed state denies `invalid_constraint`;
+a different recovery handle denies `federation_mapping_conflict`.
+
+Before envelope verification, the decoder combines the body with the
+native identifier twice (as `task_identity` and `recovery_handle`) and the
+mapped state. Terminal states populate `terminal_state`; all other mapped
+states populate `checkpoint_status`. It then validates the reconstructed
+closed envelope, including bounds, portability, and cross-member hooks.
+`parent_execution_reference`, `input_commitment`, `time_policy`, and
+`checkpoint_request` remain in the body despite their partial native
+correspondences. MCP `ttlMs` never supplies `time_policy`. Carrier cases on
+`federation.decode` certify carriage-key selection and rejection of native
+members in the extension body in both implementations.
+
+State codecs MUST be
+lossy-aware: A2A `SUBMITTED`/`REJECTED`/`AUTH_REQUIRED` deny crossing into MCP,
 `UNSPECIFIED` is unmapped (`federation_state_unmappable`);
 cancellation MUST remain a request, never a terminal receipt. A
 Terminal Commitment digests task identity, terminal state, result
@@ -686,9 +739,9 @@ the terminal-equivocation cases on `federation.verify_commitment`.
 
 ### Member grammar — Federation TaskEnvelope (23 members)
 
-The envelope is a closed world: one wire member per logical field,
-carried as the extension body under either registered federation
-namespace on both transports. Cardinality `1` members are required;
+The reconstructed envelope is a closed world: one member per logical
+field. The carrier placement above supplies its native members and
+extension body before this grammar is applied. Cardinality `1` members are required;
 `0..1` members are optional (absent — there is no null form). The
 machine-readable grammar ships as the CDDL artifact under
 `spec/grammar/` with the derived JSON Schema beside it. Cross-
@@ -861,9 +914,9 @@ and both `now` and a maximum attestation age are supplied; a future-date
 check alone does not establish staleness verification. Those skipped surfaces and every false
 check surface join `not_verified`. Canonical checks on structs establish
 encodability; they do not establish equality to unavailable received bytes.
-`signature_created_at`, `lifecycle_state`, `key_time_validity`, and
-`signature_time_validity` are always unverified by reconcile. Lifecycle
-state is shape-checked and never judged.
+`signature_created_at` and `lifecycle_state` are always unverified by
+reconcile. The timestamp is signed and format-checked but never judged;
+lifecycle state is shape-checked and never judged.
 
 Federation receipt verification separately supports the existing explicit
 `created_after` and `created_before` receiving-context pins. Both are
@@ -888,10 +941,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-583 cases covering every required cell of the 18-surface × 31-class
+604 cases covering every required cell of the 18-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:4QfFYGA7V6GqgN0XF8TuLICznCdoxcL5deU3OT0EScw`. Corpus identity
+`sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw`. Corpus identity
 is the digest of the domain-separated index — versioned by digest, not
 by name. The loader is pure over an in-memory path-to-bytes map and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
@@ -1087,9 +1140,9 @@ what it must prove (evidence), and how a host verifies all of it
 fail-closed without granting authority. A blueprint rides IN A2A task
 metadata and MCP `_meta` (the federation profile proves the carriage);
 a Trust-Manifest-style discovery record can reference a blueprint by
-digest without either protocol subsuming the other. Where a neighbor
-mandates a signature envelope, ABP already speaks it: detached JWS over
-JCS canonical bytes is the shared primitive.
+digest without either protocol subsuming the other. AI Catalog and ABP both
+use detached JWS over JCS. Catalog requires the protected `typ` marker and
+forbids the protected `b64` header, so their signatures are not interchangeable.
 
 SCITT is IETF work on transparent supply-chain statements; ABP detects
 receipt divergence only against locally held prior receipts and is not a
@@ -1104,20 +1157,59 @@ not mappings or conformance claims about those projects.
 
 ## 20. Registry considerations
 
-Closed vocabularies are the `sha-256` digest tag, signature identifiers
-`EdDSA` and `Ed25519` (one algorithm), signed purposes `blueprint`,
-`deployment`, `federation-envelope`, the domain separators in protocol §5, the
-seventy-four error codes and eight ceiling keys in protocol §12, the four notices
-in protocol §12, and registered extension namespaces and lifecycle states in protocol §8.
-The attestation-kind vocabulary is empty. Core members, algorithm succession, digest domains, and purpose
-changes require a protocol revision; changed verification meaning also
-requires a verification-semantics increment. Error codes and registry rules
-are frozen for the major release line; breaking changes require a new major.
-Namespaces can be added without a revision when existing verdicts remain
-unchanged; promotion from optional to critical requires a revision.
-Namespaces deprecate and never retire within a major. Corpus cases are
-additive within a semantics version; released cases and signatures are
-immutable. Registry operations follow [the operations process](registry/OPERATIONS.md).
+Revision 1 fixes the `sha-256` digest tag, `EdDSA` and `Ed25519`
+identifiers for one signature algorithm, the three signed purposes, digest
+domains, and artifact member sets. Registry operations follow
+[the operations process](registry/OPERATIONS.md).
+
+### Evolution within a major version
+
+A minor release MAY add the following opt-in capabilities. It MUST NOT
+change existing bytes, defaults, required inputs, or documented return
+contracts of existing calls:
+
+- Protocol revisions, each with its own member and algorithm sets. A verifier
+  MUST keep accepting every earlier supported revision throughout the major.
+  A new signature algorithm MUST enter through a new protocol revision.
+- Registered namespaces and federation profiles. An incompatible federation
+  envelope MUST use a new registered critical namespace beside the existing
+  profiles; existing profiles MUST NOT retire during the major. A successor
+  profile MUST bind its own profile identity into its commitment preimage
+  so it cannot be presented as an earlier profile. The current envelope and
+  commitment preimage remain unchanged.
+- Conformance surfaces and corpus cases. Each new corpus is a new census;
+  claims against an earlier corpus digest remain valid for that digest.
+- CLI modes and flags, explicitly selected execution-protocol versions, notices,
+  evidence check kinds and detail variants, and additional runtime support.
+  Harnesses and adapters MUST continue to support execution version 1 for
+  the whole major; a successor MUST be selected explicitly.
+
+Within the major, the error-code set and each code's meaning MUST remain
+unchanged. `ErrorCode` is closed for all of 1.x. A new mechanism MUST reuse
+an existing code whose meaning fits; otherwise it waits for the next major.
+Inputs certified under a released census MUST keep their verdicts at the
+same verification-semantics version. A security correction or registry
+addition that moves a verdict MUST increment that version and declare it
+in the release history, recording prior-census equivalence or divergence
+as specified in section 7. Artifact member sets and signed-byte formats
+for existing revisions, and the format of every released results document,
+claim, and corpus, MUST remain unchanged. New inputs under a new revision
+do not reinterpret earlier revisions.
+
+The reference distributions retain Node 24, Elixir 1.19, OTP majors 27,
+28, and 29, and TypeScript 5.0.2 as their runtime and compiler floors
+throughout 1.x. Added Node, OTP, and Elixir versions expand support; they
+never raise those floors. The contributor OTP gate is separate from the
+shipped library requirements.
+
+Consumer compatibility follows the declared open and closed surfaces:
+error codes support exhaustive handling; notices, evidence surfaces, check
+kinds, detail variants, and returned signature algorithm and purpose names
+are open. Consumers look up known names and retain a default branch; an
+unknown entry establishes no familiar fact. Elixir struct matches select
+only fields used. Release-manifest readers ignore unknown additive members
+but never an unknown equivalence claim. Any unknown nonzero harness exit
+is failure. These rules add no host authorization or execution requirement.
 
 ## 21. References
 

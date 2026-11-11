@@ -172,9 +172,7 @@ defmodule AgentBlueprintProtocol.Reconcile do
         clamps: clamps,
         not_verified: [
           :signature_created_at,
-          :lifecycle_state,
-          :key_time_validity,
-          :signature_time_validity
+          :lifecycle_state
         ],
         optional_extensions_retained:
           Enum.uniq(bp_outcome.optional_retained ++ dep_outcome.optional_retained)

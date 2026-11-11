@@ -2,7 +2,7 @@ defmodule AgentBlueprintProtocol.SignatureTest do
   @moduledoc """
   Unit contract for the detached JWS envelope: RFC 7797 `b64=false` signing
   input over JCS bytes, the exact-shape protected header, the closed-world
-  signed attributes (dot-free payload invariant included), and the
+  signed attributes and detached payload content, and the
   verify-only fact vocabulary.
   """
 
@@ -156,13 +156,25 @@ defmodule AgentBlueprintProtocol.SignatureTest do
       end
     end
 
-    test "key_id is nonempty and dot-free (RFC 7797 compact payload rule)" do
-      for bad <- ["", "acme.prod.2026"] do
+    test "key_id is nonempty" do
+      for bad <- [""] do
         ats = put_member(attrs(), "key_id", {:string, bad})
         hdr = header(bad)
 
         assert {:error, %AgentBlueprintProtocol.Error{code: :signature_malformed}} =
                  Signature.signing_input(signed_entry(hdr, ats))
+      end
+    end
+
+    test "detached signatures accept periods in key identifiers" do
+      for kid <- ["example.prod.2026", ".", "example..key."] do
+        hdr = header(kid)
+        ats = attrs(key_id: kid)
+        entry = signed_entry(hdr, ats)
+        keys = [%Signature.PublicKey{key_id: kid, algorithm: :ed25519, key: pub()}]
+        assert {:ok, verified} = Signature.verify(entry, keys)
+        assert verified.key_id == kid
+        assert Signature.signing_input(entry) == {:ok, input_for(hdr, ats)}
       end
     end
 

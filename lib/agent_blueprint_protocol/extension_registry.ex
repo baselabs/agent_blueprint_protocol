@@ -41,13 +41,27 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   ]
 
   @type criticality :: :critical | :optional
+  @typedoc "The closed lifecycle state accepted in negotiation support."
   @type state :: :reserved | :active | :deprecated | :retired
+
+  @typedoc "Open returned lifecycle state; consumers retain a default branch."
+  @type output_state :: atom()
 
   @type t :: %__MODULE__{
           namespace: binary(),
           owner: binary(),
           criticality: criticality(),
           state: state(),
+          schema_digest: binary() | nil,
+          a2a_uri: binary(),
+          promoted_at_revision: pos_integer() | nil
+        }
+
+  @type output :: %__MODULE__{
+          namespace: binary(),
+          owner: binary(),
+          criticality: criticality(),
+          state: output_state(),
           schema_digest: binary() | nil,
           a2a_uri: binary(),
           promoted_at_revision: pos_integer() | nil
@@ -163,11 +177,11 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   end
 
   @doc "The compiled registry entries (the registered namespaces and their lifecycle states)."
-  @spec registered_extensions() :: [t()]
+  @spec registered_extensions() :: [output()]
   def registered_extensions, do: entries()
 
   @doc false
-  @spec entry(binary()) :: {:ok, t()} | :error | {:error, AgentBlueprintProtocol.Error.t()}
+  @spec entry(binary()) :: {:ok, output()} | :error | {:error, AgentBlueprintProtocol.Error.t()}
   def entry(namespace) when is_binary(namespace),
     do: Map.fetch(by_namespace(), namespace)
 

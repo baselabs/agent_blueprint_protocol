@@ -76,7 +76,8 @@ defmodule AgentBlueprintProtocol.WalkthroughTest do
     assert reconciled.binds?
     assert reconciled.deny_posture == :protected_bound_clamp_denied
     assert reconciled.without_the_producer_key == :signature_key_unsupported
-    assert :signature_time_validity in reconciled.not_verified
+    assert :signature_created_at in reconciled.not_verified
+    assert :lifecycle_state in reconciled.not_verified
 
     index = File.read!("priv/conformance/index.json") |> JSON.decode!()
     total = index["total_cases"]

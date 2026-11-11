@@ -38,6 +38,42 @@ For identity comparisons across releases, keep the protocol fields separate from
 
 Releases with the same `verification_semantics_version` and unchanged registry census certify equivalent outcomes for the released cases. A semantics-version change marks changed computation. A registry digest change calls for a deliberate re-pin because the known extension vocabulary changed.
 
+## Compatible consumers within 1.x
+
+The error-code set and meanings stay closed: exhaustive `ErrorCode` switches
+are safe. Notices, evidence surfaces and check kinds, detail variants, and
+returned signature algorithm and purpose identifiers are open. Find the
+names you know, retain a default branch, and never count an unknown entry
+as proof. Select only the Elixir struct fields you use:
+
+```elixir
+case result do
+  {:ok, %AgentBlueprintProtocol.Evidence{checks: checks}} ->
+    Enum.filter(checks, fn
+      %{surface: :digest, verified: true} -> true
+      _ -> false
+    end)
+  {:error, %AgentBlueprintProtocol.Error{code: code}} -> {:error, code}
+end
+```
+
+```ts
+import { type Notice } from "@agent-blueprint-protocol/verifier";
+function deprecated(notice: Notice): boolean {
+  switch (notice) {
+    case "extension_deprecated": return true;
+    default: return false;
+  }
+}
+```
+
+Ignore unknown additive members in the release manifest, but reject unknown
+values in `prior_census_verdicts`. An unknown nonzero harness exit is failure.
+Earlier corpus claims remain valid for their exact corpus digest. New wire
+revisions and execution versions are explicit choices, with earlier versions
+supported throughout the major. The [stability policy](stability.md) lists
+all additive paths and the runtime and compiler floors.
+
 ## Next steps
 
 - [Migration guide](migrating-to-1.0.md)

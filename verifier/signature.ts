@@ -152,7 +152,7 @@ function parseParts(entry: Value): { ok: true; v: Parts } | Failure {
   }
 
   const keyId = memberString(attrs, "key_id");
-  if (keyId === null || keyId === "" || keyId.includes(".")) return malformed(["signed_attributes"]);
+  if (keyId === null || keyId === "") return malformed(["signed_attributes"]);
 
   const purpose = memberString(attrs, "purpose");
   if (purpose === null || !PURPOSES.has(purpose)) return malformed(["signed_attributes"]);

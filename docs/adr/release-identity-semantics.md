@@ -104,3 +104,12 @@ Final publication compares against the highest candidate tag for that exact
 final version; an absent candidate refuses publication. A source correction
 requires another candidate. Its calibration accepts
 a version-only edit and rejects a seeded library edit in a scratch value.
+
+The candidate also accepts periods in detached signature key identifiers
+under RFC 7797 §5.1, within semantics version 2. Released censuses retain
+`equivalent` claims because none changes a projected verdict. In the current
+candidate corpus, `reconcile-signature-blueprint-key-id` and
+`reconcile-signature-deployment-key-id` still deny `signature_malformed`:
+their unchanged mismatched identifiers now reach the equality check, whose
+subject is the signature entry rather than `signed_attributes`. Their inputs
+and signature bytes remain unchanged.

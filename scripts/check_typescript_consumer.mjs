@@ -36,12 +36,22 @@ try {
   assert.deepEqual(codes,[...declared,...ceilings].sort(),'ErrorCode differs from Elixir source');
   if(process.argv[2]==='--error-codes')assert.deepEqual(codes,JSON.parse(process.argv[3]).sort(),'ErrorCode differs from Error.codes/0 and ceiling_keys/0');
   const source="import {decodeBlueprint,type ErrorCode,type Result,type Blueprint} from '@agent-blueprint-protocol/verifier';\nconst result:Result<Blueprint>=decodeBlueprint(new Uint8Array());\nexport function describe(code:ErrorCode):string {switch(code){\n"+codes.map(c=>'case '+JSON.stringify(c)+':return '+JSON.stringify(c)+';').join('\n')+'\ndefault:{const exhaustive:never=code;return exhaustive;} }}\n';
-  writeFileSync(join(scratch,'consumer.ts'),source);
-  writeFileSync(join(scratch,'tsconfig.json'),JSON.stringify({compilerOptions:{module:'nodenext',moduleResolution:'nodenext',target:'es2023',lib:['es2023'],types:[],strict:true,skipLibCheck:false,noEmit:true},files:['consumer.ts']}));
-  const tsc=join(root,'node_modules/typescript/bin/tsc');
-  command(process.execPath,[tsc,'-p','tsconfig.json']);
-  writeFileSync(join(scratch,'consumer.ts'),source.replace('case '+JSON.stringify(codes[0])+':return '+JSON.stringify(codes[0])+';',''));
-  const missing=command(process.execPath,[tsc,'-p','tsconfig.json'],scratch,1);assert.match(missing.stdout,/never/);
+  const forward="import {KNOWN_NOTICES,KNOWN_EVIDENCE_SURFACES,KNOWN_EVIDENCE_CHECK_KINDS,KNOWN_SIGNATURE_ALGORITHMS,KNOWN_SIGNATURE_PURPOSES,type Notice,type EvidenceSurface,type EvidenceCheckKind,type SignatureAlgorithm,type SignaturePurpose,type SignedAttributes,type PublicKey,type Support} from '@agent-blueprint-protocol/verifier';\n"+
+    "const notice:Notice='future_notice';const surface:EvidenceSurface='future_surface';const kind:EvidenceCheckKind='future_check';const algorithm:SignatureAlgorithm='future_algorithm';const purpose:SignaturePurpose='future_purpose';\n"+
+    "const signed:SignedAttributes={algorithm,purpose,contentDigest:'',createdAt:'',keyId:''};\n"+
+    "// @ts-expect-error verification input algorithms remain strict\nconst unsupported:PublicKey={algorithm:'future_algorithm',keyId:'',key:new Uint8Array()};\n"+
+    "// @ts-expect-error negotiation input lifecycle states remain strict\nconst state:Support['registry'][string]['state']='future_state';\n"+
+    "export function inspectNotice(value:Notice):boolean {switch(value){case KNOWN_NOTICES.extension_deprecated:return true;default:return false;}}\n";
+  writeFileSync(join(scratch,'consumer.ts'),source+forward);
+  writeFileSync(join(scratch,'tsconfig.json'),JSON.stringify({compilerOptions:{module:'nodenext',moduleResolution:'nodenext',target:'es2022',lib:['es2022'],types:[],strict:true,skipLibCheck:false,noEmit:true},files:['consumer.ts']}));
+  for(const compiler of ['typescript-floor','typescript']) {
+    const tsc=join(root,'node_modules',compiler,'bin/tsc');
+    writeFileSync(join(scratch,'consumer.ts'),source+forward);
+    command(process.execPath,[tsc,'-p','tsconfig.json']);
+    writeFileSync(join(scratch,'consumer.ts'),(source+forward).replace('case '+JSON.stringify(codes[0])+':return '+JSON.stringify(codes[0])+';',''));
+    const missing=command(process.execPath,[tsc,'-p','tsconfig.json'],scratch,compiler==='typescript-floor'?2:1);assert.match(missing.stdout,/never/);
+    console.log(compiler+': packed declarations, open identifiers, default notice switch, and exhaustive ErrorCode passed; missing case failed');
+  }
   for(const runtime of ['bun','deno']){const r=spawnSync(runtime,['--version'],{encoding:'utf8'});if(r.error?.code==='ENOENT'){console.log(runtime+': unavailable');continue;}const args=runtime==='bun'?['run','consumer.mjs',root]:['run','--allow-read','consumer.mjs',root];process.stdout.write(command(runtime,args).stdout);}
   console.log('consumer: root ESM import, isolated declarations, and exhaustive ErrorCode passed; missing case failed');
 }finally{rmSync(scratch,{recursive:true,force:true});}

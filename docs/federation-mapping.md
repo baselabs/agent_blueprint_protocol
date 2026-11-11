@@ -7,8 +7,9 @@ against the live sources below: **3 fields map natively, 5 partially, and 15
 have no safe native home** — so no protocol-native wire field and no native
 transport are warranted. The profile is one registered extension
 (`io.github.baselabs/federation`, critical) carried inside each transport's
-untyped extension channel, with the same JCS-canonical object and the same
-detached Ed25519 signature envelope on both.
+untyped extension channel alongside native identifiers and state. Both
+transports reconstruct the same logical JCS-canonical envelope and detached
+Ed25519 signature before verification.
 
 ## Pinned sources (re-derived 2026-11-10)
 
@@ -99,7 +100,20 @@ The envelope rides `Task.metadata[<a2a_uri>]` on A2A (keyed by the
 registry entry's `https://baselabs.github.io/agent_blueprint_protocol/extensions/federation`, following
 A2A's URI-keyed metadata convention) and `_meta["io.github.baselabs/federation"]`
 on MCP (the reverse-DNS namespace; the MCP `_meta` key grammar forbids a
-`://` URI key). The same JCS-canonical object under both.
+`://` URI key). The body excludes `task_identity`, `recovery_handle`,
+`checkpoint_status`, and `terminal_state`. A2A `id` and MCP `taskId` each
+supply both identity and recovery handle, which must be equal to encode.
+A2A `status.state` and MCP `status` supply the observed state through their
+state codecs; terminal states populate `terminal_state`, other states
+`checkpoint_status`. Every other present logical member rides the body,
+including all partially mapped members except terminal state. Native logical
+members in the body deny `federation_mapping_conflict`. Reconstruction
+precedes closed-envelope validation and receipt verification. An envelope
+without an observed state cannot be encoded as a Task.
+
+`resource_policy.cost` counts millionths of one unit of the currency in the
+bound Deployment Manifest's `host_bounds.max_cost`, regardless of that
+currency's minor-unit exponent.
 
 State mapping is explicit and lossy-aware: A2A
 `TASK_STATE_UNSPECIFIED` denies `:federation_state_unmappable` at intake;
@@ -163,8 +177,9 @@ validation work or crash later digest encodes with non-UTF-8 bytes.
 ARTIFACT-side critical-extension body a Blueprint declares (the
 digest-pinned issuer/subject/audience trio in the compiled-in extension
 registry, validated at negotiation) and the WIRE-side TaskEnvelope
-extension body (the 23-member JCS object under the carrier key, validated
-by the Federation field table, which never passes through negotiation).
+extension body (all present logical members except the four reconstructed
+from native fields, combined before validation by the Federation field table,
+which never passes through negotiation).
 The artifact-side schema is a frozen-digest contract for a different
 surface; widening it to cover the envelope would re-pin a shipped digest
 for no negotiation-time gain.

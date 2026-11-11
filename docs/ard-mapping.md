@@ -29,7 +29,7 @@ signature envelope is interchangeable with ABP's.
 | ABP surface | Discovery-side fact | Relationship |
 |---|---|---|
 | Artifact identity | Catalog entries have a content digest; URL artifacts hash retrieved bytes and inline data hashes JCS bytes | ABP content digests use a different, domain-separated preimage |
-| Signatures | Catalog uses detached compact JWS over a JCS payload, requires a protected type marker, and forbids the `b64` header | ABP uses RFC 7797 `b64=false`; signatures are not interchangeable |
+| Signatures | Catalog uses detached compact JWS over a JCS payload, requires the protected `typ` marker, and forbids the protected `b64` header | ABP uses RFC 7797 `b64=false`; signatures are not interchangeable |
 | Subject binding | A signed catalog manifest binds its contributor and subject; release coverage compares identifier, type, digest and optional version | These discovery checks do not establish ABP structure, bounds or deployment binding |
 | Capability discovery | ARD has capability tokens and JSON-LD extension terms | Tokens do not provide ABP's typed port, bound, effect or evaluation contracts |
 | Artifact location | Catalog entries reference `url` or embed `data` | An entry can point at canonical ABP bytes; retrieval does not imply verification |
