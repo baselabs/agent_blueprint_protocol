@@ -6,7 +6,7 @@ engine identifiers. The guard is structural — member-name and
 value-shape denylists over the open regions, at any depth,
 name-spelling-normalized — and every class is red-cased in the corpus.
 
-## The honest limits (part of the contract)
+## The limits of portability (part of the contract)
 
 - The guard is necessary, not sufficient. Opaque quarantined extension
   bodies are typed as unscanned; portability claims attach only to

@@ -127,7 +127,10 @@ defmodule AgentBlueprintProtocol.MixProject do
       links: %{
         "GitHub" => @source_url,
         "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md",
-        "Security policy" => "#{@source_url}/blob/main/SECURITY.md"
+        "Security policy" => "#{@source_url}/blob/main/SECURITY.md",
+        "Documentation" => "https://hexdocs.pm/agent_blueprint_protocol",
+        "Specification" => "#{@source_url}/blob/main/spec/protocol.md",
+        "npm" => "https://www.npmjs.com/package/@agent-blueprint-protocol/verifier"
       }
     ]
   end
@@ -144,42 +147,40 @@ defmodule AgentBlueprintProtocol.MixProject do
       ],
       source_url: @source_url,
       groups_for_extras: [
-        "Getting started": [
-          "documentation/getting-started.md",
+        "Start here": [
+          "README.md",
           "documentation/quickstart.md",
           "documentation/typescript.md",
-          "documentation/examples.md",
-          "docs/livebooks/abp-walkthrough.livemd"
+          "documentation/migrating-to-1.0.md",
+          "documentation/stability.md"
         ],
+        Livebooks: ["docs/livebooks/abp-walkthrough.livemd"],
         Concepts: [
           "documentation/what-a-blueprint-is.md",
           "documentation/what-a-deployment-is.md",
-          "documentation/portability.md",
-          "documentation/federation.md"
-        ],
-        "Guides by role": [
+          "documentation/federation.md",
+          "documentation/examples.md",
           "documentation/producer.md",
-          "documentation/extension-author.md",
-          "documentation/host-integration.md",
-          "documentation/operations.md"
+          "documentation/host-integration.md"
         ],
         Reference: [
           "documentation/errors.md",
-          "documentation/evidence-commitments.md",
-          "documentation/registry.md",
-          "documentation/upgrading.md",
-          "documentation/stability.md",
           "documentation/faq.md",
-          "README.md",
+          "documentation/upgrading.md",
+          "documentation/registry.md",
+          "documentation/extension-author.md",
+          "documentation/evidence-commitments.md",
+          "docs/ard-mapping.md",
+          "documentation/portability.md",
+          "documentation/glossary.md",
           "CHANGELOG.md"
         ],
         Specification: [
           "spec/protocol.md",
           "spec/conformance/runner.md",
-          "spec/conformance/execution.md",
-          "docs/federation-mapping.md",
-          "docs/ard-mapping.md"
+          "spec/conformance/execution.md"
         ],
+        Conformance: ["documentation/conformance.md"],
         "Design records": [
           "docs/adr/compiled-registry.md",
           "docs/adr/dependency-currency-gate.md",
@@ -202,47 +203,44 @@ defmodule AgentBlueprintProtocol.MixProject do
         ],
         Governance: [
           "spec/IPR.md",
-          "spec/FOUNDATION-TRANSITION.md",
+          "spec/errata.md",
           "spec/registry/OPERATIONS.md",
           "CONTRIBUTING.md",
-          "SECURITY.md",
-          "CODE_OF_CONDUCT.md",
           "SUPPORT.md",
+          "CODE_OF_CONDUCT.md",
+          "SECURITY.md",
           "usage-rules.md",
           "LICENSE",
           "NOTICE"
         ]
       ],
       extras: [
-        "spec/IPR.md",
-        "spec/FOUNDATION-TRANSITION.md",
-        "spec/registry/OPERATIONS.md",
         "README.md",
         "CHANGELOG.md",
-        "documentation/getting-started.md",
         "documentation/quickstart.md",
-        "documentation/examples.md",
-        "docs/livebooks/abp-walkthrough.livemd",
         "documentation/typescript.md",
+        "documentation/migrating-to-1.0.md",
+        "documentation/stability.md",
+        "docs/livebooks/abp-walkthrough.livemd",
         "documentation/what-a-blueprint-is.md",
         "documentation/what-a-deployment-is.md",
-        "documentation/extension-author.md",
-        "documentation/host-integration.md",
-        "documentation/producer.md",
         "documentation/portability.md",
-        "documentation/errors.md",
-        "documentation/evidence-commitments.md",
         "documentation/federation.md",
-        "documentation/registry.md",
-        "documentation/upgrading.md",
-        "documentation/stability.md",
+        "documentation/examples.md",
+        "documentation/producer.md",
+        "documentation/host-integration.md",
+        "documentation/errors.md",
         "documentation/faq.md",
-        "documentation/operations.md",
+        "documentation/upgrading.md",
+        "documentation/registry.md",
+        "documentation/extension-author.md",
+        "documentation/evidence-commitments.md",
+        "docs/ard-mapping.md",
+        "documentation/glossary.md",
         "spec/protocol.md",
         "spec/conformance/runner.md",
         "spec/conformance/execution.md",
-        "docs/federation-mapping.md",
-        "docs/ard-mapping.md",
+        "documentation/conformance.md",
         "docs/adr/compiled-registry.md",
         "docs/adr/dependency-currency-gate.md",
         "docs/adr/deny-default-clamps.md",
@@ -261,10 +259,16 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/verification-results.md",
         "docs/adr/public-surface-privacy.md",
         "docs/adr/two-consumer-amendment.md",
-        "LICENSE",
-        "NOTICE",
+        "CONTRIBUTING.md",
+        "SUPPORT.md",
+        "CODE_OF_CONDUCT.md",
         "SECURITY.md",
-        "usage-rules.md"
+        "spec/errata.md",
+        "spec/IPR.md",
+        "spec/registry/OPERATIONS.md",
+        "usage-rules.md",
+        "LICENSE",
+        "NOTICE"
       ]
     ]
   end

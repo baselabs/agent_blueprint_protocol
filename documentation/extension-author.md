@@ -32,6 +32,6 @@ with typed errors, not silence.
 
 ## Registering
 
-See the specification tree's registry operations process:
-qualification, the mirrored-twins change, the corpus rebind. The
-registry carries published facts, never authority.
+See the registry operations guide for qualification, updating both
+language packages, and refreshing the corpus binding. The registry
+carries published facts, never authority.

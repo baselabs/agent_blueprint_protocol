@@ -27,7 +27,7 @@ defmodule AgentBlueprintProtocol.CiNodeToolchainTest do
     refute platforms =~ "mix test --cover"
 
     assert File.read!("CONTRIBUTING.md") =~
-             "Coverage at 100% is enforced by the Linux quality lane"
+             "This Linux job alone enforces the 100% coverage threshold."
 
     assert position!(quality_job, setup_node) < position!(quality_job, "run: mix quality"),
            "the selected Node runtime must be active before the complete quality gate"

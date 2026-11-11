@@ -1,4 +1,4 @@
-import { mkdtempSync,readFileSync,writeFileSync,cpSync,rmSync,existsSync } from 'node:fs';
+import { mkdtempSync,mkdirSync,readFileSync,writeFileSync,cpSync,rmSync,existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join,resolve,dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -23,10 +23,11 @@ try {
   const claimed=sample.match(/console\.log\(.*\); \/\/ (\S+)\n/)[1];
   writeFileSync(join(scratch,'verify.mjs'),sample);
   const example=readFileSync('examples/echo-blueprint.json','utf8');
-  writeFileSync(join(scratch,'echo-blueprint.json'),example);
+  mkdirSync(join(scratch,'examples'),{recursive:true});
+  writeFileSync(join(scratch,'examples','echo-blueprint.json'),example);
   assert.equal(command(process.execPath,['verify.mjs']).stdout.trim(),claimed);
   const edited=example.replace('"max_attempts":3','"max_attempts":4');assert.notEqual(edited,example);
-  writeFileSync(join(scratch,'echo-blueprint.json'),edited);
+  writeFileSync(join(scratch,'examples','echo-blueprint.json'),edited);
   assert.notEqual(command(process.execPath,['verify.mjs']).stdout.trim(),claimed);
   const codes=[...readFileSync('verifier/errors.ts','utf8').matchAll(/\| "([^"]+)"/g)].map(x=>x[1]);
   const ex=readFileSync('lib/agent_blueprint_protocol/error.ex','utf8');

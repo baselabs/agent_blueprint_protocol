@@ -13,8 +13,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   - CHANGELOG.md opens with the entry for the current version (below an
     optional `Unreleased` section), and that entry carries the live corpus
     digest and case total;
-  - every count claim in README (tests, properties, corpus cases,
-    coverage) matches the live value.
+  - CONTRIBUTING.md states the live test, property, and coverage values;
+  - README.md states the live corpus case total and carries no other
+    test statistics.
   """
 
   use ExUnit.Case, async: true
@@ -37,10 +38,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
            "README install requirement is stale: #{inspect(pins)} — the " <>
              "current version is #{version}"
 
-    # npm kit commands in README stay unpinned: a kit release goes live on
-    # npm only after a maintainer approves its staged publish, so a pin to
-    # the current version can name a kit npm does not serve yet. The README
-    # says how to see which kit npx runs. Pure file read, no registry call.
+    # README npm commands use the release-candidate tag. The generic npm
+    # view sentence lets readers check the version available in the registry.
     npm_pins =
       ~r/@agent-blueprint-protocol\/verifier@[A-Za-z0-9.+-]+/
       |> Regex.scan(readme)
@@ -52,11 +51,30 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
                do: [],
                else: ["@agent-blueprint-protocol/verifier@rc"]
              ),
-           "README npm kit commands must stay unpinned (npx runs the latest " <>
-             "published kit), found #{inspect(npm_pins)}"
+           "README npm kit commands must use the release-candidate tag, found #{inspect(npm_pins)}"
 
     assert readme =~ "npm view @agent-blueprint-protocol/verifier",
            "README must say how to see which kit npx runs"
+
+    refute Regex.match?(~r/\b\d+ tests\b|\(\d+ properties\)|\b\d+% coverage\b/, readme),
+           "README must not carry test statistics"
+
+    contributing = File.read!("CONTRIBUTING.md")
+    assert_claim(contributing, ~r/\b(\d+) tests\b/, live_test_count(), "test count")
+
+    assert_claim(
+      contributing,
+      ~r/\((\d+) properties\)/,
+      live_property_count(),
+      "property count"
+    )
+
+    assert_claim(
+      contributing,
+      ~r/\b(\d+)% coverage\b/,
+      coverage_threshold(),
+      "coverage threshold"
+    )
 
     security = File.read!(@security_path)
 
@@ -90,6 +108,16 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
 
     assert Regex.match?(~r/\b#{total} cases\b/, entry),
            "the CHANGELOG entry for #{version} does not state \"#{total} cases\""
+
+    readme = File.read!(@readme_path)
+    assert_claim(readme, ~r/\b(\d+)(?:-case\b|\s+cases\b)/, total, "corpus case count")
+
+    assert_optional_claim(
+      File.read!("CONTRIBUTING.md"),
+      ~r/\b(\d+)(?:-case\b|\s+cases\b)/,
+      total,
+      "corpus case count"
+    )
   end
 
   test "no shipped document outside the release docs carries a stale concrete version claim" do
@@ -104,7 +132,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
           file not in release_docs,
           content = File.read!(file),
           claim <- version_claims(content),
-          String.trim_leading(claim, "v") != version,
+          not allowed_document_version?(file, String.trim_leading(claim, "v"), version),
           uniq: true do
         {file, claim}
       end
@@ -165,12 +193,15 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   # A version claim is a three-part number standing ALONE (not a
   # §-prefixed section reference, not part of a longer dotted
   # sequence like RFC subsection numbering). Bare-number matches
-  # require a word boundary, so a `v`-tagged token (v1.0.0) does not
-  # match — external projects' release tags (the A2A v1.x tags in the
-  # federation mapping) stay exempt BY that mechanism. Every
-  # this-project version is 0.x, so v-tagged 0.x tokens are scanned
-  # separately and must also name the current version.
+  # require a word boundary, so a `v`-tagged token does not match. Scan
+  # this-project version tags separately so they must name the current
+  # release, including its prerelease identifier.
   defp version_claims(content) do
+    # Version text in a Markdown link destination can include an archive
+    # extension, which is not a package-version claim (for example, a
+    # release asset ending in `.tar.gz`). Scan the linked label and prose.
+    content = Regex.replace(~r/\]\([^)]*\)/, content, "](link)")
+
     bare =
       ~r/(?<!§)(?<!\.)\b\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\b(?!\.)/
       |> Regex.scan(content)
@@ -184,40 +215,44 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     bare ++ vtagged
   end
 
-  test "README count claims match the live test tree and corpus index" do
-    readme = File.read!(@readme_path)
-    index = File.read!(@index_path)
+  defp current_version, do: Mix.Project.config()[:version]
 
-    assert_claim(readme, ~r/\b(\d+) tests\b/, live_test_count(), "test count")
-    assert_claim(readme, ~r/\((\d+) properties\)/, live_property_count(), "property count")
+  # The migration guide must show the exact previous package pin it
+  # replaces. CONTRIBUTING may name the exact toolchain versions from CI.
+  defp allowed_document_version?("documentation/migrating-to-1.0.md", claim, version),
+    do: claim in [version, "0.8.4"]
 
-    assert_claim(
-      readme,
-      ~r/\b(\d+)(?:-case\b|\s+cases\b)/,
-      json_number(index, "total_cases"),
-      "corpus case count"
-    )
-
-    assert_claim(readme, ~r/\b(\d+)% coverage\b/, coverage_threshold(), "coverage threshold")
+  defp allowed_document_version?("CONTRIBUTING.md", claim, version) do
+    claim == version or claim in ci_toolchain_versions()
   end
 
-  # Every match of the claim pattern must state the live value, and at
-  # least one claim of each kind must stay present — a README that stops
-  # making the claim is as stale as one making a wrong one.
+  defp allowed_document_version?(_file, claim, version), do: claim == version
+
+  defp ci_toolchain_versions do
+    workflow = File.read!(".github/workflows/ci.yml")
+
+    ~r/(?:node-version|elixir-version|otp-version|elixir):\s*"(\d+\.\d+\.\d+)(?:-otp-\d+(?:\.\d+)*)?"/
+    |> Regex.scan(workflow)
+    |> Enum.map(fn [_, version] -> version end)
+    |> Enum.uniq()
+  end
+
+  defp coverage_threshold, do: Mix.Project.config()[:test_coverage][:summary][:threshold]
+
   defp assert_claim(doc, regex, expected, label) do
     claims = regex |> Regex.scan(doc) |> Enum.map(fn [_, value] -> value end)
 
-    assert claims != [], "README makes no #{label} claim — the claim must stay present"
+    assert claims != [], "CONTRIBUTING.md or README.md makes no #{label} claim"
 
     stale = Enum.uniq(claims) -- [to_string(expected)]
-
-    assert stale == [],
-           "README #{label} claims #{inspect(stale)} — the live value is #{expected}"
+    assert stale == [], "#{label} claims #{inspect(stale)} — the live value is #{expected}"
   end
 
-  defp current_version, do: Mix.Project.config()[:version]
-
-  defp coverage_threshold, do: Mix.Project.config()[:test_coverage][:summary][:threshold]
+  defp assert_optional_claim(doc, regex, expected, label) do
+    claims = regex |> Regex.scan(doc) |> Enum.map(fn [_, value] -> value end)
+    stale = Enum.uniq(claims) -- [to_string(expected)]
+    assert stale == [], "#{label} claims #{inspect(stale)} — the live value is #{expected}"
+  end
 
   # Every hex requirement string in README is an install pin; they must all
   # name the current version.
@@ -259,7 +294,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     end
   end
 
-  # README's "N tests" claim states the ExUnit total (test macros plus
+  # CONTRIBUTING's "N tests" claim states the ExUnit total (test macros plus
   # property macros); the suite-registered count (.test_census, written
   # at suite end) is tied to this census by the release-candidate
   # check, which runs AFTER the test step of the battery.

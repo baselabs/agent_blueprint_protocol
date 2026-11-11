@@ -24,8 +24,8 @@ historical replays?**
 Bind the replay-identity fields (`manifest_version`,
 `verification_semantics_version`, `protocol_revision`,
 `registry_digest`, the artifact digests, `effective_bounds`) and record
-the provenance fields (`package_version`, package checksum,
-`corpus_digest`, `spec_digest`) as metadata. Upgrades between releases
+the provenance fields (`package_version`, `corpus_digest`,
+`spec_digest`) as metadata. Upgrades between releases
 that share a semantics version and an unchanged registry census replay
 green; registry movement conflicts by design (it is the fail-closed
 vocabulary detector); a true semantics change conflicts loudly on the
@@ -34,9 +34,9 @@ integer. The full partition and its reasoning:
 
 **Why is the registry compiled in?**
 Registry content is a code release: drift between shipped code and a
-shipped registry file would be unrepresentable. The
-governance-canonical json is bound to both compiled twins by the
-registry-equality gate.
+shipped registry file would be unrepresentable. The governance-canonical
+JSON is compared with the Elixir module and TypeScript verifier registry
+by the registry-equality check.
 
 **How do I run the corpus in my own language?**
 The runner protocol is `verifier/RUNNER.md` in the repository (and in

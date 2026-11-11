@@ -60,9 +60,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     documentation/extension-author.md
     documentation/faq.md
     documentation/federation.md
-    documentation/getting-started.md
     documentation/host-integration.md
-    documentation/operations.md
     documentation/portability.md
     documentation/producer.md
     documentation/registry.md
@@ -113,6 +111,9 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/typescript-library-surface.md
     docs/adr/verification-results.md
     documentation/stability.md
+    documentation/conformance.md
+    documentation/glossary.md
+    documentation/migrating-to-1.0.md
     spec/conformance/base64url-decode.schema.json
     spec/conformance/blueprint-decode.schema.json
     spec/conformance/bounds-new.schema.json

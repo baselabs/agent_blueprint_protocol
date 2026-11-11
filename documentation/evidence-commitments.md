@@ -31,7 +31,7 @@ What a Blueprint offers on that surface is structure, not compliance:
   operational envelope a logging system watches; the deployment
   manifest's evaluation binding names the evaluation corpus by digest.
 
-The honest boundary: this protocol does not log anything, satisfy an
+The protocol boundary: this package does not log anything, satisfy an
 article, or certify a system. Logging systems do the logging, and
 conformity assessment stays with the bodies that perform it. A
 blueprint makes the producer's claims verifiable so the human and

@@ -1,87 +1,81 @@
-# Quickstart — verify your first artifact
+# Quickstart
 
-From nothing to a green verification in minutes. No heavyweight gates —
-one dependency and `iex`.
+This guide is for Elixir developers who want to verify an [artifact](glossary.md#artifact). You will load the shipped Blueprint, inspect a typed denial, and run the shipped conformance corpus.
 
-## 1. Install
+## Prerequisites
 
-```bash
-mix new my_verification && cd my_verification
+Install Elixir 1.19 or newer with OTP 27, 28, or 29.
+
+## Install
+
+Create a Mix project and add the dependency to its `mix.exs` file:
+
+```sh
+mix new verify_blueprint
+cd verify_blueprint
 ```
 
-Add the dependency:
+Replace the generated `deps/0` body with this excerpt:
 
 ```elixir
 defp deps do
-  [
-    {:agent_blueprint_protocol, "~> 1.0.0-rc.1"}
-  ]
+  [{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}]
 end
 ```
 
-Fetch and start:
+Fetch the dependency and start IEx:
 
-```bash
+```sh
 mix deps.get
 iex -S mix
 ```
 
-## 2. Verify a real artifact
+## Decode the shipped Blueprint
 
-Fetch the shipped example — a byte-exact conformance-corpus case — and
-verify it. The package requires Elixir 1.19+ and nothing else; it is
-built and tested across the supported OTP set (27/28/29).
-
-```bash
-mkdir -p examples
-curl -fsSL -o examples/echo-blueprint.json \
-  https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/main/examples/echo-blueprint.json
-```
-
-In `iex`:
+A [Blueprint](glossary.md#blueprint) is a JSON artifact that describes an agent's capabilities and bounds. The Hex package includes the example under `examples/`.
 
 ```elixir
-bytes = File.read!("examples/echo-blueprint.json")
+dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+example_path = Path.join(dependency_root, "examples/echo-blueprint.json")
+bytes = File.read!(example_path)
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
-{:ok, same} = AgentBlueprintProtocol.canonical_bytes(blueprint)
-same == bytes # => true
+AgentBlueprintProtocol.canonical_bytes(blueprint) == {:ok, bytes} # => true
 ```
 
-That green `true` is the full pipeline: canonical bytes verified, the
-example's 16 members validated against the 18-member Blueprint table,
-the portability scan passed, the content digest matched — and the decode round-trips byte-exactly, because
-the bytes ARE the artifact's identity. A typed fact — never authority.
-
-## 3. See a typed denial
-
-The closed world denies unknowns before any digest work — with a value
-that is NOT a Blueprint at all:
+The last expression returns:
 
 ```elixir
-{:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode({:object, [{"a", {:integer, 1}}]})
-AgentBlueprintProtocol.Json.decode(bytes) # => {:ok, {:object, [{"a", {:integer, 1}}]}}
-AgentBlueprintProtocol.decode_blueprint(bytes) # => {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
+true
 ```
 
-`a` is not a Blueprint member — the denial is typed, and there is never a
-silent repair.
+## Read a typed denial
 
-## 4. The corpus (what the package proves about itself)
+Fallible calls return `%AgentBlueprintProtocol.Error{}` values. This input has an unknown top-level member:
 
-The package you installed ships a 199-case conformance corpus, and its
-release was gated on that corpus passing plus a mutation gate (the
-corpus must catch seventeen named implementation breaks) and byte-agreement
-with an independent TypeScript verifier. You consume an already
-verified package; the corpus and the standalone verification kit (the
-verifier + corpus tarball) are attached to every git release tag if
-you want to re-run the evidence yourself.
+```elixir
+{:error, %AgentBlueprintProtocol.Error{} = error} = AgentBlueprintProtocol.decode_blueprint(~s({"unknown":true}))
 
-That is the whole verification surface: canonical bytes, typed
-denials, a digest-bound corpus — and no authority granted anywhere.
+error.code # => :unknown_member
+```
 
-## 5. Next
+## Run the shipped corpus
 
-The [Livebook walkthrough](../docs/livebooks/abp-walkthrough.livemd)
-composes and signs a Blueprint of your own, negotiates its extensions,
-binds a Deployment Manifest, reconciles the pair, and runs the attacks
-that fail closed.
+The package includes a [conformance corpus](glossary.md#conformance-corpus) under `priv/conformance/`. Load its files through the public corpus, runner, and report functions:
+
+```elixir
+root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+files = Path.wildcard(Path.join(root, "**/*")) |> Enum.filter(&File.regular?/1)
+files = Map.new(files, fn path -> {Path.relative_to(path, root), File.read!(path)} end)
+{:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
+report = AgentBlueprintProtocol.Conformance.Report.build(corpus, results)
+report.agreement # => true
+```
+
+## Next steps
+
+- [TypeScript guide](typescript.md)
+- [Conformance guide](conformance.md)
+- [Livebook walkthrough](../docs/livebooks/abp-walkthrough.livemd)
+- [Glossary](glossary.md)
+- [Protocol specification](../spec/protocol.md)

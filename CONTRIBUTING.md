@@ -1,108 +1,104 @@
-# Contributing to the Agent Blueprint Protocol
+# Contributing
 
-Contributions are accepted under the Developer Certificate of Origin:
-commit with `git commit -s`. No CLA. Licensing is Apache-2.0 (see the
-specification tree's IPR statement for the patent posture).
+This guide is for people changing the protocol, its implementations, or its documentation. You will be able to run focused checks and prepare a contribution.
 
-## The verification battery
+Contributions use the Developer Certificate of Origin. Sign commits with `git commit -s`. No contributor license agreement is required. The project uses Apache-2.0; see [LICENSE](LICENSE).
 
-Every change runs the full battery; a change is done when the battery
-is green end-to-end and the gates it touches carry red proofs.
+## Prerequisites
 
-```bash
-mix deps.get
-mix quality
+Use Elixir 1.19 or newer with OTP 27, 28, or 29. Install Node.js 24 or newer for the TypeScript verifier and package checks. The development toolchain versions are listed in `.tool-versions`.
+
+## Local checks
+
+Run focused checks for the files you change. For example:
+
+```sh
+mix format --check-formatted
+mix compile --warnings-as-errors
+mix test test/architecture
+mix docs --warnings-as-errors
+mix typescript.guide
 ```
 
-`mix quality` runs, in order: dependency audits (retirement, the
-unused-lock-entry check `deps.unlock --check-unused`, security
-advisories, and latest-release currency), formatting, warnings-as-errors
-compilation, strict Credo, the test suite with the 100% coverage
-threshold, the conformance corpus and its mutation gate, the npm kit
-build, the TypeScript guide's import example, the second-language
-verifier agreement gate (Node >= 24
-required), the compatibility replay, Dialyzer, docs with
-warnings-as-errors, the specification-extraction check, the
-grammar-derivation gate, the registry-equality gate, the release-asset
-gate, and the release-candidate check (requirement-map completeness, the
-specification's coupling to the implementation, the release identity
-chain, and the reprove pass that replants every recorded red).
+The public examples have checks of their own. The Elixir documentation examples and Livebook cells run through tests. `mix typescript.guide` installs the packed npm kit in a scratch project and checks the TypeScript guide's import example.
 
-Prerequisites: Elixir on the enforced `~> 1.19` range (1.19 or 1.20) on
-a supported OTP major — 27, 28, or 29, refused before anything compiles
-by `config/config.exs` (see `docs/adr/supported-otp-set.md`) — and
-Node >= 24 (the verifier agreement step invokes the TypeScript
-verifier). The dev toolchain pin lives in `.tool-versions`; the four
-toolchain declarations (Elixir range, supported-OTP set, dev pin, CI
-lanes) move together in one commit. One test — the public-surface
-privacy history scan — reads a local HMAC key
-(`ABP_PUBLIC_PRIVACY_HMAC_KEY`) that maintainers provision; CI holds it
-as a secret. On fork pull requests, where GitHub passes no secrets, that
-test skips loudly (a `[privacy-scan] SKIPPED` banner names exactly what
-did not run); every other context enforces it.
+To run the corpus from the repository checkout:
 
-## How to propose a change
+```sh
+mix conformance.verify
+```
 
-- **Bugs and divergences from the specification** — open a bug-report
-  issue first if the expected behavior is unclear; otherwise a PR with
-  the failing case added to the relevant gate or corpus lane.
-- **Specification changes** — open a Discussion or issue describing the
-  member/semantics change BEFORE the PR: core member additions require a
-  protocol revision increment, corpus cases, and grammar regeneration, so
-  the shape should be agreed while it is still cheap to change.
-- **Extension registrations** — file a registry-request issue; the
-  process and its rules live in `spec/registry/OPERATIONS.md`.
-- **Documentation** — PRs welcome; every result-claiming guide example is
-  mirror-tested, the Livebook walkthrough
-  (`docs/livebooks/abp-walkthrough.livemd`) runs cell by cell in the test
-  suite against its printed outputs, and the TypeScript guide's import
-  example runs against the packed kit (`mix typescript.guide`), so examples that do not run fail
-  the build.
+The command prints a canonical aggregate report. Exit `0` means agreement, `1` means disagreement, `2` means invalid usage or corpus data, and `3` means an internal error.
 
-New to the codebase? The guides listed in `mix.exs` `groups_for_extras`
-are the map; `docs/design/requirement-map.md` is the inventory of every
-gate and its recorded red proof. The public roadmap is the deferred-work
-registry in `spec/FOUNDATION-TRANSITION.md` — every deferred item names
-the trigger that reopens it.
+The package's `mix quality` alias runs dependency audits, formatting, compilation, strict Credo, tests with the configured coverage threshold, conformance checks, the npm kit build, TypeScript checks, Dialyzer, documentation, specification checks, and release checks. CI runs this alias in its Linux quality job.
 
-Review expectations: the battery runs on every PR; the maintainer reviews
-against the specification and the requirement map. A green CI on a fork
-PR does not include the privacy history scan (it cannot — GitHub passes
-no secrets to forks); that gate runs on merge into `main` and on
-maintainer branches.
+The suite currently defines 998 tests (64 properties). The coverage threshold is 100% coverage.
 
-## What every gate owes
+## CI jobs
 
-Every build-failing gate in this repository carries a recorded red
-proof in `docs/design/requirement-map.md` (the exact mutation, the
-command, the verbatim failing output), and the release-candidate
-reprove replants the acceptance spine on every run. New gates arrive
-with their red quoted, never asserted.
+The [CI workflow](.github/workflows/ci.yml) defines these jobs:
 
-## Specification changes
+- **Workflow syntax** runs `actionlint` on Ubuntu 24.04.
+- **Secret scan** runs `gitleaks` over full repository history on Ubuntu 24.04.
+- **Specification extraction** filters the repository to `spec/` and `priv/conformance/`. It then checks the standalone copy.
+- **Compatibility** runs on Ubuntu 24.04 with Node 24.19.0. Its entries are Elixir 1.19.6 / OTP 28.5, Elixir 1.20.4 / OTP 28.5, and Elixir 1.20.4 / OTP 27.3.4.17. Each entry runs `mix test` and `mix conformance.verify`.
+- **Quality** runs on Ubuntu 24.04 with Node 24.19.0, Elixir 1.20.3, and OTP 29.0.3. It runs these commands:
 
-The specification tree (`spec/`) is the normative document set;
-identity changes (corpus, registry, specification text) must
-regenerate `priv/release-metadata.json` (`mix run --no-start
-scripts/generate_release_metadata.exs`) so the release identity chain
-stays honest. Fenced specification examples are corpus cases — bind
-them (`corpus:<case-id>`) or they red.
+  ```sh
+  npm ci --ignore-scripts --no-audit --no-fund
+  npm run build
+  mix quality
+  ```
 
-## Platform lanes and maintainer tools
+  This Linux job alone enforces the 100% coverage threshold.
+- **Platforms** run on Ubuntu 24.04, macOS 15, and Windows 2025. Each uses Node 24.19.0, Elixir 1.20.3, and OTP 29.0.3. These runs do not enable coverage instrumentation.
 
-Contributor CI checks fresh clone bytes and paths, dependency installation,
-compilation, the tests, both corpus runners, the external harness, and the
-packed consumer on Linux, macOS, and Windows. `.gitattributes` preserves
-bytes even with automatic line-ending conversion enabled. Use the `escript`
-launcher when running the built Elixir corpus executable on any platform.
-Coverage at 100% is enforced by the Linux quality lane. Platform lanes run
-without coverage instrumentation. The POSIX FIFO and permission-bit probes, and symlink creation requiring
-Windows privileges, skip on Windows with their reasons printed by ExUnit.
+  ```sh
+  node scripts/check_checkout.mjs
+  mix deps.get
+  mix compile --warnings-as-errors
+  npm ci --ignore-scripts --no-audit --no-fund
+  npm run build
+  node dist/kit/cli.mjs
+  mix test --seed 42
+  mix conformance.verify
+  mix conformance.product
+  mix typescript.guide
+  ```
 
-Publishing, gitleaks, actionlint, and the filtered specification extraction
-are maintainer tools run on Linux. These do not narrow consumer support.
-`mix conformance.product` checks the schemas, certified results, both external
-adapters and transport failures. `mix release.promote --check <rc-tag>` checks
-a final tree against its candidate; its no-argument mode calibrates the gate.
-The npm assembly root is `dist/package`; `npm pack ./dist/package
---ignore-scripts` produces the reviewed package with its own README.
+Package support details are in the [stability policy](documentation/stability.md).
+
+## Propose a change
+
+- **Behavior changes:** include a focused example or corpus case that shows the expected result.
+- **Specification changes:** update `spec/` and the documents that explain the affected public behavior. Keep the specification normative.
+- **Extension registrations:** follow [registry operations](spec/registry/OPERATIONS.md).
+- **Documentation:** keep examples runnable or label excerpts. The documentation mirror checks Elixir result examples, the Livebook tests its cells, and the TypeScript guide check uses the packed kit.
+
+When specification text, the corpus, or the registry changes, regenerate the release metadata:
+
+```sh
+MIX_ENV=test mix run --no-start scripts/generate_release_metadata.exs
+```
+
+## npm package releases
+
+The tagged GitHub Actions workflow uses npm trusted publishing to stage the package. A maintainer reviews and approves the staged version through npm's Staged Packages interface. The version becomes installable after approval. Local `npm publish` is not part of this release process.
+
+After approval, check the published version with `npm view @agent-blueprint-protocol/verifier version`. The release workflow verifies the installed kit against the tagged artifact before announcing completion.
+
+## Glossary
+
+- **Check:** an automated comparison that fails when an expected condition does not hold.
+- **Gate:** a check that must pass before a release step can continue.
+- **CI job:** one named unit of work in a workflow, such as `quality` or `compatibility`.
+- **Coverage threshold:** the minimum percentage required by the configured coverage check.
+- **Conformance corpus:** the inputs and expected results used to compare verifier implementations.
+- **Release metadata:** the public file that records the package version and current specification, registry, and corpus identities.
+
+## Next steps
+
+- [Quickstart](documentation/quickstart.md)
+- [TypeScript guide](documentation/typescript.md)
+- [Conformance guide](documentation/conformance.md)
+- [Stability policy](documentation/stability.md)

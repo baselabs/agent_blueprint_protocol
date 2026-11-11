@@ -8,10 +8,9 @@ unrepresentable.
 
 ## Governance
 
-The governance-canonical SOURCE is `spec/registry/registry.json`,
-bound to both compiled twins (the Elixir module and the TypeScript
-verifier's registry) and the corpus index by the registry-equality
-gate: all four carriers must carry the same canonical digest.
+The governance-canonical source is `spec/registry/registry.json`.
+The registry-equality check compares it with the Elixir registry module,
+the TypeScript verifier's registry, and the corpus index.
 
 ## Lifecycle
 

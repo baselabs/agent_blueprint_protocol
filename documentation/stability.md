@@ -31,17 +31,18 @@ versions can correct the candidate contract before final publication.
 
 | Surface | Supported versions | Platforms |
 |---|---|---|
-| Elixir compatibility lanes | Elixir 1.19 / OTP 28; Elixir 1.20 / OTP 27 or 28 | Linux |
-| Elixir library and contributor platform lanes | Elixir 1.20 / OTP 29 / Node 24 | Linux, macOS, Windows |
+| Elixir compatibility jobs | Elixir 1.19 / OTP 28; Elixir 1.20 / OTP 27 or 28 | Linux |
+| Elixir library and contributor platform jobs | Elixir 1.20 / OTP 29 / Node 24 | Linux, macOS, Windows |
 | TypeScript library and CLI | Node 24 | Linux, macOS, Windows |
 | Maintainer release tooling | pinned toolchain; POSIX shell, Go, Git | Linux |
 
 Exact toolchain patch pins are in [CI](https://github.com/baselabs/agent_blueprint_protocol/blob/main/.github/workflows/ci.yml).
 
 The current 1.0 line, including its candidate, and the 0.8 transition line
-receive security fixes. Older lines do not. Changes to supported lines and
-runtime floors are announced in release notes. The [security policy](../SECURITY.md)
-defines reporting and response expectations; the [upgrading guide](upgrading.md)
-defines identity-aware upgrades. CI exercises supported platform lanes;
-a listed platform is a support commitment, not a claim about an unexecuted
+receive security fixes. Older lines do not. Reports are handled on a
+best-effort basis; there is no guaranteed response time. Changes to supported
+lines and runtime floors are announced in release notes. The [security
+policy](../SECURITY.md) defines reporting; the [upgrading guide](upgrading.md)
+defines identity-aware upgrades. CI exercises supported platform jobs; a
+listed platform is a support commitment, not a claim about an unexecuted
 local run.

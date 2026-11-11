@@ -7,18 +7,17 @@
 | 1.0.0-rc.1 | yes |
 | 1.0.x | yes |
 | 0.8.x | yes |
-| 0.7.x | no — upgrade to the current line |
-| 0.6.x | no — upgrade to the current line |
-| 0.5.x | no — upgrade to the current line |
-| 0.4.x | no — upgrade to the current line |
-| 0.3.x | no — upgrade to the current line |
-| 0.2.x | no — upgrade to the current line |
-| 0.1.x | no — upgrade to the current line |
+| 0.7.x | no; upgrade to the current line |
+| 0.6.x | no; upgrade to the current line |
+| 0.5.x | no; upgrade to the current line |
+| 0.4.x | no; upgrade to the current line |
+| 0.3.x | no; upgrade to the current line |
+| 0.2.x | no; upgrade to the current line |
+| 0.1.x | no; upgrade to the current line |
 
 The release candidate is unreleased. The 1.0 line and the 0.8 transition
 line receive security fixes. See the [stability policy](documentation/stability.md).
-Reports are acknowledged and handled as promptly as the maintainer can;
-there is no guaranteed response time.
+Reports are handled on a best-effort basis; there is no guaranteed response time.
 
 ## Reporting a vulnerability
 

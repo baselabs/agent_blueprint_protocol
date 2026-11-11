@@ -107,8 +107,8 @@ same == bytes # => true
 
 ## Verify the pair
 
-The examples ARE corpus cases — digests and all — which is what makes
-them honest: what you read is what the corpus executes. The corpus
+The examples are corpus cases, including their digests, so what you read
+is what the corpus executes. The corpus
 (including these bytes) verifies on every package build; the
 standalone kit attached to each git release tag re-runs it against the
 shipped archive.

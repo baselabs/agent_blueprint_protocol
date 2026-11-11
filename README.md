@@ -4,269 +4,93 @@
 [![Hex Version](https://img.shields.io/hexpm/v/agent_blueprint_protocol.svg)](https://hex.pm/packages/agent_blueprint_protocol)
 [![License](https://img.shields.io/hexpm/l/agent_blueprint_protocol.svg)](https://hex.pm/packages/agent_blueprint_protocol)
 
-Agent Blueprint Protocol is a portable, non-authorizing contract for describing
-an agent capability and binding one immutable release to an execution
-environment.
+Agent developers need a portable format for describing an agent's capabilities and connecting that description to a deployment. The [Blueprint](documentation/glossary.md#blueprint) format records capabilities, ports, and bounds. A [Deployment Manifest](documentation/glossary.md#deployment-manifest) binds one Blueprint release to an environment. A [Federation TaskEnvelope](documentation/glossary.md#federation-taskenvelope) carries a task record between supported transports.
 
-The public package is the reference implementation for three
-language-neutral artifacts:
+Every successful verification is non-authorizing: it reports protocol facts and never grants permission to act.
 
-- **Blueprint Core** — stable identity, typed ports, logical capability
-  requirements, bounds, evidence commitments, and registered extensions.
-- **Deployment Manifest** — environment-local tool, principal, data,
-  authority, effect, evaluation, and exact-build bindings for one Blueprint
-  release digest.
-- **Federation TaskEnvelope** — the cross-protocol task record: 23 members
-  carrying task identity, terminal state, and signed terminal commitments
-  over A2A and MCP transports, with receipt-equivocation denial. The
-  blueprint rides IN those transports; the envelope is how a task's
-  verifiable record travels between them.
+## [Artifacts](documentation/glossary.md#artifact)
 
-Protocol validity never grants authority. A consuming host remains responsible
-for identity, tenancy, policy, live authorization, effect ownership, execution,
-and evidence retention.
+- **Blueprint Core** describes an agent's identity, input and output ports, capability requirements, bounds, and content digest.
+- **Deployment Manifest** binds a Blueprint release to environment-specific descriptors and bounds.
+- **Federation TaskEnvelope** records a task's identity, state, and terminal commitments for transport between A2A and MCP.
 
-## Installation
+This excerpt comes from [`examples/echo-blueprint.json`](examples/echo-blueprint.json):
 
-```elixir
-def deps do
-  [
-    {:agent_blueprint_protocol, "~> 1.0.0-rc.1"}
-  ]
-end
+```json
+{
+  "blueprint_id": "example.demo/echo",
+  "capability_requirements": [{"approval_trait":"none","argument_schema":{"type":"object"},"authority_trait":"none","classification_ceiling":"internal","impact_class":"ordinary","operation_family":"example.demo.read_shape","operation_kind":"read","result_schema":{"type":"object"}}],
+  "ceilings": {"max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},
+  "classification_ceiling": "internal",
+  "content_digest": "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8",
+  "effect_intents": [{"impact_class":"ordinary","logical_operation":"record_summary","operation_kind":"mutation"}],
+  "evaluation_assertions": [{"kind":"output_schema","port":"result","schema":{"type":"object"}}],
+  "extensions": {"critical":{},"optional":{}},
+  "input_ports": [{"classification_ceiling":"internal","name":"request","required":true,"schema":{"type":"object"}}],
+  "output_contract": {"classification_ceiling":"internal","port":"result"},
+  "output_ports": [{"classification_ceiling":"internal","name":"result","required":true,"schema":{"type":"object"}}],
+  "producer": {"created_at":"2026-08-20T00:00:00Z","identity":"example.demo","toolchain":"example.demo.toolchain"},
+  "protocol_revision": 1,
+  "release_number": 1,
+  "required_core_fields": [],
+  "triggers": ["manual"]
+}
 ```
 
-The package has **zero production dependencies**, no application callback, and
-no supervision tree. It requires Elixir 1.19 or newer on OTP 27, 28, or 29.
+Verification decodes bounded JSON, negotiates protocol support, binds related artifacts, reconciles [host](documentation/glossary.md#host) inputs, and returns evidence.
 
-## A first verification
+```mermaid
+flowchart LR
+  A[Decode] --> B[Negotiate] --> C[Bind] --> D[Reconcile] --> E[Evidence]
+```
 
-From a checkout of this repository (or with the example file fetched as
-the [quickstart](documentation/quickstart.md) shows), decode the example
-Blueprint, then watch a value that is not a Blueprint get a typed denial:
+## Which package?
+
+| Language | Package | Install |
+| --- | --- | --- |
+| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.0.0-rc.1"}` |
+| TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@rc` |
+
+From a Mix project that depends on the package, read its shipped example:
 
 ```elixir
-bytes = File.read!("examples/echo-blueprint.json")
+dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+example_path = Path.join(dependency_root, "examples/echo-blueprint.json")
+bytes = File.read!(example_path)
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
 AgentBlueprintProtocol.canonical_bytes(blueprint) == {:ok, bytes} # => true
-{:ok, other} = AgentBlueprintProtocol.Canonicalization.encode({:object, [{"a", {:integer, 1}}]})
-AgentBlueprintProtocol.decode_blueprint(other) # => {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}}
 ```
 
-The quickstart runs this from a new Mix project, and the
-[Livebook walkthrough](docs/livebooks/abp-walkthrough.livemd)
-goes end to end: compose, sign, negotiate, reconcile, and the attacks that
-fail closed.
+First TypeScript verification, from a checkout containing the example:
 
-## Installation (TypeScript)
+```js
+import { readFileSync } from "node:fs";
+import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 
-The verifier ships as an installable npm kit,
-`@agent-blueprint-protocol/verifier@rc`: the compiled verifier, its
-declarations, and the conformance corpus embedded byte-identically to
-the release-certified copy. Zero runtime dependencies; Node 24+.
-
-```bash
-npx @agent-blueprint-protocol/verifier@rc                        # verify the embedded corpus
-npx @agent-blueprint-protocol/verifier@rc --artifact <file.json> # verify one artifact
+const result = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
+console.log(result.ok ? "valid" : result.error.code); // valid
 ```
 
-npx selects the published release candidate; `npm view @agent-blueprint-protocol/verifier@rc version` shows which.
+`npm view @agent-blueprint-protocol/verifier version` shows the package version available from npm.
 
-See the [TypeScript quickstart](documentation/typescript.md) and the
-[examples gallery](documentation/examples.md).
-
-## When to use — and when NOT
-
-**Use this protocol when** you need a portable, verifiable contract for
-what an agent is and what it may do: bounds that can only narrow,
-evidence commitments that survive independent verification, and a
-conformance corpus that proves the whole surface. It complements the
-transport and discovery protocols — a blueprint rides IN A2A task
-metadata and MCP `_meta`.
-
-**Do NOT use it if you need an agent to HAVE authority.** This grants
-none: identity, tenancy, live policy, effect ownership, execution,
-billing, and evaluation truth stay with the host, always. If your
-problem is granting permissions, this is the wrong layer — you need a
-policy engine, and a blueprint can carry its requirements to one.
-
-## What it provides
-
-Decoding and validation (every result is a typed fact or a typed denial —
-never an authorization decision):
-
-- `decode_blueprint/2` — bounded, fail-closed decode of a Blueprint: canonical
-  byte verification, registry validation, portability scan, digest comparison.
-- `decode_deployment/2` — the same pipeline for a Deployment Manifest bound to
-  one Blueprint release digest.
-- `decode_federation_envelope/2` — the 23-member federation task envelope
-  through the shared registry engine; `federation_mapping/0` returns the
-  A2A/MCP Tasks field mapping as data.
-- `canonical_bytes/1` — the exact canonical (JCS) wire bytes of a decoded
-  artifact.
-
-Semantics:
-
-- `negotiate/2` — the evolution gate: revision sets, required core fields,
-  and the positional extension state machine (unknown critical denies,
-  unknown optional quarantines byte-exactly).
-- `intersect/1` — the bounds algebra: the pointwise narrowest intersection of
-  Blueprint bounds, Deployment `host_bounds`, and host policy; protected
-  narrowings deny or clamp-with-evidence, never silently.
-- `verify_compatibility/2` — identity-exact matching of manifest build
-  identities against host-observed identities.
-- `reconcile/3` — the one call per import: the pinned eight-stage pass
-  (canonical, digest, negotiation, structure, portability, signatures, bind,
-  bounds), reject-or-annotate, never repair, under host-supplied inputs.
-
-Tooling: `mix conformance.verify` executes the shipped 583-case corpus;
-`mix conformance.mutations` re-proves the corpus catches named implementation
-breaks; `mix verifier.agreement` byte-agrees the Elixir runner with the
-independent TypeScript verifier; `mix compatibility.replay` certifies the
-release's compatibility claims — every prior release's census replays under
-the current verifier in both languages, and the release history verifies
-against its tags' actual trees.
-
-## Status
-
-The protocol API, schemas, canonicalization profile, extension registry,
-and conformance corpus are implemented and gated: 999 tests
-(64 properties) at 100% coverage, zero Dialyzer errors, `--strict`
-Credo clean, a 583-case conformance corpus with a mutation gate, and a
-byte-agreement gate against an independent second-language verifier.
-The normative specification, [`spec/protocol.md`](spec/protocol.md),
-ships in the Hex archive. The full gate battery and every gate's
-recorded red proof are public in this repository under
-[`docs/design/requirement-map.md`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/docs/design/requirement-map.md).
-
-Since 0.8.0 the release identity is a versioned public contract: the
-manifest (`manifest_version`, additive-only) splits verification
-semantics from census, certifies the compatibility matrix per prior
-census, and the append-only release history maps every release — so
-exact-pinned consumers upgrade pins without breaking historical
-replays ([upgrading guide](documentation/upgrading.md)).
-
-The 0.x series is the public pre-1.0 line: shipped contracts may
-change within 0.x under pre-1.0 conventions, and every contract change
-lands with a red-capable test.
-
-## Intended properties
-
-- Language-neutral canonical artifacts with bounded parsing.
-- Fail-closed protocol revision and required-field handling.
-- Bounds that can narrow host policy but can never widen it.
-- Critical extensions that deny when unsupported; optional extensions that
-  round-trip without execution.
-- Exact compatibility manifests and red-capable tamper/downgrade corpora.
-- Zero third-party/Hex production dependencies and no supervision tree.
-- No product-specific tenant, key, grant, endpoint, database, provider, or
-  engine identifiers in portable artifacts.
-
-## Development
-
-The toolchain enforces itself: the declared Elixir range in `mix.exs`
-(`~> 1.19` — Mix refuses anything outside it at compile) and the
-supported-OTP set in `config/config.exs` (27/28/29 — the build refuses
-any other OTP major before anything compiles; see the
-[supported-OTP-set decision record](docs/adr/supported-otp-set.md)). CI
-exercises every lane of that matrix: Elixir 1.19 on OTP 28, and Elixir
-1.20 on OTP 27, 28, and 29 (the dev pin, mirrored in `.tool-versions`);
-the full battery runs on the dev lane and tests plus the conformance
-corpus on every lane. The four declarations — Elixir range, supported-OTP
-set, dev pin, and CI lanes — move together in one commit.
-
-```bash
-mix deps.get
-mix quality
-```
-
-`mix quality` runs dependency audits (retirement, the unused-lock-entry
-check `deps.unlock --check-unused`, advisories, and dependency
-currency), formatting, warnings-as-errors compilation, Credo,
-tests with the 100% coverage threshold, the conformance corpus and its
-mutation gate, the npm kit build, the TypeScript guide's import example,
-the second-language verifier agreement gate, the compatibility replay, Dialyzer, documentation with
-warnings-as-errors, the specification-extraction, grammar-derivation,
-registry-equality, and release-asset gates, and the release-candidate
-check (requirement-map completeness, specification coupling, and the
-release identity chain). Every gate carries a recorded red proof — see the requirement map at
-`docs/design/requirement-map.md` in this repository.
-
-### Conformance corpus
-
-The package ships a portable conformance corpus (`priv/conformance/`) — 583
-cases covering every required cell of the 16-surface × 31-class applicability
-floor, full-registry golden artifacts, RFC 8785 number vectors, and
-deterministic Ed25519 fixtures. Run it:
-
-```bash
-mix conformance.verify    # loads, integrity-verifies, and executes the corpus
-mix conformance.mutations # breaks the implementation at named points; the corpus must go red
-```
-
-The loader is pure over `%{path => binary}` and refuses corrupted, incomplete,
-or empty corpora with typed errors; the report refuses a vacuous green. The
-corpus is regenerated by `MIX_ENV=test mix run --no-start
-scripts/generate_conformance_corpus.exs`, which refuses to write a corpus that
-does not verify.
-
-### Second-language verifier
-
-`verifier/` is a first-class repo-side TypeScript implementation (Node ≥ 24,
-`node:` builtins only, zero npm runtime deps — never shipped in the Hex
-archive) that independently recomputes every corpus verdict and integrity
-check: its own bounded JSON scanner with duplicate rejection and the
-integer-window rule, its own JCS canonicalizer (number digits anchored to the
-native ECMAScript serializer, member sort by UTF-16 code units), domain-
-separated digests, detached-JWS Ed25519 verification through `node:crypto`
-with small-order key rejection, and the negotiation, bounds-algebra,
-compatibility, and federation semantics. Run it:
-
-```bash
-node verifier/cli.ts --corpus priv/conformance  # exit 0/1/2, report bytes on stdout
-node verifier/self_checks.ts                    # RFC 8785 Appendix B, window matrix,
-                                                # Ed25519 keys, stored JOSE vectors
-mix verifier.agreement                          # byte-agrees the TS report with the
-                                                # escript's (repo AND built archive),
-                                                # runs the self-checks, and proves its
-                                                # seeded reds (planted breaks) fire
-```
-
-The agreement gate is part of `mix quality`: the two implementations must
-produce byte-identical JCS reports over the same corpus, and node ≥ 24 is a
-hard prerequisite of the gate.
+The conformance corpus contains 583 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
 
 ## Documentation
 
-Every guide ships in the package and renders on HexDocs:
+- [HexDocs](https://agent-blueprint-protocol.hexdocs.pm/)
+- [Quickstart](documentation/quickstart.md)
+- [TypeScript guide](documentation/typescript.md)
+- [Conformance guide](documentation/conformance.md)
+- [Protocol specification](spec/protocol.md)
+- [Stability policy](documentation/stability.md)
+- [Livebook walkthrough](docs/livebooks/abp-walkthrough.livemd)
+- [![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0-rc.1/docs/livebooks/abp-walkthrough.livemd)
 
-- Start here: [getting started](documentation/getting-started.md) ·
-  [quickstart](documentation/quickstart.md) ·
-  [TypeScript quickstart](documentation/typescript.md) ·
-  [Livebook walkthrough](docs/livebooks/abp-walkthrough.livemd)
-- Concepts: [what a blueprint is](documentation/what-a-blueprint-is.md) ·
-  [what a deployment is](documentation/what-a-deployment-is.md) ·
-  [portability](documentation/portability.md) ·
-  [federation](documentation/federation.md)
-- By role: [producing artifacts](documentation/producer.md) ·
-  [authoring extensions](documentation/extension-author.md) ·
-  [host integration](documentation/host-integration.md) ·
-  [operations](documentation/operations.md)
-- Reference: [the 74-code error guide](documentation/errors.md) ·
-  [evidence commitments](documentation/evidence-commitments.md) ·
-  [the extension registry](documentation/registry.md) ·
-  [upgrading and stability](documentation/upgrading.md) ·
-  [FAQ](documentation/faq.md) · [examples](documentation/examples.md)
-- The normative contract: [`spec/protocol.md`](spec/protocol.md)
+## Status
 
-## Security
+The 1.0 line follows its stability promise: documented APIs remain stable within the major version, and deprecations follow the [stability policy](documentation/stability.md).
+Version 1.0.0-rc.1 is an unreleased candidate.
 
-See [`SECURITY.md`](SECURITY.md). A successful verifier result is
-structural evidence only, never an authorization decision.
+## Contributing
 
-## License
-
-Apache License 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
-
-The [stability policy](documentation/stability.md) defines the supported APIs, deprecations,
-runtimes, and security maintenance lines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidance.

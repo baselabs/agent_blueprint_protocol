@@ -76,10 +76,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "publish-guard-toolpath-plant",
       path: "README.md",
-      from: "and [`NOTICE`](NOTICE).\n",
-      to:
-        "and [`NOTICE`](NOTICE).\n\nSee .kimo" <>
-          "sabe/handoffs for design history.\n",
+      from: "## Contributing\n",
+      to: "## Contributing\n\nSee handoffs/design for design history.\n",
       command: ~w(mix test test/architecture/publish_guard_test.exs)
     },
     %{
@@ -491,8 +489,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "currency-readme-stale-pin",
       path: "README.md",
-      from: "    {:agent_blueprint_protocol,",
-      to: "    {:stale_pin, \"~> 0.0.1\"},\n    {:agent_blueprint_protocol,",
+      from: "\"~> 1.0.0-rc.1\"",
+      to: "\"~> 0.0.1\"",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
@@ -512,10 +510,10 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
-      name: "currency-readme-stale-count",
-      path: "README.md",
-      from: "## Intended properties",
-      to: "9999999998 tests of filler.\n\n## Intended properties",
+      name: "currency-contributing-stale-count",
+      path: "CONTRIBUTING.md",
+      from: "The suite currently defines ",
+      to: "9999999998 tests of filler.\n\nThe suite currently defines ",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
@@ -577,8 +575,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "currency-governance-stale-claim",
       path: "CONTRIBUTING.md",
-      from: "## The verification battery\n",
-      to: "## The verification battery\n\nWorks with agent_blueprint_protocol 0.1.0 and later.\n",
+      from: "## Local checks\n",
+      to: "## Local checks\n\nWorks with agent_blueprint_protocol 0.1.0 and later.\n",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
