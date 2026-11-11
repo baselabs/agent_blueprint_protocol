@@ -20,8 +20,11 @@ defmodule AgentBlueprintProtocol.LivebookExtractor do
   def extract(_, _), do: {:error, :invalid_notebook}
 
   def extract_directory(input_dir, output_dir, version) do
+    # Path.wildcard/1 matches forward slashes only; Path.expand/1 normalizes
+    # Windows separators so a temporary directory resolves on every platform.
     paths =
       input_dir
+      |> Path.expand()
       |> Path.join("*.livemd")
       |> Path.wildcard()
       |> Enum.sort()

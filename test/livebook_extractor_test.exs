@@ -95,7 +95,7 @@ defmodule AgentBlueprintProtocol.LivebookExtractorTest do
     assert Enum.all?(paths, &String.ends_with?(&1, ".exs"))
     assert Enum.all?(paths, &(File.read!(&1) =~ ~s("== 1.0.0-rc.7")))
 
-    invalid_dir = Path.join(root, "invalid")
+    invalid_dir = Path.expand(Path.join(root, "invalid"))
     File.mkdir_p!(invalid_dir)
     invalid_path = Path.join(invalid_dir, "invalid.livemd")
     File.write!(invalid_path, "```elixir\nMix.install([])\n```\n")
