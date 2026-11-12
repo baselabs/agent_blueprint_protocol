@@ -36,6 +36,6 @@ The package does not decide whether a key is trusted for a real-world identity. 
 
 ## Next steps
 
-- [Compose and sign a Blueprint](compose-and-sign.md)
+- [Compose and sign artifacts](compose-and-sign.md)
 - [Read the evidence guide](reading-evidence.md)
 - [Read the complete protocol](../spec/protocol.md#6-signature-envelope)

@@ -8,7 +8,11 @@ livebook:{"persist_outputs":true}
 
 This tour reads the shipped artifacts, checks one typed denial, negotiates support, reconciles the pair, reads evidence, and runs the shipped corpus. Each notebook in the set can run on its own.
 
-The first cell installs the published package.
+## Before you run
+
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.0` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.0`.
+
+The first cell installs the published package. The setup then uses the public `Mix.install_project_dir/0` API to find that installation's dependency source files. In a Mix-project execution, it uses `Mix.Project.deps_paths/0` instead. Only when this package is itself the current Mix project, and so has no dependency entry, does it read the working directory, which is then the package's own checkout.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
@@ -17,19 +21,13 @@ Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
 This cell locates the installed package files and falls back to the source checkout when run from the repository.
 
 ```elixir
-dependency_path =
-  try do
-    Mix.Project.deps_paths() |> Map.get(:agent_blueprint_protocol)
-  rescue
-    _ -> nil
+package_root =
+  case Mix.install_project_dir() do
+    nil -> Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+    install_root -> Path.join([install_root, "deps", "agent_blueprint_protocol"])
   end
 
-package_root =
-  [dependency_path, Application.app_dir(:agent_blueprint_protocol), File.cwd!()]
-  |> Enum.reject(&is_nil/1)
-  |> Enum.find(fn path -> File.regular?(Path.join(path, "examples/echo-blueprint.json")) end)
-
-true = is_binary(package_root)
+true = File.regular?(Path.join(package_root, "examples/echo-blueprint.json"))
 %{example_files_found?: true}
 ```
 
@@ -107,7 +105,7 @@ notices =
 
 Reconciliation compares the artifacts with host inputs and returns protocol evidence. The summary reads every evidence field while leaving any new check shape unknown.
 
-Call `reconcile/3` with the example Deployment bounds and no supplied keys, then summarize all evidence fields.
+These are fixture bounds copied from the example Deployment to keep the notebook self-contained. They demonstrate the comparison API, not discovery of host configuration. In an integration, obtain host bounds from configured limits, build identities and descriptor digests from independent inventory, and public keys from the host's trust source.
 
 ```elixir
 alias AgentBlueprintProtocol.{BoundsAlgebra, Evidence, Reconcile}
@@ -146,19 +144,40 @@ checks =
 not_verified =
   Enum.map(evidence.not_verified, fn name ->
     case name do
-      :tenancy -> :host_owned
-      :live_policy -> :host_owned
-      other when is_atom(other) -> :additional_surface
-      _unknown -> :unknown_shape
+      :tenancy ->
+        {:host_owned, :tenancy}
+
+      :live_policy ->
+        {:host_owned, :live_policy}
+
+      name
+      when name in [:authority, :effect_ownership, :execution, :billing, :evaluation_truth] ->
+        {:host_owned, name}
+
+      name
+      when name in [
+             :signatures,
+             :signature_created_at,
+             :lifecycle_state,
+             :binding_descriptors,
+             :binding_staleness,
+             :bind
+           ] ->
+        {:known_unverified, name}
+
+      unknown ->
+        {:unknown_surface, unknown}
     end
   end)
+
+{:ok, effective} = BoundsAlgebra.BoundSet.to_map(evidence.effective_bounds)
 
 %{
   protocol_revision: evidence.protocol_revision,
   blueprint_digest: AgentBlueprintProtocol.Digest.to_tagged(evidence.blueprint_digest),
   deployment_digest: AgentBlueprintProtocol.Digest.to_tagged(evidence.deployment_digest),
   checks: checks,
-  effective_bounds: match?({:ok, _}, BoundsAlgebra.BoundSet.to_map(evidence.effective_bounds)),
+  effective_bounds: Map.take(effective, [:max_attempts, :max_tokens, :disclosure_ceiling]),
   clamps: Enum.map(evidence.clamps, &{&1.field, &1.requested, &1.effective}),
   optional_extensions_retained: evidence.optional_extensions_retained,
   not_verified: not_verified
@@ -187,17 +206,35 @@ not_verified =
     {:bounds, ["bounds"], true, :none},
     {:bounds, ["disclosure_ceiling"], true, :clamp}
   ],
-  not_verified: [:host_owned, :host_owned, :additional_surface, :additional_surface,
-   :additional_surface, :additional_surface, :additional_surface, :additional_surface,
-   :additional_surface, :additional_surface, :additional_surface, :additional_surface,
-   :additional_surface],
+  not_verified: [
+    host_owned: :tenancy,
+    host_owned: :live_policy,
+    host_owned: :authority,
+    host_owned: :effect_ownership,
+    host_owned: :execution,
+    host_owned: :billing,
+    host_owned: :evaluation_truth,
+    known_unverified: :signature_created_at,
+    known_unverified: :lifecycle_state,
+    known_unverified: :signatures,
+    known_unverified: :bind,
+    known_unverified: :binding_staleness,
+    known_unverified: :binding_descriptors
+  ],
+  effective_bounds: %{max_attempts: 3, max_tokens: 100000, disclosure_ceiling: :summary},
   blueprint_digest: "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8",
   deployment_digest: "sha-256:tWFr0caS0AWFJd2UcB9gZv3kNjIUP8xZ08WWM_h8xgo",
-  effective_bounds: true,
   clamps: [{:disclosure_ceiling, :full, :summary}],
   optional_extensions_retained: []
 }
 ```
+
+| Unverified names | Why they remain |
+|---|---|
+| `signatures` | Both example subjects are unsigned. |
+| `binding_descriptors`, `binding_staleness`, `bind` | No descriptor inventory or clock/age was supplied. The host notebook adds these inputs. |
+| `signature_created_at`, `lifecycle_state` | These remain outside the reconciliation checks. |
+| `tenancy`, `live_policy`, `authority`, `effect_ownership`, `execution`, `billing`, `evaluation_truth` | Host-owned decisions and observations. |
 
 ## Run the shipped corpus
 

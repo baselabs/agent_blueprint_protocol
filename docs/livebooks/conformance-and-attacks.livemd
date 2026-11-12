@@ -8,7 +8,11 @@ livebook:{"persist_outputs":true}
 
 This notebook runs the shipped corpus and inspects one case. It also presents the external JSON exchange as data and demonstrates fail-closed denials.
 
-The first cell installs the published package.
+## Before you run
+
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.0` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.0`.
+
+The first cell installs the published package. The setup then uses the public `Mix.install_project_dir/0` API to find that installation's dependency source files. In a Mix-project execution, it uses `Mix.Project.deps_paths/0` instead. Only when this package is itself the current Mix project, and so has no dependency entry, does it read the working directory, which is then the package's own checkout.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
@@ -17,19 +21,13 @@ Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
 Locate the package files and load the shipped conformance corpus.
 
 ```elixir
-dependency_path =
-  try do
-    Mix.Project.deps_paths() |> Map.get(:agent_blueprint_protocol)
-  rescue
-    _ -> nil
+package_root =
+  case Mix.install_project_dir() do
+    nil -> Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+    install_root -> Path.join([install_root, "deps", "agent_blueprint_protocol"])
   end
 
-package_root =
-  [dependency_path, Application.app_dir(:agent_blueprint_protocol), File.cwd!()]
-  |> Enum.reject(&is_nil/1)
-  |> Enum.find(fn path -> File.regular?(Path.join(path, "examples/echo-blueprint.json")) end)
-
-true = is_binary(package_root)
+true = File.regular?(Path.join(package_root, "examples/echo-blueprint.json"))
 corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
 
 corpus_files =
@@ -122,6 +120,33 @@ case_response =
 }
 ```
 
+## Run the external exchange in a terminal
+
+Use Node.js 24 or newer and npm. In a new working directory, install the release and copy its shipped corpus into a named directory:
+
+```sh
+npm init -y
+npm install @agent-blueprint-protocol/verifier@1.0.0
+cp -R node_modules/@agent-blueprint-protocol/verifier/dist/corpus ./conformance
+npx @agent-blueprint-protocol/verifier@1.0.0 conformance run --corpus ./conformance --results results.json -- npx @agent-blueprint-protocol/verifier@1.0.0 --serve --corpus ./conformance
+node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("results.json","utf8")); console.log(r.format, r.results.length);'
+```
+
+The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 626` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
+
+Rerun with all claim metadata to produce an unsigned claim. These generic labels describe this demonstration; replace them with your implementation's actual source revision, version, platform, and run date when making your own claim:
+
+```sh
+npx @agent-blueprint-protocol/verifier@1.0.0 conformance run --corpus ./conformance --results results.json --claim claim.json --implementation example-verifier --implementation-version 1 --source https://github.com/baselabs/agent_blueprint_protocol/tree/v1.0.0 --platform node-24-linux --date 2026-11-12 -- npx @agent-blueprint-protocol/verifier@1.0.0 --serve --corpus ./conformance
+node --input-type=module -e 'import fs from "node:fs"; const c=JSON.parse(fs.readFileSync("claim.json","utf8")); console.log(c.format, c.implementation, c.results_digest);'
+```
+
+The claim identifies the implementation, corpus, registry, and exact results bytes. It is unsigned and does not establish how the implementation computed its answers. Keep the results, claim, command, and source revision together. To test another implementation, replace the command after `--` with its adapter; that adapter must implement the documented execution protocol.
+
+Exit `0` means agreement. Exit `2` is usage, corpus, or claim-input failure; `3` is an internal error; `10`–`19` identify exchange failures or disagreement. Treat every nonzero value, including an unfamiliar future value, as failure; see the [CI exit table](../../documentation/verifying-in-ci.md#exit-codes). Remove the copied corpus and generated results/claim when their scope ends, or retain them deliberately as your conformance deliverables.
+
+The preceding Elixir strings illustrate messages; they are not a captured execution. The terminal commands above perform the actual exchange.
+
 ## Tampering and an unsupported revision
 
 Changing a Blueprint member without updating its digest fails during decode. A revision outside the consumer's support set also fails negotiation.
@@ -133,15 +158,25 @@ tampered = AgentBlueprintProtocol.decode_blueprint(tampered_bytes)
 
 {:ok, blueprint_value} = AgentBlueprintProtocol.Json.decode(blueprint_bytes)
 {:object, blueprint_members} = blueprint_value
+
 unsupported_value =
-  {:object, List.keystore(blueprint_members, "protocol_revision", 0, {"protocol_revision", {:integer, 2}})}
+  {:object,
+   List.keystore(blueprint_members, "protocol_revision", 0, {"protocol_revision", {:integer, 2}})}
 
 support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
 unsupported = AgentBlueprintProtocol.negotiate(unsupported_value, support)
 
 %{
-  tamper: case tampered do {:error, error} -> error.code; {:ok, _} -> :accepted end,
-  revision: case unsupported do {:error, error} -> error.code; {:ok, _} -> :accepted end
+  tamper:
+    case tampered do
+      {:error, error} -> error.code
+      {:ok, _} -> :accepted
+    end,
+  revision:
+    case unsupported do
+      {:error, error} -> error.code
+      {:ok, _} -> :accepted
+    end
 }
 ```
 
@@ -166,27 +201,32 @@ alias AgentBlueprintProtocol.Signature.PublicKey
 digest = Digest.to_tagged(Blueprint.content_digest(blueprint))
 {public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
 
-protected = {:object, [
-  {"alg", {:string, "Ed25519"}},
-  {"b64", {:boolean, false}},
-  {"crit", {:array, [{:string, "b64"}]}},
-  {"kid", {:string, "example-check-key"}}
-]}
+protected =
+  {:object,
+   [
+     {"alg", {:string, "Ed25519"}},
+     {"b64", {:boolean, false}},
+     {"crit", {:array, [{:string, "b64"}]}},
+     {"kid", {:string, "example-check-key"}}
+   ]}
 
-attributes = {:object, [
-  {"algorithm", {:string, "Ed25519"}},
-  {"content_digest", {:string, digest}},
-  {"created_at", {:string, "2026-08-20T00:00:00Z"}},
-  {"key_id", {:string, "example-check-key"}},
-  {"purpose", {:string, "blueprint"}}
-]}
+attributes =
+  {:object,
+   [
+     {"algorithm", {:string, "Ed25519"}},
+     {"content_digest", {:string, digest}},
+     {"created_at", {:string, "2026-08-20T00:00:00Z"}},
+     {"key_id", {:string, "example-check-key"}},
+     {"purpose", {:string, "blueprint"}}
+   ]}
 
 entry_with = fn bytes ->
-  {:object, [
-    {"protected", protected},
-    {"signed_attributes", attributes},
-    {"signature", {:string, Base64Url.encode(bytes)}}
-  ]}
+  {:object,
+   [
+     {"protected", protected},
+     {"signed_attributes", attributes},
+     {"signature", {:string, Base64Url.encode(bytes)}}
+   ]}
 end
 
 {:ok, input} = Signature.signing_input(entry_with.(<<0::512>>))
@@ -196,10 +236,11 @@ rejected = Signature.verify(entry_with.(<<0::512>>), [key])
 
 %{
   valid_shape_created: byte_size(valid_signature) == 64,
-  rejected_code: case rejected do
-    {:error, %AgentBlueprintProtocol.Error{code: code}} -> code
-    {:ok, _} -> :accepted
-  end
+  rejected_code:
+    case rejected do
+      {:error, %AgentBlueprintProtocol.Error{code: code}} -> code
+      {:ok, _} -> :accepted
+    end
 }
 ```
 
@@ -215,15 +256,14 @@ Portable artifact values use logical identifiers and digests. This example shows
 
 ```elixir
 result =
-  AgentBlueprintProtocol.Portability.scan(
-    {:object, [{"credential", {:string, "example"}}]}
-  )
+  AgentBlueprintProtocol.Portability.scan({:object, [{"credential", {:string, "example"}}]})
 
 %{
-  code: case result do
-    {:error, %AgentBlueprintProtocol.Error{code: code}} -> code
-    :ok -> :accepted
-  end
+  code:
+    case result do
+      {:error, %AgentBlueprintProtocol.Error{code: code}} -> code
+      :ok -> :accepted
+    end
 }
 ```
 

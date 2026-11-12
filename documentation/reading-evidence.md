@@ -11,21 +11,28 @@ The following excerpt assumes `evidence` is the result of `AgentBlueprintProtoco
 ```elixir
 alias AgentBlueprintProtocol.Evidence
 
-signature_check = Enum.find(evidence.checks, &(&1.surface == :signatures))
+signature_summaries =
+  Enum.map(["blueprint", "deployment"], fn artifact ->
+    check = Enum.find(evidence.checks, fn check ->
+      check.surface == :signatures and check.subject == [artifact]
+    end)
 
-signature_summary =
-  case signature_check do
-    %{verified: true, detail: %Evidence.Signatures{key_ids: key_ids}} ->
-      {:verified_by, key_ids}
+    summary =
+      case check do
+        %{verified: true, detail: %Evidence.Signatures{key_ids: key_ids}} ->
+          {:verified_by, key_ids}
 
-    %{verified: false, detail: :no_signatures_present} ->
-      :not_verified
+        %{verified: false, detail: :no_signatures_present} ->
+          :not_verified
 
-    _unknown ->
-      :unknown
-  end
+        _unknown ->
+          :unknown
+      end
 
-binding_check = Enum.find(evidence.checks, &(&1.surface == :bind))
+    {artifact, summary}
+  end)
+
+binding_check = Enum.find(evidence.checks, &(&1.surface == :bind and &1.subject == ["deployment"]))
 
 binding_summary =
   case binding_check do
@@ -36,6 +43,16 @@ binding_summary =
       :unknown
   end
 ```
+
+The signature summaries preserve the subject. A signed Blueprint and unsigned Deployment produce a verified Blueprint entry and an unverified Deployment entry. The global `:signatures` entry in `not_verified` indicates at least one relevant signature surface remains unverified. Use the same subject-aware lookup for digest, canonical, structure, and negotiation checks.
+
+For example, the mixed result is:
+
+```elixir
+[{"blueprint", {:verified_by, ["example-producer-key"]}}, {"deployment", :not_verified}]
+```
+
+For the same pair, `:signatures in evidence.not_verified` is `true`. A single verified subject cannot establish the other subject's signature status.
 
 Evidence detail variants may grow. This code handles the known Signatures and Binding structs. The default branch leaves an unfamiliar shape unknown.
 

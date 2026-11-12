@@ -65,11 +65,30 @@ The adapter response was:
 {"id":"base64url-decode-exact-bound","result":{"decoded":"QQQ","verdict":"valid"}}
 ```
 
-The command below runs the harness against the npm package's own adapter. Run it from a directory that contains the extracted corpus at `./conformance`:
+## Run the external exchange in a terminal
+
+Use Node.js 24 or newer and npm. In a new working directory, install the release and copy its shipped corpus into a named directory:
 
 ```sh
+npm init -y
+npm install @agent-blueprint-protocol/verifier@1.0.0
+cp -R node_modules/@agent-blueprint-protocol/verifier/dist/corpus ./conformance
 npx @agent-blueprint-protocol/verifier@1.0.0 conformance run --corpus ./conformance --results results.json -- npx @agent-blueprint-protocol/verifier@1.0.0 --serve --corpus ./conformance
+node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("results.json","utf8")); console.log(r.format, r.results.length);'
 ```
+
+The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 626` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
+
+Rerun with all claim metadata to produce an unsigned claim. These generic labels describe this demonstration; replace them with your implementation's actual source revision, version, platform, and run date when making your own claim:
+
+```sh
+npx @agent-blueprint-protocol/verifier@1.0.0 conformance run --corpus ./conformance --results results.json --claim claim.json --implementation example-verifier --implementation-version 1 --source https://github.com/baselabs/agent_blueprint_protocol/tree/v1.0.0 --platform node-24-linux --date 2026-11-12 -- npx @agent-blueprint-protocol/verifier@1.0.0 --serve --corpus ./conformance
+node --input-type=module -e 'import fs from "node:fs"; const c=JSON.parse(fs.readFileSync("claim.json","utf8")); console.log(c.format, c.implementation, c.results_digest);'
+```
+
+The claim identifies the implementation, corpus, registry, and exact results bytes. It is unsigned and does not establish how the implementation computed its answers. Keep the results, claim, command, and source revision together. To test another implementation, replace the command after `--` with its adapter; that adapter must implement the documented execution protocol.
+
+Exit `0` means agreement. Exit `2` is usage, corpus, or claim-input failure; `3` is an internal error; `10`–`19` identify exchange failures or disagreement. Treat every nonzero value, including an unfamiliar future value, as failure; see the [CI exit table](verifying-in-ci.md#exit-codes). Remove the copied corpus and generated results/claim when their scope ends, or retain them deliberately as your conformance deliverables.
 
 ## Read and compare results
 
@@ -77,7 +96,7 @@ A [results document](glossary.md#results-document) contains `format`, `corpus_di
 
 ## Publish a claim
 
-After a successful run, provide `--claim`, `--implementation`, `--implementation-version`, `--source`, `--platform`, and `--date` to the harness. The [claim schema](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0/spec/conformance/claim.schema.json) defines the claim document. Publish the claim with the results document, source revision, and command used to run the adapter.
+The terminal walkthrough above shows every required flag. After a successful run, provide `--claim`, `--implementation`, `--implementation-version`, `--source`, `--platform`, and `--date` to the harness. The [claim schema](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0/spec/conformance/claim.schema.json) defines the claim document. Publish the claim with the results document, source revision, and command used to run the adapter.
 
 ## What a pass establishes
 

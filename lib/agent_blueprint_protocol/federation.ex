@@ -9,7 +9,8 @@ defmodule AgentBlueprintProtocol.Federation do
     ## Example
 
     ```elixir
-    bytes = File.read!("examples/federation-envelope.json")
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+    bytes = File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))
     match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes))
     ```
   """
@@ -256,7 +257,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     ## Example
 
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, %AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}}, AgentBlueprintProtocol.Federation.terminal_commitment(envelope))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, %AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}}, AgentBlueprintProtocol.Federation.terminal_commitment(envelope))
         true
   """
   @doc since: "1.0.0"
@@ -303,7 +306,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     ## Example
 
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Federation.verify_commitment(envelope, %AgentBlueprintProtocol.Federation.Context{}))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Federation.verify_commitment(envelope, %AgentBlueprintProtocol.Federation.Context{}))
         true
   """
   @doc since: "1.0.0"
@@ -805,11 +810,13 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec decode(binary(), Bounds.t() | map()) :: {:ok, t()} | {:error, Error.t()}
   @doc """
-    Decodes the supplied bytes or encoded text, depending on the module.
+    Decodes a canonical Federation TaskEnvelope and validates its structure and portability.
 
     ## Example
 
-        iex> bytes = File.read!("examples/federation-envelope.json")
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> bytes = File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))
         iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes))
         true
         iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes, %{bytes: 5000}))
@@ -836,7 +843,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     ## Example
 
-        iex> with {:ok, value} <- AgentBlueprintProtocol.Json.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_value(value))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, value} <- AgentBlueprintProtocol.Json.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_value(value))
         true
   """
   @doc since: "1.0.0"
@@ -872,7 +881,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     ## Example
 
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, bytes} when is_binary(bytes), AgentBlueprintProtocol.Federation.canonical_bytes(envelope))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, bytes} when is_binary(bytes), AgentBlueprintProtocol.Federation.canonical_bytes(envelope))
         true
   """
   @doc since: "1.0.0"
@@ -1141,7 +1152,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     ## Example
 
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope))
         true
   """
   @doc since: "1.0.0"
@@ -1172,7 +1185,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     ## Example
 
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_a2a_carrier(carrier))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_a2a_carrier(carrier))
         true
   """
   @doc since: "1.0.0"
@@ -1199,7 +1214,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     ## Example
 
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope))
         true
   """
   @doc since: "1.0.0"
@@ -1230,7 +1247,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     ## Example
 
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!("examples/federation-envelope.json")), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_mcp_carrier(carrier))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_mcp_carrier(carrier))
         true
   """
   @doc since: "1.0.0"

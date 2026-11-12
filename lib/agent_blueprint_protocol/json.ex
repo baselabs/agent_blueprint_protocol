@@ -34,7 +34,7 @@ defmodule AgentBlueprintProtocol.Json do
   @spec decode(binary(), Bounds.t() | map()) ::
           {:ok, value()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Decodes the supplied bytes or encoded text, depending on the module.
+    Decodes bounded JSON into an order-preserving tagged value.
 
     ## Example
 

@@ -8,11 +8,15 @@ An extension is a namespaced value in an artifact's `extensions` member. A regis
 
 | Registry state | Declared critical | Declared optional |
 |---|---|---|
-| Active, criticality matches | Supported. | Retained and available to a consumer that supports it. |
-| Active, criticality differs | Denied with `extension_criticality_conflict`. | Denied with `extension_criticality_conflict`. |
-| Deprecated | Supported with an `extension_deprecated` notice. | Supported with an `extension_deprecated` notice. |
-| Retired | Denied with `extension_retired`. | Retained with a typed notice. |
-| Reserved or unknown | Denied with `extension_unknown_critical`. | Retained without interpretation. Reserved entries may include a typed notice. |
+| Active, criticality matches | Added to `critical_extensions` after schema validation. | Added to `optional_retained`. |
+| Active, criticality differs | `extension_criticality_conflict`. | `extension_criticality_conflict`. |
+| Deprecated, criticality matches | Added to `critical_extensions`, notice `extension_deprecated`. | Added to `optional_retained`, notice `extension_deprecated`. |
+| Deprecated, criticality differs | `extension_criticality_conflict`. | `extension_criticality_conflict`. |
+| Retired (either registered criticality) | `extension_retired`. | Added to `optional_retained`, notice `extension_retired`. |
+| Reserved (either registered criticality) | `extension_unknown_critical`. | Added to `optional_retained`, notice `extension_unknown_optional_retained`. |
+| Unknown namespace | `extension_unknown_critical`. | Added to `quarantined_extensions`, notice `extension_unknown_optional_retained`. |
+
+For active or deprecated critical entries, success also requires the held schema, a matching schema digest, and a schema-valid body. The common payload checks still apply in every state. The table describes Elixir outcome field names; npm uses `criticalExtensions`, `optionalRetained`, and `quarantinedExtensions`.
 
 For example, `io.github.baselabs/federation` is active and critical. The legacy `com.example/federation` namespace is deprecated and remains recognized. An unregistered optional value is retained but is not evidence that its meaning is known.
 
@@ -20,7 +24,7 @@ For example, `io.github.baselabs/federation` is active and critical. The legacy 
 
 Use `registered_extensions/0` to inspect registry entries. Match a namespace and use the returned fields you need:
 
-From an IEx session launched with `iex -S mix` at the repository root, run:
+From `iex -S mix` in any project with the dependency installed, run:
 
 ```elixir
 entry = Enum.find(AgentBlueprintProtocol.ExtensionRegistry.registered_extensions(), &(&1.namespace == "io.github.baselabs/federation"))
@@ -54,26 +58,72 @@ In Elixir, compute the pin from canonical schema bytes under the
 alias AgentBlueprintProtocol.{Canonicalization, Digest, ExtensionRegistry, Json, Negotiation}
 
 namespace = "com.example.vendor/record"
-{:ok, schema} = Json.decode(~s({"additionalProperties":false,"properties":{"value":{"type":"string"}},"required":["value"],"type":"object"}))
+
+{:ok, schema} =
+  Json.decode(
+    ~s({"additionalProperties":false,"properties":{"value":{"type":"string"}},"required":["value"],"type":"object"})
+  )
+
 {:ok, bytes} = Canonicalization.encode(schema)
 pin = Digest.to_tagged(Digest.hash(:extension_schema, bytes))
 
 support = %Negotiation.Support{
   revisions: MapSet.new([1]),
-  registry: %{namespace => %ExtensionRegistry{
-    namespace: namespace, owner: "ExampleVendor", criticality: :critical,
-    state: :active, schema_digest: pin,
-    a2a_uri: "https://example.com/extensions/record", promoted_at_revision: nil
-  }},
+  registry: %{
+    namespace => %ExtensionRegistry{
+      namespace: namespace,
+      owner: "ExampleVendor",
+      criticality: :critical,
+      state: :active,
+      schema_digest: pin,
+      a2a_uri: "https://example.com/extensions/record",
+      promoted_at_revision: nil
+    }
+  },
   schemas: %{namespace => schema}
 }
 ```
+
+Now negotiate a preview value carrying this critical body. Continue in the same session. The example comes from the installed Hex package:
+
+```elixir
+dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+
+{:ok, {:object, members}} =
+  File.read!(Path.join(dependency_root, "examples/echo-blueprint.json")) |> Json.decode()
+
+regions =
+  {:object,
+   [
+     {"critical", {:object, [{namespace, {:object, [{"value", {:string, "one"}}]}}]}},
+     {"optional", {:object, []}}
+   ]}
+
+value = {:object, List.keystore(members, "extensions", 0, {"extensions", regions})}
+{:ok, outcome} = AgentBlueprintProtocol.negotiate(value, support)
+
+{outcome.critical_extensions, outcome.optional_retained, outcome.quarantined_extensions,
+ outcome.notices}
+
+{:error, %AgentBlueprintProtocol.Error{code: :extension_unknown_critical}} =
+  AgentBlueprintProtocol.negotiate(value, %{support | registry: %{}})
+
+{:ok, _draft} =
+  AgentBlueprintProtocol.Blueprint.from_value(value, %{
+    authored_extensions: outcome.critical_extensions
+  })
+```
+
+The outcome tuple is `{["com.example.vendor/record"], [], [], []}`.
+
+Negotiation checks declared semantics, not the content digest. This edited preview still needs its digest recomputed and affected signatures recreated before encoding a finished artifact; follow [compose and sign](compose-and-sign.md).
 
 The TypeScript package-root `Support` type exposes the same fields. This pin
 is the domain-separated SHA-256 digest of the same canonical schema:
 
 ```ts
-import type { Support } from "@agent-blueprint-protocol/verifier";
+import { readFileSync } from "node:fs";
+import { decodeBlueprint, negotiate, type Support } from "@agent-blueprint-protocol/verifier";
 
 const namespace = "com.example.vendor/record";
 const support: Support = {
@@ -88,6 +138,22 @@ const support: Support = {
     required: ["value"], type: "object"
   }}
 };
+```
+
+Save the preceding TypeScript block as `registration.mts` and append this block. Use the [sample download and TypeScript run instructions](typescript.md#run-the-typescript-examples), then run `node registration.mts`. It prints the critical namespace followed by `extension_unknown_critical`:
+
+```ts
+const decoded = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
+if (!decoded.ok) throw new Error(decoded.error.code);
+const preview = {...decoded.value, value: {...decoded.value.value,
+  extensions: {critical: {[namespace]: {value: "one"}}, optional: {}}
+}};
+const outcome = negotiate(preview, support);
+if (!outcome.ok) throw new Error(outcome.error.code);
+console.log(outcome.value.criticalExtensions);
+const absent = negotiate(preview, {...support, registry: {}});
+if (absent.ok) throw new Error("Expected a missing-registration denial");
+console.log(absent.error.code);
 ```
 
 Use the resulting support input with `negotiate` or `reconcile`. Hosts manage

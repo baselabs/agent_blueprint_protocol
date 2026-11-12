@@ -6,13 +6,17 @@ defmodule AgentBlueprintProtocol.Signature do
 
     This module does not authorize operations.
 
-    ## Example
+    ## Complete setup
+
+    Run stages 1–3 of the [compose and sign guide](compose-and-sign.md#3-sign-both-artifacts-and-reconcile-them)
+    to obtain the valid `entry`, `public_key_record`, and `blueprint_digest` used
+    below. It constructs and signs both artifacts in memory without a checkout.
+    The examples below continue that setup; keys are not printed.
 
     ```elixir
-    match?(
-      {:error, %AgentBlueprintProtocol.Error{}},
-      AgentBlueprintProtocol.Signature.verify(nil, [])
-    )
+    {:ok, attributes} = AgentBlueprintProtocol.Signature.verify(entry, [public_key_record])
+    true = attributes.purpose == :blueprint
+    true = AgentBlueprintProtocol.Digest.to_tagged(attributes.content_digest) == blueprint_digest
     ```
   """
   @moduledoc since: "1.0.0"
@@ -102,15 +106,13 @@ defmodule AgentBlueprintProtocol.Signature do
   @spec signing_input(Json.value()) ::
           {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Returns the signed input bytes represented by a signature entry.
+    Returns the exact protected-header and detached payload bytes to sign.
 
-    ## Example
+    Continue the [complete setup](#module-complete-setup) from the module documentation.
 
     ```elixir
-    match?(
-      {:error, %AgentBlueprintProtocol.Error{}},
-      AgentBlueprintProtocol.Signature.signing_input(nil)
-    )
+    {:ok, signing_input} = AgentBlueprintProtocol.Signature.signing_input(entry)
+    true = is_binary(signing_input)
     ```
   """
   @doc since: "1.0.0"
@@ -123,15 +125,14 @@ defmodule AgentBlueprintProtocol.Signature do
   @spec attributes(Json.value()) ::
           {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Parses the attributes carried by a signature entry.
+    Parses attributes; it does not verify their signature.
 
-    ## Example
+    Continue the [complete setup](#module-complete-setup) from the module documentation.
 
     ```elixir
-    match?(
-      {:error, %AgentBlueprintProtocol.Error{}},
-      AgentBlueprintProtocol.Signature.attributes(nil)
-    )
+    {:ok, %AgentBlueprintProtocol.Signature.Attributes{purpose: :blueprint} = attributes} =
+      AgentBlueprintProtocol.Signature.attributes(entry)
+    true = AgentBlueprintProtocol.Digest.to_tagged(attributes.content_digest) == blueprint_digest
     ```
   """
   @doc since: "1.0.0"
@@ -144,15 +145,17 @@ defmodule AgentBlueprintProtocol.Signature do
   @spec verify(Json.value(), [PublicKey.t()]) ::
           {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Verifies a signature entry with the supplied public keys.
+    Verifies the detached signature using the supplied public keys and returns verified attributes.
 
-    ## Example
+    Continue the [complete setup](#module-complete-setup) from the module documentation.
+    Compare returned `purpose` and `content_digest` with the intended artifact;
+    standalone verification has no expected-artifact argument. Reconciliation
+    separately compares the signed digest with each artifact.
 
     ```elixir
-    match?(
-      {:error, %AgentBlueprintProtocol.Error{}},
-      AgentBlueprintProtocol.Signature.verify(nil, [])
-    )
+    {:ok, %AgentBlueprintProtocol.Signature.Attributes{purpose: :blueprint} = attributes} =
+      AgentBlueprintProtocol.Signature.verify(entry, [public_key_record])
+    true = AgentBlueprintProtocol.Digest.to_tagged(attributes.content_digest) == blueprint_digest
     ```
   """
   @doc since: "1.0.0"
@@ -168,7 +171,9 @@ defmodule AgentBlueprintProtocol.Signature do
   @spec verify_attestation(Json.value(), [PublicKey.t()]) ::
           {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Checks the shape of a supplied attestation entry.
+    Validates an attestation entry against the accepted-kind set.
+    Version 1.0 has no accepted kinds, so this operation returns a typed denial;
+    it has no successful attestation-verification example in this release.
 
     ## Example
 
@@ -190,15 +195,14 @@ defmodule AgentBlueprintProtocol.Signature do
 
   @spec to_compact(Json.value()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Formats a signature entry as compact detached serialization.
+    Formats the entry as detached compact serialization: protected header, two dots, signature.
 
-    ## Example
+    Continue the [complete setup](#module-complete-setup) from the module documentation.
 
     ```elixir
-    match?(
-      {:error, %AgentBlueprintProtocol.Error{}},
-      AgentBlueprintProtocol.Signature.to_compact(nil)
-    )
+    {:ok, compact} = AgentBlueprintProtocol.Signature.to_compact(entry)
+    [header, "", signature] = String.split(compact, ".")
+    true = byte_size(header) > 0 and byte_size(signature) > 0
     ```
   """
   @doc since: "1.0.0"

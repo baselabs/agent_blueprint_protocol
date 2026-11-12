@@ -9,7 +9,8 @@ defmodule AgentBlueprintProtocol.Blueprint do
     ## Example
 
     ```elixir
-    bytes = File.read!("examples/echo-blueprint.json")
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+    bytes = File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
     match?({:ok, %AgentBlueprintProtocol.Blueprint{}}, AgentBlueprintProtocol.Blueprint.decode(bytes))
     ```
   """
@@ -269,19 +270,21 @@ defmodule AgentBlueprintProtocol.Blueprint do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     match?(
       {:ok, %AgentBlueprintProtocol.Blueprint{}},
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
     )
     ```
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     match?(
       {:ok, %AgentBlueprintProtocol.Blueprint{}},
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json"),
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json")),
         AgentBlueprintProtocol.Bounds.maximum()
       )
     )
@@ -306,14 +309,35 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Validates a tagged JSON value and wraps it in this artifact type.
+    Validates the tagged value's structure and portability and constructs a draft artifact.
+    This function does not compare the declared digest with recomputed content and does
+    not verify signatures. Producers must compute and insert `content_digest`, encode
+    canonical bytes, and decode those bytes to check the completed artifact.
+
+    ## Options
+
+    `:authored_extensions` defaults to `[]`. It is a list of critical namespace strings
+    whose bodies have already passed negotiation's schema validation for this same
+    value. It changes portability scanning of those bodies; it does not validate a
+    schema or establish content classification. Never infer this list from names alone.
+    Host consumers should use `AgentBlueprintProtocol.reconcile/3`, which derives it.
+
+    After successful negotiation of `value` with the host's `support` (an excerpt):
+
+    ```elixir
+    {:ok, outcome} = AgentBlueprintProtocol.negotiate(value, support)
+    {:ok, draft} = AgentBlueprintProtocol.Blueprint.from_value(value, %{
+      authored_extensions: outcome.critical_extensions
+    })
+    ```
 
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, value} =
       AgentBlueprintProtocol.Json.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
 
     match?(
@@ -323,9 +347,10 @@ defmodule AgentBlueprintProtocol.Blueprint do
     ```
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, value} =
       AgentBlueprintProtocol.Json.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
 
     match?(
@@ -360,9 +385,10 @@ defmodule AgentBlueprintProtocol.Blueprint do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, blueprint} =
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
 
     match?({:object, _}, AgentBlueprintProtocol.Blueprint.to_value(blueprint))
@@ -379,9 +405,10 @@ defmodule AgentBlueprintProtocol.Blueprint do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, blueprint} =
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
 
     match?({:object, _}, AgentBlueprintProtocol.Blueprint.digest_input(blueprint))
@@ -419,9 +446,10 @@ defmodule AgentBlueprintProtocol.Blueprint do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, blueprint} =
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
 
     match?(
@@ -441,9 +469,10 @@ defmodule AgentBlueprintProtocol.Blueprint do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, blueprint} =
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
 
     match?(
@@ -469,9 +498,10 @@ defmodule AgentBlueprintProtocol.Blueprint do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, blueprint} =
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
 
     AgentBlueprintProtocol.Blueprint.verify_content_digest(blueprint)

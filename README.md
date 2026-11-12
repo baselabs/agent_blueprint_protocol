@@ -37,6 +37,8 @@ This is the complete example from [`examples/echo-blueprint.json`](https://githu
 }
 ```
 
+Formatted JSON is for reading. Artifact decoding requires canonical bytes, including no added trailing newline. Decode ordinary JSON with `Json.decode/1` and encode the tagged value with `Canonicalization.encode/1`; content changes also require recomputing the artifact digest. See the [producer walkthrough](documentation/compose-and-sign.md).
+
 Verification decodes bounded JSON, negotiates protocol support, binds related artifacts, reconciles [host](documentation/glossary.md#host) inputs, and returns evidence.
 
 ## Which package?
@@ -58,7 +60,7 @@ bytes = File.read!(example_path)
 AgentBlueprintProtocol.canonical_bytes(blueprint) == {:ok, bytes} # => true
 ```
 
-First TypeScript verification, from a checkout containing the example:
+First TypeScript verification: install the npm package above, then [download the two pinned sample files](documentation/typescript.md#install-and-decode). Save this as `verify.mjs` and run `node verify.mjs`; it prints `valid`:
 
 ```js
 import { readFileSync } from "node:fs";

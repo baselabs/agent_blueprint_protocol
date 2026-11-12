@@ -29,7 +29,7 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   @spec encode(Json.value(), Bounds.t() | map()) ::
           {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Encodes the supplied value as base64url or canonical JSON, depending on the module.
+    Encodes a tagged JSON value as RFC 8785 canonical UTF-8 bytes.
 
     ## Example
 
@@ -77,7 +77,8 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   @spec verify(binary(), Bounds.t() | map()) ::
           {:ok, Json.value()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Checks the supplied bytes or entry against this module’s verification rules.
+    Decodes bounded JSON and requires the input bytes to equal its canonical encoding.
+    Returns `{:ok, tagged_value}` or a typed denial, including `:non_canonical_bytes`.
 
     ## Example
 

@@ -8,7 +8,11 @@ livebook:{"persist_outputs":true}
 
 This notebook decodes the shipped artifacts, compares declared build identities with host observations, intersects bounds, calls `reconcile/3`, and reads each part of the resulting evidence.
 
-The first cell installs the published package.
+## Before you run
+
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.0` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.0`.
+
+The first cell installs the published package. The setup then uses the public `Mix.install_project_dir/0` API to find that installation's dependency source files. In a Mix-project execution, it uses `Mix.Project.deps_paths/0` instead. Only when this package is itself the current Mix project, and so has no dependency entry, does it read the working directory, which is then the package's own checkout.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
@@ -17,19 +21,13 @@ Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
 Locate and decode both shipped artifacts and the plain JSON views used to build host observations.
 
 ```elixir
-dependency_path =
-  try do
-    Mix.Project.deps_paths() |> Map.get(:agent_blueprint_protocol)
-  rescue
-    _ -> nil
+package_root =
+  case Mix.install_project_dir() do
+    nil -> Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+    install_root -> Path.join([install_root, "deps", "agent_blueprint_protocol"])
   end
 
-package_root =
-  [dependency_path, Application.app_dir(:agent_blueprint_protocol), File.cwd!()]
-  |> Enum.reject(&is_nil/1)
-  |> Enum.find(fn path -> File.regular?(Path.join(path, "examples/echo-blueprint.json")) end)
-
-true = is_binary(package_root)
+true = File.regular?(Path.join(package_root, "examples/echo-blueprint.json"))
 
 blueprint_bytes = File.read!(Path.join(package_root, "examples/echo-blueprint.json"))
 deployment_bytes = File.read!(Path.join(package_root, "examples/echo-deployment.json"))
@@ -50,7 +48,7 @@ deployment_json = JSON.decode!(deployment_bytes)
 
 ## Compare observed identities
 
-Compatibility compares each manifest identity with an exact observed identity. The empty list and a matching list illustrate the two results.
+Compatibility compares each manifest identity with an exact observed identity. The empty list and a matching list illustrate the two results. These are fixture observations constructed from the example so this notebook is self-contained. They demonstrate the comparison API, not independent discovery of the host environment. In an integration, obtain build identities and descriptor digests from your host's own inventory, and obtain host bounds from its configured limits.
 
 ```elixir
 alias AgentBlueprintProtocol.Compatibility.Observed
@@ -75,7 +73,11 @@ full = AgentBlueprintProtocol.verify_compatibility(deployment, %Observed{identit
 %{
   negotiated_revision: negotiation.protocol_revision,
   notices: notices,
-  none: case none do {:error, error} -> error.code; {:ok, _} -> :matched end,
+  none:
+    case none do
+      {:error, error} -> error.code
+      {:ok, _} -> :matched
+    end,
   full: match?({:ok, %AgentBlueprintProtocol.Evidence{}}, full)
 }
 ```
@@ -88,7 +90,7 @@ full = AgentBlueprintProtocol.verify_compatibility(deployment, %Observed{identit
 
 ## Intersect bounds
 
-A host can narrow an operational value. A protected narrowing returns a denial under the deny posture and a clamp record under the acknowledge posture.
+These fixture bounds start from the Manifest for the lesson. A real host starts from its configured limits. A host can narrow an operational value. A protected narrowing returns a denial under the deny posture and a clamp record under the acknowledge posture.
 
 ```elixir
 alias AgentBlueprintProtocol.BoundsAlgebra
@@ -112,7 +114,11 @@ denied = BoundsAlgebra.intersect(sources)
 {:ok, effective} = BoundSet.to_map(acknowledged.effective)
 
 %{
-  denial: case denied do {:error, error} -> error.code; {:ok, _} -> :allowed end,
+  denial:
+    case denied do
+      {:error, error} -> error.code
+      {:ok, _} -> :allowed
+    end,
   effective_attempts: effective.max_attempts,
   clamp_fields: Enum.map(acknowledged.clamps, & &1.field)
 }
@@ -130,99 +136,100 @@ denied = BoundsAlgebra.intersect(sources)
 
 ## Observations
 
-Descriptor observations can be absent, partial, or complete. The example Deployment has two tool bindings, so each map is made directly from those values.
-
-Check none, partial, and full descriptor observations, then pass the complete set to `reconcile/3`.
+Descriptor observations can be absent, partial, or complete. This self-contained fixture copies declarations from the example; production observations come from independent host inventory. Keep the narrowed `host_bounds` from the preceding section.
 
 ```elixir
-alias AgentBlueprintProtocol.{Reconcile, BoundsAlgebra}
-
-tool_bindings = deployment_json["tool_bindings"]
+alias AgentBlueprintProtocol.{Reconcile, Deployment, Evidence, Digest}
 
 observed_all =
-  Map.new(tool_bindings, fn binding ->
-    {binding["logical_operation"], binding["descriptor_digest"]}
-  end)
+  Map.new(deployment_json["tool_bindings"], &{&1["logical_operation"], &1["descriptor_digest"]})
 
-observed_partial = Map.take(observed_all, [hd(Map.keys(observed_all))])
-
-observation_results =
-  [
-    %AgentBlueprintProtocol.Deployment.Observations{observed: %{}},
-    %AgentBlueprintProtocol.Deployment.Observations{observed: observed_partial},
-    %AgentBlueprintProtocol.Deployment.Observations{observed: observed_all}
-  ]
-  |> Enum.map(&AgentBlueprintProtocol.Deployment.verify_binding(deployment, blueprint, &1))
-
-{:ok, host_bounds} = BoundsAlgebra.from_deployment(deployment)
-support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
+operation = observed_all |> Map.keys() |> Enum.sort() |> hd()
+observed_partial = Map.take(observed_all, [operation])
 
 inputs = %Reconcile.Inputs{
   host_bounds: host_bounds,
   support: support,
   keys: [],
   protected_clamp: :acknowledge,
-  observations: %AgentBlueprintProtocol.Deployment.Observations{observed: observed_all}
+  observations: %Deployment.Observations{observed: observed_all}
 }
 
-{:ok, evidence} = AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
+coverage =
+  Enum.map([{:none, %{}}, {:partial, observed_partial}, {:full, observed_all}], fn {label,
+                                                                                    observed} ->
+    {:ok, evidence} =
+      AgentBlueprintProtocol.reconcile(blueprint, deployment, %{
+        inputs
+        | observations: %Deployment.Observations{observed: observed}
+      })
 
-%{
-  observation_results: Enum.map(observation_results, &match?(:ok, &1)),
-  reconcile_succeeded: is_struct(evidence, AgentBlueprintProtocol.Evidence)
-}
+    check = Enum.find(evidence.checks, &(&1.surface == :bind and &1.subject == ["deployment"]))
+    %Evidence.Binding{checked: checked, not_verified: skipped} = check.detail
+    {label, %{checked: checked, not_verified: skipped, verified: check.verified}}
+  end)
+
+coverage
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-%{observation_results: [true, true, true], reconcile_succeeded: true}
+[
+  none: %{
+    checked: [:release_binding, :binding_completeness, :effect_recovery],
+    verified: false,
+    not_verified: [:binding_staleness, :binding_descriptors]
+  },
+  partial: %{
+    checked: [:release_binding, :binding_completeness, :effect_recovery],
+    verified: false,
+    not_verified: [:binding_staleness, :binding_descriptors]
+  },
+  full: %{
+    checked: [:release_binding, :binding_completeness, :effect_recovery,
+     :binding_descriptors],
+    verified: false,
+    not_verified: [:binding_staleness]
+  }
+]
 ```
 
-## Read every evidence field
+Absent and partial descriptors leave `:binding_descriptors` unverified. Full descriptor coverage checks that kind, but leaves `:binding_staleness` unverified until both clock and age inputs are supplied. A successful return does not mean every optional check ran.
 
-Check names and detail shapes can grow. This reader matches known shapes and keeps a catch-all. It reports the verified flag and summarizes each evidence member.
+## Mismatched and stale observations
+
+A well-formed different digest denies. The fixed clock checks the example's binding timestamps at the inclusive one-second age limit, then advances beyond it. Elixir takes a `DateTime`; npm takes a timestamp string such as `"2026-08-20T00:00:01Z"` and uses `maxAttestationAgeMs`.
 
 ```elixir
-alias AgentBlueprintProtocol.{BoundsAlgebra, Digest, Evidence}
+other_digest = Digest.to_tagged(Digest.hash(:blueprint_content, "different descriptor fixture"))
+mismatch = Map.put(observed_all, operation, other_digest)
 
-check_view =
-  Enum.map(evidence.checks, fn
-    %{surface: surface, subject: subject, verified: verified, detail: detail} ->
-      detail_type =
-        case detail do
-          nil -> :none
-          %Evidence.Signatures{} -> :signatures
-          %Evidence.Binding{checked: checked, not_verified: skipped} ->
-            {:binding, length(checked), length(skipped)}
-          %BoundsAlgebra.ClampEvidence{field: field} -> {:clamp, field}
-          %Digest{} -> :digest
-          other -> {:additional_detail, is_struct(other)}
-        end
+{:error, mismatch_error} =
+  Deployment.verify_binding(deployment, blueprint, %Deployment.Observations{observed: mismatch})
 
-      %{surface: surface, subject: subject, verified: verified, detail: detail_type}
+fresh = %Deployment.Observations{
+  observed: observed_all,
+  now: ~U[2026-08-20 00:00:01Z],
+  max_attestation_age_ms: 1_000
+}
 
-    other ->
-      %{unknown_check: is_map(other)}
-  end)
+{:ok, evidence} =
+  AgentBlueprintProtocol.reconcile(blueprint, deployment, %{inputs | observations: fresh})
 
-unverified_view =
-  Enum.map(evidence.not_verified, fn
-    :tenancy -> :host_owned
-    :live_policy -> :host_owned
-    other when is_atom(other) -> :additional_surface
-    _unknown -> :unknown_shape
-  end)
+check = Enum.find(evidence.checks, &(&1.surface == :bind and &1.subject == ["deployment"]))
+
+{:error, stale_error} =
+  AgentBlueprintProtocol.reconcile(blueprint, deployment, %{
+    inputs
+    | observations: %{fresh | now: ~U[2026-08-20 00:00:02Z]}
+  })
 
 %{
-  protocol_revision: evidence.protocol_revision,
-  blueprint_digest: Digest.to_tagged(evidence.blueprint_digest),
-  deployment_digest: Digest.to_tagged(evidence.deployment_digest),
-  checks: check_view,
-  effective_bounds: match?({:ok, _}, BoundsAlgebra.BoundSet.to_map(evidence.effective_bounds)),
-  clamps: Enum.map(evidence.clamps, &{&1.field, &1.requested, &1.effective}),
-  optional_extensions_retained: evidence.optional_extensions_retained,
-  not_verified: unverified_view
+  mismatch: mismatch_error.code,
+  fresh: check.detail,
+  fresh_verified: check.verified,
+  stale: stale_error.code
 }
 ```
 
@@ -230,49 +237,109 @@ unverified_view =
 
 ```
 %{
-  protocol_revision: 1,
-  checks: [
-    %{detail: :none, subject: ["blueprint"], surface: :canonical, verified: true},
-    %{detail: :none, subject: ["deployment"], surface: :canonical, verified: true},
-    %{detail: :digest, subject: ["blueprint"], surface: :digest, verified: true},
-    %{detail: :digest, subject: ["deployment"], surface: :digest, verified: true},
-    %{detail: :none, subject: ["blueprint"], surface: :negotiation, verified: true},
-    %{detail: :none, subject: ["deployment"], surface: :negotiation, verified: true},
-    %{detail: :none, subject: ["blueprint"], surface: :structure, verified: true},
-    %{detail: :none, subject: ["deployment"], surface: :structure, verified: true},
-    %{detail: :none, subject: ["blueprint"], surface: :portability, verified: true},
-    %{detail: :none, subject: ["deployment"], surface: :portability, verified: true},
-    %{
-      detail: {:additional_detail, false},
-      subject: ["blueprint"],
-      surface: :signatures,
-      verified: false
-    },
-    %{
-      detail: {:additional_detail, false},
-      subject: ["deployment"],
-      surface: :signatures,
-      verified: false
-    },
-    %{detail: {:binding, 4, 1}, subject: ["deployment"], surface: :bind, verified: false},
-    %{detail: :none, subject: ["bounds"], surface: :bounds, verified: true},
-    %{
-      detail: {:clamp, :disclosure_ceiling},
-      subject: ["disclosure_ceiling"],
-      surface: :bounds,
-      verified: true
-    }
-  ],
-  not_verified: [:host_owned, :host_owned, :additional_surface, :additional_surface,
-   :additional_surface, :additional_surface, :additional_surface, :additional_surface,
-   :additional_surface, :additional_surface, :additional_surface, :additional_surface],
-  blueprint_digest: "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8",
-  deployment_digest: "sha-256:tWFr0caS0AWFJd2UcB9gZv3kNjIUP8xZ08WWM_h8xgo",
-  effective_bounds: true,
-  clamps: [{:disclosure_ceiling, :full, :summary}],
-  optional_extensions_retained: []
+  mismatch: :binding_descriptor_mismatch,
+  stale: :binding_attestation_stale,
+  fresh: %AgentBlueprintProtocol.Evidence.Binding{
+    checked: [:release_binding, :binding_completeness, :effect_recovery,
+     :binding_staleness, :binding_descriptors],
+    not_verified: []
+  },
+  fresh_verified: true
 }
 ```
+
+## Read evidence without losing names
+
+The original names remain visible even for unfamiliar surfaces. Both artifact subjects are unsigned in this fixture. The producer notebook checks signed subjects.
+
+```elixir
+{:ok, effective} = BoundsAlgebra.BoundSet.to_map(evidence.effective_bounds)
+
+not_verified =
+  Enum.map(evidence.not_verified, fn
+    name
+    when name in [
+           :tenancy,
+           :live_policy,
+           :authority,
+           :effect_ownership,
+           :execution,
+           :billing,
+           :evaluation_truth
+         ] ->
+      {:host_owned, name}
+
+    name
+    when name in [
+           :signatures,
+           :signature_created_at,
+           :lifecycle_state,
+           :binding_descriptors,
+           :binding_staleness,
+           :bind
+         ] ->
+      {:known_unverified, name}
+
+    other ->
+      {:unknown_surface, other}
+  end)
+
+signatures =
+  Enum.map(["blueprint", "deployment"], fn artifact ->
+    check = Enum.find(evidence.checks, &(&1.surface == :signatures and &1.subject == [artifact]))
+
+    case check do
+      %{verified: true, detail: %Evidence.Signatures{key_ids: ids}} ->
+        {artifact, {:verified_by, ids}}
+
+      %{verified: false, detail: :no_signatures_present} ->
+        {artifact, :not_verified}
+
+      other ->
+        {artifact, {:unknown_check, other}}
+    end
+  end)
+
+%{
+  signatures: signatures,
+  effective_attempts: effective.max_attempts,
+  effective_disclosure: effective.disclosure_ceiling,
+  clamps: Enum.map(evidence.clamps, &{&1.field, &1.requested, &1.effective}),
+  not_verified: not_verified
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  signatures: [{"blueprint", :not_verified}, {"deployment", :not_verified}],
+  not_verified: [
+    host_owned: :tenancy,
+    host_owned: :live_policy,
+    host_owned: :authority,
+    host_owned: :effect_ownership,
+    host_owned: :execution,
+    host_owned: :billing,
+    host_owned: :evaluation_truth,
+    known_unverified: :signature_created_at,
+    known_unverified: :lifecycle_state,
+    known_unverified: :signatures
+  ],
+  clamps: [{:disclosure_ceiling, :full, :none}, {:max_attempts, 3, 2}],
+  effective_attempts: 2,
+  effective_disclosure: :none
+}
+```
+
+| Unverified name in this run | Meaning |
+|---|---|
+| `signatures` | At least one artifact subject is unsigned; here both are. |
+| `signature_created_at` | A signature timestamp is signed data, not an independent clock check. |
+| `lifecycle_state` | Reconciliation does not establish host lifecycle state. |
+| Host-owned names | Tenancy, policy, authority, effects, execution, billing, and evaluation truth need host decisions. |
+
+The complete descriptor map and fixed clock establish both optional binding kinds in this run. The narrowed attempts `2` and disclosure `:none` remain effective, with both clamps recorded.
 
 ## Decoder limits and error shape
 

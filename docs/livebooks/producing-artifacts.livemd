@@ -6,9 +6,13 @@ livebook:{"persist_outputs":true}
 
 # Producing artifacts
 
-This notebook starts with the shipped Blueprint and Deployment Manifest, changes their values, recomputes their digests, and creates a Blueprint signature with a throwaway key.
+This notebook starts with the shipped Blueprint and Deployment Manifest, changes their values, recomputes their digests, signs both with a throwaway key, reconciles the pair, and saves canonical files for CI.
 
-The first cell installs the published package.
+## Before you run
+
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.0` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.0`.
+
+The first cell installs the published package. The setup then uses the public `Mix.install_project_dir/0` API to find that installation's dependency source files. In a Mix-project execution, it uses `Mix.Project.deps_paths/0` instead. Only when this package is itself the current Mix project, and so has no dependency entry, does it read the working directory, which is then the package's own checkout.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
@@ -17,19 +21,13 @@ Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
 Locate the shipped examples from the installed package or the current source checkout.
 
 ```elixir
-dependency_path =
-  try do
-    Mix.Project.deps_paths() |> Map.get(:agent_blueprint_protocol)
-  rescue
-    _ -> nil
+package_root =
+  case Mix.install_project_dir() do
+    nil -> Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+    install_root -> Path.join([install_root, "deps", "agent_blueprint_protocol"])
   end
 
-package_root =
-  [dependency_path, Application.app_dir(:agent_blueprint_protocol), File.cwd!()]
-  |> Enum.reject(&is_nil/1)
-  |> Enum.find(fn path -> File.regular?(Path.join(path, "examples/echo-blueprint.json")) end)
-
-true = is_binary(package_root)
+true = File.regular?(Path.join(package_root, "examples/echo-blueprint.json"))
 %{example_files_found?: true}
 ```
 
@@ -38,6 +36,25 @@ true = is_binary(package_root)
 ```
 %{example_files_found?: true}
 ```
+
+## Tagged JSON and the producer sequence
+
+| JSON | Elixir tagged value |
+|---|---|
+| `null` | `:null` |
+| `true` | `{:boolean, true}` |
+| `3` / `1.5` | `{:integer, 3}` / `{:float, 1.5}` |
+| `"hello"` | `{:string, "hello"}` |
+| `[3]` | `{:array, [{:integer, 3}]}` |
+| `{"ready": true}` | `{:object, [{"ready", {:boolean, true}}]}` |
+
+Objects use ordered member lists so the decoder can retain order and reject duplicates before canonical encoding; an Elixir map is not a tagged JSON object. `Json.decode/1` converts ordinary JSON to this representation.
+
+`from_value/2` constructs a structurally valid, portable draft, even while its declared digest still belongs to an earlier value. Compute the new digest, insert it, encode canonical bytes, and decode those bytes to check the completed artifact. Then sign its digest. Signatures are excluded from the content digest, so attaching one does not change it.
+
+The template supplies every required member. Producers edit their identity, release number, ports, schemas, capabilities, effects, assertions, ceilings, and extensions to describe their own contract. The Manifest must identify that exact Blueprint release; its adapters, bindings, build identities, policies, timestamps, and host bounds describe the intended environment. This lesson changes only release number and model tokens, keeping the other fixture values coherent.
+
+Formatted JSON is for reading. Artifact decoding requires canonical bytes, including no added trailing newline. Decode ordinary JSON with `Json.decode/1` and encode the tagged value with `Canonicalization.encode/1`; content changes also require recomputing the artifact digest and recreating affected signatures.
 
 ## Change the Blueprint and compute its digest
 
@@ -106,13 +123,27 @@ deployment_path = Path.join(package_root, "examples/echo-deployment.json")
 {:ok, deployment_value} = File.read!(deployment_path) |> Json.decode()
 
 deployment_value =
-replace_path.(replace_path, deployment_value, ["blueprint_release", "release_number"], {:integer, 2})
-  |> then(&replace_path.(replace_path, &1, ["blueprint_release", "content_digest"], {:string, blueprint_digest}))
+  replace_path.(
+    replace_path,
+    deployment_value,
+    ["blueprint_release", "release_number"],
+    {:integer, 2}
+  )
+  |> then(
+    &replace_path.(
+      replace_path,
+      &1,
+      ["blueprint_release", "content_digest"],
+      {:string, blueprint_digest}
+    )
+  )
   |> then(&replace_path.(replace_path, &1, ["model_policy", "max_tokens"], {:integer, 40_000}))
 
 {:ok, deployment_draft} = Deployment.from_value(deployment_value)
 deployment_digest = deployment_draft |> Deployment.content_digest() |> Digest.to_tagged()
-deployment_value = put_member.(deployment_value, "deployment_digest", {:string, deployment_digest})
+
+deployment_value =
+  put_member.(deployment_value, "deployment_digest", {:string, deployment_digest})
 
 {:ok, deployment_bytes} = Canonicalization.encode(deployment_value)
 {:ok, deployment} = AgentBlueprintProtocol.decode_deployment(deployment_bytes)
@@ -144,27 +175,32 @@ alias AgentBlueprintProtocol.Signature.PublicKey
 
 {public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
 
-protected = {:object, [
-  {"alg", {:string, "Ed25519"}},
-  {"b64", {:boolean, false}},
-  {"crit", {:array, [{:string, "b64"}]}},
-  {"kid", {:string, "example-producer-key"}}
-]}
+protected =
+  {:object,
+   [
+     {"alg", {:string, "Ed25519"}},
+     {"b64", {:boolean, false}},
+     {"crit", {:array, [{:string, "b64"}]}},
+     {"kid", {:string, "example-producer-key"}}
+   ]}
 
-signed_attributes = {:object, [
-  {"algorithm", {:string, "Ed25519"}},
-  {"content_digest", {:string, blueprint_digest}},
-  {"created_at", {:string, "2026-08-20T00:00:00Z"}},
-  {"key_id", {:string, "example-producer-key"}},
-  {"purpose", {:string, "blueprint"}}
-]}
+signed_attributes =
+  {:object,
+   [
+     {"algorithm", {:string, "Ed25519"}},
+     {"content_digest", {:string, blueprint_digest}},
+     {"created_at", {:string, "2026-08-20T00:00:00Z"}},
+     {"key_id", {:string, "example-producer-key"}},
+     {"purpose", {:string, "blueprint"}}
+   ]}
 
 entry_with = fn header, signature_bytes ->
-  {:object, [
-    {"protected", header},
-    {"signed_attributes", signed_attributes},
-    {"signature", {:string, Base64Url.encode(signature_bytes)}}
-  ]}
+  {:object,
+   [
+     {"protected", header},
+     {"signed_attributes", signed_attributes},
+     {"signature", {:string, Base64Url.encode(signature_bytes)}}
+   ]}
 end
 
 unsigned_entry = entry_with.(protected, <<0::512>>)
@@ -178,18 +214,20 @@ public_key_record = %PublicKey{
   key: public_key
 }
 
-{:ok, signed_value} =
+{:ok, signed_bytes} =
   blueprint
   |> Blueprint.to_value()
   |> put_member.("signatures", {:array, [entry]})
   |> Canonicalization.encode()
 
-{:ok, signed_blueprint} = AgentBlueprintProtocol.decode_blueprint(signed_value)
-{:ok, ^signed_value} = AgentBlueprintProtocol.canonical_bytes(signed_blueprint)
+{:ok, signed_blueprint} = AgentBlueprintProtocol.decode_blueprint(signed_bytes)
+{:ok, ^signed_bytes} = AgentBlueprintProtocol.canonical_bytes(signed_blueprint)
 
 %{
-  signature_verifies: match?({:ok, %Signature.Attributes{}}, Signature.verify(entry, [public_key_record])),
-  digest_unchanged: Digest.to_tagged(Blueprint.content_digest(signed_blueprint)) == blueprint_digest,
+  signature_verifies:
+    match?({:ok, %Signature.Attributes{}}, Signature.verify(entry, [public_key_record])),
+  digest_unchanged:
+    Digest.to_tagged(Blueprint.content_digest(signed_blueprint)) == blueprint_digest,
   canonical_round_trip: true
 }
 ```
@@ -215,7 +253,10 @@ eddsa_entry = entry_with.(eddsa_header, <<0::512>>)
 eddsa_signature = :crypto.sign(:eddsa, :none, eddsa_input, [private_key, :ed25519])
 eddsa_entry = entry_with.(eddsa_header, eddsa_signature)
 
-%{eddsa_header_verifies: match?({:ok, %Signature.Attributes{}}, Signature.verify(eddsa_entry, [public_key_record]))}
+%{
+  eddsa_header_verifies:
+    match?({:ok, %Signature.Attributes{}}, Signature.verify(eddsa_entry, [public_key_record]))
+}
 ```
 
 <!-- livebook:{"output":true} -->
@@ -223,6 +264,130 @@ eddsa_entry = entry_with.(eddsa_header, eddsa_signature)
 ```
 %{eddsa_header_verifies: true}
 ```
+
+## Sign the matching Manifest and reconcile the pair
+
+The Manifest signs its own digest with purpose `deployment`. Reconciliation checks both signatures and compares their digests with the artifacts. The bounds here are fixture host configuration; a consuming application supplies independent configured limits. No private or public key material is printed.
+
+```elixir
+deployment_attributes =
+  signed_attributes
+  |> put_member.("content_digest", {:string, deployment_digest})
+  |> put_member.("purpose", {:string, "deployment"})
+
+deployment_entry =
+  entry
+  |> put_member.("signed_attributes", deployment_attributes)
+  |> put_member.("signature", {:string, Base64Url.encode(<<0::512>>)})
+
+{:ok, deployment_input} = Signature.signing_input(deployment_entry)
+deployment_signature = :crypto.sign(:eddsa, :none, deployment_input, [private_key, :ed25519])
+
+deployment_entry =
+  put_member.(deployment_entry, "signature", {:string, Base64Url.encode(deployment_signature)})
+
+{:ok, signed_deployment_bytes} =
+  deployment
+  |> Deployment.to_value()
+  |> put_member.("signatures", {:array, [deployment_entry]})
+  |> Canonicalization.encode()
+
+{:ok, signed_deployment} = AgentBlueprintProtocol.decode_deployment(signed_deployment_bytes)
+{:ok, attributes} = Signature.verify(deployment_entry, [public_key_record])
+true = attributes.purpose == :deployment
+true = Digest.to_tagged(attributes.content_digest) == deployment_digest
+
+alias AgentBlueprintProtocol.{BoundsAlgebra, Evidence, Reconcile}
+{:ok, host_bounds} = BoundsAlgebra.from_deployment(signed_deployment)
+
+inputs = %Reconcile.Inputs{
+  host_bounds: host_bounds,
+  support: %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])},
+  keys: [public_key_record],
+  protected_clamp: :acknowledge,
+  observations: %Deployment.Observations{}
+}
+
+{:ok, pair_evidence} =
+  AgentBlueprintProtocol.reconcile(signed_blueprint, signed_deployment, inputs)
+
+signature_subjects =
+  Enum.map(["blueprint", "deployment"], fn artifact ->
+    check =
+      Enum.find(pair_evidence.checks, &(&1.surface == :signatures and &1.subject == [artifact]))
+
+    %{verified: true, detail: %Evidence.Signatures{key_ids: ids}} = check
+    {artifact, ids}
+  end)
+
+# Reconcile once with the unsigned Manifest to show subject-aware coverage.
+{:ok, mixed_evidence} = AgentBlueprintProtocol.reconcile(signed_blueprint, deployment, inputs)
+
+%{
+  signed_subjects: signature_subjects,
+  pair_signatures_unverified: :signatures in pair_evidence.not_verified,
+  mixed_signatures_unverified: :signatures in mixed_evidence.not_verified
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  signed_subjects: [
+    {"blueprint", ["example-producer-key"]},
+    {"deployment", ["example-producer-key"]}
+  ],
+  pair_signatures_unverified: false,
+  mixed_signatures_unverified: true
+}
+```
+
+The fully signed pair still leaves descriptor observations, binding freshness, and host-owned surfaces unverified. The mixed pair leaves the global signatures surface unverified because its Manifest is unsigned.
+
+## Save and reload the deliverables
+
+This creates a named user output directory, `abp-artifacts`, in the runtime's current directory. Choose a new directory name for a new run; the cell refuses to overwrite existing artifacts. With a remote Livebook runtime, download these two files from that runtime to use them in your project. The signing key stays in memory and is not written.
+
+```elixir
+output_dir = Path.join(File.cwd!(), "abp-artifacts")
+:ok = File.mkdir(output_dir)
+System.at_exit(fn _status -> File.rm_rf!(output_dir) end)
+blueprint_output = Path.join(output_dir, "blueprint.json")
+deployment_output = Path.join(output_dir, "deployment.json")
+:ok = File.write(blueprint_output, signed_bytes)
+:ok = File.write(deployment_output, signed_deployment_bytes)
+{:ok, reloaded_blueprint} = AgentBlueprintProtocol.decode_blueprint(File.read!(blueprint_output))
+
+{:ok, reloaded_deployment} =
+  AgentBlueprintProtocol.decode_deployment(File.read!(deployment_output))
+
+{:ok, ^signed_bytes} = AgentBlueprintProtocol.canonical_bytes(reloaded_blueprint)
+{:ok, ^signed_deployment_bytes} = AgentBlueprintProtocol.canonical_bytes(reloaded_deployment)
+
+{:ok, _reloaded_evidence} =
+  AgentBlueprintProtocol.reconcile(reloaded_blueprint, reloaded_deployment, inputs)
+
+%{files: ["abp-artifacts/blueprint.json", "abp-artifacts/deployment.json"], reloaded_pair: true}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  files: ["abp-artifacts/blueprint.json", "abp-artifacts/deployment.json"],
+  reloaded_pair: true
+}
+```
+
+With Node.js 24 or newer, run these commands from the directory containing `abp-artifacts`:
+
+```sh
+npx @agent-blueprint-protocol/verifier@1.0.0 --artifact abp-artifacts/blueprint.json
+npx @agent-blueprint-protocol/verifier@1.0.0 --artifact abp-artifacts/deployment.json
+```
+
+Both print a valid artifact report and exit `0`. This CLI mode performs decoding checks. It does not use keys or reconcile the pair. The [CI guide](../../documentation/verifying-in-ci.md) adds those checks when required. Download or copy the files into your project before closing the runtime. The walkthrough owns `abp-artifacts` and removes it on runtime exit; run the CLI while the runtime remains open.
 
 ## Three producer errors
 
@@ -233,6 +398,7 @@ alias AgentBlueprintProtocol.Error
 
 missing_blueprint = Blueprint.from_value({:object, []})
 unknown_member = AgentBlueprintProtocol.decode_blueprint(~s({"unknown":true}))
+
 portable_value =
   AgentBlueprintProtocol.Portability.scan({:object, [{"credential", {:string, "example"}}]})
 

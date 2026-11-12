@@ -779,9 +779,10 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, blueprint} =
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
 
     match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_blueprint(blueprint))
@@ -804,9 +805,10 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, deployment} =
       AgentBlueprintProtocol.Deployment.decode(
-        File.read!("examples/echo-deployment.json")
+        File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
       )
 
     match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment))

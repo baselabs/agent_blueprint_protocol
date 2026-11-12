@@ -9,13 +9,14 @@ defmodule AgentBlueprintProtocol.Reconcile do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, blueprint} =
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
     {:ok, deployment} =
       AgentBlueprintProtocol.Deployment.decode(
-        File.read!("examples/echo-deployment.json")
+        File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
       )
     {:ok, host_bounds} = AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment)
     support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}

@@ -54,9 +54,78 @@ The deprecated namespace remains recognized for compatibility:
 
 The carrier codecs combine the extension body with native task identity and state fields. State codecs convert between protocol states and native task states; they return typed errors for states with no defined conversion. The mapping table is data available through `AgentBlueprintProtocol.federation_mapping/0` in Elixir and `federationMapping()` in TypeScript.
 
+## Concrete carrier shapes
+
+These reading excerpts show the native fields and active extension key. The extension body is abbreviated to one real member; use the codec to obtain a complete carrier. Formatted excerpts are not canonical artifact bytes.
+
+```json
+{
+  "id": "task-7f3a2c",
+  "status": {"state": "TASK_STATE_COMPLETED"},
+  "metadata": {
+    "https://baselabs.github.io/agent_blueprint_protocol/extensions/federation": {
+      "blueprint_digest": "sha-256:UqU_xO8mUo_SEKFyllPQx5viwqjUU0jymkOUDjoSJVY"
+    }
+  }
+}
+```
+
+```json
+{
+  "taskId": "task-7f3a2c",
+  "status": "completed",
+  "_meta": {
+    "io.github.baselabs/federation": {
+      "blueprint_digest": "sha-256:UqU_xO8mUo_SEKFyllPQx5viwqjUU0jymkOUDjoSJVY"
+    }
+  }
+}
+```
+
+In `iex -S mix` with the package installed, run:
+
+```elixir
+alias AgentBlueprintProtocol.Federation
+dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+{:ok, envelope} = Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json")))
+{:ok, a2a} = Federation.to_a2a_carrier(envelope)
+{:ok, mcp} = Federation.to_mcp_carrier(envelope)
+{:ok, _a2a_round_trip} = Federation.from_a2a_carrier(a2a)
+{:ok, _mcp_round_trip} = Federation.from_mcp_carrier(mcp)
+{:ok, :canceled} = Federation.from_mcp_state("cancelled")
+{:ok, "TASK_STATE_CANCELED"} = Federation.to_a2a_state(:canceled)
+{:error, %AgentBlueprintProtocol.Error{code: :federation_state_unmappable}} =
+  Federation.from_a2a_state("TASK_STATE_UNSPECIFIED")
+```
+
+The logical and A2A spelling is `canceled`; MCP uses `cancelled`. Some native states have no lossless conversion and deny. The [extensions and federation notebook](../docs/livebooks/extensions-and-federation.livemd) prints carrier excerpts, round trips, and a valid commitment fixture.
+
+| Operation | Elixir | npm package root |
+|---|---|---|
+| Envelope decode / canonical bytes | `Federation.decode/2`, `canonical_bytes/1` | `decodeFederationEnvelope`, `canonicalBytes` |
+| Mapping rows | `federation_mapping/0` | `federationMapping()` returning a `Result` |
+| State and carrier codecs | `from_a2a_state/1`, `to_a2a_state/1`, MCP equivalents; `to_a2a_carrier/1`, `from_a2a_carrier/1`, MCP equivalents | Not exported in 1.0.0 |
+| Commitment verification and receiver context | `Federation.verify_commitment/2`, `Federation.Context` | Not exported in 1.0.0 |
+
+Do not deep-import npm implementation modules. Exposing more functions requires a code release; the [root reference](typescript.md#package-root-reference) is the supported surface.
+
 ## Terminal commitments
 
 The public `AgentBlueprintProtocol.Federation.verify_commitment/2` function performs federation commitment verification. The shipped fixtures demonstrate a valid terminal commitment and cases that return `federation_terminal_conflict`. See the [federation commitment cases](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0/priv/conformance/cases/federation-verify_commitment.json).
+
+### Receiver context and returned facts
+
+`Federation.Context` supplies receiver facts, not host execution instructions:
+
+| Field | Contract |
+|---|---|
+| `keys` | Flat list of public keys when no issuer-key map is supplied. |
+| `issuer_key_sets` | Optional map from issuer string to public-key list. When present it takes precedence over `keys`; an absent issuer has no keys. |
+| `issuer`, `subject`, `audience` | Optional exact string comparisons. `nil` skips that comparison; mismatch returns `audience_mismatch` with the member path. |
+| `created_after`, `created_before` | Optional inclusive Z-form timestamp bounds on the signed creation time. Malformed or out-of-window values deny. |
+| `prior_receipts` | Previously verified facts, each with `task_identity`, `terminal_state`, and a `Digest` in `terminal_commitment`; conflicting terminal facts deny. Defaults to `[]`. |
+
+The notebook loads `commitment-valid` from the installed `priv/conformance/cases/federation-verify_commitment.json`, decodes its envelope, converts the fixture's public keys, and calls `verify_commitment/2`. Success is `{:ok, %{task_identity: ..., terminal_state: ..., terminal_commitment: %Digest{}}}`. This fact can be retained for subsequent consistency comparisons. It does not authorize execution. The context's public keys are verification inputs; the fixture demonstrates verification only.
 
 ## Next steps
 

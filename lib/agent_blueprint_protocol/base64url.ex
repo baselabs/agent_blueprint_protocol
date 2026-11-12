@@ -19,7 +19,7 @@ defmodule AgentBlueprintProtocol.Base64Url do
 
   @spec encode(binary()) :: binary() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Encodes the supplied value as base64url or canonical JSON, depending on the module.
+    Encodes a binary as unpadded base64url.
 
     ## Example
 
@@ -33,7 +33,7 @@ defmodule AgentBlueprintProtocol.Base64Url do
 
   @spec decode(binary()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Decodes the supplied bytes or encoded text, depending on the module.
+    Decodes unpadded base64url text to binary bytes; rejects padding and invalid encodings.
 
     ## Example
 

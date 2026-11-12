@@ -9,11 +9,12 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
     ## Example
 
     ```elixir
+    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
     files =
-      Path.wildcard("priv/conformance/**/*")
+      Path.wildcard(Path.join(corpus_root, "**/*"))
       |> Enum.filter(&File.regular?/1)
       |> Map.new(fn path ->
-        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+        {Path.relative_to(path, corpus_root), File.read!(path)}
       end)
     match?({:ok, %AgentBlueprintProtocol.Conformance.Corpus{}}, AgentBlueprintProtocol.Conformance.Corpus.load(files))
     ```
@@ -225,11 +226,12 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
     ## Example
 
     ```elixir
+    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
     files =
-      Path.wildcard("priv/conformance/**/*")
+      Path.wildcard(Path.join(corpus_root, "**/*"))
       |> Enum.filter(&File.regular?/1)
       |> Map.new(fn path ->
-        {Path.relative_to(path, "priv/conformance"), File.read!(path)}
+        {Path.relative_to(path, corpus_root), File.read!(path)}
       end)
 
     match?({:ok, %AgentBlueprintProtocol.Conformance.Corpus{}}, AgentBlueprintProtocol.Conformance.Corpus.load(files))

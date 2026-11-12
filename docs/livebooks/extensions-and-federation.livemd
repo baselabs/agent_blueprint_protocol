@@ -8,7 +8,11 @@ livebook:{"persist_outputs":true}
 
 This notebook inspects the extension registry and negotiation outcomes, then decodes the shipped Federation envelope and exercises its supported state and carrier codecs.
 
-The first cell installs the published package.
+## Before you run
+
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.0` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.0`.
+
+The first cell installs the published package. The setup then uses the public `Mix.install_project_dir/0` API to find that installation's dependency source files. In a Mix-project execution, it uses `Mix.Project.deps_paths/0` instead. Only when this package is itself the current Mix project, and so has no dependency entry, does it read the working directory, which is then the package's own checkout.
 
 ```elixir
 Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
@@ -17,19 +21,14 @@ Mix.install([{:agent_blueprint_protocol, "~> 1.0.0"}])
 Locate and decode the shipped Blueprint and Federation example files.
 
 ```elixir
-dependency_path =
-  try do
-    Mix.Project.deps_paths() |> Map.get(:agent_blueprint_protocol)
-  rescue
-    _ -> nil
+package_root =
+  case Mix.install_project_dir() do
+    nil -> Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+    install_root -> Path.join([install_root, "deps", "agent_blueprint_protocol"])
   end
 
-package_root =
-  [dependency_path, Application.app_dir(:agent_blueprint_protocol), File.cwd!()]
-  |> Enum.reject(&is_nil/1)
-  |> Enum.find(fn path -> File.regular?(Path.join(path, "examples/echo-blueprint.json")) end)
+true = File.regular?(Path.join(package_root, "examples/echo-blueprint.json"))
 
-true = is_binary(package_root)
 {:ok, base_value} =
   File.read!(Path.join(package_root, "examples/echo-blueprint.json"))
   |> AgentBlueprintProtocol.Json.decode()
@@ -108,11 +107,13 @@ make_blueprint = fn regions ->
 end
 
 empty_body = {:object, []}
+
 regions = fn critical, optional ->
-  {:object, [
-    {"critical", {:object, critical}},
-    {"optional", {:object, optional}}
-  ]}
+  {:object,
+   [
+     {"critical", {:object, critical}},
+     {"optional", {:object, optional}}
+   ]}
 end
 
 {:ok, active_critical} =
@@ -223,7 +224,12 @@ computes the pin from canonical schema bytes. The compiled registry is unchanged
 
 ```elixir
 namespace = "com.example.vendor/record"
-{:ok, document} = AgentBlueprintProtocol.Json.decode(~s({"additionalProperties":false,"properties":{"value":{"type":"string"}},"required":["value"],"type":"object"}))
+
+{:ok, document} =
+  AgentBlueprintProtocol.Json.decode(
+    ~s({"additionalProperties":false,"properties":{"value":{"type":"string"}},"required":["value"],"type":"object"})
+  )
+
 {:ok, schema_bytes} = Canonicalization.encode(document)
 pin = Digest.to_tagged(Digest.hash(:extension_schema, schema_bytes))
 
@@ -242,13 +248,27 @@ host_support = %Negotiation.Support{
   registry: %{namespace => host_entry},
   schemas: %{namespace => document}
 }
-{:ok, host_blueprint} = make_blueprint.(regions.([{namespace, {:object, [{"value", {:string, "one"}}]}}], []))
+
+{:ok, host_blueprint} =
+  make_blueprint.(regions.([{namespace, {:object, [{"value", {:string, "one"}}]}}], []))
 
 %{
   registered: outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, host_support)),
-  missing_registration: outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, %Negotiation.Support{revisions: MapSet.new([1])})),
-  missing_schema: outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, %{host_support | schemas: %{}})),
-  mismatched_schema: outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, %{host_support | schemas: %{namespace => {:object, [{"type", {:string, "object"}}]}}})),
+  missing_registration:
+    outcome.(
+      AgentBlueprintProtocol.negotiate(host_blueprint, %Negotiation.Support{
+        revisions: MapSet.new([1])
+      })
+    ),
+  missing_schema:
+    outcome.(AgentBlueprintProtocol.negotiate(host_blueprint, %{host_support | schemas: %{}})),
+  mismatched_schema:
+    outcome.(
+      AgentBlueprintProtocol.negotiate(host_blueprint, %{
+        host_support
+        | schemas: %{namespace => {:object, [{"type", {:string, "object"}}]}}
+      })
+    ),
   shipped_entries: length(ExtensionRegistry.registered_extensions())
 }
 ```
@@ -297,14 +317,70 @@ alias AgentBlueprintProtocol.Federation
 
 ```
 %{
+  envelope_decoded: true,
   a2a_round_trip: true,
   mcp_round_trip: true,
   a2a_spelling: "TASK_STATE_COMPLETED",
   mcp_spelling: "completed",
-  envelope_decoded: true,
   state_codecs_agree: true
 }
 ```
+
+## Inspect native carrier fields
+
+The carriers above are tagged JSON objects. Convert them to ordinary JSON for a selected reading excerpt; the omitted extension members remain present in the complete carrier. The Elixir codecs create and consume these values. npm 1.0.0 exports envelope decoding and mapping rows, but no state/carrier/commitment helpers; use only its package root.
+
+```elixir
+{:ok, a2a_json} = Canonicalization.encode(a2a_carrier)
+{:ok, mcp_json} = Canonicalization.encode(mcp_carrier)
+a2a_plain = JSON.decode!(a2a_json)
+mcp_plain = JSON.decode!(mcp_json)
+a2a_key = "https://baselabs.github.io/agent_blueprint_protocol/extensions/federation"
+mcp_key = "io.github.baselabs/federation"
+{:ok, :canceled} = Federation.from_mcp_state("cancelled")
+{:ok, "TASK_STATE_CANCELED"} = Federation.to_a2a_state(:canceled)
+{:error, state_error} = Federation.from_a2a_state("TASK_STATE_UNSPECIFIED")
+
+%{
+  a2a:
+    Map.put(Map.take(a2a_plain, ["id", "status"]), "metadata", %{
+      a2a_key => Map.take(a2a_plain["metadata"][a2a_key], ["blueprint_digest"])
+    }),
+  mcp:
+    Map.put(Map.take(mcp_plain, ["taskId", "status"]), "_meta", %{
+      mcp_key => Map.take(mcp_plain["_meta"][mcp_key], ["blueprint_digest"])
+    }),
+  unmappable: state_error.code
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  unmappable: :federation_state_unmappable,
+  a2a: %{
+    "id" => "task-7f3a2c",
+    "metadata" => %{
+      "https://baselabs.github.io/agent_blueprint_protocol/extensions/federation" => %{
+        "blueprint_digest" => "sha-256:UqU_xO8mUo_SEKFyllPQx5viwqjUU0jymkOUDjoSJVY"
+      }
+    },
+    "status" => %{"state" => "TASK_STATE_COMPLETED"}
+  },
+  mcp: %{
+    "_meta" => %{
+      "io.github.baselabs/federation" => %{
+        "blueprint_digest" => "sha-256:UqU_xO8mUo_SEKFyllPQx5viwqjUU0jymkOUDjoSJVY"
+      }
+    },
+    "status" => "completed",
+    "taskId" => "task-7f3a2c"
+  }
+}
+```
+
+MCP spells the canceled state `cancelled`; the logical state and A2A use `canceled`/`TASK_STATE_CANCELED`. `TASK_STATE_UNSPECIFIED` has no defined mapping.
 
 ## Read the mapping table
 
@@ -330,8 +406,8 @@ mapping
 [
   {"task_identity", "Task.id (a2a.proto:170)", "Task.taskId (mcp-schema.ts:47)", :native},
   {"idempotency_identity",
-   "none — Message.message_id (a2a.proto:262) is a message id, not an idempotency key", "none",
-   :extension},
+   "none — Message.message_id (a2a.proto:262) is a message id, not an idempotency key",
+   "none", :extension},
   {"parent_execution_reference",
    "Message.reference_task_ids (a2a.proto:276), Task.context_id (a2a.proto:173) — a reference, not a parent execution",
    "none", :partial},
@@ -360,16 +436,16 @@ mapping
    "TASK_STATE_INPUT_REQUIRED (a2a.proto:201) + TaskStatus.message — free-form, not typed",
    "status input_required + inputRequests: InputRequest union (mcp-schema.ts:111-119, mcp-spec.types.ts:545)",
    :partial},
-  {"checkpoint_status", "TaskStatus.state (a2a.proto:213)", "Task.status (mcp-schema.ts:31-36)",
-   :native},
+  {"checkpoint_status", "TaskStatus.state (a2a.proto:213)",
+   "Task.status (mcp-schema.ts:31-36)", :native},
   {"checkpoint_commitment", "none",
    "tasks/update inputResponses (mcp-schema.ts:232-246) carries responses, no commitment digest",
    :extension},
   {"terminal_state", "TASK_STATE_COMPLETED/FAILED/CANCELED/REJECTED (a2a.proto:194-205)",
    "completed/failed/cancelled (mcp-schema.ts:31-36) — lossy both directions", :partial},
   {"evidence_receipt",
-   "AgentCardSignature (a2a.proto:455-467) signs the AgentCard, not a task result", "none",
-   :extension},
+   "AgentCardSignature (a2a.proto:455-467) signs the AgentCard, not a task result",
+   "none", :extension},
   {"compatibility_reference",
    "AgentCard.version (a2a.proto:374-376) — a version string, not an exact build identity",
    "none", :extension},
@@ -379,16 +455,23 @@ mapping
 
 ## Check shipped commitment fixtures
 
-The shipped conformance cases demonstrate a valid terminal commitment and a conflicting terminal commitment.
+The shipped conformance cases demonstrate a valid terminal commitment and a conflicting terminal commitment. The receiver supplies public `keys` or an `issuer_key_sets` map (which takes precedence), optional exact `issuer`/`subject`/`audience` pins, inclusive `created_after`/`created_before` timestamp strings, and previously verified `prior_receipts`. See the [receiver-context field table](../../documentation/federation.md#receiver-context-and-returned-facts). Success returns the task identity, terminal state, and terminal commitment digest as a verified fact; it supplies no host execution behavior.
 
 ```elixir
-case_path = Path.join([Application.app_dir(:agent_blueprint_protocol, "priv/conformance"), "cases", "federation-verify_commitment.json"])
+case_path =
+  Path.join([
+    Application.app_dir(:agent_blueprint_protocol, "priv/conformance"),
+    "cases",
+    "federation-verify_commitment.json"
+  ])
+
 fixture_cases = JSON.decode!(File.read!(case_path))["cases"]
 valid_case = Enum.find(fixture_cases, &(&1["id"] == "commitment-valid"))
 conflict_case = Enum.find(fixture_cases, &(&1["id"] == "commitment-terminal-conflict"))
 
 key_from = fn item ->
   {:ok, key_bytes} = Base.url_decode64(item["key"], padding: false)
+
   %AgentBlueprintProtocol.Signature.PublicKey{
     key_id: item["key_id"],
     algorithm: :ed25519,
@@ -398,15 +481,18 @@ end
 
 {:ok, valid_envelope} = Federation.decode(valid_case["input"]["envelope"])
 valid_keys = Enum.map(valid_case["input"]["context"]["keys"], key_from)
+
 valid_result =
   Federation.verify_commitment(valid_envelope, %Federation.Context{keys: valid_keys})
 
 {:ok, conflict_envelope} = Federation.decode(conflict_case["input"]["envelope"])
 conflict_context = conflict_case["input"]["context"]
 conflict_keys = Enum.map(conflict_context["keys"], key_from)
+
 prior =
   Enum.map(conflict_context["prior_receipts"], fn item ->
     {:ok, digest} = AgentBlueprintProtocol.Digest.from_tagged(item["commitment"])
+
     %{
       task_identity: item["task_identity"],
       terminal_state: item["terminal_state"],
@@ -421,18 +507,37 @@ conflict_result =
   )
 
 %{
-  valid_fixture: match?({:ok, %{terminal_commitment: %AgentBlueprintProtocol.Digest{}}}, valid_result),
-  conflict_fixture: case conflict_result do
-    {:error, error} -> error.code
-    {:ok, _} -> :accepted
-  end
+  valid_fixture:
+    case valid_result do
+      {:ok, %{task_identity: task, terminal_state: state, terminal_commitment: digest}} ->
+        %{
+          task_identity: task,
+          terminal_state: state,
+          terminal_commitment: Digest.to_tagged(digest)
+        }
+
+      {:error, error} ->
+        {:denied, error.code}
+    end,
+  conflict_fixture:
+    case conflict_result do
+      {:error, error} -> error.code
+      {:ok, _} -> :accepted
+    end
 }
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-%{valid_fixture: true, conflict_fixture: :federation_terminal_conflict}
+%{
+  valid_fixture: %{
+    task_identity: "task-7f3a2c",
+    terminal_commitment: "sha-256:Ub1fvxQros48cb7vgXGpEzQwww5-DSZn9MDkY5XU5VU",
+    terminal_state: "completed"
+  },
+  conflict_fixture: :federation_terminal_conflict
+}
 ```
 
 ## Next

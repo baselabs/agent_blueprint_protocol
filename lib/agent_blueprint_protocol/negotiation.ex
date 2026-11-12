@@ -9,9 +9,10 @@ defmodule AgentBlueprintProtocol.Negotiation do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, blueprint} =
       AgentBlueprintProtocol.Blueprint.decode(
-        File.read!("examples/echo-blueprint.json")
+        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
       )
     support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
     match?(
@@ -198,7 +199,9 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
     ## Example
 
-        iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!("examples/echo-blueprint.json")), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support))
+        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+        :ok
+        iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support))
         true
   """
   @doc since: "1.0.0"

@@ -30,18 +30,18 @@ Subjects contain schema-defined member names and array indexes where available. 
 | compatibility_duplicate_entry | Compatibility check | Remove the duplicate build identity. |
 | compatibility_entry_missing | Compatibility check | Add the missing exact build identity. |
 | compatibility_identity_inexact | Compatibility check | Replace a range with an exact identity. |
-| corpus_applicability_incomplete | Corpus integrity check | Operator: complete the corpus applicability data. |
-| corpus_case_id_duplicate | Corpus integrity check | Operator: assign unique case identifiers. |
-| corpus_case_invalid | Corpus case validation | Operator: correct the case to match its schema. |
-| corpus_count_mismatch | Corpus integrity check | Operator: regenerate the corpus index. |
-| corpus_empty | Corpus integrity check | Operator: add valid cases to the corpus. |
-| corpus_file_set_mismatch | Corpus integrity check | Operator: align the files and index entries. |
-| corpus_hash_mismatch | Corpus integrity check | Operator: restore or re-index the changed file. |
-| corpus_index_invalid | Corpus index validation | Operator: correct or regenerate the index. |
+| corpus_applicability_incomplete | Corpus integrity check | Consumers restore the exact released corpus files. Corpus authors complete the corpus applicability data. |
+| corpus_case_id_duplicate | Corpus integrity check | Consumers restore the exact released corpus files. Corpus authors assign unique case identifiers. |
+| corpus_case_invalid | Corpus case validation | Consumers restore the exact released corpus files. Corpus authors correct the case to match its schema. |
+| corpus_count_mismatch | Corpus integrity check | Consumers restore the exact released corpus files. Corpus authors regenerate the corpus index. |
+| corpus_empty | Corpus integrity check | Consumers restore the exact released corpus files. Corpus authors add valid cases to the corpus. |
+| corpus_file_set_mismatch | Corpus integrity check | Consumers restore the exact released corpus files. Corpus authors align the files and index entries. |
+| corpus_hash_mismatch | Corpus integrity check | Consumers restore the exact released corpus files. Corpus authors regenerate the index only for an intentional new corpus. |
+| corpus_index_invalid | Corpus index validation | Consumers restore the exact released corpus files. Corpus authors correct or regenerate the index. |
 | deployment_digest_mismatch | Blueprint-to-manifest binding check | Make the referenced Blueprint release agree. |
 | digest_algorithm_unsupported | Digest parser | Use a digest algorithm supported by this revision. |
 | digest_encoding_invalid | Digest parser | Correct the tagged digest encoding. |
-| digest_mismatch | Digest verification | Recompute the digest from canonical content. |
+| digest_mismatch | Digest verification | Consumers reject the received artifact and obtain the intended release. Producers recompute the digest after intentional content changes and recreate affected signatures. |
 | duplicate_member | JSON decoder | Remove duplicate names from the JSON object. |
 | extension_criticality_conflict | Extension negotiation | Match the registry's declared criticality. |
 | extension_duplicate | Extension validation | Include the namespace only once. |
@@ -50,7 +50,7 @@ Subjects contain schema-defined member names and array indexes where available. 
 | extension_retired | Extension negotiation | Remove the retired critical namespace. |
 | extension_schema_digest_mismatch | Extension schema check | Supply the schema matching the registry entry. |
 | extension_schema_unavailable | Extension schema check | Supply the required schema document. |
-| extension_unknown_critical | Extension negotiation | Use a registered critical namespace. |
+| extension_unknown_critical | Extension negotiation | Configure the host's registration and matching held schema for this critical namespace, or reject the artifact. Make it optional only when the producer's contract permits consumers to ignore it. |
 | federation_mapping_conflict | Federation carrier codec | Correct the carrier's field placement. |
 | federation_state_unmappable | Federation state codec | Use a state supported by the requested codec. |
 | federation_terminal_conflict | Federation commitment verification | Correct the conflicting terminal commitment. |

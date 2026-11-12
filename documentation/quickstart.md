@@ -48,6 +48,8 @@ The last expression returns:
 true
 ```
 
+Decoding checks canonical encoding, structure, portability, and the declared digest. This example is unsigned, so it establishes no cryptographic signature verification.
+
 ## Read a typed denial
 
 Fallible calls return `%AgentBlueprintProtocol.Error{}` values. This input has an unknown top-level member:
@@ -58,7 +60,15 @@ Fallible calls return `%AgentBlueprintProtocol.Error{}` values. This input has a
 error.code # => :unknown_member
 ```
 
-## Run the shipped corpus
+## Next steps
+
+- [Create and sign your own artifact](compose-and-sign.md)
+- [Verify a Blueprint/Deployment pair and read its evidence](host-integration.md)
+- [Check your artifacts in CI](verifying-in-ci.md)
+
+## Implementing a verifier?
+
+### Optional: run the shipped corpus
 
 The package includes a [conformance corpus](glossary.md#conformance-corpus) under `priv/conformance/`. Load its files through the public corpus, runner, and report functions:
 
@@ -72,10 +82,8 @@ report = AgentBlueprintProtocol.Conformance.Report.build(corpus, results)
 report.agreement # => true
 ```
 
-## Next steps
-
+- [Run the conformance corpus](conformance.md)
 - [TypeScript guide](typescript.md)
-- [Conformance guide](conformance.md)
 - [Livebook walkthroughs](../docs/livebooks/abp-walkthrough.livemd): [producing artifacts](../docs/livebooks/producing-artifacts.livemd), [host import](../docs/livebooks/host-import.livemd), [extensions and federation](../docs/livebooks/extensions-and-federation.livemd), and [conformance and attacks](../docs/livebooks/conformance-and-attacks.livemd).
 - [Glossary](glossary.md)
 - [Protocol specification](../spec/protocol.md)

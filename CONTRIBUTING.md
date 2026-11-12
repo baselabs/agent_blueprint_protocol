@@ -8,6 +8,18 @@ Contributions use the Developer Certificate of Origin. Sign commits with `git co
 
 Use Elixir 1.19 or newer with OTP 27, 28, or 29. Install Node.js 24 or newer for the TypeScript verifier and package checks. The development toolchain versions are listed in `.tool-versions`.
 
+## Clean-checkout setup
+
+Install the toolchain listed in `.tool-versions`, including Elixir 1.19+ with supported OTP and Node.js 24+. Keep the repository release tags available because compatibility replay checks released versions. Fetch missing tags with `git fetch --tags origin` (and unshallow a shallow checkout first with `git fetch --unshallow origin`). Then prepare both toolchains:
+
+```sh
+mix deps.get
+npm ci --ignore-scripts --no-audit --no-fund
+npm run build
+```
+
+A standalone `mix typescript.guide` check also requires the npm dependencies and generated package from `npm run build`.
+
 ## Local checks
 
 Run focused checks for the files you change. For example:
@@ -30,7 +42,13 @@ mix conformance.verify
 
 The command prints a canonical aggregate report. Exit `0` means agreement, `1` means disagreement, `2` means invalid usage or corpus data, and `3` means an internal error.
 
-The package's `mix quality` alias runs dependency audits, formatting, compilation, strict Credo, tests with the configured coverage threshold, conformance checks, the npm kit build, TypeScript checks, Dialyzer, documentation, specification checks, and release checks. CI runs this alias in its Linux quality job.
+After the bootstrap, run the complete pre-push gate:
+
+```sh
+mix quality
+```
+
+The complete pre-push gate is `mix quality`; focused checks help during editing but do not replace it. The package's `mix quality` alias runs dependency audits, formatting, compilation, strict Credo, tests with the configured coverage threshold, conformance checks, the npm kit build, TypeScript checks, Dialyzer, documentation, specification checks, and release checks. CI runs this alias in its Linux quality job.
 
 The publication privacy guard runs separately in the pre-push hook and CI with the same build-free command: `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
 

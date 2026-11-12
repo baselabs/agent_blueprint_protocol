@@ -2,14 +2,16 @@
 
 This guide is for people checking installed or downloaded packages. You will compare the Hex checksum, npm signatures and integrity, release metadata, corpus digest, and GitHub release asset digest.
 
-Set VERSION to the package version you installed, for example 1.0.0. The worked values below are for the published 0.8.4 release.
+Use Node.js 24 or newer, npm, and Mix with Hex installed. These checks need no source checkout.
+
+Every recipe defaults to `VERSION=1.0.0`. To check another release, substitute its version consistently in every block and use the matching archives and installation. Expected checksums below are queried from the publishing service rather than copied from an older release.
 
 ## Verify a Hex package
 
 Fetch the package archive, print the checksum from Hex's release API, then calculate the archive's SHA-256 value:
 
 ```sh
-VERSION=0.8.4
+VERSION=1.0.0
 mix hex.package fetch agent_blueprint_protocol "$VERSION"
 node --input-type=module -e '
   const version = process.argv[1];
@@ -21,9 +23,7 @@ node --input-type=module -e '
 node -e 'const fs = require("node:fs"); const crypto = require("node:crypto"); console.log(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"));' "agent_blueprint_protocol-$VERSION.tar"
 ```
 
-For published version 0.8.4, Hex reports checksum 2d6b7c972e6d6df04f099017c7d09e517de4cd3e1bc06d627a86d76fd27a35b2. The command prints the archive checksum. The values must match.
-
-For this release, replace the first line with VERSION=1.0.0 and compare the fetched archive value with the checksum reported by Hex.
+Compare the two printed SHA-256 values; they must match.
 
 ## Verify npm signatures and tarball integrity
 
@@ -36,14 +36,12 @@ npm audit signatures
 Check the published tarball integrity in the registry and in the packed archive:
 
 ```sh
-VERSION=0.8.4
+VERSION=1.0.0
 npm view "@agent-blueprint-protocol/verifier@$VERSION" dist.integrity
 npm pack "@agent-blueprint-protocol/verifier@$VERSION" --json
 ```
 
-For 0.8.4, both values are sha512-TiYvqPJbjiv7iiUDHDjbkuA/nifUHMaqBETNdRTxFddCw5sQmrzq7yi1ruaxJK63loND+3enA47ULCv3K1Wn2Q==. Compare the registry's dist.integrity value with the integrity field in the pack output.
-
-For this release, use VERSION=1.0.0. Run npm audit signatures after installing that exact version in the project you are checking.
+Compare the registry's `dist.integrity` with the `integrity` field in the pack output. Run `npm audit signatures` after installing and locking this exact version.
 
 ## Compare release metadata and corpus identity
 
@@ -52,7 +50,7 @@ The package release metadata includes package_version and corpus_digest. The con
 For the Hex package, extract the package archive, then compare priv/release-metadata.json with priv/conformance/index.json:
 
 ```sh
-VERSION=0.8.4
+VERSION=1.0.0
 mkdir -p hex-wrapper hex-package
 tar -xf "agent_blueprint_protocol-$VERSION.tar" -C hex-wrapper
 tar -xzf hex-wrapper/contents.tar.gz -C hex-package
@@ -62,28 +60,39 @@ node --input-type=module -e 'import fs from "node:fs"; const [version, metadataP
 For the npm package, compare dist/release-metadata.json with dist/corpus/index.json after installing the exact version:
 
 ```sh
-VERSION=0.8.4
+VERSION=1.0.0
 node --input-type=module -e 'import fs from "node:fs"; const [version, metadataPath, indexPath] = process.argv.slice(1); const m = JSON.parse(fs.readFileSync(metadataPath, "utf8")); const i = JSON.parse(fs.readFileSync(indexPath, "utf8")); const p = JSON.parse(fs.readFileSync("node_modules/@agent-blueprint-protocol/verifier/package.json", "utf8")); if (p.version !== version || m.package_version !== version || m.corpus_digest !== i.corpus_digest) process.exit(1); console.log(m.package_version + " " + m.corpus_digest);' "$VERSION" node_modules/@agent-blueprint-protocol/verifier/dist/release-metadata.json node_modules/@agent-blueprint-protocol/verifier/dist/corpus/index.json
 ```
 
-For another release, replace `VERSION=0.8.4` with its package version. Use the matching Hex archive and npm installation.
-
-The 0.8.4 corpus digest is sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8. The release metadata and conformance index must both report it.
+A mismatch in the installed package version or either corpus identity exits `1`.
 
 ## Verify the GitHub release asset
 
-GitHub reports a SHA-256 digest for each release asset. Download the verifier archive and calculate its SHA-256 value:
+GitHub reports a SHA-256 digest for each release asset. This public-API recipe queries the expected digest, downloads the matching archive, compares the bytes, and saves the verified file. It requires no GitHub CLI session and refuses to overwrite an existing file:
 
 ```sh
-VERSION=0.8.4
-gh release view "v$VERSION" --repo baselabs/agent_blueprint_protocol --json assets
-gh release download "v$VERSION" --repo baselabs/agent_blueprint_protocol --pattern "verifier-$VERSION.tar.gz"
-node -e 'const fs = require("node:fs"); const crypto = require("node:crypto"); console.log("sha256:" + crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"));' "verifier-$VERSION.tar.gz"
+VERSION=1.0.0
+node --input-type=module -e '
+  import { createHash } from "node:crypto";
+  import { writeFileSync } from "node:fs";
+  const version = process.argv[1];
+  const response = await fetch(`https://api.github.com/repos/baselabs/agent_blueprint_protocol/releases/tags/v${version}`);
+  if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
+  const release = await response.json();
+  const filename = `verifier-${version}.tar.gz`;
+  const asset = release.assets.find(item => item.name === filename);
+  if (!asset || typeof asset.digest !== "string") throw new Error("Release asset or digest missing");
+  const download = await fetch(asset.browser_download_url);
+  if (!download.ok) throw new Error(`Download returned ${download.status}`);
+  const bytes = new Uint8Array(await download.arrayBuffer());
+  const actual = "sha256:" + createHash("sha256").update(bytes).digest("hex");
+  if (actual !== asset.digest) throw new Error("Release asset digest mismatch");
+  writeFileSync(filename, bytes, {flag: "wx"});
+  console.log(actual);
+' "$VERSION"
 ```
 
-The 0.8.4 release asset digest is sha256:d0e161be34bdfebaab2c9b991b40fac3867110f28504763a95f9cfc8a4d86fd6. Compare it with the value reported by the command.
-
-For this release, set VERSION to 1.0.0. The asset contains release-metadata.json and conformance/index.json for the same corpus comparison.
+The command prints the matching digest and exits `0`; a missing asset, failed download, or mismatch exits nonzero. The archive contains `release-metadata.json` and `conformance/index.json` for the same corpus comparison. Run these recipes in a fresh working directory; keep verified archives deliberately or remove the downloaded archives and extracted example directories when finished.
 
 ## Next steps
 

@@ -9,9 +9,10 @@ defmodule AgentBlueprintProtocol.Compatibility do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, deployment} =
       AgentBlueprintProtocol.Deployment.decode(
-        File.read!("examples/echo-deployment.json")
+        File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
       )
     observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
     match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Compatibility.verify(deployment, observed))
@@ -102,9 +103,10 @@ defmodule AgentBlueprintProtocol.Compatibility do
     ## Example
 
     ```elixir
+    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
     {:ok, deployment} =
       AgentBlueprintProtocol.Deployment.decode(
-        File.read!("examples/echo-deployment.json")
+        File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
       )
 
     observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
