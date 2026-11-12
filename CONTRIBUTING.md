@@ -56,7 +56,7 @@ The suite currently defines 997 tests (64 properties). The coverage threshold is
 
 ## CI jobs
 
-The [CI workflow](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0/.github/workflows/ci.yml) defines these jobs:
+The [CI workflow](https://github.com/baselabs/agent_blueprint_protocol/blob/main/.github/workflows/ci.yml) defines these jobs:
 
 - **Workflow syntax** runs `actionlint` on Ubuntu 24.04.
 - **Secret scan** runs `gitleaks` over full repository history on Ubuntu 24.04.

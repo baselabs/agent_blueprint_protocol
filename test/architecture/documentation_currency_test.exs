@@ -157,6 +157,48 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
 
     assert version_claims("1.0.0-rc.1") == ["1.0.0-rc.1"]
 
+    # The promotion classifier owns which documents can change release pins.
+    # Read it once, including package READMEs and pages outside the Hex package.
+    {rules_json, 0} = System.cmd("node", ["scripts/check_release_promotion.mjs", "--rules"])
+    rules = Jason.decode!(rules_json)
+
+    documents =
+      Enum.uniq(
+        shipped_markdown() ++ Path.wildcard("verifier/*.md") ++ Path.wildcard("site/**/*.html")
+      )
+
+    pin_offenders =
+      for file <- documents,
+          rule = Map.fetch!(rules, file),
+          rule != "changelog",
+          ref <- release_pins(File.read!(file)),
+          not current_release_ref?(file, ref, version, rule),
+          uniq: true do
+        {file, ref, rule}
+      end
+
+    assert pin_offenders == [],
+           "documents must link the current release #{version} or main when frozen: " <>
+             inspect(pin_offenders)
+
+    assert release_pins(
+             "[a](https://hexdocs.pm/agent_blueprint_protocol/0.9.9/x.html) " <>
+               "https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/0123abc/x " <>
+               ~s(<a href="https://github.com/baselabs/agent_blueprint_protocol/blob/v0.9.9/y">) <>
+               "https://github.com/baselabs/agent_blueprint_protocol/tree/v0.9.9/z " <>
+               "https://github.com/baselabs/agent_blueprint_protocol/releases/download/v0.9.9/a.tar.gz " <>
+               "https://agent-blueprint-protocol.hexdocs.pm/0.9.9/ " <>
+               "npx @agent-blueprint-protocol/verifier@0.9.9"
+           ) == ["0.9.9", "0123abc", "v0.9.9", "v0.9.9", "v0.9.9", "0.9.9", "0.9.9"]
+
+    refute current_release_ref?("README.md", "0123abc", "2.0.0", "readme")
+    assert current_release_ref?("README.md", "v2.0.0", "2.0.0", "readme")
+    refute current_release_ref?("README.md", "main", "2.0.0", "readme")
+    refute current_release_ref?("SUPPORT.md", "v2.0.0", "2.0.0", "frozen")
+    refute current_release_ref?("SUPPORT.md", "0123abc", "2.0.0", "frozen")
+    assert current_release_ref?("SUPPORT.md", "main", "2.0.0", "frozen")
+    assert current_release_ref?("documentation/migrating-to-1.0.md", "v0.8.4", "2.0.0", "version")
+
     assert allowed_document_version?("documentation/verifying-releases.md", "2.0.0", "2.0.0-rc.1")
     refute allowed_document_version?("documentation/verifying-releases.md", "1.0.0", "2.0.0-rc.1")
 
@@ -220,8 +262,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     Mix.Project.config()[:package][:files]
     |> Enum.flat_map(fn entry ->
       cond do
-        String.ends_with?(entry, [".md", ".livemd"]) -> [entry]
-        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd}"))
+        String.ends_with?(entry, [".md", ".livemd", ".cheatmd"]) -> [entry]
+        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd,cheatmd}"))
         true -> []
       end
     end)
@@ -255,6 +297,34 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   end
 
   defp current_version, do: Mix.Project.config()[:version]
+
+  # The release a link names, read from the positions that identify one of
+  # this project's releases: a HexDocs version, a GitHub ref of this
+  # repository, and the npm verifier pin.
+  defp release_pins(content) do
+    [
+      ~r{agent-blueprint-protocol\.hexdocs\.pm/([^/\s)"'#?]+)/},
+      ~r{hexdocs\.pm/agent_blueprint_protocol/([^/\s)"'#?]+)/},
+      ~r{github\.com/baselabs/agent_blueprint_protocol/(?:blob|tree)/([^/\s)"'#?]+)},
+      ~r{github\.com/baselabs/agent_blueprint_protocol/releases/download/([^/\s)"'#?]+)},
+      ~r{raw\.githubusercontent\.com/baselabs/agent_blueprint_protocol/([^/\s)"'#?]+)},
+      ~r{@agent-blueprint-protocol/verifier@(\d[0-9A-Za-z.+-]*[0-9A-Za-z])}
+    ]
+    |> Enum.flat_map(&Regex.scan(&1, content, capture: :all_but_first, return: :index))
+    |> List.flatten()
+    |> Enum.sort()
+    |> Enum.map(fn {start, length} -> binary_part(content, start, length) end)
+  end
+
+  # Frozen documents cannot change pins during promotion, so they link main.
+  # Release documents name this version/tag or an existing allowed example.
+  defp current_release_ref?(_file, ref, _version, "frozen"), do: ref == "main"
+
+  defp current_release_ref?(file, ref, version, _rule) do
+    ref in [version, "v" <> version] or
+      (ref =~ ~r/^v?\d+\.\d+\.\d+/ and
+         allowed_document_version?(file, String.trim_leading(ref, "v"), version))
+  end
 
   # The migration guide must show the exact previous package pin it
   # replaces. CONTRIBUTING may name the exact toolchain versions from CI.

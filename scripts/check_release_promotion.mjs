@@ -19,7 +19,9 @@ function changelogPromotes(a,b,rc,final){
 // This classifier owns both the promotion diff policy and the candidate
 // tree check. A frozen file cannot shed a candidate version at promotion.
 function promotionRule(path){
-  if(['mix.exs','package.json','package-lock.json'].includes(path)||['documentation/','docs/','site/'].some(dir=>path.startsWith(dir)))return 'version';
+  // Namespace pages identify stable registrations rather than releases.
+  if(path.startsWith('site/extensions/'))return 'frozen';
+  if(['mix.exs','package.json','package-lock.json','verifier/README.md'].includes(path)||['documentation/','docs/','site/'].some(dir=>path.startsWith(dir)))return 'version';
   if(path==='priv/release-metadata.json')return 'metadata';
   if(path==='priv/release-history.json')return 'history';
   if(path==='CHANGELOG.md')return 'changelog';
@@ -79,6 +81,9 @@ function seeded(){
 }
 function selfTest(){
   const rc='1.0.0-rc.1',final='1.0.0';
+  check([['verifier/README.md',Buffer.from('npm install @agent-blueprint-protocol/verifier@'+rc),Buffer.from('npm install @agent-blueprint-protocol/verifier@'+final)]],rc,final);
+  checkTree([['verifier/README.md',Buffer.from(rc)]],rc);
+  assert.equal(promotionRule('site/extensions/example/index.html'),'frozen');
   check([['mix.exs',Buffer.from('@version "'+rc+'"'),Buffer.from('@version "'+final+'"')]],rc,final);
   const readme=Buffer.from('# Example\n\n{:agent_blueprint_protocol, "~> '+rc+'"}\n\nnpm install @agent-blueprint-protocol/verifier@rc\nnpx @agent-blueprint-protocol/verifier@rc --help\n');
   const security=Buffer.from('# Security policy\n\n| Version | Supported |\n| --- | --- |\n| '+rc+' | yes |\n| 1.0.x | yes |\n| 0.8.x | yes |\n');
@@ -104,12 +109,15 @@ function selfTest(){
 }
 try {
   const args=process.argv.slice(2);
-  if(args.length===1&&args[0]==='--prove-source-rejection'){
+  if(args.length===1&&args[0]==='--rules'){
+    console.log(JSON.stringify(Object.fromEntries(paths().sort().map(path=>[path,promotionRule(path)]))));
+  }
+  else if(args.length===1&&args[0]==='--prove-source-rejection'){
     const rc=JSON.parse(readFileSync('package.json')).version;check([seeded()],rc,rc.split('-')[0]);
   }
   else if(args.length===0){selfTest();checkCurrentTree();}
   else {
-    if(args.length!==2||args[0]!=='--check'||!/^v\d+\.\d+\.\d+-rc\.\d+$/.test(args[1]))throw Error('release promotion: usage --check <rc-tag>');
+    if(args.length!==2||args[0]!=='--check'||!/^v\d+\.\d+\.\d+-rc\.\d+$/.test(args[1]))throw Error('release promotion: usage --rules or --check <rc-tag>');
     const tag=args[1],rc=tag.slice(1),final=rc.split('-')[0];
     const tree=git(['ls-tree','-rz',tag]).toString().split('\0').filter(Boolean).map(x=>{const [entry,path]=x.split('\t');return [path,entry.split(' ')[2]];});
     const baseline=new Map(tree),current=new Set(paths()),changes=[];

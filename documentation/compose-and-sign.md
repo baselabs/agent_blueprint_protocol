@@ -273,13 +273,13 @@ deployment_output = Path.join(output_dir, "deployment.json")
 From the directory containing `abp-artifacts`, with Node.js 24 or newer:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.0 --artifact abp-artifacts/blueprint.json
-npx @agent-blueprint-protocol/verifier@1.0.0 --artifact abp-artifacts/deployment.json
+npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 --artifact abp-artifacts/blueprint.json
+npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 --artifact abp-artifacts/deployment.json
 ```
 
 Each command prints a valid report and exits `0`. Decoder-only artifact mode establishes no key verification or pair reconciliation. See [CI pair verification](verifying-in-ci.md) for a complete script with host inputs. Copy the files into your project before exiting IEx. The walkthrough owns `abp-artifacts` and removes it when its runtime exits; run the CLI in a second terminal while that runtime is open.
 
-The walkthrough follows `Blueprint.from_value/2`, `Deployment.from_value/2`, their digest/encoder/decoder functions, `Signature.signing_input/1`, `Signature.verify/2`, and `Reconcile.reconcile/3`. These are the public contracts checked in the 1.0.0 source.
+The walkthrough follows `Blueprint.from_value/2`, `Deployment.from_value/2`, their digest/encoder/decoder functions, `Signature.signing_input/1`, `Signature.verify/2`, and `Reconcile.reconcile/3`. These are the public contracts checked in the 1.0.1-rc.1 source.
 
 ## Next steps
 

@@ -12,10 +12,10 @@ In a new working directory, install the exact release and download both canonica
 
 ```sh
 npm init -y
-npm install @agent-blueprint-protocol/verifier@1.0.0
+npm install @agent-blueprint-protocol/verifier@1.0.1-rc.1
 mkdir -p examples
-curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0/examples/echo-blueprint.json --output examples/echo-blueprint.json
-curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0/examples/echo-deployment.json --output examples/echo-deployment.json
+curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1-rc.1/examples/echo-blueprint.json --output examples/echo-blueprint.json
+curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1-rc.1/examples/echo-deployment.json --output examples/echo-deployment.json
 ```
 
 Save the following block as `verify.mjs`, then run `node verify.mjs`. It prints `valid`.
@@ -238,7 +238,7 @@ Standalone signature verification returns attributes. Compare `purpose` and `con
 
 ### Checkout alternative
 
-For contributors, clone the `v1.0.0` tag, run the [contributor bootstrap](../CONTRIBUTING.md#clean-checkout-setup), and run the same scripts from the checkout root. Its `examples/` directory already supplies the files. Installation does not require a checkout.
+For contributors, clone the `v1.0.1-rc.1` tag, run the [contributor bootstrap](../CONTRIBUTING.md#clean-checkout-setup), and run the same scripts from the checkout root. Its `examples/` directory already supplies the files. Installation does not require a checkout.
 
 ## CLI
 
@@ -256,11 +256,11 @@ The package installs the `agent-blueprint-protocol` and `verifier` commands. Bot
 | `--serve --corpus <dir>` | Run as an adapter for the external execution protocol. | `0` clean completion, `2` invalid input or handshake, `3` internal error. |
 | `conformance run ... -- <command>` | Run the external harness against an adapter. | `0` agreement, `2` usage, corpus, or claim input failure, `3` internal error, `10` handshake mismatch, `11` duplicate response, `12` missing response, `13` extra response, `14` reordered response, `15` malformed line, `16` oversized line, `17` response timeout, `18` early exit, `19` disagreement. |
 
-For `conformance run`, the harness writes a results document only after receiving all expected responses and a clean adapter exit. See the [execution protocol](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0/spec/conformance/execution.md) for the line format and outcomes.
+For `conformance run`, the harness writes a results document only after receiving all expected responses and a clean adapter exit. See the [execution protocol](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1-rc.1/spec/conformance/execution.md) for the line format and outcomes.
 
 ## Package-root reference
 
-All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.0/verifier/index.ts).
+All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1-rc.1/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1-rc.1/verifier/index.ts).
 
 | Export and signature (outer return is `Result<…>`) | Inputs, defaults, and success value |
 |---|---|
@@ -343,7 +343,7 @@ console.log(negotiated.value.protocolRevision, narrowed.value.effective.max_atte
 For an envelope, download the exact sample, then save the following as `envelope.mts`, type-check it, and run `node envelope.mts`:
 
 ```sh
-curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0/examples/federation-envelope.json --output examples/federation-envelope.json
+curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1-rc.1/examples/federation-envelope.json --output examples/federation-envelope.json
 ```
 
 ```ts
@@ -446,7 +446,7 @@ if (!document.ok) throw new Error(document.error.code);
 console.log(report.value.agreement, document.value.results.length === run.value.flat().length);
 ```
 
-To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.0.0 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
+To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
 
 ## Import migration
 

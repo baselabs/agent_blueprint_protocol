@@ -2,6 +2,14 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.0.1-rc.1] — 2026-11-12
+
+The specification's licensing note is simplified to the Apache-2.0 license, the Developer Certificate of Origin sign-off and copyright.
+The npm README now ships the installed-package walkthrough.
+Library and verifier behavior are unchanged. The corpus contains 626 cases,
+digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`; the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`;
+the specification digest is `sha-256:9hm2GIG5FVX4-gGMFeJpVJfK3GMTi1TeePRopSF0r7w`.
+
 ## [1.0.0] — 2026-11-11
 
 The 1.0 release of the Agent Blueprint Protocol. It promotes 1.0.0-rc.3

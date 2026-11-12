@@ -20,8 +20,8 @@ transfer. This document is an inventory, not an offer.
 
 ## Requires the steward's principals
 
-- **Copyright and patent grants**: contributions are DCO-signed and
-  Apache-2.0 licensed; a receiving entity takes the grant as-is. BaseLabs Holdings and contributors retain their copyrights, licensing
+- **License and sign-off**: contributions are DCO-signed and
+  Apache-2.0 licensed; a receiving entity takes the license as-is. BaseLabs Holdings and contributors retain their copyrights, licensing
   perpetually under Apache-2.0.
 - **Registry decision rights**: the registry process (see
   registry/OPERATIONS.md) names the steward; a transfer re-points the
