@@ -2,7 +2,7 @@
 livebook:{"persist_outputs":true}
 -->
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.0/docs/livebooks/host-import.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/84a186e9081319e4df00faa60fd8e7c8499b6a5f/docs/livebooks/host-import.livemd)
 
 # Host import
 
