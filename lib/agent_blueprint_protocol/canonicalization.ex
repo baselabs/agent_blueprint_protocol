@@ -1,17 +1,17 @@
 defmodule AgentBlueprintProtocol.Canonicalization do
   @moduledoc """
-    This module encodes tagged JSON values using RFC 8785 canonicalization and verifies canonical input bytes.
+  This module encodes tagged JSON values using RFC 8785 canonicalization and verifies canonical input bytes.
 
-    Use it when producing canonical bytes or checking whether received JSON is already canonical.
+  Use it when producing canonical bytes or checking whether received JSON is already canonical.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    value = {:object, [{"ready", {:boolean, true}}]}
-    {:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode(value)
-    ```
+  ```elixir
+  value = {:object, [{"ready", {:boolean, true}}]}
+  {:ok, bytes} = AgentBlueprintProtocol.Canonicalization.encode(value)
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -29,15 +29,15 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   @spec encode(Json.value(), Bounds.t() | map()) ::
           {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Encodes a tagged JSON value as RFC 8785 canonical UTF-8 bytes.
+  Encodes a tagged JSON value as RFC 8785 canonical UTF-8 bytes.
 
-    ## Example
+  ## Example
 
-        iex> value = {:object, [{"a", {:integer, 1}}]}
-        iex> match?({:ok, ~S({"a":1})}, AgentBlueprintProtocol.Canonicalization.encode(value))
-        true
-        iex> match?({:ok, ~S({"a":1})}, AgentBlueprintProtocol.Canonicalization.encode(value, %{bytes: 32}))
-        true
+      iex> value = {:object, [{"a", {:integer, 1}}]}
+      iex> match?({:ok, ~S({"a":1})}, AgentBlueprintProtocol.Canonicalization.encode(value))
+      true
+      iex> match?({:ok, ~S({"a":1})}, AgentBlueprintProtocol.Canonicalization.encode(value, %{bytes: 32}))
+      true
   """
   @doc since: "1.0.0"
   def encode(value, bounds \\ Bounds.maximum()) do
@@ -77,15 +77,15 @@ defmodule AgentBlueprintProtocol.Canonicalization do
   @spec verify(binary(), Bounds.t() | map()) ::
           {:ok, Json.value()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Decodes bounded JSON and requires the input bytes to equal its canonical encoding.
-    Returns `{:ok, tagged_value}` or a typed denial, including `:non_canonical_bytes`.
+  Decodes bounded JSON and requires the input bytes to equal its canonical encoding.
+  Returns `{:ok, tagged_value}` or a typed denial, including `:non_canonical_bytes`.
 
-    ## Example
+  ## Example
 
-        iex> match?({:ok, {:object, [{"a", {:integer, 1}}]}}, AgentBlueprintProtocol.Canonicalization.verify(~S({"a":1})))
-        true
-        iex> match?({:ok, {:object, [{"a", {:integer, 1}}]}}, AgentBlueprintProtocol.Canonicalization.verify(~S({"a":1}), %{bytes: 32}))
-        true
+      iex> match?({:ok, {:object, [{"a", {:integer, 1}}]}}, AgentBlueprintProtocol.Canonicalization.verify(~S({"a":1})))
+      true
+      iex> match?({:ok, {:object, [{"a", {:integer, 1}}]}}, AgentBlueprintProtocol.Canonicalization.verify(~S({"a":1}), %{bytes: 32}))
+      true
   """
   @doc since: "1.0.0"
   def verify(input, bounds \\ Bounds.maximum())

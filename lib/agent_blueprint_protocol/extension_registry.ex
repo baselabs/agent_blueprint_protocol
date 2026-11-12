@@ -1,16 +1,16 @@
 defmodule AgentBlueprintProtocol.ExtensionRegistry do
   @moduledoc """
-    This module exposes registered extension namespaces and their lifecycle data.
+  This module exposes registered extension namespaces and their lifecycle data.
 
-    Use it when inspecting the registry or its federation schema.
+  Use it when inspecting the registry or its federation schema.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    is_list(AgentBlueprintProtocol.ExtensionRegistry.registered_extensions())
-    ```
+  ```elixir
+  is_list(AgentBlueprintProtocol.ExtensionRegistry.registered_extensions())
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -27,21 +27,21 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   ]
 
   @typedoc """
-    A registered extension criticality value.
+  A registered extension criticality value.
   """
   @type criticality :: :critical | :optional
   @typedoc """
-    A registered extension lifecycle value.
+  A registered extension lifecycle value.
   """
   @type state :: :reserved | :active | :deprecated | :retired
 
   @typedoc """
-    A registry lifecycle value. Match known values and keep a catch-all branch.
+  A registry lifecycle value. Match known values and keep a catch-all branch.
   """
   @type output_state :: atom()
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.ExtensionRegistry.
+  The public data type for AgentBlueprintProtocol.ExtensionRegistry.
   """
   @type t :: %__MODULE__{
           namespace: binary(),
@@ -54,7 +54,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
         }
 
   @typedoc """
-    A registry entry returned by lookup.
+  A registry entry returned by lookup.
   """
   @type output :: %__MODULE__{
           namespace: binary(),
@@ -72,12 +72,12 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   # too — a legitimate owner schema does not shadow core bound names).
   @spec federation_schema() :: Json.value()
   @doc """
-    Returns the schema used for Federation extension content.
+  Returns the schema used for Federation extension content.
 
-    ## Example
+  ## Example
 
-        iex> match?({:object, _}, AgentBlueprintProtocol.ExtensionRegistry.federation_schema())
-        true
+      iex> match?({:object, _}, AgentBlueprintProtocol.ExtensionRegistry.federation_schema())
+      true
   """
   @doc since: "1.0.0"
   def federation_schema do
@@ -132,12 +132,12 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
 
   @spec registered_extensions() :: [output()]
   @doc """
-    Returns the registered extension entries.
+  Returns the registered extension entries.
 
-    ## Example
+  ## Example
 
-        iex> Enum.all?(AgentBlueprintProtocol.ExtensionRegistry.registered_extensions(), &is_struct(&1, AgentBlueprintProtocol.ExtensionRegistry))
-        true
+      iex> Enum.all?(AgentBlueprintProtocol.ExtensionRegistry.registered_extensions(), &is_struct(&1, AgentBlueprintProtocol.ExtensionRegistry))
+      true
   """
   @doc since: "1.0.0"
   def registered_extensions, do: entries()
@@ -151,12 +151,12 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
 
   @spec digest() :: Digest.t()
   @doc """
-    Returns the digest of the compiled extension registry.
+  Returns the digest of the compiled extension registry.
 
-    ## Example
+  ## Example
 
-        iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.ExtensionRegistry.digest())
-        true
+      iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.ExtensionRegistry.digest())
+      true
   """
   @doc since: "1.0.0"
   def digest do

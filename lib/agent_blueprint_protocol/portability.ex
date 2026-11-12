@@ -1,16 +1,16 @@
 defmodule AgentBlueprintProtocol.Portability do
   @moduledoc """
-    This module scans tagged values for nonportable names and value shapes.
+  This module scans tagged values for nonportable names and value shapes.
 
-    Use it when checking content in open protocol fields for portability findings.
+  Use it when checking content in open protocol fields for portability findings.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Portability.scan({:object, [{"label", {:string, "example"}}]})
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Portability.scan({:object, [{"label", {:string, "example"}}]})
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -102,48 +102,48 @@ defmodule AgentBlueprintProtocol.Portability do
 
   @spec scan(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Scans a tagged value for portability findings.
+  Scans a tagged value for portability findings.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Portability.scan({:object, [{"label", {:string, "example"}}]})
-        :ok
+      iex> AgentBlueprintProtocol.Portability.scan({:object, [{"label", {:string, "example"}}]})
+      :ok
   """
   @doc since: "1.0.0"
   def scan(value), do: walk(value, true, false, 0)
 
   @spec scan_authored(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Scans authored tagged JSON for portability findings.
+  Scans authored tagged JSON for portability findings.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Portability.scan_authored({:object, [{"label", {:string, "example"}}]})
-        :ok
+      iex> AgentBlueprintProtocol.Portability.scan_authored({:object, [{"label", {:string, "example"}}]})
+      :ok
   """
   @doc since: "1.0.0"
   def scan_authored(value), do: walk(value, true, true, 0)
 
   @spec scan_identifier(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Scans identifier-position values for portability findings.
+  Scans identifier-position values for portability findings.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Portability.scan_identifier({:string, "example-name"})
-        :ok
+      iex> AgentBlueprintProtocol.Portability.scan_identifier({:string, "example-name"})
+      :ok
   """
   @doc since: "1.0.0"
   def scan_identifier(value), do: walk(value, false, true, 0)
 
   @spec scan_value(Json.value()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Scans tagged string values for portability findings.
+  Scans tagged string values for portability findings.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Portability.scan_value({:string, "example"})
-        :ok
+      iex> AgentBlueprintProtocol.Portability.scan_value({:string, "example"})
+      :ok
   """
   @doc since: "1.0.0"
   def scan_value(value), do: walk(value, false, false, 0)

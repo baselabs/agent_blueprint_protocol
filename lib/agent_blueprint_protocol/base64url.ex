@@ -1,17 +1,17 @@
 defmodule AgentBlueprintProtocol.Base64Url do
   @moduledoc """
-    This module encodes and decodes strict unpadded base64url values.
+  This module encodes and decodes strict unpadded base64url values.
 
-    Use it when a protocol field contains URL-safe binary data.
+  Use it when a protocol field contains URL-safe binary data.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    encoded = AgentBlueprintProtocol.Base64Url.encode("sample")
-    {:ok, "sample"} = AgentBlueprintProtocol.Base64Url.decode(encoded)
-    ```
+  ```elixir
+  encoded = AgentBlueprintProtocol.Base64Url.encode("sample")
+  {:ok, "sample"} = AgentBlueprintProtocol.Base64Url.decode(encoded)
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -19,12 +19,12 @@ defmodule AgentBlueprintProtocol.Base64Url do
 
   @spec encode(binary()) :: binary() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Encodes a binary as unpadded base64url.
+  Encodes a binary as unpadded base64url.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Base64Url.encode("abc")
-        "YWJj"
+      iex> AgentBlueprintProtocol.Base64Url.encode("abc")
+      "YWJj"
   """
   @doc since: "1.0.0"
   def encode(data) when is_binary(data), do: Base.url_encode64(data, padding: false)
@@ -33,12 +33,12 @@ defmodule AgentBlueprintProtocol.Base64Url do
 
   @spec decode(binary()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Decodes unpadded base64url text to binary bytes; rejects padding and invalid encodings.
+  Decodes unpadded base64url text to binary bytes; rejects padding and invalid encodings.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Base64Url.decode("YWJj")
-        {:ok, "abc"}
+      iex> AgentBlueprintProtocol.Base64Url.decode("YWJj")
+      {:ok, "abc"}
   """
   @doc since: "1.0.0"
   def decode(input) when is_binary(input) do

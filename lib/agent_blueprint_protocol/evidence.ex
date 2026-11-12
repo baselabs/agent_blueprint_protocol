@@ -1,16 +1,16 @@
 defmodule AgentBlueprintProtocol.Evidence do
   @moduledoc """
-    This struct records checks and facts produced by verification.
+  This struct records checks and facts produced by verification.
 
-    Use it when inspecting results of compatibility or reconcile operations.
+  Use it when inspecting results of compatibility or reconcile operations.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    match?({:ok, %AgentBlueprintProtocol.Evidence{}}, AgentBlueprintProtocol.Evidence.build())
-    ```
+  ```elixir
+  match?({:ok, %AgentBlueprintProtocol.Evidence{}}, AgentBlueprintProtocol.Evidence.build())
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -18,48 +18,48 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   defmodule Signatures do
     @moduledoc """
-      This struct lists key identities reported by signature verification.
+    This struct lists key identities reported by signature verification.
 
-      Use it when reading signature detail in an Evidence check.
+    Use it when reading signature detail in an Evidence check.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.Evidence.Signatures{key_ids: []}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.Evidence.Signatures{key_ids: []}
+    ```
     """
     @moduledoc since: "1.0.0"
     @enforce_keys [:key_ids]
     defstruct [:key_ids]
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.Evidence.Signatures.
+    The public data type for AgentBlueprintProtocol.Evidence.Signatures.
     """
     @type t :: %__MODULE__{key_ids: [binary()]}
   end
 
   defmodule Binding do
     @moduledoc """
-      This struct records binding checks and surfaces left unverified.
+    This struct records binding checks and surfaces left unverified.
 
-      Use it when reading binding detail in an Evidence check.
+    Use it when reading binding detail in an Evidence check.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.Evidence.Binding{checked: [], not_verified: []}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.Evidence.Binding{checked: [], not_verified: []}
+    ```
     """
     @moduledoc since: "1.0.0"
     @enforce_keys [:checked, :not_verified]
     defstruct [:checked, :not_verified]
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.Evidence.Binding.
+    The public data type for AgentBlueprintProtocol.Evidence.Binding.
     """
     @type t :: %__MODULE__{checked: [atom()], not_verified: [atom()]}
   end
@@ -78,7 +78,7 @@ defmodule AgentBlueprintProtocol.Evidence do
   ]
 
   @typedoc """
-    A check record. Detail variants may grow, so match known forms and keep a catch-all branch.
+  A check record. Detail variants may grow, so match known forms and keep a catch-all branch.
   """
   @type check :: %{
           surface: atom(),
@@ -88,7 +88,7 @@ defmodule AgentBlueprintProtocol.Evidence do
         }
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Evidence.
+  The public data type for AgentBlueprintProtocol.Evidence.
   """
   @type t :: %__MODULE__{
           protocol_revision: pos_integer() | nil,
@@ -103,23 +103,23 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   @spec build(keyword() | map()) :: {:ok, t()} | {:error, Error.t()}
   @doc """
-    Creates an Evidence value from validated check results and facts.
+  Creates an Evidence value from validated check results and facts.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    match?(
-      {:ok, %AgentBlueprintProtocol.Evidence{}},
-      AgentBlueprintProtocol.Evidence.build()
-    )
-    ```
+  ```elixir
+  match?(
+    {:ok, %AgentBlueprintProtocol.Evidence{}},
+    AgentBlueprintProtocol.Evidence.build()
+  )
+  ```
 
-    ```elixir
-    match?(
-      {:ok, %AgentBlueprintProtocol.Evidence{}},
-      AgentBlueprintProtocol.Evidence.build(not_verified: [:tenancy])
-    )
-    ```
+  ```elixir
+  match?(
+    {:ok, %AgentBlueprintProtocol.Evidence{}},
+    AgentBlueprintProtocol.Evidence.build(not_verified: [:tenancy])
+  )
+  ```
   """
   @doc since: "1.0.0"
   def build(attrs \\ [])

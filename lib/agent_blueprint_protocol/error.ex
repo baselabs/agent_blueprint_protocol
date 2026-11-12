@@ -1,19 +1,19 @@
 defmodule AgentBlueprintProtocol.Error do
   @moduledoc """
-    This struct represents a typed protocol error.
+  This struct represents a typed protocol error.
 
-    Use it when matching failures returned by public protocol operations.
+  Use it when matching failures returned by public protocol operations.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    case AgentBlueprintProtocol.Json.decode("null") do
-      {:error, %AgentBlueprintProtocol.Error{code: code}} -> code
-      {:ok, value} -> value
-    end
-    ```
+  ```elixir
+  case AgentBlueprintProtocol.Json.decode("null") do
+    {:error, %AgentBlueprintProtocol.Error{code: code}} -> code
+    {:ok, value} -> value
+  end
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -120,36 +120,36 @@ defmodule AgentBlueprintProtocol.Error do
 
   @spec codes() :: [code()]
   @doc """
-    Returns the declared error-code vocabulary for this release.
+  Returns the declared error-code vocabulary for this release.
 
-    ## Example
+  ## Example
 
-        iex> Enum.member?(AgentBlueprintProtocol.Error.codes(), :invalid_type)
-        true
+      iex> Enum.member?(AgentBlueprintProtocol.Error.codes(), :invalid_type)
+      true
   """
   @doc since: "1.0.0"
   def codes, do: @codes
 
   @spec ceiling_keys() :: [ceiling_key()]
   @doc """
-    Returns the decoder limit names used by ceiling errors.
+  Returns the decoder limit names used by ceiling errors.
 
-    ## Example
+  ## Example
 
-        iex> Enum.member?(AgentBlueprintProtocol.Error.ceiling_keys(), :bytes)
-        true
+      iex> Enum.member?(AgentBlueprintProtocol.Error.ceiling_keys(), :bytes)
+      true
   """
   @doc since: "1.0.0"
   def ceiling_keys, do: @ceiling_keys
 
   @spec declared?(term()) :: boolean()
   @doc """
-    Reports whether a value is a declared error code or ceiling code.
+  Reports whether a value is a declared error code or ceiling code.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Error.declared?(:invalid_type)
-        true
+      iex> AgentBlueprintProtocol.Error.declared?(:invalid_type)
+      true
   """
   @doc since: "1.0.0"
   def declared?(code) when is_atom(code) and code != nil and code != true and code != false,
@@ -159,12 +159,12 @@ defmodule AgentBlueprintProtocol.Error do
   def declared?(_), do: false
 
   @typedoc """
-    One of the eight decoder limit names accepted by the ceiling error family.
+  One of the eight decoder limit names accepted by the ceiling error family.
   """
   @type ceiling_key ::
           :bytes | :depth | :members | :items | :nodes | :string | :key | :number_lexeme
   @typedoc """
-    A closed error-code union for the 1.x release line; callers may match it exhaustively.
+  A closed error-code union for the 1.x release line; callers may match it exhaustively.
   """
   @type code ::
           :base64url_invalid
@@ -243,11 +243,11 @@ defmodule AgentBlueprintProtocol.Error do
           | :corpus_case_invalid
           | {:ceiling, ceiling_key()}
   @typedoc """
-    A member path containing names and array indices.
+  A member path containing names and array indices.
   """
   @type subject :: [binary() | non_neg_integer()]
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Error.
+  The public data type for AgentBlueprintProtocol.Error.
   """
   @type t :: %__MODULE__{
           code: code(),

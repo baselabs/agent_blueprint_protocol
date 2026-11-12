@@ -1,26 +1,26 @@
 defmodule AgentBlueprintProtocol.Schema do
   @moduledoc """
-    This module parses bounded schemas and validates tagged JSON instances.
+  This module parses bounded schemas and validates tagged JSON instances.
 
-    Use it when validating a schema document or an instance against a supported dialect.
+  Use it when validating a schema document or an instance against a supported dialect.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
-    {:ok, schema} =
-      AgentBlueprintProtocol.Schema.parse(
-        schema_value,
-        AgentBlueprintProtocol.Schema.dialect()
-      )
-    AgentBlueprintProtocol.Schema.validate_instance(
-      schema,
-      {:string, "ready"},
+  ```elixir
+  {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
+  {:ok, schema} =
+    AgentBlueprintProtocol.Schema.parse(
+      schema_value,
       AgentBlueprintProtocol.Schema.dialect()
     )
-    ```
+  AgentBlueprintProtocol.Schema.validate_instance(
+    schema,
+    {:string, "ready"},
+    AgentBlueprintProtocol.Schema.dialect()
+  )
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -62,7 +62,7 @@ defmodule AgentBlueprintProtocol.Schema do
   @typep pointers :: %{optional([binary()]) => Json.value()}
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Schema.
+  The public data type for AgentBlueprintProtocol.Schema.
   """
   @type t :: %__MODULE__{
           dialect: binary(),
@@ -73,39 +73,39 @@ defmodule AgentBlueprintProtocol.Schema do
 
   @spec dialect() :: binary()
   @doc """
-    Returns the schema dialect supported by this module.
+  Returns the schema dialect supported by this module.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Schema.dialect()
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Schema.dialect()
+  ```
   """
   @doc since: "1.0.0"
   def dialect, do: @dialect
 
   @spec ceiling() :: pos_integer()
   @doc """
-    Returns the maximum schema complexity accepted by this module.
+  Returns the maximum schema complexity accepted by this module.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Schema.ceiling()
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Schema.ceiling()
+  ```
   """
   @doc since: "1.0.0"
   def ceiling, do: @ceiling
 
   @spec complexity(Json.value()) :: non_neg_integer()
   @doc """
-    Returns the complexity measure for a schema value.
+  Returns the complexity measure for a schema value.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Schema.complexity({:object, [{"ready", {:boolean, true}}]})
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Schema.complexity({:object, [{"ready", {:boolean, true}}]})
+  ```
   """
   @doc since: "1.0.0"
   def complexity(value) do
@@ -122,21 +122,21 @@ defmodule AgentBlueprintProtocol.Schema do
 
   @spec parse(Json.value(), binary()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Parses a schema document for the requested dialect.
+  Parses a schema document for the requested dialect.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
+  ```elixir
+  {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
 
-    match?(
-      {:ok, %AgentBlueprintProtocol.Schema{}},
-      AgentBlueprintProtocol.Schema.parse(
-        schema_value,
-        AgentBlueprintProtocol.Schema.dialect()
-      )
+  match?(
+    {:ok, %AgentBlueprintProtocol.Schema{}},
+    AgentBlueprintProtocol.Schema.parse(
+      schema_value,
+      AgentBlueprintProtocol.Schema.dialect()
     )
-    ```
+  )
+  ```
   """
   @doc since: "1.0.0"
   def parse(value, dialect) do
@@ -159,24 +159,24 @@ defmodule AgentBlueprintProtocol.Schema do
   @spec validate_instance(t() | Json.value(), Json.value(), binary()) ::
           :ok | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Validates a tagged JSON instance against a schema.
+  Validates a tagged JSON instance against a schema.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
-    {:ok, schema} =
-      AgentBlueprintProtocol.Schema.parse(
-        schema_value,
-        AgentBlueprintProtocol.Schema.dialect()
-      )
-
-    AgentBlueprintProtocol.Schema.validate_instance(
-      schema,
-      {:string, "ready"},
+  ```elixir
+  {:ok, schema_value} = AgentBlueprintProtocol.Json.decode(~s({"type":"string"}))
+  {:ok, schema} =
+    AgentBlueprintProtocol.Schema.parse(
+      schema_value,
       AgentBlueprintProtocol.Schema.dialect()
     )
-    ```
+
+  AgentBlueprintProtocol.Schema.validate_instance(
+    schema,
+    {:string, "ready"},
+    AgentBlueprintProtocol.Schema.dialect()
+  )
+  ```
   """
   @doc since: "1.0.0"
   def validate_instance(schema, instance, dialect) do
@@ -973,13 +973,13 @@ defmodule AgentBlueprintProtocol.Schema do
 
   @spec equal?(Json.value(), Json.value()) :: boolean()
   @doc """
-    Compares two values for equality under this module’s rules.
+  Compares two values for equality under this module’s rules.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Schema.equal?({:integer, 1}, {:float, 1.0})
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Schema.equal?({:integer, 1}, {:float, 1.0})
+  ```
   """
   @doc since: "1.0.0"
   def equal?({:integer, a}, {:integer, b}), do: a == b

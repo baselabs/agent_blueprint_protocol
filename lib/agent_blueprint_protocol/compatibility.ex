@@ -1,22 +1,22 @@
 defmodule AgentBlueprintProtocol.Compatibility do
   @moduledoc """
-    This module compares manifest build identities with identities observed by a host.
+  This module compares manifest build identities with identities observed by a host.
 
-    Use it when checking whether a Deployment matches an environment report.
+  Use it when checking whether a Deployment matches an environment report.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, deployment} =
-      AgentBlueprintProtocol.Deployment.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
-      )
-    observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
-    match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Compatibility.verify(deployment, observed))
-    ```
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, deployment} =
+    AgentBlueprintProtocol.Deployment.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+    )
+  observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
+  match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Compatibility.verify(deployment, observed))
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -24,24 +24,24 @@ defmodule AgentBlueprintProtocol.Compatibility do
 
   defmodule Observed do
     @moduledoc """
-      This struct contains build identities observed by a host.
+    This struct contains build identities observed by a host.
 
-      Use it when supplying environment identity data to compatibility verification.
+    Use it when supplying environment identity data to compatibility verification.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
+    ```
     """
     @moduledoc since: "1.0.0"
 
     defstruct [:identities]
 
     @typedoc """
-      One observed build identity.
+    One observed build identity.
     """
     @type identity :: %{
             kind: binary(),
@@ -51,7 +51,7 @@ defmodule AgentBlueprintProtocol.Compatibility do
           }
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.Compatibility.Observed.
+    The public data type for AgentBlueprintProtocol.Compatibility.Observed.
     """
     @type t :: %__MODULE__{identities: [identity()]}
   end
@@ -64,18 +64,18 @@ defmodule AgentBlueprintProtocol.Compatibility do
 
   @spec exact?(term()) :: boolean()
   @doc """
-    Reports whether a version spelling identifies one exact version.
+  Reports whether a version spelling identifies one exact version.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Compatibility.exact?(%{
-      kind: "package",
-      name: "example.package",
-      version: "1.2.3",
-      digest: "sha-256:example"
-    })
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Compatibility.exact?(%{
+    kind: "package",
+    name: "example.package",
+    version: "1.2.3",
+    digest: "sha-256:example"
+  })
+  ```
   """
   @doc since: "1.0.0"
   def exact?(%{version: version} = identity)
@@ -98,20 +98,20 @@ defmodule AgentBlueprintProtocol.Compatibility do
 
   @spec verify(Deployment.t(), Observed.t()) :: {:ok, Evidence.t()} | {:error, Error.t()}
   @doc """
-    Compares a Deployment’s build identities with those reported by a host.
+  Compares a Deployment’s build identities with those reported by a host.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, deployment} =
-      AgentBlueprintProtocol.Deployment.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
-      )
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, deployment} =
+    AgentBlueprintProtocol.Deployment.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+    )
 
-    observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
-    match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Compatibility.verify(deployment, observed))
-    ```
+  observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
+  match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Compatibility.verify(deployment, observed))
+  ```
   """
   @doc since: "1.0.0"
   def verify(%Deployment{} = deployment, %Observed{identities: identities})

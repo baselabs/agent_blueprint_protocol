@@ -1,37 +1,37 @@
 defmodule AgentBlueprintProtocol.Reconcile do
   @moduledoc """
-    This module runs the composed verification pass for a Blueprint and Deployment pair.
+  This module runs the composed verification pass for a Blueprint and Deployment pair.
 
-    Use it when an application needs one Evidence result for a pair and host inputs.
+  Use it when an application needs one Evidence result for a pair and host inputs.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, blueprint} =
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
-    {:ok, deployment} =
-      AgentBlueprintProtocol.Deployment.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
-      )
-    {:ok, host_bounds} = AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment)
-    support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
-    inputs = %AgentBlueprintProtocol.Reconcile.Inputs{
-      host_bounds: host_bounds,
-      support: support,
-      keys: [],
-      protected_clamp: :acknowledge,
-      observations: %AgentBlueprintProtocol.Deployment.Observations{}
-    }
-    match?(
-      {:ok, %AgentBlueprintProtocol.Evidence{}},
-      AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, blueprint} =
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
     )
-    ```
+  {:ok, deployment} =
+    AgentBlueprintProtocol.Deployment.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+    )
+  {:ok, host_bounds} = AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment)
+  support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
+  inputs = %AgentBlueprintProtocol.Reconcile.Inputs{
+    host_bounds: host_bounds,
+    support: support,
+    keys: [],
+    protected_clamp: :acknowledge,
+    observations: %AgentBlueprintProtocol.Deployment.Observations{}
+  }
+  match?(
+    {:ok, %AgentBlueprintProtocol.Evidence{}},
+    AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
+  )
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -56,32 +56,32 @@ defmodule AgentBlueprintProtocol.Reconcile do
 
   defmodule Inputs do
     @moduledoc """
-      This struct carries the host inputs used by reconcile.
+    This struct carries the host inputs used by reconcile.
 
-      Use it when assembling values for a reconcile call.
+    Use it when assembling values for a reconcile call.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      {:ok, host_bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
-      support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
-      %AgentBlueprintProtocol.Reconcile.Inputs{
-        host_bounds: host_bounds,
-        support: support,
-        keys: [],
-        protected_clamp: :acknowledge,
-        observations: %AgentBlueprintProtocol.Deployment.Observations{}
-      }
-      ```
+    ```elixir
+    {:ok, host_bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+    support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
+    %AgentBlueprintProtocol.Reconcile.Inputs{
+      host_bounds: host_bounds,
+      support: support,
+      keys: [],
+      protected_clamp: :acknowledge,
+      observations: %AgentBlueprintProtocol.Deployment.Observations{}
+    }
+    ```
     """
     @moduledoc since: "1.0.0"
 
     defstruct [:host_bounds, :support, :keys, :protected_clamp, :observations]
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.Reconcile.Inputs.
+    The public data type for AgentBlueprintProtocol.Reconcile.Inputs.
     """
     @type t :: %__MODULE__{
             host_bounds: BoundSet.t(),
@@ -97,16 +97,16 @@ defmodule AgentBlueprintProtocol.Reconcile do
   @spec reconcile(Blueprint.t(), Deployment.t(), Inputs.t()) ::
           {:ok, Evidence.t()} | {:error, Error.t()}
   @doc """
-    Runs the composed verification pass for a Blueprint and Deployment pair.
+  Runs the composed verification pass for a Blueprint and Deployment pair.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    match?(
-      {:error, %AgentBlueprintProtocol.Error{}},
-      AgentBlueprintProtocol.Reconcile.reconcile(nil, nil, nil)
-    )
-    ```
+  ```elixir
+  match?(
+    {:error, %AgentBlueprintProtocol.Error{}},
+    AgentBlueprintProtocol.Reconcile.reconcile(nil, nil, nil)
+  )
+  ```
   """
   @doc since: "1.0.0"
   def reconcile(%Blueprint{} = blueprint, %Deployment{} = deployment, %Inputs{} = inputs) do

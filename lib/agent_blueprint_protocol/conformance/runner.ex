@@ -1,24 +1,24 @@
 defmodule AgentBlueprintProtocol.Conformance.Runner do
   @moduledoc """
-    This module runs loaded conformance cases against the reference implementation.
+  This module runs loaded conformance cases against the reference implementation.
 
-    Use it when comparing expected case outcomes with implementation results.
+  Use it when comparing expected case outcomes with implementation results.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
-    files =
-      Path.wildcard(Path.join(corpus_root, "**/*"))
-      |> Enum.filter(&File.regular?/1)
-      |> Map.new(fn path ->
-        {Path.relative_to(path, corpus_root), File.read!(path)}
-      end)
-    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
-    match?(results when is_list(results), AgentBlueprintProtocol.Conformance.Runner.run(corpus))
-    ```
+  ```elixir
+  corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+  files =
+    Path.wildcard(Path.join(corpus_root, "**/*"))
+    |> Enum.filter(&File.regular?/1)
+    |> Map.new(fn path ->
+      {Path.relative_to(path, corpus_root), File.read!(path)}
+    end)
+  {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+  match?(results when is_list(results), AgentBlueprintProtocol.Conformance.Runner.run(corpus))
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -83,28 +83,28 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   }
 
   @typedoc """
-    The result for one conformance case.
+  The result for one conformance case.
   """
   @type result :: %{case_id: binary(), agree: boolean()}
 
   @spec run(Corpus.t()) :: [{binary(), [result()]}] | {:error, Error.t()}
   @doc """
-    Runs the cases in a loaded conformance corpus.
+  Runs the cases in a loaded conformance corpus.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
-    files =
-      Path.wildcard(Path.join(corpus_root, "**/*"))
-      |> Enum.filter(&File.regular?/1)
-      |> Map.new(fn path ->
-        {Path.relative_to(path, corpus_root), File.read!(path)}
-      end)
+  ```elixir
+  corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+  files =
+    Path.wildcard(Path.join(corpus_root, "**/*"))
+    |> Enum.filter(&File.regular?/1)
+    |> Map.new(fn path ->
+      {Path.relative_to(path, corpus_root), File.read!(path)}
+    end)
 
-    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
-    match?(results when is_list(results), AgentBlueprintProtocol.Conformance.Runner.run(corpus))
-    ```
+  {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+  match?(results when is_list(results), AgentBlueprintProtocol.Conformance.Runner.run(corpus))
+  ```
   """
   @doc since: "1.0.0"
   def run(%Corpus{cases: cases, data: data, raws: raws})

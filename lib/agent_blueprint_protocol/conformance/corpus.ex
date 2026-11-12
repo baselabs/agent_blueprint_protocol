@@ -1,23 +1,23 @@
 defmodule AgentBlueprintProtocol.Conformance.Corpus do
   @moduledoc """
-    This module loads and validates a conformance corpus.
+  This module loads and validates a conformance corpus.
 
-    Use it when preparing cases for the Runner or Report modules.
+  Use it when preparing cases for the Runner or Report modules.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
-    files =
-      Path.wildcard(Path.join(corpus_root, "**/*"))
-      |> Enum.filter(&File.regular?/1)
-      |> Map.new(fn path ->
-        {Path.relative_to(path, corpus_root), File.read!(path)}
-      end)
-    match?({:ok, %AgentBlueprintProtocol.Conformance.Corpus{}}, AgentBlueprintProtocol.Conformance.Corpus.load(files))
-    ```
+  ```elixir
+  corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+  files =
+    Path.wildcard(Path.join(corpus_root, "**/*"))
+    |> Enum.filter(&File.regular?/1)
+    |> Map.new(fn path ->
+      {Path.relative_to(path, corpus_root), File.read!(path)}
+    end)
+  match?({:ok, %AgentBlueprintProtocol.Conformance.Corpus{}}, AgentBlueprintProtocol.Conformance.Corpus.load(files))
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -30,7 +30,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   defstruct [:index, :index_bytes, :cases, :data, :raws, :case_ids, :identity]
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Conformance.Corpus.
+  The public data type for AgentBlueprintProtocol.Conformance.Corpus.
   """
   @type t :: %__MODULE__{}
 
@@ -182,60 +182,60 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
 
   @spec surfaces() :: [binary()]
   @doc """
-    Returns the known conformance surface names.
+  Returns the known conformance surface names.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Conformance.Corpus.surfaces()
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Conformance.Corpus.surfaces()
+  ```
   """
   @doc since: "1.0.0"
   def surfaces, do: @surfaces
 
   @spec classes() :: [binary()]
   @doc """
-    Returns the known conformance case classes.
+  Returns the known conformance case classes.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Conformance.Corpus.classes()
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Conformance.Corpus.classes()
+  ```
   """
   @doc since: "1.0.0"
   def classes, do: @classes
 
   @spec floor() :: %{binary() => %{required: [binary()], n_a: binary()}}
   @doc """
-    Returns the conformance corpus applicability floor.
+  Returns the conformance corpus applicability floor.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Conformance.Corpus.floor()
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Conformance.Corpus.floor()
+  ```
   """
   @doc since: "1.0.0"
   def floor, do: @floor
 
   @spec load(%{binary() => binary()}) :: {:ok, t()} | {:error, Error.t()}
   @doc """
-    Loads and validates the conformance files supplied as a path-to-bytes map.
+  Loads and validates the conformance files supplied as a path-to-bytes map.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
-    files =
-      Path.wildcard(Path.join(corpus_root, "**/*"))
-      |> Enum.filter(&File.regular?/1)
-      |> Map.new(fn path ->
-        {Path.relative_to(path, corpus_root), File.read!(path)}
-      end)
+  ```elixir
+  corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+  files =
+    Path.wildcard(Path.join(corpus_root, "**/*"))
+    |> Enum.filter(&File.regular?/1)
+    |> Map.new(fn path ->
+      {Path.relative_to(path, corpus_root), File.read!(path)}
+    end)
 
-    match?({:ok, %AgentBlueprintProtocol.Conformance.Corpus{}}, AgentBlueprintProtocol.Conformance.Corpus.load(files))
-    ```
+  match?({:ok, %AgentBlueprintProtocol.Conformance.Corpus{}}, AgentBlueprintProtocol.Conformance.Corpus.load(files))
+  ```
   """
   @doc since: "1.0.0"
   def load(map) when is_map(map), do: load_census(map, :conformance)

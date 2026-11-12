@@ -1,18 +1,18 @@
 defmodule AgentBlueprintProtocol.Federation do
   @moduledoc """
-    This module validates Federation TaskEnvelope values and converts supported state and carrier shapes.
+  This module validates Federation TaskEnvelope values and converts supported state and carrier shapes.
 
-    Use it when reading an envelope or mapping it to a supported task carrier.
+  Use it when reading an envelope or mapping it to a supported task carrier.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    bytes = File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))
-    match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes))
-    ```
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  bytes = File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))
+  match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes))
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -31,23 +31,23 @@ defmodule AgentBlueprintProtocol.Federation do
   defstruct [:value]
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Federation.
+  The public data type for AgentBlueprintProtocol.Federation.
   """
   @type t :: %__MODULE__{value: Json.value()}
 
   defmodule Context do
     @moduledoc """
-      This struct contains receiver-supplied context for commitment checks.
+    This struct contains receiver-supplied context for commitment checks.
 
-      Use it when checking a Federation envelope against supplied receiver facts.
+    Use it when checking a Federation envelope against supplied receiver facts.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.Federation.Context{issuer: "example.issuer", subject: "example.subject", audience: "example.audience"}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.Federation.Context{issuer: "example.issuer", subject: "example.subject", audience: "example.audience"}
+    ```
     """
     @moduledoc since: "1.0.0"
 
@@ -65,7 +65,7 @@ defmodule AgentBlueprintProtocol.Federation do
     ]
 
     @typedoc """
-      A verified fact returned for a receipt.
+    A verified fact returned for a receipt.
     """
     @type receipt_fact :: %{
             required(:task_identity) => binary(),
@@ -74,7 +74,7 @@ defmodule AgentBlueprintProtocol.Federation do
           }
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.Federation.Context.
+    The public data type for AgentBlueprintProtocol.Federation.Context.
     """
     @type t :: %__MODULE__{
             keys: [Signature.PublicKey.t()],
@@ -134,29 +134,29 @@ defmodule AgentBlueprintProtocol.Federation do
 
   defmodule Mapping.Row do
     @moduledoc """
-      This module provides the row data type for the protocol.
+    This module provides the row data type for the protocol.
 
-      Use it when constructing or inspecting row values.
+    Use it when constructing or inspecting row values.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.Federation.Mapping.Row{}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.Federation.Mapping.Row{}
+    ```
     """
     @moduledoc since: "1.0.0"
 
     defstruct [:index, :logical_field, :a2a_location, :mcp_location, :verdict]
 
     @typedoc """
-      A mapping outcome. Match known values and keep a catch-all branch.
+    A mapping outcome. Match known values and keep a catch-all branch.
     """
     @type verdict :: :native | :partial | :extension
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.Federation.Mapping.Row.
+    The public data type for AgentBlueprintProtocol.Federation.Mapping.Row.
     """
     @type t :: %__MODULE__{
             index: pos_integer(),
@@ -225,12 +225,12 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec mapping() :: [Mapping.Row.t()]
   @doc """
-    Returns the field mapping rows for the supported federation carriers.
+  Returns the field mapping rows for the supported federation carriers.
 
-    ## Example
+  ## Example
 
-        iex> Enum.all?(AgentBlueprintProtocol.Federation.mapping(), &is_struct(&1, AgentBlueprintProtocol.Federation.Mapping.Row))
-        true
+      iex> Enum.all?(AgentBlueprintProtocol.Federation.mapping(), &is_struct(&1, AgentBlueprintProtocol.Federation.Mapping.Row))
+      true
   """
   @doc since: "1.0.0"
   def mapping do
@@ -253,14 +253,14 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec terminal_commitment(t()) :: {:ok, Digest.t()} | {:error, Error.t()}
   @doc """
-    Computes the commitment for a terminal Federation envelope.
+  Computes the commitment for a terminal Federation envelope.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, %AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}}, AgentBlueprintProtocol.Federation.terminal_commitment(envelope))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, %AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}}, AgentBlueprintProtocol.Federation.terminal_commitment(envelope))
+      true
   """
   @doc since: "1.0.0"
   def terminal_commitment(%__MODULE__{value: {:object, _} = value}) do
@@ -302,14 +302,14 @@ defmodule AgentBlueprintProtocol.Federation do
           {:ok, Context.receipt_fact()}
           | {:error, Error.t()}
   @doc """
-    Checks a Federation envelope against the supplied receiver context.
+  Checks a Federation envelope against the supplied receiver context.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Federation.verify_commitment(envelope, %AgentBlueprintProtocol.Federation.Context{}))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Federation.verify_commitment(envelope, %AgentBlueprintProtocol.Federation.Context{}))
+      true
   """
   @doc since: "1.0.0"
   def verify_commitment(%__MODULE__{value: {:object, _} = value}, %Context{} = context) do
@@ -810,17 +810,17 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec decode(binary(), Bounds.t() | map()) :: {:ok, t()} | {:error, Error.t()}
   @doc """
-    Decodes a canonical Federation TaskEnvelope and validates its structure and portability.
+  Decodes a canonical Federation TaskEnvelope and validates its structure and portability.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> bytes = File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))
-        iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes))
-        true
-        iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes, %{bytes: 5000}))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> bytes = File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))
+      iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes))
+      true
+      iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.decode(bytes, %{bytes: 5000}))
+      true
   """
   @doc since: "1.0.0"
   def decode(binary, bounds \\ Bounds.maximum())
@@ -839,14 +839,14 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec from_value(Json.value()) :: {:ok, t()} | {:error, Error.t()}
   @doc """
-    Validates a tagged JSON value and wraps it in this artifact type.
+  Validates a tagged JSON value and wraps it in this artifact type.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, value} <- AgentBlueprintProtocol.Json.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_value(value))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, value} <- AgentBlueprintProtocol.Json.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_value(value))
+      true
   """
   @doc since: "1.0.0"
   def from_value({:object, _} = value) do
@@ -877,14 +877,14 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Returns canonical JSON bytes for the supplied artifact.
+  Returns canonical JSON bytes for the supplied artifact.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, bytes} when is_binary(bytes), AgentBlueprintProtocol.Federation.canonical_bytes(envelope))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, bytes} when is_binary(bytes), AgentBlueprintProtocol.Federation.canonical_bytes(envelope))
+      true
   """
   @doc since: "1.0.0"
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
@@ -1037,12 +1037,12 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec from_a2a_state(binary()) :: {:ok, atom()} | {:error, Error.t()}
   @doc """
-    Maps an A2A state spelling to the logical state.
+  Maps an A2A state spelling to the logical state.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Federation.from_a2a_state("TASK_STATE_COMPLETED")
-        {:ok, :completed}
+      iex> AgentBlueprintProtocol.Federation.from_a2a_state("TASK_STATE_COMPLETED")
+      {:ok, :completed}
   """
   @doc since: "1.0.0"
   def from_a2a_state(spelling) when is_binary(spelling) do
@@ -1057,12 +1057,12 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec to_a2a_state(atom()) :: {:ok, binary()} | {:error, Error.t()}
   @doc """
-    Maps a logical state to its A2A spelling.
+  Maps a logical state to its A2A spelling.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Federation.to_a2a_state(:completed)
-        {:ok, "TASK_STATE_COMPLETED"}
+      iex> AgentBlueprintProtocol.Federation.to_a2a_state(:completed)
+      {:ok, "TASK_STATE_COMPLETED"}
   """
   @doc since: "1.0.0"
   def to_a2a_state(logical) when is_atom(logical) do
@@ -1076,12 +1076,12 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec from_mcp_state(binary()) :: {:ok, atom()} | {:error, Error.t()}
   @doc """
-    Maps an MCP state spelling to the logical state.
+  Maps an MCP state spelling to the logical state.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Federation.from_mcp_state("completed")
-        {:ok, :completed}
+      iex> AgentBlueprintProtocol.Federation.from_mcp_state("completed")
+      {:ok, :completed}
   """
   @doc since: "1.0.0"
   def from_mcp_state(spelling) when is_binary(spelling) do
@@ -1095,12 +1095,12 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec to_mcp_state(atom()) :: {:ok, binary()} | {:error, Error.t()}
   @doc """
-    Maps a logical state to its MCP spelling.
+  Maps a logical state to its MCP spelling.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Federation.to_mcp_state(:completed)
-        {:ok, "completed"}
+      iex> AgentBlueprintProtocol.Federation.to_mcp_state(:completed)
+      {:ok, "completed"}
   """
   @doc since: "1.0.0"
   def to_mcp_state(logical) when is_atom(logical) do
@@ -1119,24 +1119,24 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec a2a_carrier_key() :: binary()
   @doc """
-    Returns the carrier key used for A2A metadata.
+  Returns the carrier key used for A2A metadata.
 
-    ## Example
+  ## Example
 
-        iex> is_binary(AgentBlueprintProtocol.Federation.a2a_carrier_key())
-        true
+      iex> is_binary(AgentBlueprintProtocol.Federation.a2a_carrier_key())
+      true
   """
   @doc since: "1.0.0"
   def a2a_carrier_key, do: registered_entry().a2a_uri
 
   @spec mcp_carrier_key() :: binary()
   @doc """
-    Returns the carrier key used for MCP metadata.
+  Returns the carrier key used for MCP metadata.
 
-    ## Example
+  ## Example
 
-        iex> is_binary(AgentBlueprintProtocol.Federation.mcp_carrier_key())
-        true
+      iex> is_binary(AgentBlueprintProtocol.Federation.mcp_carrier_key())
+      true
   """
   @doc since: "1.0.0"
   def mcp_carrier_key, do: registered_entry().namespace
@@ -1148,14 +1148,14 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec to_a2a_carrier(t()) :: {:ok, Json.value()} | {:error, Error.t()}
   @doc """
-    Builds an A2A carrier value from a Federation envelope.
+  Builds an A2A carrier value from a Federation envelope.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope))
+      true
   """
   @doc since: "1.0.0"
   def to_a2a_carrier(%__MODULE__{value: {:object, _}} = envelope) do
@@ -1181,14 +1181,14 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec from_a2a_carrier(Json.value()) :: {:ok, t()} | {:error, Error.t()}
   @doc """
-    Builds a Federation envelope from an A2A carrier value.
+  Builds a Federation envelope from an A2A carrier value.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_a2a_carrier(carrier))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_a2a_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_a2a_carrier(carrier))
+      true
   """
   @doc since: "1.0.0"
   def from_a2a_carrier({:object, _} = carrier) do
@@ -1210,14 +1210,14 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec to_mcp_carrier(t()) :: {:ok, Json.value()} | {:error, Error.t()}
   @doc """
-    Builds an MCP carrier value from a Federation envelope.
+  Builds an MCP carrier value from a Federation envelope.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), do: match?({:ok, {:object, _}}, AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope))
+      true
   """
   @doc since: "1.0.0"
   def to_mcp_carrier(%__MODULE__{value: {:object, _}} = envelope) do
@@ -1243,14 +1243,14 @@ defmodule AgentBlueprintProtocol.Federation do
 
   @spec from_mcp_carrier(Json.value()) :: {:ok, t()} | {:error, Error.t()}
   @doc """
-    Builds a Federation envelope from an MCP carrier value.
+  Builds a Federation envelope from an MCP carrier value.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_mcp_carrier(carrier))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, envelope} <- AgentBlueprintProtocol.Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))), {:ok, carrier} <- AgentBlueprintProtocol.Federation.to_mcp_carrier(envelope), do: match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.Federation.from_mcp_carrier(carrier))
+      true
   """
   @doc since: "1.0.0"
   def from_mcp_carrier({:object, _} = carrier) do

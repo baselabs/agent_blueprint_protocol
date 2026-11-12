@@ -1,25 +1,25 @@
 defmodule AgentBlueprintProtocol.Conformance.Report do
   @moduledoc """
-    This module builds deterministic reports from corpus results.
+  This module builds deterministic reports from corpus results.
 
-    Use it when summarizing agreement and encoding a report for a loaded corpus.
+  Use it when summarizing agreement and encoding a report for a loaded corpus.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
-    files =
-      Path.wildcard(Path.join(corpus_root, "**/*"))
-      |> Enum.filter(&File.regular?/1)
-      |> Map.new(fn path ->
-        {Path.relative_to(path, corpus_root), File.read!(path)}
-      end)
-    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
-    results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
-    match?(%AgentBlueprintProtocol.Conformance.Report{}, AgentBlueprintProtocol.Conformance.Report.build(corpus, results))
-    ```
+  ```elixir
+  corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+  files =
+    Path.wildcard(Path.join(corpus_root, "**/*"))
+    |> Enum.filter(&File.regular?/1)
+    |> Map.new(fn path ->
+      {Path.relative_to(path, corpus_root), File.read!(path)}
+    end)
+  {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+  results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
+  match?(%AgentBlueprintProtocol.Conformance.Report{}, AgentBlueprintProtocol.Conformance.Report.build(corpus, results))
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -31,7 +31,7 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
   defstruct [:agreement, :exit_status, :total, :agreed, :disagreed]
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Conformance.Report.
+  The public data type for AgentBlueprintProtocol.Conformance.Report.
   """
   @type t :: %__MODULE__{
           agreement: boolean(),
@@ -44,23 +44,23 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
   @spec build(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) ::
           t() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Summarizes the outcomes for each case in a loaded corpus.
+  Summarizes the outcomes for each case in a loaded corpus.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
-    files =
-      Path.wildcard(Path.join(corpus_root, "**/*"))
-      |> Enum.filter(&File.regular?/1)
-      |> Map.new(fn path ->
-        {Path.relative_to(path, corpus_root), File.read!(path)}
-      end)
+  ```elixir
+  corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+  files =
+    Path.wildcard(Path.join(corpus_root, "**/*"))
+    |> Enum.filter(&File.regular?/1)
+    |> Map.new(fn path ->
+      {Path.relative_to(path, corpus_root), File.read!(path)}
+    end)
 
-    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
-    results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
-    match?(%AgentBlueprintProtocol.Conformance.Report{}, AgentBlueprintProtocol.Conformance.Report.build(corpus, results))
-    ```
+  {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+  results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
+  match?(%AgentBlueprintProtocol.Conformance.Report{}, AgentBlueprintProtocol.Conformance.Report.build(corpus, results))
+  ```
   """
   @doc since: "1.0.0"
   def build(%Corpus{}, results) when is_list(results) do
@@ -105,26 +105,26 @@ defmodule AgentBlueprintProtocol.Conformance.Report do
   @spec to_bytes(Corpus.t(), [{binary(), [%{case_id: binary(), agree: boolean()}]}]) ::
           {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Encodes the report as canonical JSON bytes.
+  Encodes the report as canonical JSON bytes.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
-    files =
-      Path.wildcard(Path.join(corpus_root, "**/*"))
-      |> Enum.filter(&File.regular?/1)
-      |> Map.new(fn path ->
-        {Path.relative_to(path, corpus_root), File.read!(path)}
-      end)
+  ```elixir
+  corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+  files =
+    Path.wildcard(Path.join(corpus_root, "**/*"))
+    |> Enum.filter(&File.regular?/1)
+    |> Map.new(fn path ->
+      {Path.relative_to(path, corpus_root), File.read!(path)}
+    end)
 
-    {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
-    results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
-    match?(
-      {:ok, bytes} when is_binary(bytes),
-      AgentBlueprintProtocol.Conformance.Report.to_bytes(corpus, results)
-    )
-    ```
+  {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
+  results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
+  match?(
+    {:ok, bytes} when is_binary(bytes),
+    AgentBlueprintProtocol.Conformance.Report.to_bytes(corpus, results)
+  )
+  ```
   """
   @doc since: "1.0.0"
   def to_bytes(%Corpus{identity: identity} = corpus, results) do

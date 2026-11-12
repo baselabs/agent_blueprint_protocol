@@ -1,25 +1,25 @@
 defmodule AgentBlueprintProtocol.Negotiation do
   @moduledoc """
-    This module checks an artifact against a consumer support posture.
+  This module checks an artifact against a consumer support posture.
 
-    Use it when checking revision, required core fields, and registered extensions.
+  Use it when checking revision, required core fields, and registered extensions.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, blueprint} =
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
-    support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
-    match?(
-      {:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}},
-      AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support)
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, blueprint} =
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
     )
-    ```
+  support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
+  match?(
+    {:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}},
+    AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support)
+  )
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -121,21 +121,21 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
   defmodule Support do
     @moduledoc """
-      This struct describes the revisions and core fields a consumer supports.
+    This struct describes the revisions and core fields a consumer supports.
 
-      Use it when supplying the consumer posture to negotiation. `registry`
-      accepts host-owned entries for namespaces absent from the shipped registry;
-      `schemas` holds the corresponding parsed schema documents. For shipped
-      entries, only lifecycle state can be overridden, preserving criticality and
-      schema digest pins.
+    Use it when supplying the consumer posture to negotiation. `registry`
+    accepts host-owned entries for namespaces absent from the shipped registry;
+    `schemas` holds the corresponding parsed schema documents. For shipped
+    entries, only lifecycle state can be overridden, preserving criticality and
+    schema digest pins.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
+    ```
     """
     @moduledoc since: "1.0.0"
 
@@ -144,7 +144,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
     defstruct revisions: MapSet.new(), core_fields: MapSet.new(), registry: %{}, schemas: %{}
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.Negotiation.Support.
+    The public data type for AgentBlueprintProtocol.Negotiation.Support.
     """
     @type t :: %__MODULE__{
             revisions: MapSet.t(integer()),
@@ -156,17 +156,17 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
   defmodule Outcome do
     @moduledoc """
-      This struct contains the result of a negotiation check.
+    This struct contains the result of a negotiation check.
 
-      Use it when reading the supported revision and extension outcomes.
+    Use it when reading the supported revision and extension outcomes.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.Negotiation.Outcome{protocol_revision: 1, required_core_fields: [], critical_extensions: [], optional_retained: [], quarantined_extensions: [], notices: []}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.Negotiation.Outcome{protocol_revision: 1, required_core_fields: [], critical_extensions: [], optional_retained: [], quarantined_extensions: [], notices: []}
+    ```
     """
     @moduledoc since: "1.0.0"
 
@@ -180,7 +180,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
     ]
 
     @typedoc """
-      The negotiation result. Notice values may grow, so match known names and keep a catch-all branch.
+    The negotiation result. Notice values may grow, so match known names and keep a catch-all branch.
     """
     @type t :: %__MODULE__{
             protocol_revision: integer(),
@@ -195,14 +195,14 @@ defmodule AgentBlueprintProtocol.Negotiation do
   @spec negotiate(Blueprint.t() | Deployment.t() | Json.value(), Support.t()) ::
           {:ok, Outcome.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Checks an artifact against a consumer support posture.
+  Checks an artifact against a consumer support posture.
 
-    ## Example
+  ## Example
 
-        iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-        :ok
-        iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support))
-        true
+      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
+      :ok
+      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support))
+      true
   """
   @doc since: "1.0.0"
   def negotiate(%Blueprint{} = blueprint, support),

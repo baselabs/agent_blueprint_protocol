@@ -1,16 +1,16 @@
 defmodule AgentBlueprintProtocol.Json do
   @moduledoc """
-    This module decodes bounded JSON into an order-preserving tagged value.
+  This module decodes bounded JSON into an order-preserving tagged value.
 
-    Use it when decoding protocol JSON before passing the value to another module.
+  Use it when decoding protocol JSON before passing the value to another module.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    {:ok, value} = AgentBlueprintProtocol.Json.decode(~s({"ready":true}))
-    ```
+  ```elixir
+  {:ok, value} = AgentBlueprintProtocol.Json.decode(~s({"ready":true}))
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -20,7 +20,7 @@ defmodule AgentBlueprintProtocol.Json do
   @ijson_max 9_007_199_254_740_991
 
   @typedoc """
-    A JSON value represented as a tagged scalar, array, or ordered object.
+  A JSON value represented as a tagged scalar, array, or ordered object.
   """
   @type value ::
           :null
@@ -34,14 +34,14 @@ defmodule AgentBlueprintProtocol.Json do
   @spec decode(binary(), Bounds.t() | map()) ::
           {:ok, value()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Decodes bounded JSON into an order-preserving tagged value.
+  Decodes bounded JSON into an order-preserving tagged value.
 
-    ## Example
+  ## Example
 
-        iex> match?({:ok, {:object, [{"ready", {:boolean, true}}]}}, AgentBlueprintProtocol.Json.decode(~S({"ready":true})))
-        true
-        iex> match?({:ok, {:object, [{"ready", {:boolean, true}}]}}, AgentBlueprintProtocol.Json.decode(~S({"ready":true}), %{bytes: 32}))
-        true
+      iex> match?({:ok, {:object, [{"ready", {:boolean, true}}]}}, AgentBlueprintProtocol.Json.decode(~S({"ready":true})))
+      true
+      iex> match?({:ok, {:object, [{"ready", {:boolean, true}}]}}, AgentBlueprintProtocol.Json.decode(~S({"ready":true}), %{bytes: 32}))
+      true
   """
   @doc since: "1.0.0"
   def decode(input, bounds \\ Bounds.maximum())

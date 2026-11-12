@@ -1,17 +1,17 @@
 defmodule AgentBlueprintProtocol.Predicate do
   @moduledoc """
-    This module validates and evaluates the protocol predicate algebra.
+  This module validates and evaluates the protocol predicate algebra.
 
-    Use it when handling deterministic predicates over named input ports.
+  Use it when handling deterministic predicates over named input ports.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    predicate = {:object, [{"op", {:string, "present"}}, {"path", {:array, [{:string, "request"}]}}]}
-    AgentBlueprintProtocol.Predicate.validate(predicate, ["request"])
-    ```
+  ```elixir
+  predicate = {:object, [{"op", {:string, "present"}}, {"path", {:array, [{:string, "request"}]}}]}
+  AgentBlueprintProtocol.Predicate.validate(predicate, ["request"])
+  ```
   """
   @moduledoc since: "1.0.0"
   @node_ceiling 256
@@ -46,13 +46,13 @@ defmodule AgentBlueprintProtocol.Predicate do
   @spec validate(Json.value(), [binary()] | :any_root) ::
           :ok | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Checks whether the supplied predicate has a valid shape for the given ports.
+  Checks whether the supplied predicate has a valid shape for the given ports.
 
-    ## Example
+  ## Example
 
-        iex> predicate = {:object, [{"op", {:string, "eq"}}, {"path", {:array, [{:string, "request"}, {:string, "name"}]}}, {"value", {:string, "Ada"}}]}
-        iex> AgentBlueprintProtocol.Predicate.validate(predicate, ["request"])
-        :ok
+      iex> predicate = {:object, [{"op", {:string, "eq"}}, {"path", {:array, [{:string, "request"}, {:string, "name"}]}}, {"value", {:string, "Ada"}}]}
+      iex> AgentBlueprintProtocol.Predicate.validate(predicate, ["request"])
+      :ok
   """
   @doc since: "1.0.0"
   def validate(predicate, :any_root) do
@@ -87,14 +87,14 @@ defmodule AgentBlueprintProtocol.Predicate do
   @spec evaluate(Json.value(), %{optional(binary()) => Json.value()}) ::
           {:ok, boolean()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Evaluates a predicate against the supplied port values.
+  Evaluates a predicate against the supplied port values.
 
-    ## Example
+  ## Example
 
-        iex> predicate = {:object, [{"op", {:string, "eq"}}, {"path", {:array, [{:string, "request"}, {:string, "name"}]}}, {"value", {:string, "Ada"}}]}
-        iex> ports = %{"request" => {:object, [{"name", {:string, "Ada"}}]}}
-        iex> AgentBlueprintProtocol.Predicate.evaluate(predicate, ports)
-        {:ok, true}
+      iex> predicate = {:object, [{"op", {:string, "eq"}}, {"path", {:array, [{:string, "request"}, {:string, "name"}]}}, {"value", {:string, "Ada"}}]}
+      iex> ports = %{"request" => {:object, [{"name", {:string, "Ada"}}]}}
+      iex> AgentBlueprintProtocol.Predicate.evaluate(predicate, ports)
+      {:ok, true}
   """
   @doc since: "1.0.0"
   def evaluate(predicate, ports) when is_map(ports) do

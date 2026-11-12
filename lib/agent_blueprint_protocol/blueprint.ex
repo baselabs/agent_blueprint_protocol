@@ -1,18 +1,18 @@
 defmodule AgentBlueprintProtocol.Blueprint do
   @moduledoc """
-    This module decodes and validates Blueprint Core artifacts.
+  This module decodes and validates Blueprint Core artifacts.
 
-    Use it when reading Blueprint bytes or working with a validated Blueprint value.
+  Use it when reading Blueprint bytes or working with a validated Blueprint value.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    bytes = File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-    match?({:ok, %AgentBlueprintProtocol.Blueprint{}}, AgentBlueprintProtocol.Blueprint.decode(bytes))
-    ```
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  bytes = File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+  match?({:ok, %AgentBlueprintProtocol.Blueprint{}}, AgentBlueprintProtocol.Blueprint.decode(bytes))
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -95,11 +95,11 @@ defmodule AgentBlueprintProtocol.Blueprint do
   defstruct [:value]
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Blueprint.
+  The public data type for AgentBlueprintProtocol.Blueprint.
   """
   @type t :: %__MODULE__{value: Json.value()}
   @typedoc """
-    A typed error returned by AgentBlueprintProtocol.Blueprint.
+  A typed error returned by AgentBlueprintProtocol.Blueprint.
   """
   @type reason :: AgentBlueprintProtocol.Error.t()
 
@@ -265,30 +265,30 @@ defmodule AgentBlueprintProtocol.Blueprint do
   @spec decode(binary(), Bounds.t() | map()) ::
           {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Decodes canonical JSON bytes and validates the Blueprint contents and digest.
+  Decodes canonical JSON bytes and validates the Blueprint contents and digest.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    match?(
-      {:ok, %AgentBlueprintProtocol.Blueprint{}},
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  match?(
+    {:ok, %AgentBlueprintProtocol.Blueprint{}},
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
     )
-    ```
+  )
+  ```
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    match?(
-      {:ok, %AgentBlueprintProtocol.Blueprint{}},
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json")),
-        AgentBlueprintProtocol.Bounds.maximum()
-      )
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  match?(
+    {:ok, %AgentBlueprintProtocol.Blueprint{}},
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json")),
+      AgentBlueprintProtocol.Bounds.maximum()
     )
-    ```
+  )
+  ```
   """
   @doc since: "1.0.0"
   def decode(binary, bounds \\ Bounds.maximum())
@@ -309,55 +309,55 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   @spec from_value(Json.value(), map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Validates the tagged value's structure and portability and constructs a draft artifact.
-    This function does not compare the declared digest with recomputed content and does
-    not verify signatures. Producers must compute and insert `content_digest`, encode
-    canonical bytes, and decode those bytes to check the completed artifact.
+  Validates the tagged value's structure and portability and constructs a draft artifact.
+  This function does not compare the declared digest with recomputed content and does
+  not verify signatures. Producers must compute and insert `content_digest`, encode
+  canonical bytes, and decode those bytes to check the completed artifact.
 
-    ## Options
+  ## Options
 
-    `:authored_extensions` defaults to `[]`. It is a list of critical namespace strings
-    whose bodies have already passed negotiation's schema validation for this same
-    value. It changes portability scanning of those bodies; it does not validate a
-    schema or establish content classification. Never infer this list from names alone.
-    Host consumers should use `AgentBlueprintProtocol.reconcile/3`, which derives it.
+  `:authored_extensions` defaults to `[]`. It is a list of critical namespace strings
+  whose bodies have already passed negotiation's schema validation for this same
+  value. It changes portability scanning of those bodies; it does not validate a
+  schema or establish content classification. Never infer this list from names alone.
+  Host consumers should use `AgentBlueprintProtocol.reconcile/3`, which derives it.
 
-    After successful negotiation of `value` with the host's `support` (an excerpt):
+  After successful negotiation of `value` with the host's `support` (an excerpt):
 
-    ```elixir
-    {:ok, outcome} = AgentBlueprintProtocol.negotiate(value, support)
-    {:ok, draft} = AgentBlueprintProtocol.Blueprint.from_value(value, %{
-      authored_extensions: outcome.critical_extensions
-    })
-    ```
+  ```elixir
+  {:ok, outcome} = AgentBlueprintProtocol.negotiate(value, support)
+  {:ok, draft} = AgentBlueprintProtocol.Blueprint.from_value(value, %{
+    authored_extensions: outcome.critical_extensions
+  })
+  ```
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, value} =
-      AgentBlueprintProtocol.Json.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
-
-    match?(
-      {:ok, %AgentBlueprintProtocol.Blueprint{}},
-      AgentBlueprintProtocol.Blueprint.from_value(value)
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, value} =
+    AgentBlueprintProtocol.Json.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
     )
-    ```
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, value} =
-      AgentBlueprintProtocol.Json.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
+  match?(
+    {:ok, %AgentBlueprintProtocol.Blueprint{}},
+    AgentBlueprintProtocol.Blueprint.from_value(value)
+  )
+  ```
 
-    match?(
-      {:ok, %AgentBlueprintProtocol.Blueprint{}},
-      AgentBlueprintProtocol.Blueprint.from_value(value, %{authored_extensions: []})
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, value} =
+    AgentBlueprintProtocol.Json.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
     )
-    ```
+
+  match?(
+    {:ok, %AgentBlueprintProtocol.Blueprint{}},
+    AgentBlueprintProtocol.Blueprint.from_value(value, %{authored_extensions: []})
+  )
+  ```
   """
   @doc since: "1.0.0"
   def from_value(value, opts \\ %{})
@@ -380,19 +380,19 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   @spec to_value(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Returns the tagged JSON value held by this artifact.
+  Returns the tagged JSON value held by this artifact.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, blueprint} =
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, blueprint} =
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+    )
 
-    match?({:object, _}, AgentBlueprintProtocol.Blueprint.to_value(blueprint))
-    ```
+  match?({:object, _}, AgentBlueprintProtocol.Blueprint.to_value(blueprint))
+  ```
   """
   @doc since: "1.0.0"
   def to_value(%__MODULE__{value: value}), do: value
@@ -400,19 +400,19 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   @spec digest_input(t()) :: Json.value() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Returns the tagged value used to compute the artifact digest.
+  Returns the tagged value used to compute the artifact digest.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, blueprint} =
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, blueprint} =
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+    )
 
-    match?({:object, _}, AgentBlueprintProtocol.Blueprint.digest_input(blueprint))
-    ```
+  match?({:object, _}, AgentBlueprintProtocol.Blueprint.digest_input(blueprint))
+  ```
   """
   @doc since: "1.0.0"
   def digest_input(%__MODULE__{value: {:object, members}}) do
@@ -425,13 +425,13 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   @spec digest_covered?(binary()) :: boolean()
   @doc """
-    Reports whether the named artifact member contributes to its content digest.
+  Reports whether the named artifact member contributes to its content digest.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    AgentBlueprintProtocol.Blueprint.digest_covered?("model_policy")
-    ```
+  ```elixir
+  AgentBlueprintProtocol.Blueprint.digest_covered?("model_policy")
+  ```
   """
   @doc since: "1.0.0"
   def digest_covered?(member_name) when is_binary(member_name),
@@ -441,22 +441,22 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   @spec canonical_bytes(t()) :: {:ok, binary()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Returns canonical JSON bytes for the supplied artifact.
+  Returns canonical JSON bytes for the supplied artifact.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, blueprint} =
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
-
-    match?(
-      {:ok, bytes} when is_binary(bytes),
-      AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, blueprint} =
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
     )
-    ```
+
+  match?(
+    {:ok, bytes} when is_binary(bytes),
+    AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
+  )
+  ```
   """
   @doc since: "1.0.0"
   def canonical_bytes(%__MODULE__{value: value}), do: Canonicalization.encode(value)
@@ -464,22 +464,22 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   @spec content_digest(t()) :: Digest.t() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Computes the content digest for the artifact.
+  Computes the content digest for the artifact.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, blueprint} =
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
-
-    match?(
-      %AgentBlueprintProtocol.Digest{},
-      AgentBlueprintProtocol.Blueprint.content_digest(blueprint)
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, blueprint} =
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
     )
-    ```
+
+  match?(
+    %AgentBlueprintProtocol.Digest{},
+    AgentBlueprintProtocol.Blueprint.content_digest(blueprint)
+  )
+  ```
   """
   @doc since: "1.0.0"
   def content_digest(%__MODULE__{} = blueprint) do
@@ -493,19 +493,19 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   @spec verify_content_digest(t()) :: :ok | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Checks the declared artifact digest against its covered content.
+  Checks the declared artifact digest against its covered content.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, blueprint} =
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, blueprint} =
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+    )
 
-    AgentBlueprintProtocol.Blueprint.verify_content_digest(blueprint)
-    ```
+  AgentBlueprintProtocol.Blueprint.verify_content_digest(blueprint)
+  ```
   """
   @doc since: "1.0.0"
   def verify_content_digest(%__MODULE__{value: {:object, members}} = blueprint) do

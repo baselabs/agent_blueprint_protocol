@@ -1,21 +1,21 @@
 defmodule AgentBlueprintProtocol.Digest do
   @moduledoc """
-    This module creates, parses, and compares tagged SHA-256 digests.
+  This module creates, parses, and compares tagged SHA-256 digests.
 
-    Use it when computing or checking a digest over canonical bytes.
+  Use it when computing or checking a digest over canonical bytes.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    match?(
-      "sha-256:" <> _,
-      AgentBlueprintProtocol.Digest.to_tagged(
-        AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}")
-      )
+  ```elixir
+  match?(
+    "sha-256:" <> _,
+    AgentBlueprintProtocol.Digest.to_tagged(
+      AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}")
     )
-    ```
+  )
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -25,12 +25,12 @@ defmodule AgentBlueprintProtocol.Digest do
   defstruct [:algorithm, :bytes]
 
   @typedoc """
-    The digest algorithm identifier supported by this release.
+  The digest algorithm identifier supported by this release.
   """
   @type algorithm :: :sha256
 
   @typedoc """
-    A closed digest domain used to separate protocol digest inputs.
+  A closed digest domain used to separate protocol digest inputs.
   """
   @type domain ::
           :blueprint_content
@@ -43,7 +43,7 @@ defmodule AgentBlueprintProtocol.Digest do
           | :corpus_index
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Digest.
+  The public data type for AgentBlueprintProtocol.Digest.
   """
   @type t :: %__MODULE__{algorithm: algorithm(), bytes: <<_::256>>}
 
@@ -65,12 +65,12 @@ defmodule AgentBlueprintProtocol.Digest do
 
   @spec of(iodata()) :: t() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Creates a SHA-256 digest from the supplied bytes.
+  Creates a SHA-256 digest from the supplied bytes.
 
-    ## Example
+  ## Example
 
-        iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.Digest.of("abc"))
-        true
+      iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.Digest.of("abc"))
+      true
   """
   @doc since: "1.0.0"
   def of(data) do
@@ -81,12 +81,12 @@ defmodule AgentBlueprintProtocol.Digest do
 
   @spec hash(domain(), iodata()) :: t() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Creates a domain-separated digest from the supplied bytes.
+  Creates a domain-separated digest from the supplied bytes.
 
-    ## Example
+  ## Example
 
-        iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}"))
-        true
+      iex> match?(%AgentBlueprintProtocol.Digest{algorithm: :sha256, bytes: <<_::256>>}, AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}"))
+      true
   """
   @doc since: "1.0.0"
   def hash(domain, data) do
@@ -98,13 +98,13 @@ defmodule AgentBlueprintProtocol.Digest do
 
   @spec to_tagged(t()) :: binary() | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Formats a digest as its tagged wire string.
+  Formats a digest as its tagged wire string.
 
-    ## Example
+  ## Example
 
-        iex> digest = AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}")
-        iex> String.starts_with?(AgentBlueprintProtocol.Digest.to_tagged(digest), "sha-256:")
-        true
+      iex> digest = AgentBlueprintProtocol.Digest.hash(:blueprint_content, "{}")
+      iex> String.starts_with?(AgentBlueprintProtocol.Digest.to_tagged(digest), "sha-256:")
+      true
   """
   @doc since: "1.0.0"
   def to_tagged(%__MODULE__{algorithm: :sha256 = algorithm, bytes: <<_::256>> = bytes}),
@@ -114,12 +114,12 @@ defmodule AgentBlueprintProtocol.Digest do
 
   @spec from_tagged(binary()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Parses a tagged digest string.
+  Parses a tagged digest string.
 
-    ## Example
+  ## Example
 
-        iex> match?({:ok, %AgentBlueprintProtocol.Digest{algorithm: :sha256}}, AgentBlueprintProtocol.Digest.from_tagged("sha-256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"))
-        true
+      iex> match?({:ok, %AgentBlueprintProtocol.Digest{algorithm: :sha256}}, AgentBlueprintProtocol.Digest.from_tagged("sha-256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"))
+      true
   """
   @doc since: "1.0.0"
   def from_tagged(input) when is_binary(input) do
@@ -139,12 +139,12 @@ defmodule AgentBlueprintProtocol.Digest do
 
   @spec equal?(t(), t()) :: boolean()
   @doc """
-    Compares two values for equality under this module’s rules.
+  Compares two values for equality under this module’s rules.
 
-    ## Example
+  ## Example
 
-        iex> AgentBlueprintProtocol.Digest.equal?(AgentBlueprintProtocol.Digest.hash(:signature, "input"), AgentBlueprintProtocol.Digest.hash(:signature, "input"))
-        true
+      iex> AgentBlueprintProtocol.Digest.equal?(AgentBlueprintProtocol.Digest.hash(:signature, "input"), AgentBlueprintProtocol.Digest.hash(:signature, "input"))
+      true
   """
   @doc since: "1.0.0"
   def equal?(%__MODULE__{algorithm: a1, bytes: b1}, %__MODULE__{algorithm: a2, bytes: b2}) do
@@ -157,12 +157,12 @@ defmodule AgentBlueprintProtocol.Digest do
   @spec verify_content(domain(), binary(), binary()) ::
           :ok | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Checks a tagged digest against the supplied content and domain.
+  Checks a tagged digest against the supplied content and domain.
 
-    ## Example
+  ## Example
 
-        iex> bytes = "{}"; tagged = AgentBlueprintProtocol.Digest.hash(:blueprint_content, bytes) |> AgentBlueprintProtocol.Digest.to_tagged(); AgentBlueprintProtocol.Digest.verify_content(:blueprint_content, bytes, tagged)
-        :ok
+      iex> bytes = "{}"; tagged = AgentBlueprintProtocol.Digest.hash(:blueprint_content, bytes) |> AgentBlueprintProtocol.Digest.to_tagged(); AgentBlueprintProtocol.Digest.verify_content(:blueprint_content, bytes, tagged)
+      :ok
   """
   @doc since: "1.0.0"
   def verify_content(domain, jcs_bytes, tagged)

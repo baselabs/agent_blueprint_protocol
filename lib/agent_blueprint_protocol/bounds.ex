@@ -1,16 +1,16 @@
 defmodule AgentBlueprintProtocol.Bounds do
   @moduledoc """
-    This module defines limits for JSON decoding and canonical encoding.
+  This module defines limits for JSON decoding and canonical encoding.
 
-    Use it when an application needs tighter parse limits than the package profile.
+  Use it when an application needs tighter parse limits than the package profile.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    {:ok, bounds} = AgentBlueprintProtocol.Bounds.new(%{bytes: 100_000})
-    ```
+  ```elixir
+  {:ok, bounds} = AgentBlueprintProtocol.Bounds.new(%{bytes: 100_000})
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -31,7 +31,7 @@ defmodule AgentBlueprintProtocol.Bounds do
   defstruct @fields
 
   @typedoc """
-    The public data type for AgentBlueprintProtocol.Bounds.
+  The public data type for AgentBlueprintProtocol.Bounds.
   """
   @type t :: %__MODULE__{
           bytes: pos_integer(),
@@ -46,24 +46,24 @@ defmodule AgentBlueprintProtocol.Bounds do
 
   @spec maximum() :: t()
   @doc """
-    Returns the maximum parse-limit profile.
+  Returns the maximum parse-limit profile.
 
-    ## Example
+  ## Example
 
-        iex> is_struct(AgentBlueprintProtocol.Bounds.maximum(), AgentBlueprintProtocol.Bounds)
-        true
+      iex> is_struct(AgentBlueprintProtocol.Bounds.maximum(), AgentBlueprintProtocol.Bounds)
+      true
   """
   @doc since: "1.0.0"
   def maximum, do: struct!(__MODULE__, @maxima)
 
   @spec new(map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Builds and validates a value from the supplied options.
+  Builds and validates a value from the supplied options.
 
-    ## Example
+  ## Example
 
-        iex> match?({:ok, %AgentBlueprintProtocol.Bounds{bytes: 100}}, AgentBlueprintProtocol.Bounds.new(%{bytes: 100}))
-        true
+      iex> match?({:ok, %AgentBlueprintProtocol.Bounds{bytes: 100}}, AgentBlueprintProtocol.Bounds.new(%{bytes: 100}))
+      true
   """
   @doc since: "1.0.0"
   def new(overrides) when is_map(overrides) do
@@ -77,12 +77,12 @@ defmodule AgentBlueprintProtocol.Bounds do
 
   @spec coerce(t() | map()) :: {:ok, t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
-    Validates and normalizes a parse-limit value.
+  Validates and normalizes a parse-limit value.
 
-    ## Example
+  ## Example
 
-        iex> match?({:ok, %AgentBlueprintProtocol.Bounds{bytes: 100}}, AgentBlueprintProtocol.Bounds.coerce(%{bytes: 100}))
-        true
+      iex> match?({:ok, %AgentBlueprintProtocol.Bounds{bytes: 100}}, AgentBlueprintProtocol.Bounds.coerce(%{bytes: 100}))
+      true
   """
   @doc since: "1.0.0"
   def coerce(%__MODULE__{} = bounds), do: bounds |> Map.from_struct() |> new()

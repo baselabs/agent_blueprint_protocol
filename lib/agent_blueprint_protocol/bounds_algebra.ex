@@ -1,33 +1,33 @@
 defmodule AgentBlueprintProtocol.BoundsAlgebra do
   @moduledoc """
-    This module intersects Blueprint, Deployment, and host bound sets.
+  This module intersects Blueprint, Deployment, and host bound sets.
 
-    Use it when an application needs effective bounds and records of any narrowing.
+  Use it when an application needs effective bounds and records of any narrowing.
 
-    This module does not authorize operations.
+  This module does not authorize operations.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    base = %{
-      approval_trait: :none,
-      authority_trait: :none,
-      classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
-      disclosure_ceiling: :summary,
-      effect_impact_ceiling: :ordinary,
-      max_attempts: 3,
-      max_concurrency: 2,
-      max_cost: %{amount: 1000, currency: "USD"},
-      max_depth: 8,
-      max_descendants: 64,
-      max_elapsed_ms: 60_000,
-      max_fan_out: 4,
-      max_tokens: 100_000
-    }
-    {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
-    sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{blueprint: bounds, deployment: bounds, host: bounds}
-    match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.Result{}}, AgentBlueprintProtocol.BoundsAlgebra.intersect(sources))
-    ```
+  ```elixir
+  base = %{
+    approval_trait: :none,
+    authority_trait: :none,
+    classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
+    disclosure_ceiling: :summary,
+    effect_impact_ceiling: :ordinary,
+    max_attempts: 3,
+    max_concurrency: 2,
+    max_cost: %{amount: 1000, currency: "USD"},
+    max_depth: 8,
+    max_descendants: 64,
+    max_elapsed_ms: 60_000,
+    max_fan_out: 4,
+    max_tokens: 100_000
+  }
+  {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
+  sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{blueprint: bounds, deployment: bounds, host: bounds}
+  match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.Result{}}, AgentBlueprintProtocol.BoundsAlgebra.intersect(sources))
+  ```
   """
   @moduledoc since: "1.0.0"
 
@@ -35,24 +35,24 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule Bound do
     @moduledoc """
-      This struct represents one named bound and its value.
+    This struct represents one named bound and its value.
 
-      Use it when inspecting a bound in a validated bound set.
+    Use it when inspecting a bound in a validated bound set.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.BoundsAlgebra.Bound{name: :max_tokens, class: :operational, unit: :token, value: 1000}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.BoundsAlgebra.Bound{name: :max_tokens, class: :operational, unit: :token, value: 1000}
+    ```
     """
     @moduledoc since: "1.0.0"
 
     defstruct [:name, :class, :unit, :value]
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.BoundsAlgebra.Bound.
+    The public data type for AgentBlueprintProtocol.BoundsAlgebra.Bound.
     """
     @type t :: %__MODULE__{
             name: atom(),
@@ -63,20 +63,20 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
     @spec narrower(t(), t()) :: boolean()
     @doc """
-      Reports whether the first bound is strictly narrower than the second.
+    Reports whether the first bound is strictly narrower than the second.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      narrower = %AgentBlueprintProtocol.BoundsAlgebra.Bound{
-        name: :max_tokens,
-        class: :operational,
-        unit: :token,
-        value: 100
-      }
-      wider = %{narrower | value: 200}
-      AgentBlueprintProtocol.BoundsAlgebra.Bound.narrower(narrower, wider)
-      ```
+    ```elixir
+    narrower = %AgentBlueprintProtocol.BoundsAlgebra.Bound{
+      name: :max_tokens,
+      class: :operational,
+      unit: :token,
+      value: 100
+    }
+    wider = %{narrower | value: 200}
+    AgentBlueprintProtocol.BoundsAlgebra.Bound.narrower(narrower, wider)
+    ```
     """
     @doc since: "1.0.0"
     def narrower(%__MODULE__{name: name, value: a}, %__MODULE__{name: name, value: b}),
@@ -87,49 +87,49 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule BoundSet do
     @moduledoc """
-      This struct represents a set of named bounds.
+    This struct represents a set of named bounds.
 
-      Use it when constructing or inspecting bound sources for intersection.
+    Use it when constructing or inspecting bound sources for intersection.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
-      ```
+    ```elixir
+    AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+    ```
     """
     @moduledoc since: "1.0.0"
 
     defstruct [:bounds]
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.BoundsAlgebra.BoundSet.
+    The public data type for AgentBlueprintProtocol.BoundsAlgebra.BoundSet.
     """
     @type t :: %__MODULE__{bounds: %{optional(atom()) => Bound.t()}}
 
     @spec names() :: [atom()]
     @doc """
-      Returns the names of the supported bounds.
+    Returns the names of the supported bounds.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.names()
-      ```
+    ```elixir
+    AgentBlueprintProtocol.BoundsAlgebra.BoundSet.names()
+    ```
     """
     @doc since: "1.0.0"
     def names, do: AgentBlueprintProtocol.BoundsAlgebra.names()
 
     @spec new(%{optional(atom()) => term()}) :: {:ok, t()} | {:error, Error.t()}
     @doc """
-      Builds and validates a value from the supplied options.
+    Builds and validates a value from the supplied options.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
-      ```
+    ```elixir
+    AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+    ```
     """
     @doc since: "1.0.0"
     def new(map) when is_map(map) and not is_struct(map) do
@@ -157,16 +157,16 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
     @spec to_map(t()) :: {:ok, %{optional(atom()) => term()}} | {:error, Error.t()}
     @doc """
-      Returns the raw values stored in a bound set.
+    Returns the raw values stored in a bound set.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      {:ok, bounds} =
-        AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+    ```elixir
+    {:ok, bounds} =
+      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
 
-      AgentBlueprintProtocol.BoundsAlgebra.BoundSet.to_map(bounds)
-      ```
+    AgentBlueprintProtocol.BoundsAlgebra.BoundSet.to_map(bounds)
+    ```
     """
     @doc since: "1.0.0"
     def to_map(%BoundSet{bounds: bounds}) when is_map(bounds) and not is_struct(bounds) do
@@ -181,25 +181,25 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule Sources do
     @moduledoc """
-      This struct carries the three bound sets used by an intersection.
+    This struct carries the three bound sets used by an intersection.
 
-      Use it when supplying Blueprint, Deployment, and host bounds to the algebra.
+    Use it when supplying Blueprint, Deployment, and host bounds to the algebra.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
-      sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{blueprint: bounds, deployment: bounds, host: bounds}
-      ```
+    ```elixir
+    {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(%{max_tokens: 1000})
+    sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{blueprint: bounds, deployment: bounds, host: bounds}
+    ```
     """
     @moduledoc since: "1.0.0"
 
     defstruct [:blueprint, :deployment, :host, protected_clamp: :deny]
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.BoundsAlgebra.Sources.
+    The public data type for AgentBlueprintProtocol.BoundsAlgebra.Sources.
     """
     @type t :: %__MODULE__{
             blueprint: BoundSet.t(),
@@ -211,24 +211,24 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule Result do
     @moduledoc """
-      This struct contains the effective bound set and clamp records.
+    This struct contains the effective bound set and clamp records.
 
-      Use it when consuming the result of a successful intersection.
+    Use it when consuming the result of a successful intersection.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      result = %AgentBlueprintProtocol.BoundsAlgebra.Result{effective: %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{bounds: %{}}, clamps: []}
-      ```
+    ```elixir
+    result = %AgentBlueprintProtocol.BoundsAlgebra.Result{effective: %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{bounds: %{}}, clamps: []}
+    ```
     """
     @moduledoc since: "1.0.0"
 
     defstruct [:effective, :clamps]
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.BoundsAlgebra.Result.
+    The public data type for AgentBlueprintProtocol.BoundsAlgebra.Result.
     """
     @type t :: %__MODULE__{
             effective: BoundSet.t(),
@@ -238,24 +238,24 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   defmodule ClampEvidence do
     @moduledoc """
-      This struct records one narrowing produced by a bound intersection.
+    This struct records one narrowing produced by a bound intersection.
 
-      Use it when reviewing the effective value and source of a narrowed bound.
+    Use it when reviewing the effective value and source of a narrowed bound.
 
-      This module does not authorize operations.
+    This module does not authorize operations.
 
-      ## Example
+    ## Example
 
-      ```elixir
-      %AgentBlueprintProtocol.BoundsAlgebra.ClampEvidence{field: :max_tokens, class: :operational, unit: :token, requested: 2000, effective: 1000, source: :host, acknowledged: false}
-      ```
+    ```elixir
+    %AgentBlueprintProtocol.BoundsAlgebra.ClampEvidence{field: :max_tokens, class: :operational, unit: :token, requested: 2000, effective: 1000, source: :host, acknowledged: false}
+    ```
     """
     @moduledoc since: "1.0.0"
 
     defstruct [:field, :class, :unit, :requested, :effective, :source, :acknowledged]
 
     @typedoc """
-      The public data type for AgentBlueprintProtocol.BoundsAlgebra.ClampEvidence.
+    The public data type for AgentBlueprintProtocol.BoundsAlgebra.ClampEvidence.
     """
     @type t :: %__MODULE__{
             field: atom(),
@@ -377,35 +377,35 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   @spec intersect(Sources.t()) :: {:ok, Result.t()} | {:error, Error.t()}
   @doc """
-    Intersects the Blueprint, Deployment, and host bound sources.
+  Intersects the Blueprint, Deployment, and host bound sources.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    base = %{
-      approval_trait: :none,
-      authority_trait: :none,
-      classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
-      disclosure_ceiling: :summary,
-      effect_impact_ceiling: :ordinary,
-      max_attempts: 3,
-      max_concurrency: 2,
-      max_cost: %{amount: 1000, currency: "USD"},
-      max_depth: 8,
-      max_descendants: 64,
-      max_elapsed_ms: 60_000,
-      max_fan_out: 4,
-      max_tokens: 100_000
-    }
+  ```elixir
+  base = %{
+    approval_trait: :none,
+    authority_trait: :none,
+    classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
+    disclosure_ceiling: :summary,
+    effect_impact_ceiling: :ordinary,
+    max_attempts: 3,
+    max_concurrency: 2,
+    max_cost: %{amount: 1000, currency: "USD"},
+    max_depth: 8,
+    max_descendants: 64,
+    max_elapsed_ms: 60_000,
+    max_fan_out: 4,
+    max_tokens: 100_000
+  }
 
-    {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
-    sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{
-      blueprint: bounds,
-      deployment: bounds,
-      host: bounds
-    }
-    AgentBlueprintProtocol.BoundsAlgebra.intersect(sources)
-    ```
+  {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
+  sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{
+    blueprint: bounds,
+    deployment: bounds,
+    host: bounds
+  }
+  AgentBlueprintProtocol.BoundsAlgebra.intersect(sources)
+  ```
   """
   @doc since: "1.0.0"
   def intersect(%Sources{} = sources) do
@@ -611,30 +611,30 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   @spec widens?(BoundSet.t(), BoundSet.t()) :: boolean()
   @doc """
-    Reports whether one bound set is wider than another.
+  Reports whether one bound set is wider than another.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    base = %{
-      approval_trait: :none,
-      authority_trait: :none,
-      classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
-      disclosure_ceiling: :summary,
-      effect_impact_ceiling: :ordinary,
-      max_attempts: 3,
-      max_concurrency: 2,
-      max_cost: %{amount: 1000, currency: "USD"},
-      max_depth: 8,
-      max_descendants: 64,
-      max_elapsed_ms: 60_000,
-      max_fan_out: 4,
-      max_tokens: 100_000
-    }
+  ```elixir
+  base = %{
+    approval_trait: :none,
+    authority_trait: :none,
+    classification_ceiling: %{ordinal: :internal, markers: MapSet.new([])},
+    disclosure_ceiling: :summary,
+    effect_impact_ceiling: :ordinary,
+    max_attempts: 3,
+    max_concurrency: 2,
+    max_cost: %{amount: 1000, currency: "USD"},
+    max_depth: 8,
+    max_descendants: 64,
+    max_elapsed_ms: 60_000,
+    max_fan_out: 4,
+    max_tokens: 100_000
+  }
 
-    {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
-    AgentBlueprintProtocol.BoundsAlgebra.widens?(bounds, bounds)
-    ```
+  {:ok, bounds} = AgentBlueprintProtocol.BoundsAlgebra.BoundSet.new(base)
+  AgentBlueprintProtocol.BoundsAlgebra.widens?(bounds, bounds)
+  ```
   """
   @doc since: "1.0.0"
   def widens?(%BoundSet{bounds: a}, %BoundSet{bounds: b}) when is_map(a) and is_map(b) do
@@ -774,19 +774,19 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   @spec from_blueprint(Blueprint.t()) :: {:ok, BoundSet.t()} | {:error, Error.t()}
   @doc """
-    Builds a bound set from a Blueprint.
+  Builds a bound set from a Blueprint.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, blueprint} =
-      AgentBlueprintProtocol.Blueprint.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-      )
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, blueprint} =
+    AgentBlueprintProtocol.Blueprint.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+    )
 
-    match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_blueprint(blueprint))
-    ```
+  match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_blueprint(blueprint))
+  ```
   """
   @doc since: "1.0.0"
   def from_blueprint(%Blueprint{value: {:object, members}}) when is_list(members) do
@@ -800,19 +800,19 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   @spec from_deployment(Deployment.t()) :: {:ok, BoundSet.t()} | {:error, Error.t()}
   @doc """
-    Builds a bound set from a Deployment.
+  Builds a bound set from a Deployment.
 
-    ## Example
+  ## Example
 
-    ```elixir
-    dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-    {:ok, deployment} =
-      AgentBlueprintProtocol.Deployment.decode(
-        File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
-      )
+  ```elixir
+  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
+  {:ok, deployment} =
+    AgentBlueprintProtocol.Deployment.decode(
+      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+    )
 
-    match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment))
-    ```
+  match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment))
+  ```
   """
   @doc since: "1.0.0"
   def from_deployment(%Deployment{value: {:object, members}}) when is_list(members) do
