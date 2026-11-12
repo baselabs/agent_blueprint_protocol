@@ -39,7 +39,7 @@ In the example, `amount: 1000` and `currency: "USD"` represent 0.001 USD. Values
 
 ## Example
 
-This reading excerpt groups related members. The [gallery](examples.md) contains the full formatted artifact; [download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1-rc.1/examples/echo-blueprint.json). Formatted JSON is not wire-ready bytes, and this excerpt omits required members.
+This reading excerpt groups related members. The [gallery](examples.md) contains the full formatted artifact; [download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/echo-blueprint.json). Formatted JSON is not wire-ready bytes, and this excerpt omits required members.
 
 ```json
 {

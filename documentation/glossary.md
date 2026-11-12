@@ -58,7 +58,7 @@ A set of JSON files that defines verifier inputs, expected outcomes, and integri
 
 ## Execution adapter
 
-A program that implements the line-based process exchange in the [execution protocol](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1-rc.1/spec/conformance/execution.md).
+A program that implements the line-based process exchange in the [execution protocol](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1/spec/conformance/execution.md).
 
 ## Results document
 

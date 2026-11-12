@@ -7,8 +7,8 @@ This guide has two paths: producers check their own files; implementers check co
 Use Node.js 24 or newer. These commands read the named files and print canonical JSON reports on stdout (without a trailing newline):
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 --artifact abp-artifacts/blueprint.json
-npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 --artifact abp-artifacts/deployment.json
+npx @agent-blueprint-protocol/verifier@1.0.1 --artifact abp-artifacts/blueprint.json
+npx @agent-blueprint-protocol/verifier@1.0.1 --artifact abp-artifacts/deployment.json
 ```
 
 Use the filenames saved by the [producer walkthrough](compose-and-sign.md#4-save-reload-and-check-in-ci), or substitute your build outputs. A valid report has `format: "agent-blueprint-protocol-artifact-report"`, `verdict: "valid"`, and `kind: "blueprint"` or `"deployment"`. Invalid reports have `verdict: "invalid"` and each decoder's denial code. Exit `0` means a valid artifact, `1` invalid, `2` unreadable input/usage error, and `3` internal error. Treat every nonzero status as failure.
@@ -28,15 +28,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npx --yes @agent-blueprint-protocol/verifier@1.0.1-rc.1 --artifact abp-artifacts/blueprint.json
-      - run: npx --yes @agent-blueprint-protocol/verifier@1.0.1-rc.1 --artifact abp-artifacts/deployment.json
+      - run: npx --yes @agent-blueprint-protocol/verifier@1.0.1 --artifact abp-artifacts/blueprint.json
+      - run: npx --yes @agent-blueprint-protocol/verifier@1.0.1 --artifact abp-artifacts/deployment.json
 ```
 
 If your project generates artifacts, run its producer build before these checks. An artifact check needs the actual output files.
 
 ### Check a pair with host inputs
 
-Install `@agent-blueprint-protocol/verifier@1.0.1-rc.1`. Save this complete script as `verify-pair.mjs`. The third argument is a host-owned JSON configuration file. Public keys and observations must come from the host's trusted inventory; copying the artifact's declarations would only demonstrate equality. Do not put private keys in this file.
+Install `@agent-blueprint-protocol/verifier@1.0.1`. Save this complete script as `verify-pair.mjs`. The third argument is a host-owned JSON configuration file. Public keys and observations must come from the host's trusted inventory; copying the artifact's declarations would only demonstrate equality. Do not put private keys in this file.
 
 ```js
 import { readFileSync } from "node:fs";
@@ -140,7 +140,7 @@ The command writes the canonical results document to standard output and a corpu
 From the repository root, run the npm CLI against the repository corpus:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 --results --corpus ./priv/conformance > results.json
+npx @agent-blueprint-protocol/verifier@1.0.1 --results --corpus ./priv/conformance > results.json
 ```
 
 The results document has the format name, corpus and registry digests, and one result row per case. It contains no implementation identity.
@@ -177,7 +177,7 @@ The [runner contract](../spec/conformance/runner.md) defines result projections 
 Copy the corpus to `./conformance` from `node_modules/@agent-blueprint-protocol/verifier/dist/corpus/` or the release asset's `conformance/` directory. Then run the npm harness with the adapter executable after `--`, replacing `./example-adapter` with the implementation's adapter.
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 conformance run --corpus ./conformance --results results.json -- ./example-adapter
+npx @agent-blueprint-protocol/verifier@1.0.1 conformance run --corpus ./conformance --results results.json -- ./example-adapter
 ```
 
 The harness compares the adapter's complete result projections. It writes a results document after a clean run.

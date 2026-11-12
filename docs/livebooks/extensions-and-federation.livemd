@@ -2,7 +2,7 @@
 livebook:{"persist_outputs":true}
 -->
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1-rc.1/docs/livebooks/extensions-and-federation.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/docs/livebooks/extensions-and-federation.livemd)
 
 # Extensions and federation
 
@@ -10,12 +10,12 @@ This notebook inspects the extension registry and negotiation outcomes, then dec
 
 ## Before you run
 
-Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.1-rc.1` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.1-rc.1`.
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.1` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.1`.
 
 The first cell installs the published package. The setup then uses the public `Mix.install_project_dir/0` API to find that installation's dependency source files. In a Mix-project execution, it uses `Mix.Project.deps_paths/0` instead. Only when this package is itself the current Mix project, and so has no dependency entry, does it read the working directory, which is then the package's own checkout.
 
 ```elixir
-Mix.install([{:agent_blueprint_protocol, "~> 1.0.1-rc.1"}])
+Mix.install([{:agent_blueprint_protocol, "~> 1.0.1"}])
 ```
 
 Locate and decode the shipped Blueprint and Federation example files.
@@ -328,7 +328,7 @@ alias AgentBlueprintProtocol.Federation
 
 ## Inspect native carrier fields
 
-The carriers above are tagged JSON objects. Convert them to ordinary JSON for a selected reading excerpt; the omitted extension members remain present in the complete carrier. The Elixir codecs create and consume these values. npm 1.0.1-rc.1 exports envelope decoding and mapping rows, but no state/carrier/commitment helpers; use only its package root.
+The carriers above are tagged JSON objects. Convert them to ordinary JSON for a selected reading excerpt; the omitted extension members remain present in the complete carrier. The Elixir codecs create and consume these values. npm 1.0.1 exports envelope decoding and mapping rows, but no state/carrier/commitment helpers; use only its package root.
 
 ```elixir
 {:ok, a2a_json} = Canonicalization.encode(a2a_carrier)

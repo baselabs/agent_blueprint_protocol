@@ -2,7 +2,7 @@
 livebook:{"persist_outputs":true}
 -->
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1-rc.1/docs/livebooks/conformance-and-attacks.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/docs/livebooks/conformance-and-attacks.livemd)
 
 # Conformance and attacks
 
@@ -10,12 +10,12 @@ This notebook runs the shipped corpus and inspects one case. It also presents th
 
 ## Before you run
 
-Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.1-rc.1` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.1-rc.1`.
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.0.1` requirement permits later 1.0 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.0.1`.
 
 The first cell installs the published package. The setup then uses the public `Mix.install_project_dir/0` API to find that installation's dependency source files. In a Mix-project execution, it uses `Mix.Project.deps_paths/0` instead. Only when this package is itself the current Mix project, and so has no dependency entry, does it read the working directory, which is then the package's own checkout.
 
 ```elixir
-Mix.install([{:agent_blueprint_protocol, "~> 1.0.1-rc.1"}])
+Mix.install([{:agent_blueprint_protocol, "~> 1.0.1"}])
 ```
 
 Locate the package files and load the shipped conformance corpus.
@@ -126,9 +126,9 @@ Use Node.js 24 or newer and npm. In a new working directory, install the release
 
 ```sh
 npm init -y
-npm install @agent-blueprint-protocol/verifier@1.0.1-rc.1
+npm install @agent-blueprint-protocol/verifier@1.0.1
 cp -R node_modules/@agent-blueprint-protocol/verifier/dist/corpus ./conformance
-npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 conformance run --corpus ./conformance --results results.json -- npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 --serve --corpus ./conformance
+npx @agent-blueprint-protocol/verifier@1.0.1 conformance run --corpus ./conformance --results results.json -- npx @agent-blueprint-protocol/verifier@1.0.1 --serve --corpus ./conformance
 node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("results.json","utf8")); console.log(r.format, r.results.length);'
 ```
 
@@ -137,7 +137,7 @@ The harness performs the handshake and all request/response exchanges against th
 Rerun with all claim metadata to produce an unsigned claim. These generic labels describe this demonstration; replace them with your implementation's actual source revision, version, platform, and run date when making your own claim:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 conformance run --corpus ./conformance --results results.json --claim claim.json --implementation example-verifier --implementation-version 1 --source https://github.com/baselabs/agent_blueprint_protocol/tree/v1.0.1-rc.1 --platform node-24-linux --date 2026-11-12 -- npx @agent-blueprint-protocol/verifier@1.0.1-rc.1 --serve --corpus ./conformance
+npx @agent-blueprint-protocol/verifier@1.0.1 conformance run --corpus ./conformance --results results.json --claim claim.json --implementation example-verifier --implementation-version 1 --source https://github.com/baselabs/agent_blueprint_protocol/tree/v1.0.1 --platform node-24-linux --date 2026-11-12 -- npx @agent-blueprint-protocol/verifier@1.0.1 --serve --corpus ./conformance
 node --input-type=module -e 'import fs from "node:fs"; const c=JSON.parse(fs.readFileSync("claim.json","utf8")); console.log(c.format, c.implementation, c.results_digest);'
 ```
 
