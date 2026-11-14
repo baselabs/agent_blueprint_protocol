@@ -34,6 +34,8 @@ defmodule PackageExamples do
       )
 
     File.mkdir!(scratch)
+    consumers = Path.join(scratch, "consumers")
+    File.mkdir!(consumers)
 
     try do
       package = Path.join(scratch, "package")
@@ -42,7 +44,7 @@ defmodule PackageExamples do
 
       case mode do
         :doctests ->
-          consumer = consumer!(scratch, "doctests", app, package)
+          consumer = consumer!(consumers, "doctests", app, package)
 
           File.write!(Path.join(consumer, "doctests_test.exs"), """
           ExUnit.start()
@@ -61,16 +63,19 @@ defmodule PackageExamples do
           IO.puts("package doctests: #{app} #{version} passed outside the checkout")
 
         :snippets ->
-          run_snippets(scratch, app, package, files)
+          run_snippets(consumers, app, package, files)
       end
     after
+      # A consumer's build links its priv directory to the package. Windows
+      # cannot remove that link once the package is gone, so consumers go first.
+      File.rm_rf!(consumers)
       File.rm_rf!(scratch)
     end
   end
 
-  defp run_snippets(_scratch, _app, _package, []), do: raise("no snippet documents")
+  defp run_snippets(_consumers, _app, _package, []), do: raise("no snippet documents")
 
-  defp run_snippets(scratch, app, package, files) do
+  defp run_snippets(consumers, app, package, files) do
     total =
       for {file, index} <- Enum.with_index(files, 1) do
         file = Path.expand(file)
@@ -80,7 +85,7 @@ defmodule PackageExamples do
         # recompile the path dependency over the previous run's build, which
         # Windows refuses for the priv junction.
         if cells != [] do
-          consumer = consumer!(scratch, "snippets-#{index}", app, package)
+          consumer = consumer!(consumers, "snippets-#{index}", app, package)
           script = Path.join(consumer, "snippets.exs")
           File.write!(script, runner(cells, file))
           command!(consumer, ["run", script])
@@ -130,8 +135,8 @@ defmodule PackageExamples do
     {String.to_atom(app), version}
   end
 
-  defp consumer!(scratch, name, app, package) do
-    consumer = Path.join(scratch, name)
+  defp consumer!(consumers, name, app, package) do
+    consumer = Path.join(consumers, name)
     File.mkdir!(consumer)
 
     File.write!(Path.join(consumer, "mix.exs"), """

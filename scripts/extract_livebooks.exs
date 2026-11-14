@@ -20,13 +20,7 @@ defmodule PackageLivebooks do
     with true <- cells != [],
          {:ok, installs} <- install_cells(cells, notebook),
          [install] <- installs do
-      rewritten =
-        Enum.map(cells, fn cell ->
-          if cell.index == install,
-            do: %{cell | code: "Mix.install([{#{inspect(app)}, path: #{inspect(package)}}])"},
-            else: cell
-        end)
-
+      rewritten = Enum.map(cells, &install_package(&1, install, app, package))
       {:ok, runner(rewritten, notebook)}
     else
       {:error, reason} -> {:error, reason}
@@ -42,6 +36,8 @@ defmodule PackageLivebooks do
       )
 
     File.mkdir!(scratch)
+    consumers = Path.join(scratch, "consumers")
+    File.mkdir!(consumers)
 
     try do
       package = Path.join(scratch, "package")
@@ -50,7 +46,7 @@ defmodule PackageLivebooks do
       IO.puts("package Livebooks: #{name} #{version}")
 
       for {notebook, index} <- Enum.with_index(notebooks, 1) do
-        consumer = Path.join(scratch, "notebook-#{index}")
+        consumer = Path.join(consumers, "notebook-#{index}")
         installs = Path.join(consumer, "installs")
         File.mkdir!(consumer)
         notebook = Path.expand(notebook)
@@ -88,6 +84,9 @@ defmodule PackageLivebooks do
       IO.puts("package Livebooks: #{length(notebooks)} notebooks passed outside the checkout")
       :ok
     after
+      # A consumer's build links its priv directory to the package. Windows
+      # cannot remove that link once the package is gone, so consumers go first.
+      File.rm_rf!(consumers)
       File.rm_rf!(scratch)
     end
   end
@@ -121,32 +120,44 @@ defmodule PackageLivebooks do
     Enum.reduce_while(cells, {:ok, []}, fn cell, {:ok, installs} ->
       case Code.string_to_quoted(cell.code, file: notebook, line: cell.line) do
         {:ok, quoted} ->
-          {_ast, calls} =
-            Macro.prewalk(quoted, 0, fn
-              {{:., _, [{:__aliases__, _, [:Mix]}, :install]}, _, _} = node, count ->
-                {node, count + 1}
-
-              node, count ->
-                {node, count}
-            end)
-
-          cond do
-            calls == 0 ->
-              {:cont, {:ok, installs}}
-
-            calls == 1 and standalone_install?(quoted) ->
-              {:cont, {:ok, [cell.index | installs]}}
-
-            true ->
-              {:halt,
-               {:error, "#{notebook} cell #{cell.index}: expected a standalone Mix.install cell"}}
-          end
+          classify_install(quoted, cell, installs, notebook)
 
         {:error, reason} ->
           {:halt, {:error, "#{notebook} cell #{cell.index}: #{inspect(reason)}"}}
       end
     end)
   end
+
+  defp classify_install(quoted, cell, installs, notebook) do
+    calls = install_calls(quoted)
+
+    cond do
+      calls == 0 ->
+        {:cont, {:ok, installs}}
+
+      calls == 1 and standalone_install?(quoted) ->
+        {:cont, {:ok, [cell.index | installs]}}
+
+      true ->
+        {:halt,
+         {:error, "#{notebook} cell #{cell.index}: expected a standalone Mix.install cell"}}
+    end
+  end
+
+  defp install_calls(quoted) do
+    {_ast, calls} =
+      Macro.prewalk(quoted, 0, fn
+        {{:., _, [{:__aliases__, _, [:Mix]}, :install]}, _, _} = node, count -> {node, count + 1}
+        node, count -> {node, count}
+      end)
+
+    calls
+  end
+
+  defp install_package(%{index: install} = cell, install, app, package),
+    do: %{cell | code: "Mix.install([{#{inspect(app)}, path: #{inspect(package)}}])"}
+
+  defp install_package(cell, _install, _app, _package), do: cell
 
   defp standalone_install?({{:., _, [{:__aliases__, _, [:Mix]}, :install]}, _, [_deps | _opts]}),
     do: true
