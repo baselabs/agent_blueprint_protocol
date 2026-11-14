@@ -12,6 +12,7 @@ jobs:
   smoke:
     name: Published kit — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -33,6 +34,7 @@ jobs:
   livebooks:
     name: Published consumer examples - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

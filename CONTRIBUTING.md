@@ -53,7 +53,7 @@ The complete pre-push gate is `mix quality`; focused checks help during editing 
 
 The build-free publication privacy guard runs separately in the repository's pre-push hook and CI. Both execute the same guard with the same repository-fingerprint configuration. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
 
-The suite currently defines 1028 tests (64 properties). The coverage threshold is 100% coverage.
+The suite currently defines 1030 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
 
@@ -85,6 +85,8 @@ The repository's CI workflow defines these jobs:
   mix conformance.product
   mix typescript.guide
   ```
+
+Every job in every workflow declares a job time limit, about three times its longest observed run. That limit is the bound against a hang. Test modules that build the project or pack the kit carry no fixed test limit of their own, because their duration depends on the runner. A fixed test limit is used only where finishing inside it is the requirement under test.
 
 Package support details are in the [stability policy](documentation/stability.md).
 

@@ -603,6 +603,38 @@ Go jobs without the pinned toolchain: [{".github/workflows/ci.yml", "workflow-sy
 Result: 0/1 passed
 ```
 
+### case: "a test module that spawns a project build has no fixed test time limit"
+
+Captured on the build box, test first: the gate ran against the tree in
+which build-spawning modules still carried fixed `@tag timeout:` limits.
+
+```red
+$ # plant: the build-spawning modules keep their fixed test limits
+$ mix test test/architecture/time_limit_test.exs --seed 42
+  1) test a test module that spawns a project build has no fixed test time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:38
+     test modules spawn a project build without @moduletag timeout: :infinity: ["test/architecture/document_citation_gate_test.exs", "test/architecture/package_boundary_test.exs", "test/architecture/package_consumer_gates_test.exs", "test/conformance/runner_report_cli_test.exs", "test/livebook_extractor_test.exs", "test/package_examples_test.exs", "test/scratch_test.exs"]
+     code: assert unlimited == [],
+Result: 0/2 passed
+EXIT=2
+```
+
+### case: "every workflow job declares a job time limit"
+
+Captured in the same test-first run, against workflows whose jobs declared
+no `timeout-minutes`.
+
+```red
+$ # plant: every workflow job without timeout-minutes
+$ mix test test/architecture/time_limit_test.exs --seed 42
+  2) test every workflow job declares a job time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:73
+     workflow jobs without timeout-minutes: [{".github/workflows/ci.yml", "workflow-syntax"}, {".github/workflows/ci.yml", "secret-scan"}, {".github/workflows/ci.yml", "spec-extraction"}, {".github/workflows/ci.yml", "compatibility"}, {".github/workflows/ci.yml", "quality"}, {".github/workflows/ci.yml", "platforms"}, {".github/workflows/ci.yml", "typescript-consumers"}, {".github/workflows/docs-gates.yml", "secret-scan"}, {".github/workflows/docs-gates.yml", "doc-gates"}, {".github/workflows/pages.yml", "build"}, {".github/workflows/pages.yml", "deploy"}, {".github/workflows/postpublish.yml", "smoke"}, {".github/workflows/postpublish.yml", "livebooks"}, {".github/workflows/publish.yml", "verify"}, {".github/workflows/publish.yml", "npm-publish"}, {".github/workflows/publish.yml", "publish"}]
+     code: assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
+Result: 0/2 passed
+EXIT=2
+```
+
 ### case: "the quality job selects an immutable supported Node runtime"
 
 ```red

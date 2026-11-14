@@ -25,6 +25,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
 
   use ExUnit.Case, async: true, group: :project_build
 
+  @moduletag timeout: :infinity
+
   @external_standards ~w(A2A MCP RFC ECMA-262 FIPS JOSE JCS)
   @root Path.expand("../..", __DIR__)
 
@@ -191,7 +193,6 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
 
   defp repository_path_exists?(_link), do: false
 
-  @tag timeout: 120_000
   test "published documentation links resolve to a published page and anchor" do
     root = AgentBlueprintProtocol.Scratch.dir!("published-docs")
     on_exit(fn -> File.rm_rf!(root) end)
@@ -220,7 +221,6 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
     assert offenders == [], "unpublished documentation links: #{inspect(offenders)}"
   end
 
-  @tag timeout: 120_000
   test "public ExDoc footer links use the package and preview routes for this version" do
     root = AgentBlueprintProtocol.Scratch.dir!("footer-docs")
     on_exit(fn -> File.rm_rf!(root) end)

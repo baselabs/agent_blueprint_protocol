@@ -1,7 +1,8 @@
 defmodule AgentBlueprintProtocol.Architecture.PackageConsumerGatesTest do
   use ExUnit.Case, async: true, group: :project_build
 
-  @tag timeout: 180_000
+  @moduletag timeout: :infinity
+
   test "every consumer gate runs when the quality aliases share one Mix process" do
     {output, status} =
       System.cmd(

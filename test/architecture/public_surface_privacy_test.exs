@@ -12,7 +12,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
       privacy_scan_decision: 1
     ]
 
-  @moduletag timeout: 600_000
+  @moduletag timeout: :infinity
   @test_canary "public privacy canary"
   @test_key "public-test-key-for-privacy-scan-32-bytes"
   @test_config %{

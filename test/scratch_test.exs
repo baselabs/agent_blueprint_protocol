@@ -1,6 +1,8 @@
 defmodule AgentBlueprintProtocol.ScratchTest do
   use ExUnit.Case, async: true, group: :project_build
 
+  @moduletag timeout: :infinity
+
   alias AgentBlueprintProtocol.Scratch
   alias AgentBlueprintProtocol.Test.CensusFormatter
 

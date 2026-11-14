@@ -3,10 +3,11 @@ Code.require_file("../scripts/package_examples.exs", __DIR__)
 defmodule AgentBlueprintProtocol.PackageExamplesTest do
   use ExUnit.Case, async: true, group: :project_build
 
+  @moduletag timeout: :infinity
+
   import ExUnit.CaptureIO
   alias AgentBlueprintProtocol.Scratch
 
-  @tag timeout: 180_000
   test "each snippet document runs in its own consumer project" do
     Scratch.with_dir("snippet-isolation", fn root ->
       archive = Path.join(root, "package.tar")
@@ -49,7 +50,6 @@ defmodule AgentBlueprintProtocol.PackageExamplesTest do
     end)
   end
 
-  @tag timeout: 120_000
   test "interactive signing examples group key bindings and retain later block bindings" do
     files = ["documentation/compose-and-sign.md" | Path.wildcard("docs/livebooks/*.livemd")]
 

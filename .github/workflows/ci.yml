@@ -26,6 +26,7 @@ jobs:
   workflow-syntax:
     name: Workflow syntax
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,6 +49,7 @@ jobs:
   secret-scan:
     name: Secret scan
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,6 +75,7 @@ jobs:
   spec-extraction:
     name: Specification extraction
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -110,6 +113,7 @@ jobs:
   compatibility:
     name: Supported toolchain — ${{ matrix.lane }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -168,6 +172,7 @@ jobs:
   quality:
     name: Complete quality and package boundary
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -217,6 +222,7 @@ jobs:
   platforms:
     name: Consumer and contributor — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -266,6 +272,7 @@ jobs:
   typescript-consumers:
     name: TypeScript consumer / Node ${{ matrix.node }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash

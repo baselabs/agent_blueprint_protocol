@@ -9,6 +9,8 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
   """
   use ExUnit.Case, async: false
 
+  @moduletag timeout: :infinity
+
   # The exact, frozen set of paths the built archive is allowed to contain.
   # `hex_metadata.config` is emitted by `mix hex.build`; the rest are the
   # declared public files. Verified against a real build 2026-08-20.

@@ -3,10 +3,11 @@ Code.require_file(Path.expand("../scripts/extract_livebooks.exs", __DIR__))
 defmodule AgentBlueprintProtocol.LivebookExtractorTest do
   use ExUnit.Case, async: true, group: :project_build
 
+  @moduletag timeout: :infinity
+
   import ExUnit.CaptureIO
   alias AgentBlueprintProtocol.Scratch
 
-  @tag timeout: 120_000
   test "each notebook has its own Mix installation and consumer directory" do
     Scratch.with_dir("notebook-isolation", fn root ->
       archive = Path.join(root, "package.tar")

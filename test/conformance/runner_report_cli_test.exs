@@ -7,6 +7,8 @@ defmodule AgentBlueprintProtocol.Conformance.RunnerReportCliTest do
 
   use ExUnit.Case, async: false
 
+  @moduletag timeout: :infinity
+
   alias AgentBlueprintProtocol.{BlueprintFixture, DeploymentFixture}
   alias AgentBlueprintProtocol.Conformance.{Cli, Corpus, Report, Runner}
   alias AgentBlueprintProtocol.ConformanceTest.Builder
