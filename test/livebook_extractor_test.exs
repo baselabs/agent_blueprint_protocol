@@ -1,7 +1,60 @@
 Code.require_file(Path.expand("../scripts/extract_livebooks.exs", __DIR__))
 
 defmodule AgentBlueprintProtocol.LivebookExtractorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: true, group: :project_build
+
+  import ExUnit.CaptureIO
+  alias AgentBlueprintProtocol.Scratch
+
+  @tag timeout: 120_000
+  test "each notebook has its own Mix installation and consumer directory" do
+    Scratch.with_dir("notebook-isolation", fn root ->
+      archive = Path.join(root, "package.tar")
+
+      {build, status} =
+        System.cmd("mix", ["hex.build", "--output", archive], stderr_to_stdout: true)
+
+      assert status == 0, build
+
+      source =
+        notebook([
+          "Mix.install([{:agent_blueprint_protocol, \"~> 1.0\"}])",
+          """
+          install_probe = Path.join(Mix.install_project_dir(), ".consumer-probe")
+          if File.exists?(install_probe), do: raise("notebook reused another consumer's installation")
+          File.write!(install_probe, "installed")
+          if File.exists?(".consumer-probe"), do: raise("notebook reused another consumer's directory")
+          File.write!(".consumer-probe", "executed")
+          """
+        ])
+
+      notebooks =
+        for index <- 1..2 do
+          path = Path.join(root, "notebook-#{index}.livemd")
+          File.write!(path, source)
+          path
+        end
+
+      output =
+        capture_io(fn ->
+          result =
+            try do
+              PackageLivebooks.run(archive, notebooks)
+            rescue
+              error -> {:failed, Exception.message(error)}
+            end
+
+          send(self(), {:notebook_run, result})
+        end)
+
+      assert_received {:notebook_run, result}
+      reused_install = String.contains?(output, "notebook reused another consumer's installation")
+      reused_directory = String.contains?(output, "notebook reused another consumer's directory")
+      refute reused_install, output
+      refute reused_directory, output
+      assert result == :ok, "#{inspect(result)}\n" <> output
+    end)
+  end
 
   test "extracts notebook cells against an unpacked package path" do
     source = File.read!("docs/livebooks/abp-walkthrough.livemd")

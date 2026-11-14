@@ -32,6 +32,22 @@ defmodule AgentBlueprintProtocol.ScratchTest do
     end)
   end
 
+  test "allocated paths are absolute and normalized for wildcard consumers" do
+    Scratch.with_dir("normalized", fn root ->
+      relative = Path.relative_to(root, File.cwd!(), force: true)
+
+      for {parent, label} <- [{root, "absolute"}, {relative, "relative"}] do
+        path = Scratch.dir!(parent, label)
+        assert Path.type(path) == :absolute
+        normalized = path == Path.expand(path)
+        assert normalized, "Scratch must normalize paths before returning them"
+        File.write!(Path.join(path, "page.html"), "page")
+        found = Path.wildcard(Path.join(path, "*.html")) != []
+        assert found, "Scratch paths must work directly with Path.wildcard on every OS"
+      end
+    end)
+  end
+
   test "with_dir returns the callback value and removes its tree" do
     path =
       Scratch.with_dir("normal", fn path ->

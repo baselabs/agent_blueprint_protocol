@@ -11,7 +11,7 @@ defmodule AgentBlueprintProtocol.Scratch do
   # exclusive for both forms: an existing directory or symlink is an error.
   def dir!(parent, label) do
     validate_label!(label)
-    path = Path.join(parent, label)
+    path = parent |> Path.join(label) |> Path.expand()
     File.mkdir!(path)
     path
   end

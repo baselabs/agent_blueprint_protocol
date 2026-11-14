@@ -33,6 +33,22 @@ defmodule AgentBlueprintProtocol.CiNodeToolchainTest do
            "the selected Node runtime must be active before the complete quality gate"
 
     consumer_lanes(workflow)
+
+    for job <- ~w(compatibility quality platforms) do
+      [_, content] = String.split(workflow, "\n  #{job}:", parts: 2)
+      content = content |> String.split(~r/\n  [a-z][a-z0-9-]*:/, parts: 2) |> hd()
+
+      assert content =~ setup_node, "#{job} must select the pinned Node runtime"
+
+      commands = [setup_node, "npm ci --ignore-scripts --no-audit --no-fund", "npm run build"]
+      positions = Enum.map(commands, &position!(content, &1))
+      assert positions == Enum.sort(positions), "#{job} must build the kit after setting up Node"
+
+      test_command = if job == "quality", do: "run: mix quality", else: "mix test"
+
+      assert List.last(positions) < position!(content, test_command),
+             "#{job} must build the kit before running kit-dependent tests"
+    end
   end
 
   defp consumer_lanes(workflow) do

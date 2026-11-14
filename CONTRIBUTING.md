@@ -54,7 +54,7 @@ The complete pre-push gate is `mix quality`; focused checks help during editing 
 
 The publication privacy guard runs separately in the pre-push hook and CI with the same build-free command: `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
 
-The suite currently defines 1020 tests (64 properties). The coverage threshold is 100% coverage.
+The suite currently defines 1022 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
 
@@ -63,7 +63,7 @@ The CI workflow at `.github/workflows/ci.yml` defines these jobs:
 - **Workflow syntax** runs `actionlint` on Ubuntu 24.04.
 - **Secret scan** runs `gitleaks` over full repository history on Ubuntu 24.04.
 - **Specification extraction** filters the repository to `spec/` and `priv/conformance/`. It then checks the standalone copy.
-- **Compatibility** runs on Ubuntu 24.04 with Node 24.19.0. Its entries are Elixir 1.19.6 / OTP 28.5, Elixir 1.20.4 / OTP 28.5, and Elixir 1.20.4 / OTP 27.3.4.17. Each entry runs `mix test` and `mix conformance.verify`.
+- **Compatibility** runs on Ubuntu 24.04 with Node 24.19.0. Its entries are Elixir 1.19.6 / OTP 28.5, Elixir 1.20.4 / OTP 28.5, and Elixir 1.20.4 / OTP 27.3.4.17. Each entry builds the npm kit, then runs `mix test` and `mix conformance.verify`.
 - **Quality** runs on Ubuntu 24.04 with Node 24.19.0, Elixir 1.20.3, and OTP 29.0.3. It runs these commands:
 
   ```sh

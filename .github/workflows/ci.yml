@@ -100,8 +100,9 @@ jobs:
           # Elixir 1.19 on OTP 28, and Elixir 1.20 on every supported OTP
           # major. OTP 29 is exercised by the quality job on the dev pin;
           # every supported major has a lane, and no lane sits outside
-          # config/config.exs's supported set. Tests and the conformance
-          # corpus only; the full quality battery stays on the dev pin.
+          # config/config.exs's supported set. Every lane builds the npm
+          # kit before tests (including its consumers) and the conformance
+          # corpus; the full quality battery stays on the dev pin.
           - lane: "Elixir 1.19 / OTP 28"
             elixir: "1.19.6-otp-28"
             otp: "28.5"
@@ -135,6 +136,11 @@ jobs:
 
       - name: Install dependencies
         run: mix deps.get
+
+      - name: Build the npm kit
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
 
       - name: Run tests and the conformance corpus
         run: |

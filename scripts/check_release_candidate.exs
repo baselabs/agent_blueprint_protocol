@@ -78,7 +78,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: [
         "mix",
         "do",
-        "kit.build,",
+        "kit.build",
+        "+",
         "test",
         "test/architecture/package_consumer_gates_test.exs"
       ]
@@ -138,7 +139,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       path: "documentation/typescript.md",
       from: "## Prerequisites\n",
       to: "## Prerequisites\n\n```ts\nthrow new Error(\"TypeScript failure probe\");\n```\n",
-      command: ["mix", "do", "kit.build,", "typescript.package"]
+      command: ["mix", "do", "kit.build", "+", "typescript.package"]
     },
     %{
       name: "mix-project-build-group-missing",

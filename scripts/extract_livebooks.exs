@@ -45,14 +45,14 @@ defmodule PackageLivebooks do
 
     try do
       package = Path.join(scratch, "package")
-      consumer = Path.join(scratch, "consumer")
-      installs = Path.join(scratch, "installs")
       File.mkdir!(package)
-      File.mkdir!(consumer)
       {name, version, app} = unpack!(Path.expand(archive), package, scratch)
       IO.puts("package Livebooks: #{name} #{version}")
 
       for {notebook, index} <- Enum.with_index(notebooks, 1) do
+        consumer = Path.join(scratch, "notebook-#{index}")
+        installs = Path.join(consumer, "installs")
+        File.mkdir!(consumer)
         notebook = Path.expand(notebook)
         source = File.read!(notebook)
 
@@ -62,7 +62,7 @@ defmodule PackageLivebooks do
             {:error, reason} -> raise reason
           end
 
-        path = Path.join(scratch, "notebook-#{index}.exs")
+        path = Path.join(consumer, "notebook.exs")
         File.write!(path, script)
 
         {output, status} =

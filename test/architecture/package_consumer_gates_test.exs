@@ -8,18 +8,27 @@ defmodule AgentBlueprintProtocol.Architecture.PackageConsumerGatesTest do
         "mix",
         [
           "do",
-          "livebooks.package,",
-          "doctests.package,",
-          "snippets.package,",
+          "livebooks.package",
+          "+",
+          "doctests.package",
+          "+",
+          "snippets.package",
+          "+",
           "typescript.package"
         ],
         stderr_to_stdout: true
       )
 
+    refute output =~ "using commas as separators in \"mix do\" is deprecated"
     assert status == 0, output
-    assert output =~ "package Livebooks: 5 notebooks passed outside the checkout"
-    assert output =~ "package doctests: agent_blueprint_protocol"
-    assert output =~ "package snippets:"
-    assert output =~ "package TypeScript: 13 examples passed outside the checkout"
+
+    for marker <- [
+          "package Livebooks: 5 notebooks passed outside the checkout",
+          "package doctests: agent_blueprint_protocol",
+          "package snippets:",
+          "package TypeScript: 13 examples passed outside the checkout"
+        ] do
+      assert output =~ marker
+    end
   end
 end
