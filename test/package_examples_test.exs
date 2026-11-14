@@ -49,6 +49,47 @@ defmodule AgentBlueprintProtocol.PackageExamplesTest do
     end)
   end
 
+  @tag timeout: 120_000
+  test "interactive signing examples group key bindings and retain later block bindings" do
+    files = ["documentation/compose-and-sign.md" | Path.wildcard("docs/livebooks/*.livemd")]
+
+    for file <- files,
+        cell <- PackageExamples.cells(File.read!(file), file),
+        file == "documentation/compose-and-sign.md" or String.contains?(cell.code, "private_key") do
+      code = String.trim(cell.code)
+
+      assert String.starts_with?(code, "(\n") and String.ends_with?(code, "\n)"),
+             "#{file} block #{cell.index}: interactive key examples must be one parenthesized expression"
+    end
+
+    Scratch.with_dir("interactive-signing", fn root ->
+      input = Path.join(root, "input.exs")
+      source = File.read!("documentation/compose-and-sign.md")
+
+      code =
+        PackageExamples.cells(source, "compose-and-sign.md") |> Enum.map_join("\n", & &1.code)
+
+      File.write!(
+        input,
+        "Application.ensure_all_started(:crypto)\n" <> code <> "\nSystem.halt(0)\n"
+      )
+
+      {output, status} =
+        System.cmd("sh", ["-c", ~s(iex --dot-iex "" < "$1"), "iex", input],
+          cd: root,
+          env: [{"ERL_LIBS", Path.join(Mix.Project.build_path(), "lib")}],
+          stderr_to_stdout: true
+        )
+
+      assert status == 0, "interactive signing failed (exit #{status})"
+      assert output =~ "reloaded_pair: true", "interactive blocks lost their bindings"
+      refute output =~ "** (", "interactive signing raised an exception"
+
+      refute Regex.match?(~r/\{<<[0-9, .\n]+>>, <<[0-9, .\n]+>>\}/, output),
+             "interactive signing displayed key material"
+    end)
+  end
+
   test "snippet extraction preserves order and source lines and skips only marked fragments" do
     source =
       "```elixir\nx = 1\n```\n```elixir fragment\nmissing()\n```\n```sh\nfalse\n```\n```elixir\nx + 1\n```\n"

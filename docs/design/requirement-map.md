@@ -1080,22 +1080,19 @@ Result: 1/2 passed
 
 ### case: "README and SECURITY.md name the current released version"
 
-Documentation-currency gate: the README install requirement pins the
-exact current version (every hex requirement string in README is an
-install pin and must name it; every npm kit command stays unpinned,
-because a kit release goes live only after a maintainer approves its
-staged publish, and README must say how to see which kit npx runs),
-and SECURITY.md's supported-version
-table opens with the current `major.minor` line marked supported (a
-stale first row — wrong line, or the right line marked no — reds). The
-version is read live from `mix.exs`, never frozen.
+Documentation-currency gate: every README Hex requirement and npm kit
+command pins the exact current version, candidate or final, read from
+`mix.exs`. SECURITY.md's supported-version table opens with the current
+`major.minor` line marked supported. A stale first row, the right line
+marked unsupported, an unpinned npm command, or a stale pin reds.
 
 ```red
-$ # plant: the README's first npx command pinned to @0.8.1
-$ mix test test/architecture/documentation_currency_test.exs
-1) test README and SECURITY.md name the current released version
-README npm kit commands must stay unpinned (npx runs the latest published kit), found ["@agent-blueprint-protocol/verifier@0.8.1"]
-code: assert npm_pins == [],
+$ # plant: leave the README npm install unpinned against the exact-version assertion
+$ mix test test/package_examples_test.exs test/architecture/documentation_currency_test.exs test/architecture/document_citation_gate_test.exs --seed 42
+1) test README and SECURITY.md name the current released version (AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest)
+README npm kit commands must pin the exact current version 1.1.0, found ["@agent-blueprint-protocol/verifier"]
+code: assert npm_commands == ["@agent-blueprint-protocol/verifier@" <> version],
+Result: 14/16 passed
 ```
 
 ```red
@@ -1371,46 +1368,21 @@ a shipped document cites a document that exists nowhere:
 Result: 0/1 passed
 ```
 
-### case: "shipped markdown links resolve to real files"
+### case: "shipped markdown links resolve to packaged files"
 
-Every markdown link target without a scheme must resolve, relative to
-the directory of the document containing it (markdown link semantics),
-to a file in the repository, as must every GitHub blob/tree URL into
-this repository (those are root-relative); other URLs and pure anchors
-are external and unchecked. The scanned set expands directory package
-entries (`documentation`) and includes Livebooks; it once filtered the
-entries list by extension and skipped every guide.
+Every relative markdown link in a packaged document must resolve to a
+packaged file, including when the target exists only in the repository.
+All HexDocs extras must be packaged. The scanned set expands package
+directories and includes Markdown, cheatsheets and Livebooks. GitHub
+blob/tree links into this repository are additionally checked against
+repository files. Other URLs and pure anchors are external and unchecked.
 
 ```red
-$ # plant: a link to a missing Livebook appended to documentation/faq.md
-$ mix test test/architecture/document_citation_gate_test.exs
-1) test shipped markdown links resolve to real files
-a shipped document links to a file that does not exist:
-  documentation/faq.md: ../docs/livebooks/missing.livemd resolves to no file in this repository
+$ # plant: append [Package boundary probe](docs/consumer-evidence.md) to README.md; the target exists but is deliberately unshipped
+$ mix test test/architecture/document_citation_gate_test.exs:284 --seed 42
+1) test shipped markdown links resolve to packaged files (AgentBlueprintProtocol.Architecture.DocumentCitationGateTest)
+a shipped document links outside the package: [{"README.md", "docs/consumer-evidence.md"}]
 code: assert offenders == [],
-Result: 1/2 passed
-```
-
-```red
-$ # plant: "See [the internals note](docs/internals-note.md) and internals §12" appended to README
-$ mix test test/architecture/document_citation_gate_test.exs
-1) test shipped markdown links resolve to real files
-a shipped document links to a file that does not exist:
-  README.md: docs/internals-note.md resolves to no file in this repository
-code: assert offenders == [],
-2) test named section citations name a shipped document or a pinned standard
-a shipped document cites a document that exists nowhere:
-  README.md: "internals §…" names no shipped document or standard
-Result: 0/2 passed
-```
-
-```red
-$ # plant: a file-relative dangling link inside a nested doc (docs/protocol.md → adr/nonexistent-doc.md);
-$ # # the VALID file-relative link adr/producer-surface.md on the same line stays green (containing-dir resolution)
-$ mix test test/architecture/document_citation_gate_test.exs
-1) test shipped markdown links resolve to real files
-a shipped document links to a file that does not exist:
-  docs/protocol.md: adr/nonexistent-doc.md resolves to no file in this repository
 Result: 0/1 passed
 ```
 

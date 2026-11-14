@@ -13,9 +13,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   - published HTML links and anchors must resolve inside the generated
     documentation, including every ExDoc extra and module page;
   - every markdown link target without a scheme must resolve, relative
-    to the directory of the document containing it, to a file in this
-    repository, as must every GitHub blob/tree URL into this repository
-    (those are repository-root-relative).
+    to the directory of the document containing it, to a packaged file.
+    Every GitHub blob/tree URL into this repository must resolve to a
+    repository file (those are repository-root-relative).
 
   Bare section numbers (`§3.2.2.2`) and requirement numbers after a
     standard's designation (`RFC 4648 §3.3`) inherit their target from the
@@ -271,22 +271,41 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
              end)
   end
 
-  test "shipped markdown links resolve to real files" do
+  test "shipped markdown links resolve to packaged files" do
+    packaged =
+      Mix.Project.config()[:package][:files]
+      |> Enum.flat_map(&document_files/1)
+      |> Enum.map(&Path.expand/1)
+      |> MapSet.new()
+
+    assert Enum.all?(
+             Mix.Project.config()[:docs][:extras],
+             &MapSet.member?(packaged, Path.expand(&1))
+           )
+
     offenders =
-      for file <- Enum.uniq(shipped_markdown() ++ versioned_documents()),
+      for file <- shipped_markdown(),
           source = File.read!(file),
           target <- link_targets(source),
+          is_nil(URI.parse(target).scheme),
           path <- repo_path(file, target),
-          not File.exists?(path),
-          uniq: true do
-        {file, target}
-      end
+          not MapSet.member?(packaged, path),
+          uniq: true,
+          do: {file, target}
 
     assert offenders == [],
-           "a shipped document links to a file that does not exist:\n" <>
-             Enum.map_join(offenders, "\n", fn {file, target} ->
-               "  #{file}: #{target} resolves to no file in this repository"
-             end)
+           "a shipped document links outside the package: #{inspect(offenders)}"
+
+    repo_offenders =
+      for file <- Enum.uniq(shipped_markdown() ++ versioned_documents()),
+          target <- link_targets(File.read!(file)),
+          path <- repo_path(file, target),
+          not File.exists?(path),
+          uniq: true,
+          do: {file, target}
+
+    assert repo_offenders == [],
+           "a public document links to a file that does not exist: #{inspect(repo_offenders)}"
   end
 
   defp private_citations do
@@ -306,8 +325,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
     Mix.Project.config()[:package][:files]
     |> Enum.flat_map(fn entry ->
       cond do
-        String.ends_with?(entry, [".md", ".livemd"]) -> [entry]
-        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd}"))
+        String.ends_with?(entry, [".md", ".livemd", ".cheatmd"]) -> [entry]
+        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd,cheatmd}"))
         true -> []
       end
     end)

@@ -46,7 +46,7 @@ Verification decodes bounded JSON, negotiates protocol support, binds related ar
 | Language | Package | Install |
 | --- | --- | --- |
 | Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.1.0"}` |
-| TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier` |
+| TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@1.1.0` |
 
 The Elixir package requires Elixir 1.19 or newer on Erlang/OTP 27, 28, or 29. The npm package requires Node.js 24 or newer. Both implement protocol revision 1; the [stability policy](documentation/stability.md) lists the tested combinations.
 

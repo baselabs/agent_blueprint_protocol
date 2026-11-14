@@ -172,7 +172,7 @@ defmodule AgentBlueprintProtocol.Signature do
           {:ok, Attributes.t()} | {:error, AgentBlueprintProtocol.Error.t()}
   @doc """
   Validates an attestation entry against the accepted-kind set.
-  Version 1.0 has no accepted kinds, so this operation returns a typed denial;
+  This release has no accepted attestation kinds, so this operation returns a typed denial;
   it has no successful attestation-verification example in this release.
 
   ## Example

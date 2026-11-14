@@ -46,7 +46,7 @@ tool-binding-element = {
 data-binding-element = {
   logical_dataset: identity-string
   classification_ceiling: classification
-  as_of: { mode: as-of-mode, max_age_ms: integer .gt 0 }
+  as_of: as-of-policy
 }
 
 effect-owner-object = {
@@ -106,7 +106,9 @@ evaluation-binding-object = {
 }
 
 signer-custody = "host_managed" / "external_kms" / "holder_edge"
-as-of-mode = "none" / "required"
+as-of-policy =
+  { mode: "none", max_age_ms: null } /
+  { mode: "required", max_age_ms: positive-integer }
 disclosure = "none" / "summary" / "detail" / "full"
 
 ; shared value-form types (kept identical across the grammar files):

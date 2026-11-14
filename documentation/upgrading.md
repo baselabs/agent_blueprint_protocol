@@ -11,17 +11,19 @@ The protocol uses separate version values for separate contracts:
 - **Package version** identifies the supported APIs and distribution.
 - **Corpus and registry digests** identify the exact conformance cases and extension vocabulary.
 
-The Hex and npm packages carry the same complete version, including prerelease identifiers. Pin this release with this Hex requirement:
+The Hex and npm packages carry the same complete version, including prerelease identifiers. To select this exact release in both registries, use this Hex requirement and npm command:
 
 ```elixir
-{:agent_blueprint_protocol, "~> 1.1.0"}
+{:agent_blueprint_protocol, "== 1.1.0"}
 ```
 
-Install the same version from npm:
+Install the exact release from npm:
 
 ```sh
 npm install @agent-blueprint-protocol/verifier@1.1.0
 ```
+
+Use `~> 1.1.0` when later compatible 1.1 patches are acceptable, and use the resolved lockfile version for identity comparisons.
 
 ## Release identity
 

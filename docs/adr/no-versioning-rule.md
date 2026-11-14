@@ -67,7 +67,7 @@ the rename) carries its own package semver. That is a FIFTH
 permitted version axis under one binding: the kit version MUST equal
 the Hex package version at every release (a single release line, two
 registries). Enforced mechanically by the version-sync gate in the
-agreement script: `package.json` `version` == `mix.exs` `@version`,
+agreement script: the npm metadata's `version` == `mix.exs` `@version`,
 seeded-red on a one-side bump. Dist-tags exist only as npm registry
 plumbing (`latest`); they name no durable identity. The kit's machine
 identity remains the embedded corpus digest, asserted equal to the
@@ -88,7 +88,7 @@ inventory and states the precedence rules:
    integer, never gate-derived, changed only when verdicts for
    previously-certified inputs change.
 3. **The verifier-kit identity** (`verifier_kit`: name, registry,
-   version) rides the manifest, derived from `package.json` at
+   version) rides the manifest, derived from the npm package metadata at
    derivation time; the kit version remains bound == the Hex line under
    the npm-axis amendment, and the kit embeds the manifest
    byte-identically.

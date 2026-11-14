@@ -139,7 +139,7 @@ export function errorAction(code: ErrorCode): string {
 | `missing_required_field` | Add the required member shown by the artifact schema. |
 | `invalid_type` | Use the JSON type required for the reported member. |
 | `non_canonical_bytes` | Encode the JSON using the protocol's canonical form. |
-| `digest_mismatch` | Consumers reject the received artifact and obtain the intended release. Producers recompute the digest after intentional content changes and recreate affected signatures. |
+| `digest_mismatch` | Consumers reject the received artifact and obtain the intended release. Producers recompute and insert the digest after intentional content changes and recreate affected signatures. |
 | `protocol_revision_unsupported` | Use a revision supported by the consumer. |
 | `extension_unknown_critical` | Configure the host's registration and matching held schema for this critical namespace, or reject the artifact. Make it optional only when the producer's contract permits consumers to ignore it. |
 | `extension_criticality_conflict` | Match the registered criticality. |

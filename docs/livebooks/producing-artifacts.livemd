@@ -52,7 +52,7 @@ Formatted JSON is for reading. Artifact decoding requires canonical bytes, inclu
 
 ## Change the Blueprint and compute its digest
 
-The Blueprint value comes from the shipped example. This cell changes its release number, validates the value, recomputes the content digest, and encodes canonical bytes.
+The Blueprint value comes from the shipped example. This cell changes its release number, validates the value, recomputes and inserts the content digest, and encodes canonical bytes.
 
 ```elixir
 alias AgentBlueprintProtocol.{Blueprint, Canonicalization, Digest, Json}
@@ -164,66 +164,68 @@ deployment_value =
 The producer creates a throwaway Ed25519 key with Erlang/OTP's `:crypto` module. The protected header uses Ed25519, and the signature is attached to the Blueprint value. No key bytes are printed.
 
 ```elixir
-alias AgentBlueprintProtocol.{Base64Url, Signature}
-alias AgentBlueprintProtocol.Signature.PublicKey
+(
+  alias AgentBlueprintProtocol.{Base64Url, Signature}
+  alias AgentBlueprintProtocol.Signature.PublicKey
 
-{public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
+  {public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
 
-protected =
-  {:object,
-   [
-     {"alg", {:string, "Ed25519"}},
-     {"b64", {:boolean, false}},
-     {"crit", {:array, [{:string, "b64"}]}},
-     {"kid", {:string, "example-producer-key"}}
-   ]}
+  protected =
+    {:object,
+     [
+       {"alg", {:string, "Ed25519"}},
+       {"b64", {:boolean, false}},
+       {"crit", {:array, [{:string, "b64"}]}},
+       {"kid", {:string, "example-producer-key"}}
+     ]}
 
-signed_attributes =
-  {:object,
-   [
-     {"algorithm", {:string, "Ed25519"}},
-     {"content_digest", {:string, blueprint_digest}},
-     {"created_at", {:string, "2026-08-20T00:00:00Z"}},
-     {"key_id", {:string, "example-producer-key"}},
-     {"purpose", {:string, "blueprint"}}
-   ]}
+  signed_attributes =
+    {:object,
+     [
+       {"algorithm", {:string, "Ed25519"}},
+       {"content_digest", {:string, blueprint_digest}},
+       {"created_at", {:string, "2026-08-20T00:00:00Z"}},
+       {"key_id", {:string, "example-producer-key"}},
+       {"purpose", {:string, "blueprint"}}
+     ]}
 
-entry_with = fn header, signature_bytes ->
-  {:object,
-   [
-     {"protected", header},
-     {"signed_attributes", signed_attributes},
-     {"signature", {:string, Base64Url.encode(signature_bytes)}}
-   ]}
-end
+  entry_with = fn header, signature_bytes ->
+    {:object,
+     [
+       {"protected", header},
+       {"signed_attributes", signed_attributes},
+       {"signature", {:string, Base64Url.encode(signature_bytes)}}
+     ]}
+  end
 
-unsigned_entry = entry_with.(protected, <<0::512>>)
-{:ok, signing_input} = Signature.signing_input(unsigned_entry)
-signature_bytes = :crypto.sign(:eddsa, :none, signing_input, [private_key, :ed25519])
-entry = entry_with.(protected, signature_bytes)
+  unsigned_entry = entry_with.(protected, <<0::512>>)
+  {:ok, signing_input} = Signature.signing_input(unsigned_entry)
+  signature_bytes = :crypto.sign(:eddsa, :none, signing_input, [private_key, :ed25519])
+  entry = entry_with.(protected, signature_bytes)
 
-public_key_record = %PublicKey{
-  key_id: "example-producer-key",
-  algorithm: :ed25519,
-  key: public_key
-}
+  public_key_record = %PublicKey{
+    key_id: "example-producer-key",
+    algorithm: :ed25519,
+    key: public_key
+  }
 
-{:ok, signed_bytes} =
-  blueprint
-  |> Blueprint.to_value()
-  |> put_member.("signatures", {:array, [entry]})
-  |> Canonicalization.encode()
+  {:ok, signed_bytes} =
+    blueprint
+    |> Blueprint.to_value()
+    |> put_member.("signatures", {:array, [entry]})
+    |> Canonicalization.encode()
 
-{:ok, signed_blueprint} = AgentBlueprintProtocol.decode_blueprint(signed_bytes)
-{:ok, ^signed_bytes} = AgentBlueprintProtocol.canonical_bytes(signed_blueprint)
+  {:ok, signed_blueprint} = AgentBlueprintProtocol.decode_blueprint(signed_bytes)
+  {:ok, ^signed_bytes} = AgentBlueprintProtocol.canonical_bytes(signed_blueprint)
 
-%{
-  signature_verifies:
-    match?({:ok, %Signature.Attributes{}}, Signature.verify(entry, [public_key_record])),
-  digest_unchanged:
-    Digest.to_tagged(Blueprint.content_digest(signed_blueprint)) == blueprint_digest,
-  canonical_round_trip: true
-}
+  %{
+    signature_verifies:
+      match?({:ok, %Signature.Attributes{}}, Signature.verify(entry, [public_key_record])),
+    digest_unchanged:
+      Digest.to_tagged(Blueprint.content_digest(signed_blueprint)) == blueprint_digest,
+    canonical_round_trip: true
+  }
+)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -239,18 +241,20 @@ The protected header also accepts the EdDSA spelling. The signed attributes keep
 Sign the same input with the EdDSA protected-header spelling and verify it with the same public key.
 
 ```elixir
-eddsa_header =
-  put_member.(protected, "alg", {:string, "EdDSA"})
+(
+  eddsa_header =
+    put_member.(protected, "alg", {:string, "EdDSA"})
 
-eddsa_entry = entry_with.(eddsa_header, <<0::512>>)
-{:ok, eddsa_input} = Signature.signing_input(eddsa_entry)
-eddsa_signature = :crypto.sign(:eddsa, :none, eddsa_input, [private_key, :ed25519])
-eddsa_entry = entry_with.(eddsa_header, eddsa_signature)
+  eddsa_entry = entry_with.(eddsa_header, <<0::512>>)
+  {:ok, eddsa_input} = Signature.signing_input(eddsa_entry)
+  eddsa_signature = :crypto.sign(:eddsa, :none, eddsa_input, [private_key, :ed25519])
+  eddsa_entry = entry_with.(eddsa_header, eddsa_signature)
 
-%{
-  eddsa_header_verifies:
-    match?({:ok, %Signature.Attributes{}}, Signature.verify(eddsa_entry, [public_key_record]))
-}
+  %{
+    eddsa_header_verifies:
+      match?({:ok, %Signature.Attributes{}}, Signature.verify(eddsa_entry, [public_key_record]))
+  }
+)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -264,64 +268,66 @@ eddsa_entry = entry_with.(eddsa_header, eddsa_signature)
 The Manifest signs its own digest with purpose `deployment`. Reconciliation checks both signatures and compares their digests with the artifacts. The bounds here are fixture host configuration; a consuming application supplies independent configured limits. No private or public key material is printed.
 
 ```elixir
-deployment_attributes =
-  signed_attributes
-  |> put_member.("content_digest", {:string, deployment_digest})
-  |> put_member.("purpose", {:string, "deployment"})
+(
+  deployment_attributes =
+    signed_attributes
+    |> put_member.("content_digest", {:string, deployment_digest})
+    |> put_member.("purpose", {:string, "deployment"})
 
-deployment_entry =
-  entry
-  |> put_member.("signed_attributes", deployment_attributes)
-  |> put_member.("signature", {:string, Base64Url.encode(<<0::512>>)})
+  deployment_entry =
+    entry
+    |> put_member.("signed_attributes", deployment_attributes)
+    |> put_member.("signature", {:string, Base64Url.encode(<<0::512>>)})
 
-{:ok, deployment_input} = Signature.signing_input(deployment_entry)
-deployment_signature = :crypto.sign(:eddsa, :none, deployment_input, [private_key, :ed25519])
+  {:ok, deployment_input} = Signature.signing_input(deployment_entry)
+  deployment_signature = :crypto.sign(:eddsa, :none, deployment_input, [private_key, :ed25519])
 
-deployment_entry =
-  put_member.(deployment_entry, "signature", {:string, Base64Url.encode(deployment_signature)})
+  deployment_entry =
+    put_member.(deployment_entry, "signature", {:string, Base64Url.encode(deployment_signature)})
 
-{:ok, signed_deployment_bytes} =
-  deployment
-  |> Deployment.to_value()
-  |> put_member.("signatures", {:array, [deployment_entry]})
-  |> Canonicalization.encode()
+  {:ok, signed_deployment_bytes} =
+    deployment
+    |> Deployment.to_value()
+    |> put_member.("signatures", {:array, [deployment_entry]})
+    |> Canonicalization.encode()
 
-{:ok, signed_deployment} = AgentBlueprintProtocol.decode_deployment(signed_deployment_bytes)
-{:ok, attributes} = Signature.verify(deployment_entry, [public_key_record])
-true = attributes.purpose == :deployment
-true = Digest.to_tagged(attributes.content_digest) == deployment_digest
+  {:ok, signed_deployment} = AgentBlueprintProtocol.decode_deployment(signed_deployment_bytes)
+  {:ok, attributes} = Signature.verify(deployment_entry, [public_key_record])
+  true = attributes.purpose == :deployment
+  true = Digest.to_tagged(attributes.content_digest) == deployment_digest
 
-alias AgentBlueprintProtocol.{BoundsAlgebra, Evidence, Reconcile}
-{:ok, host_bounds} = BoundsAlgebra.from_deployment(signed_deployment)
+  alias AgentBlueprintProtocol.{BoundsAlgebra, Evidence, Reconcile}
+  {:ok, host_bounds} = BoundsAlgebra.from_deployment(signed_deployment)
 
-inputs = %Reconcile.Inputs{
-  host_bounds: host_bounds,
-  support: %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])},
-  keys: [public_key_record],
-  protected_clamp: :acknowledge,
-  observations: %Deployment.Observations{}
-}
+  inputs = %Reconcile.Inputs{
+    host_bounds: host_bounds,
+    support: %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])},
+    keys: [public_key_record],
+    protected_clamp: :acknowledge,
+    observations: %Deployment.Observations{}
+  }
 
-{:ok, pair_evidence} =
-  AgentBlueprintProtocol.reconcile(signed_blueprint, signed_deployment, inputs)
+  {:ok, pair_evidence} =
+    AgentBlueprintProtocol.reconcile(signed_blueprint, signed_deployment, inputs)
 
-signature_subjects =
-  Enum.map(["blueprint", "deployment"], fn artifact ->
-    check =
-      Enum.find(pair_evidence.checks, &(&1.surface == :signatures and &1.subject == [artifact]))
+  signature_subjects =
+    Enum.map(["blueprint", "deployment"], fn artifact ->
+      check =
+        Enum.find(pair_evidence.checks, &(&1.surface == :signatures and &1.subject == [artifact]))
 
-    %{verified: true, detail: %Evidence.Signatures{key_ids: ids}} = check
-    {artifact, ids}
-  end)
+      %{verified: true, detail: %Evidence.Signatures{key_ids: ids}} = check
+      {artifact, ids}
+    end)
 
-# Reconcile once with the unsigned Manifest to show subject-aware coverage.
-{:ok, mixed_evidence} = AgentBlueprintProtocol.reconcile(signed_blueprint, deployment, inputs)
+  # Reconcile once with the unsigned Manifest to show subject-aware coverage.
+  {:ok, mixed_evidence} = AgentBlueprintProtocol.reconcile(signed_blueprint, deployment, inputs)
 
-%{
-  signed_subjects: signature_subjects,
-  pair_signatures_unverified: :signatures in pair_evidence.not_verified,
-  mixed_signatures_unverified: :signatures in mixed_evidence.not_verified
-}
+  %{
+    signed_subjects: signature_subjects,
+    pair_signatures_unverified: :signatures in pair_evidence.not_verified,
+    mixed_signatures_unverified: :signatures in mixed_evidence.not_verified
+  }
+)
 ```
 
 <!-- livebook:{"output":true} -->

@@ -36,7 +36,7 @@ before final publication.
 
 Exact toolchain patch pins are in [CI](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/.github/workflows/ci.yml).
 
-The 1.0 line and the 0.8 transition line receive security fixes. Older lines do not. Reports are handled on a
+The 1.1 line and the 0.8 transition line receive security fixes. The 1.0 line and older unsupported lines must upgrade. Reports are handled on a
 best-effort basis; there is no guaranteed response time. Added runtime
 versions and changes to maintained release lines are announced in release notes; the 1.x runtime floors never rise. The [security
 policy](../SECURITY.md) defines reporting; the [upgrading guide](upgrading.md)

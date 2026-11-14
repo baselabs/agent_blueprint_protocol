@@ -24,13 +24,13 @@ sits outside the supported matrix; no Elixir 1.20 build exists for it,
 and the 1.19 lane targets that line's newest supported major.
 
 Enforcement lives in the repository, in code, before anything compiles:
-`config/config.exs` raises on any OTP major outside the set. The config
+The checkout configuration raises on any OTP major outside the set. The config
 directory is deliberately NOT shipped in the Hex archive; the assert
 governs development and CI, not package consumers, whose supported floor
 is the Elixir range carried by mix.exs.
 
 Lockstep rule: the mix.exs Elixir range, the config supported-OTP set,
-`.tool-versions`, and the CI Elixir/OTP lanes move together in ONE
+the declared development toolchain, and the CI Elixir/OTP lanes move together in ONE
 commit. A lane outside the set, or a supported major without a lane, is
 a defect.
 
@@ -46,6 +46,6 @@ a defect.
 - When the declared Elixir line moves, the build list is re-probed and
   the quadruple is updated in one commit; discovery is repeated, never
   inherited.
-- The dev lane (`.tool-versions`) pins what maintainers actually run;
+- The dev lane (the declared development toolchain) pins what maintainers actually run;
   CI's full battery runs on that pin and the tests plus conformance
   corpus on every lane of the matrix.

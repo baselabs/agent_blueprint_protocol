@@ -28,7 +28,7 @@ No. A successful result is typed evidence about protocol checks. The consuming h
 
 ## How do I create a Blueprint?
 
-Build a tagged JSON value, pass it to `AgentBlueprintProtocol.Blueprint.from_value/2`, compute its digest, and encode it. The [compose and sign guide](compose-and-sign.md) shows the complete path.
+Compose the tagged JSON value with a well-formed provisional digest. Construct a draft with the artifact's `from_value/2`, compute `content_digest/1`, convert it with `Digest.to_tagged/1`, and replace the value's `content_digest` or `deployment_digest` member. Canonically encode the updated value and decode those bytes to validate the completed artifact. Sign the completed digest and recreate any signatures affected by the edit. The [compose and sign guide](compose-and-sign.md) shows the complete path.
 
 ## Which package should I install?
 

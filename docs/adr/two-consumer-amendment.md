@@ -27,6 +27,4 @@ classification labels) live in registered extensions owned by their
 products, promotable only with a revision increment when a second host
 proves the same semantics. The core stays small and neutral; registry
 entries carry the owner and other published facts, never authority
-(`spec/registry/OPERATIONS.md`), and the honesty record of who
-consumes what is kept in `docs/consumer-evidence.md`. This is the
-load-bearing reason the package contains no product schema bodies.
+([registry operations](../../spec/registry/OPERATIONS.md)). No independent consumer-rehearsal evidence is included in this release. Implementer conformance and consumer adoption are separate claims. The package contains no product schema bodies.

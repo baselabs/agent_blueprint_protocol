@@ -111,20 +111,16 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
              "#{notebook} must pin the current package version, found #{inspect(pins)}"
     end
 
-    # README npm commands use the release-candidate tag. The generic npm
-    # view sentence lets readers check the version available in the registry.
-    npm_pins =
-      ~r/@agent-blueprint-protocol\/verifier@[A-Za-z0-9.+-]+/
+    # README npm commands pin this exact release in both candidate and final trees.
+    # The npm view sentence lets readers inspect the registry tags.
+    npm_commands =
+      ~r/\b(?:npm install|npx)\s+(@agent-blueprint-protocol\/verifier(?:@[A-Za-z0-9.+-]+)?)/
       |> Regex.scan(readme)
-      |> Enum.map(&hd/1)
+      |> Enum.map(fn [_, command] -> command end)
       |> Enum.uniq()
 
-    assert npm_pins ==
-             if(Version.parse!(version).pre == [],
-               do: [],
-               else: ["@agent-blueprint-protocol/verifier@rc"]
-             ),
-           "README npm kit commands must use the release-candidate tag, found #{inspect(npm_pins)}"
+    assert npm_commands == ["@agent-blueprint-protocol/verifier@" <> version],
+           "README npm kit commands must pin the exact current version #{version}, found #{inspect(npm_commands)}"
 
     assert readme =~ "npm view @agent-blueprint-protocol/verifier",
            "README must say how to see which kit npx runs"
@@ -267,9 +263,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
                "npx @agent-blueprint-protocol/verifier@0.9.9"
            ) == ["0.9.9", "0123abc", "v0.9.9", "v0.9.9", "v0.9.9", "0.9.9", "0.9.9"]
 
-    refute current_release_ref?("README.md", "0123abc", "2.0.0", "readme")
-    assert current_release_ref?("README.md", "v2.0.0", "2.0.0", "readme")
-    refute current_release_ref?("README.md", "main", "2.0.0", "readme")
+    refute current_release_ref?("README.md", "0123abc", "2.0.0", "version")
+    assert current_release_ref?("README.md", "v2.0.0", "2.0.0", "version")
+    refute current_release_ref?("README.md", "main", "2.0.0", "version")
     refute current_release_ref?("SUPPORT.md", "v2.0.0", "2.0.0", "frozen")
     refute current_release_ref?("SUPPORT.md", "0123abc", "2.0.0", "frozen")
     assert current_release_ref?("SUPPORT.md", "main", "2.0.0", "frozen")

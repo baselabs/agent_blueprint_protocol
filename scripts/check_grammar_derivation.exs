@@ -18,9 +18,10 @@
 #
 # The CDDL subset is deliberately disciplined (RFC 8610 §3): rules,
 # group maps, `?` member occurrence, `[n*m item]` arrays, string
-# enums, `integer .gt 0`, and the primitive names tstr/integer/bool/
-# any; anything outside the subset denies, so the grammar files cannot
-# grow constructs the derivation silently mishandles.
+# enums and literal members, choices between map arms (oneOf),
+# `integer .gt 0`, and the primitive names tstr/integer/bool/null/any.
+# Anything outside the subset denies, so the grammar files cannot grow
+# constructs the derivation silently mishandles.
 
 defmodule AgentBlueprintProtocol.GrammarDerivation do
   @name_re ~r/^[a-z0-9][a-z0-9-]*$/
@@ -241,8 +242,8 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
   end
 
   # Rules are line-oriented: a rule starts at `name =` and its body is
-  # the remaining text on that line plus, if braces open, subsequent
-  # lines until the braces balance.
+  # the remaining text on that line plus subsequent continuation lines
+  # up to the next rule, including map-choice arms.
   defp parse_rules("", rules, _partial), do: {:ok, rules}
 
   defp parse_rules(source, rules, _partial) do
@@ -282,7 +283,10 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
   defp take_rule([line | rest]) do
     case Regex.run(@rule_start_re, line) do
       [_, name, first] ->
-        {body, remainder} = take_body(first, rest, brace_delta(first))
+        {continuation, remainder} =
+          Enum.split_while(rest, &(not Regex.match?(@rule_start_re, &1)))
+
+        body = Enum.join([first | continuation], "\n")
         {name, body, remainder}
 
       nil ->
@@ -294,35 +298,38 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
     end
   end
 
-  # Accumulates lines until braces balance (a body with no open brace is
-  # single-line).
-  defp take_body(first, rest, delta) when delta <= 0, do: {first, rest}
+  # Split only outside maps, arrays and quoted strings. Unbalanced delimiters
+  # fail before rendering, including choices with an empty or unsupported arm.
+  defp parse_type(expr, rules, ctx) do
+    with {:ok, arms} <- split_top_level(expr, ["/"]) do
+      cond do
+        length(arms) == 1 ->
+          parse_term(hd(arms), rules, ctx)
 
-  defp take_body(first, rest, delta) do
-    take_more([first], rest, delta)
-  end
+        Enum.all?(arms, &String.starts_with?(&1, "\"")) ->
+          parse_enum(arms)
 
-  defp take_more(acc, [line | rest], delta) do
-    delta = delta + brace_delta(line)
+        Enum.all?(arms, &String.starts_with?(&1, "{")) ->
+          arms
+          |> Enum.reduce_while({:ok, []}, fn arm, {:ok, parsed} ->
+            case parse_term(arm, rules, ctx) do
+              {:ok, %{kind: :object} = object} -> {:cont, {:ok, parsed ++ [object]}}
+              {:error, _} = error -> {:halt, error}
+            end
+          end)
+          |> case do
+            {:ok, choices} -> {:ok, %{kind: :choice, choices: choices}}
+            error -> error
+          end
 
-    if delta > 0 do
-      take_more([line | acc], rest, delta)
-    else
-      {Enum.reverse([line | acc]) |> Enum.join("\n"), rest}
+        true ->
+          {:error, "unsupported type choice"}
+      end
     end
   end
 
-  defp take_more(acc, [], _delta), do: {Enum.reverse(acc) |> Enum.join("\n"), []}
-
-  defp brace_delta(text) do
-    opens = length(:binary.matches(text, "{")) + length(:binary.matches(text, "["))
-    closes = length(:binary.matches(text, "}")) + length(:binary.matches(text, "]"))
-    opens - closes
-  end
-
-  # type expressions
-  defp parse_type("{" <> body, rules, _ctx) do
-    body = body |> String.trim_trailing("}") |> String.trim()
+  defp parse_term("{" <> body, rules, _ctx) do
+    body = body |> String.replace_suffix("}", "") |> String.trim()
 
     with {:ok, members} <- split_members(body) do
       members
@@ -351,8 +358,8 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
     end
   end
 
-  defp parse_type("[" <> body, rules, _ctx) do
-    body = body |> String.trim_trailing("]") |> String.trim()
+  defp parse_term("[" <> body, rules, _ctx) do
+    body = body |> String.replace_suffix("]", "") |> String.trim()
 
     with {:ok, min, max, item_expr} <- parse_occurrence(body),
          {:ok, item} <- parse_type(item_expr, rules, "array item") do
@@ -360,31 +367,32 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
     end
   end
 
-  defp parse_type(expr, _rules, _ctx) do
+  defp parse_term(expr, _rules, _ctx) do
     cond do
       expr in ["tstr", "text"] -> {:ok, %{kind: :string}}
       expr in ["integer", "int", "uint"] -> {:ok, %{kind: :integer}}
+      expr == "null" -> {:ok, %{kind: :null}}
       expr == "bool" -> {:ok, %{kind: :boolean}}
       expr == "any" -> {:ok, %{kind: :any}}
       expr == "integer .gt 0" -> {:ok, %{kind: :integer, minimum: 1}}
-      String.starts_with?(expr, "\"") -> parse_enum(expr)
+      String.starts_with?(expr, "\"") -> parse_enum([expr])
       Regex.match?(@name_re, expr) -> {:ok, %{kind: :ref, target: expr}}
       true -> {:error, "unsupported type expression: #{inspect(expr)}"}
     end
   end
 
-  defp parse_enum(expr) do
-    expr
-    |> String.split(" / ")
+  defp parse_enum(arms) do
+    arms
     |> Enum.reduce_while({:ok, []}, fn part, {:ok, acc} ->
-      case Regex.run(~r/^"([^"]*)"$/, String.trim(part)) do
-        [_, value] -> {:cont, {:ok, [value | acc]}}
-        nil -> {:halt, {:error, "unsupported enum arm: #{inspect(part)}"}}
+      case Jason.decode(part) do
+        {:ok, value} when is_binary(value) -> {:cont, {:ok, acc ++ [value]}}
+        _ -> {:halt, {:error, "unsupported string literal: #{inspect(part)}"}}
       end
     end)
     |> case do
-      {:ok, values} -> {:ok, %{kind: :enum, values: Enum.reverse(values)}}
-      {:error, reason} -> {:error, reason}
+      {:ok, [value]} -> {:ok, %{kind: :literal, value: value}}
+      {:ok, values} -> {:ok, %{kind: :enum, values: values}}
+      error -> error
     end
   end
 
@@ -412,41 +420,62 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
   # CDDL group entries separate by commas OR newlines (RFC 8610 §3.5),
   # but only at group depth zero — a nested inline map's own commas and
   # newlines do not separate the outer group's entries.
-  defp split_members(body) do
-    body
-    |> String.graphemes()
-    |> split_depth(0, [], [])
-    |> case do
-      [] -> {:error, "empty map body"}
-      members -> {:ok, members}
+  defp split_members(body), do: split_top_level(body, [",", "\n"])
+
+  defp split_top_level(source, separators),
+    do: split_tokens(String.graphemes(source), separators, [], false, false, "", [])
+
+  defp split_tokens([], _separators, [], false, false, current, parts) do
+    if String.trim(current) == "",
+      do: {:error, "empty type or member"},
+      else: {:ok, parts ++ [String.trim(current)]}
+  end
+
+  defp split_tokens([], _separators, _stack, _quoted, _escaped, _current, _parts),
+    do: {:error, "unbalanced type expression"}
+
+  defp split_tokens([ch | rest], separators, stack, true, escaped, current, parts) do
+    cond do
+      escaped -> split_tokens(rest, separators, stack, true, false, current <> ch, parts)
+      ch == "\\" -> split_tokens(rest, separators, stack, true, true, current <> ch, parts)
+      ch == "\"" -> split_tokens(rest, separators, stack, false, false, current <> ch, parts)
+      true -> split_tokens(rest, separators, stack, true, false, current <> ch, parts)
     end
   end
 
-  defp split_depth([], _depth, current, acc) do
-    acc ++ [Enum.join(Enum.reverse(current))]
+  defp split_tokens([ch | rest], separators, stack, false, false, current, parts) do
+    cond do
+      ch == "\"" ->
+        split_tokens(rest, separators, stack, true, false, current <> ch, parts)
+
+      ch in ["{", "["] ->
+        split_tokens(rest, separators, [ch | stack], false, false, current <> ch, parts)
+
+      ch in ["}", "]"] ->
+        case {ch, stack} do
+          {"}", ["{" | tail]} ->
+            split_tokens(rest, separators, tail, false, false, current <> ch, parts)
+
+          {"]", ["[" | tail]} ->
+            split_tokens(rest, separators, tail, false, false, current <> ch, parts)
+
+          _ ->
+            {:error, "unbalanced type expression"}
+        end
+
+      stack == [] and ch in separators ->
+        if String.trim(current) == "" do
+          if ch == "\n",
+            do: split_tokens(rest, separators, stack, false, false, "", parts),
+            else: {:error, "empty type or member"}
+        else
+          split_tokens(rest, separators, stack, false, false, "", parts ++ [String.trim(current)])
+        end
+
+      true ->
+        split_tokens(rest, separators, stack, false, false, current <> ch, parts)
+    end
   end
-
-  defp split_depth(["{" | rest], depth, current, acc),
-    do: split_depth(rest, depth + 1, ["{" | current], acc)
-
-  defp split_depth(["[" | rest], depth, current, acc),
-    do: split_depth(rest, depth + 1, ["[" | current], acc)
-
-  defp split_depth(["}" | rest], depth, current, acc),
-    do: split_depth(rest, depth - 1, ["}" | current], acc)
-
-  defp split_depth(["]" | rest], depth, current, acc),
-    do: split_depth(rest, depth - 1, ["]" | current], acc)
-
-  defp split_depth([ch | rest], 0, current, acc) when ch in [",", "\n"] do
-    entry = current |> Enum.reverse() |> Enum.join() |> String.trim()
-
-    acc = if entry == "", do: acc, else: acc ++ [entry]
-    split_depth(rest, 0, [], acc)
-  end
-
-  defp split_depth([ch | rest], depth, current, acc),
-    do: split_depth(rest, depth, [ch | current], acc)
 
   @occurrence_re ~r/^(\d*)\*(\d*)\s+(.+)$/s
 
@@ -493,6 +522,16 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
     %{"type" => "object", "properties" => rendered}
     |> maybe_put("required", Enum.sort(req), req != [])
   end
+
+  defp render_type(%{kind: :choice, choices: choices} = type, rules) do
+    %{
+      "oneOf" =>
+        Enum.map(choices, &render_type(Map.put(&1, :root?, Map.get(type, :root?, false)), rules))
+    }
+  end
+
+  defp render_type(%{kind: :null}, _rules), do: %{"type" => "null"}
+  defp render_type(%{kind: :literal, value: value}, _rules), do: %{"const" => value}
 
   defp render_type(%{kind: :array, min: min, max: max, item: item}, rules) do
     schema = %{"type" => "array", "items" => render_type(item, rules)}

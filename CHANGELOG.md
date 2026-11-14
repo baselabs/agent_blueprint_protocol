@@ -24,13 +24,14 @@ source inputs, generated kit text, site files, and issue templates.
 
 All dated changelog headings use `## [x.y.z] - YYYY-MM-DD`.
 
+Security maintenance moves from 1.0.x to 1.1.x. Consumers on 1.0.x should upgrade to 1.1.x; the 0.8 transition line remains supported.
+
 ### Compatibility
 
 Protocol revision 1 and verification-semantics version 3 are unchanged. The corpus
 contains 626 cases, digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`;
 the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`.
-Normative protocol behavior is unchanged; specification edits repair links and
-punctuation.
+Verification behavior is unchanged. Specification edits correct producer digest insertion instructions, clarify the two valid `as_of` policies, make the foundation inventory self-contained, and repair links and wording. The Deployment grammar and derived JSON Schema now accept exactly `none` with a null age or `required` with a positive integer age in milliseconds, matching both implementations.
 
 ## [1.0.1] - 2026-11-12
 
@@ -105,7 +106,7 @@ The corpus contains 626 cases, including 22 new host lifecycle and schema-pin
 cases. Its digest is `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`;
 the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`.
 
-The obsolete `verifier/RUNNER.md` redirect is removed from the repository and
+The obsolete verifier runner redirect is removed from the repository and
 the standalone archive. The runner contract is `spec/conformance/runner.md`.
 
 ## [1.0.0-rc.1] - 2026-11-11
@@ -376,8 +377,7 @@ digest `sha-256:aBgeih79woOR7YmJ_OBhyFgKU0j2euO-eieJKxLVDeA`.
   public key) is bounded at 256 entries, evicting the oldest; it grew
   without limit before.
 - The npm tarball no longer ships `dist/verifier/self_checks.*`: the
-  repo-side self-check battery reads `verifier/testdata/`, which never
-  shipped, so the packed copy could not run. The kit's documented
+  repository self-check battery reads test data that never shipped, so the packed copy could not run. The kit's documented
   commands (the bin over the embedded corpus, `--corpus`, `--artifact`,
   and the importable modules) are unchanged.
 
@@ -434,7 +434,7 @@ digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
   unchanged across every release), `protocol_revisions_supported`, the
   certified compatibility matrix `prior_census_verdicts` (the prior
   census `sha-256:sg6Fo7…` is certified `equivalent` by replay), and
-  the verifier-kit identity derived from `package.json`. The npm kit
+  the verifier-kit identity derived from the npm package metadata. The npm kit
   embeds the manifest byte-identically (agreement-gated).
 - `priv/release-history.json`: the append-only retroactive mapping:
   one row per manifest-era release, every PRIOR release's row verified
@@ -479,9 +479,7 @@ digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
   the semantics version, and the release identity are independent
   axes). Answering an inbound consumer request for input
   (an exact-pinned consumer, 2026-09-23) in full.
-- `docs/consumer-evidence.md` (repository-level, deliberately NOT
-  shipped): the unverified third-party consumer-rehearsal lane, its
-  first entry reserved for an exact-pinned consumer's rehearsal.
+- Consumer-rehearsal evidence remains separate from implementation conformance; no independent consumer-rehearsal evidence is included in this release.
 
 The correction the record now states plainly: the 0.6.0 corpus change
 was not purely additive at the byte level; the golden vectors' fixture
@@ -507,7 +505,7 @@ digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
 
 - The declared Elixir requirement is a supported range (`~> 1.19`: the
   1.19 and 1.20 lines are admitted, and Mix refuses anything outside
-  the range at compile), and `config/config.exs` refuses any Erlang/OTP
+  the range at compile), and the checkout configuration refuses any Erlang/OTP
   major outside the supported set (27/28/29) before anything compiles.
   The set was probed from the official precompiled build lists, not
   assumed; the decision record ships as
@@ -516,15 +514,15 @@ digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
   consumers see no new requirement.
 - CI exercises every lane of the supported matrix: Elixir 1.19 on
   OTP 28, and Elixir 1.20 on OTP 27, 28, and 29 (the dev pin, mirrored
-  in the new `.tool-versions`). The four toolchain declarations (the
+  in the checkout's toolchain declaration). The four toolchain declarations (the
   Elixir range, the supported-OTP set, the dev pin, and the CI lanes)
   move together in one commit.
 - A dependency-currency gate (`mix deps.currency`; decision record at
   `docs/adr/dependency-currency-gate.md`) reds the battery on any
   resolvable drift and never passes an unverified registry state.
   dialyxir rides at its latest resolvable release.
-- Clones are byte-identical on every platform: `.gitattributes`
-  disables line-ending conversion regardless of a machine's autocrlf
+- Clones are byte-identical on every platform: the repository's checkout attributes
+  disable line-ending conversion regardless of a machine's autocrlf
   settings (Git for Windows defaults to rewriting LF to CRLF, which
   would shift the byte-frozen digests). The repository tree was probed
   for Windows checkout obstacles (reserved device names, forbidden
@@ -569,8 +567,8 @@ digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
   changelog's historical entries keep it, as records).
 
 The conformance corpus, registry, and test-suite counts are unchanged
-from 0.6.0; the specification digest moves with the deferred-work
-registry row naming the kit. The test suite is 917 tests (59
+from 0.6.0; the specification digest moves with the capability-inventory
+row naming the kit. The test suite is 917 tests (59
 properties) at 100% coverage. Corpus: 96 cases, digest
 `sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
@@ -641,14 +639,11 @@ digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
   the scan skips LOUDLY (a greppable `[privacy-scan] SKIPPED` banner
   naming what did not run); every other mode value (including typos)
   fails closed exactly as before, and a fork run whose secret IS
-  present still enforces. All three arms are red-proven in the
-  requirement map; the dependabot green run is recorded as a green
-  observation.
+  present still enforces. All three arms have regression tests; the dependency-update run passes.
 - The documentation-currency gate's shipped-file enumeration now globs
   DIRECTORY package entries: the original filter silently skipped
   every guide inside `"documentation"`, and the onboarding install
-  pins had drifted into a line SECURITY.md marks unsupported (the
-  organic red is recorded in the requirement map).
+  pins had drifted into a line SECURITY.md marks unsupported.
 - macOS Finder artifacts (`.DS_Store`, `._*`) are excluded from the
   four digest/file-set walks (specification identity, both release
   asset walks, the corpus directory walk): a stray `.DS_Store` inside
@@ -660,8 +655,7 @@ digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
 - Community intake: bug-report and registry-request issue templates
   (the registry template follows `spec/registry/OPERATIONS.md`),
   GitHub Discussions, SUPPORT.md, and a how-to-propose-changes path in
-  CONTRIBUTING with the deferred-work registry surfaced as the public
-  roadmap.
+  CONTRIBUTING, with the capability inventory explaining what is not included.
 - Onboarding reaches a green verification: the quickstart and getting-
   started guides now decode the shipped echo example to `{:ok, _}` and
   round-trip its canonical bytes byte-exactly (mirror-tested), state
@@ -684,8 +678,7 @@ digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
   governance).
 - A CI compatibility job: the previous supported Elixir/OTP pair
   (1.20.1 / 29.0.2) runs the test suite and the conformance corpus on
-  every push and pull request; the broadened-target receipt the
-  README's support claim now rests on.
+  every push and pull request, checking the README's support claim.
 
 The test suite is 917 tests (59 properties) at 100% coverage. The
 conformance corpus is unchanged at 94 cases, digest
@@ -705,11 +698,10 @@ digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
 - The README test-count claim is tied to the suite-REGISTERED count,
   not just the source macro census: the release-candidate check
   asserts macro census == registered count == README claim (both
-  divergence arms red-proven and replanted in the evidence map).
-- The deferred-work registry (twelve named items, each with its
-  checkable reopen trigger) ships inside the specification tree's
-  FOUNDATION-TRANSITION document; the durable record no longer lives
-  only in planning artifacts.
+  divergence arms tested against deliberately introduced faults).
+- The capability inventory ships inside the specification tree's
+  FOUNDATION-TRANSITION document, with a condition for reconsidering
+  each capability not included in that release.
 
 The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
@@ -780,8 +772,7 @@ The normative specification is a specification in the standards sense:
   corpus extract self-contained; the CI job runs the literal
   repository-filter extraction).
 
-Every new gate carries a recorded red proof in the requirement map and
-is replanted by the release-candidate reprove (74 plants).
+Every new gate is tested against a deliberately introduced fault by the release-candidate check (74 faults).
 
 The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
@@ -800,7 +791,7 @@ The conformance corpus is unchanged at 94 cases, digest
   number (a document that ships nowhere); both are reworded to
   self-contained prose, and a new document-citation gate (below) keeps
   the class dead.
-- `docs/protocol.md` states the producer surface explicitly in its
+- `spec/protocol.md` states the producer surface explicitly in its
   shipped-surface section (`Blueprint.from_value/2`,
   `Deployment.from_value/2`, the per-artifact `content_digest/1` and
   `canonical_bytes/1`), resolving the pointer the producer-surface ADR
@@ -815,13 +806,11 @@ The conformance corpus is unchanged at 94 cases, digest
 
 ### Added: documentation gates
 
-- Documentation-currency gate
-  (`test/architecture/documentation_currency_test.exs`): README,
+- Documentation-currency gate: README,
   SECURITY.md, and CHANGELOG version claims, install pins, count
   claims, and the current release's corpus identity (digest and case
   total) are checked against the live project on every run.
-- Document-citation gate
-  (`test/architecture/document_citation_gate_test.exs`): shipped
+- Document-citation gate: shipped
   markdown documents may cite only documents that exist; a named
   section citation must name a shipped document or a pinned external
   standard, and every repository-relative link must resolve to a real
@@ -849,7 +838,7 @@ The conformance corpus is unchanged at 94 cases, digest
   `$ref` cycles; portable condition depth is three composite tiers
   (metered complexity 417/512; the single free-form string (`definition.name`) is bounded to 128 bytes by the schema itself, the bound on the authored channel's unscanned surface). See `docs/adr/product-extension-registration.md`.
 - The schema document ships as corpus data
-  (`priv/conformance/schemas/estate-contract.schema.json`); `lib/` records only
+  for that release; the library records only
   the digest pin, and a test binds the pin to the SHIPPED document (the corpus
   index hashes raw file bytes, the pin hashes JCS of the parsed document; the
   test is the bridge between the two domains).
@@ -889,7 +878,7 @@ The conformance corpus is unchanged at 94 cases, digest
   corpus-bearing `items` user; the byte-identical agreement gate now proves
   both languages validate items identically.
 
-### Changed: from the unreleased queue
+### Changed
 
 - The gitleaks secret-scan configuration was invalid TOML (a string
   concatenation TOML does not support) and, independently, nothing executed
@@ -918,17 +907,10 @@ The conformance corpus is unchanged at 94 cases, digest
   records (`docs/adr/`), and `docs/federation-mapping.md` joins the
   hexdocs extras, matching the house packaging convention of the
   published `bounded_authority_protocol` package.
-- The requirement map stays repository-side BY DESIGN (public in the
-  repository, not in the archive): its verbatim red receipts quote the
-  very internal tokens the publish guard bans from the archive, so
-  archiving it reds the guard; that red is now recorded in the map's
-  own publish-guard entry as the boundary's proof. An earlier draft of
-  this release stripped the map's receipt fences from the guard's scan
-  instead; cross-vendor review correctly blocked it as a guard blind
-  spot that would have shipped the banned tokens verbatim.
+- Build-verification records remain in the repository and are excluded from the archive. The publication guard rejects those records if they are included, because their intentionally failing examples contain prohibited text.
 - README restructured to the house convention: Installation directly
   after the introduction, a function-level "What it provides" section,
-  and the requirement map's boundary stated.
+  and the documentation packaging boundary stated.
 
 ## [0.1.0] - 2026-08-23
 
@@ -938,18 +920,14 @@ second-language verifier.
 
 ### Normative docs + release-candidate gates
 
-- `docs/protocol.md`: the normative protocol document (ships in the Hex
+- `spec/protocol.md`: the normative protocol document (ships in the Hex
   archive): artifacts and the closed member registries, bounded bytes
   and the integer window, RFC 8785 canonicalization, domain-separated
   digests, the detached-JWS envelope, evolution and extension rules, the
   compiled registry's first-release entries, the bounds algebra laws,
   the 74-code error vocabulary, the evidence contract, and the
   conformance corpus identity (88 cases at the recorded digest).
-- `docs/design/requirement-map.md` (repository-side, not in the Hex
-  archive): every build gate's recorded red
-  proof (each quality-alias step, every architecture-lane test case,
-  and the conformance lanes) re-derived live (plant → run → restore)
-  with verbatim failing output.
+- Build-verification records stay in the repository. Every quality step, architecture test, and conformance check is tested against a deliberately introduced fault.
 - `docs/adr/` (repository-side, slug-only filenames): the seven
   decisions of record:
   the non-authorizing boundary, the detached JWS envelope, the
@@ -968,9 +946,7 @@ second-language verifier.
     an honest stance sentence; `ExtensionRegistry.federation_schema/0`
     gained its missing `@spec`).
 - `mix release.candidate` (also in `mix quality`): re-derives the
-  requirement map's completeness from live project state (every
-  architecture test case, every live quality-alias step), structure-
-  checks each entry's red fence, and couples `docs/protocol.md` to the
+  verification-record completeness from live project state (every architecture test case and quality-alias step), checks recorded failures, and couples `spec/protocol.md` to the
   shipped implementation (facade functions, registry namespaces, corpus
   digest and case total, the stance sentence).
 - Internal-reference scrub of the shipped surface: tracker numerals,
@@ -995,8 +971,7 @@ second-language verifier.
   JOSE vectors), and proves three seeded reds fire (verdict inversion,
   report member drift, window-check deletion), with a calibration
   self-proof of the raise path.
-- `conformance/verifier/testdata/jose-vectors.json` +
-  `scripts/generate_jws_vectors.exs`: the stored detached-JWS vectors, KAT-
+- The stored detached-JWS vectors are KAT-
   anchored to RFC 8032 §7.1 TEST 1, verified Elixir-signed → node-verified
   in both detached and compact forms.
 - `Signature`: small-order key rejection hardened: the identity (order 1)

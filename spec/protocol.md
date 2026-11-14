@@ -200,11 +200,11 @@ reference implementation's to enforce.
 
 Every `max_cost.amount`, including Blueprint `ceilings`, Deployment
 `host_bounds`, and `model_policy`, is an integer count of millionths
-(10^-6) of one unit of the currency named by `currency`. The currency is an
-three-uppercase-letter string matching `[A-Z]{3}`; verifiers check that
-pattern, and the currency's meaning is ISO 4217. The scale never depends on the
+(10^-6) of one unit of the currency named by `currency`. The currency is a string of three uppercase letters matching `[A-Z]{3}`; verifiers check that pattern, and the currency's meaning is ISO 4217. The scale never depends on the
 currency's minor-unit exponent. Thus `amount: 1000, currency: "USD"` means
 0.001 USD, with no floating-point amount.
+
+`as_of` is exactly `none` with a null age, or `required` with a positive integer age in milliseconds.
 
 ### Identifier and timestamp profiles
 
@@ -1017,14 +1017,7 @@ conformance); the engine knows tables, never domains.
 ### Producer surface
 
 Hosts that render artifacts produce them through the per-artifact
-constructors, never through facade-level minting: compose the member
-value, construct it with `Blueprint.from_value/2` or
-`Deployment.from_value/2` (threading `:authored_extensions` for
-critical namespaces whose bodies negotiation validated against a
-digest-pinned schema; the caller supplies that provenance, and the constructor
-checks membership in this artifact's critical region), compute the release identity with the
-artifact's `content_digest/1`, and serialize with its
-`canonical_bytes/1`. The round-trip property (decode → `to_value/1` →
+constructors, never through facade-level minting: compose the tagged JSON value with a well-formed provisional digest. Construct a draft with the artifact's `from_value/2`, compute `content_digest/1`, convert it with `Digest.to_tagged/1`, and replace the value's `content_digest` or `deployment_digest` member. Canonically encode the updated value and decode those bytes to validate the completed artifact. Sign the completed digest and recreate any signatures affected by the edit. Supply `:authored_extensions` from negotiation of that same value for critical namespaces whose bodies were validated against a digest-pinned schema; the constructor checks membership in this artifact's critical region. The round-trip property (decode → `to_value/1` →
 encode is a fixed point) is the byte-exactness guarantee a producer
 relies on. The conformance CLI emits a separate corpus-certification label on stderr
 without changing the canonical stdout report (§15). The facade stays a verification facade: it delegates and
@@ -1228,7 +1221,7 @@ is failure. These rules add no host authorization or execution requirement.
 - [JSON Schema Core, draft 2020-12](https://json-schema.org/draft/2020-12/json-schema-core) and [Validation, draft 2020-12](https://json-schema.org/draft/2020-12/json-schema-validation); only the subset (protocol §9) applies.
 - [ECMA-262, sixth edition, June 2015](https://262.ecma-international.org/6.0/#sec-tostring-applied-to-the-number-type), number serialization (ECMA-262 §7.1.12.1) and its Note 2.
 - [A2A v1.0.1](https://github.com/a2aproject/A2A/releases/tag/v1.0.1), released May 2026, the federation mapping's released transport baseline.
-- [MCP revision 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28) and [Tasks extension v0.2.3, dated specification](https://github.com/modelcontextprotocol/ext-tasks/blob/v0.2.3/specification/2026-07-28/tasks.md). The Tasks lane remains draft-tracking while the extension is Beta.
+- [MCP revision 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28) and [Tasks extension v0.2.3, dated specification](https://github.com/modelcontextprotocol/ext-tasks/blob/v0.2.3/specification/2026-07-28/tasks.md). The upstream Tasks contract remains draft-tracking while the extension is Beta; ABP's shipped mapping remains supported throughout 1.x under the stability policy (§20).
 
 ### Informative references
 

@@ -7,10 +7,38 @@
         "separated_human_required"
       ]
     },
-    "as-of-mode": {
-      "enum": [
-        "none",
-        "required"
+    "as-of-policy": {
+      "oneOf": [
+        {
+          "properties": {
+            "max_age_ms": {
+              "type": "null"
+            },
+            "mode": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "max_age_ms",
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "max_age_ms": {
+              "$ref": "#/$defs/positive-integer"
+            },
+            "mode": {
+              "const": "required"
+            }
+          },
+          "required": [
+            "max_age_ms",
+            "mode"
+          ],
+          "type": "object"
+        }
       ]
     },
     "authority-trait": {
@@ -93,20 +121,7 @@
     "data-binding-element": {
       "properties": {
         "as_of": {
-          "properties": {
-            "max_age_ms": {
-              "minimum": 1,
-              "type": "integer"
-            },
-            "mode": {
-              "$ref": "#/$defs/as-of-mode"
-            }
-          },
-          "required": [
-            "max_age_ms",
-            "mode"
-          ],
-          "type": "object"
+          "$ref": "#/$defs/as-of-policy"
         },
         "classification_ceiling": {
           "$ref": "#/$defs/classification"
@@ -375,9 +390,7 @@
     "idempotency-object": {
       "properties": {
         "key_derivation": {
-          "enum": [
-            "host"
-          ]
+          "const": "host"
         },
         "recovery": {
           "enum": [

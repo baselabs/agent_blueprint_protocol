@@ -23,11 +23,10 @@ function changelogPromotes(a,b,rc,final){
 function promotionRule(path){
   // Namespace pages also carry release-pinned documentation links.
   if(path.startsWith('site/extensions/'))return 'version';
-  if(['mix.exs','package.json','package-lock.json','verifier/README.md'].includes(path)||['documentation/','docs/','site/'].some(dir=>path.startsWith(dir)))return 'version';
+  if(['mix.exs','package.json','package-lock.json','README.md','verifier/README.md'].includes(path)||['documentation/','docs/','site/'].some(dir=>path.startsWith(dir)))return 'version';
   if(path==='priv/release-metadata.json')return 'metadata';
   if(path==='priv/release-history.json')return 'history';
   if(path==='CHANGELOG.md')return 'changelog';
-  if(path==='README.md')return 'readme';
   if(path==='SECURITY.md')return 'security';
   return 'frozen';
 }
@@ -50,10 +49,6 @@ function check(changes,rc,final){
       }
       case 'changelog':
         if(!changelogPromotes(a,b,rc,final))denied.push(path);break;
-      case 'readme':{
-        const normalized=a.replaceAll(rc,final).replaceAll('@agent-blueprint-protocol/verifier@rc','@agent-blueprint-protocol/verifier');
-        if(normalized!==b)denied.push(path);break;
-      }
       case 'security':{
         const line=final.split('.').slice(0,2).join('.')+'.x';
         const rcRow='| '+rc+' | yes |\n';
@@ -90,10 +85,11 @@ function selfTest(){
   check([['verifier/README.md',Buffer.from('npm install @agent-blueprint-protocol/verifier@'+rc),Buffer.from('npm install @agent-blueprint-protocol/verifier@'+final)]],rc,final);
   checkTree([['verifier/README.md',Buffer.from(rc)]],rc);
   assert.equal(promotionRule('site/extensions/example/index.html'),'version');
+  assert.equal(promotionRule('README.md'),'version');
   check([['mix.exs',Buffer.from('@version "'+rc+'"'),Buffer.from('@version "'+final+'"')]],rc,final);
-  const readme=Buffer.from('# Example\n\n{:agent_blueprint_protocol, "~> '+rc+'"}\n\nnpm install @agent-blueprint-protocol/verifier@rc\nnpx @agent-blueprint-protocol/verifier@rc --help\n');
+  const readme=Buffer.from('# Example\n\n{:agent_blueprint_protocol, "~> '+rc+'"}\n\nnpm install @agent-blueprint-protocol/verifier@'+rc+'\nnpx @agent-blueprint-protocol/verifier@'+rc+' --help\n');
   const security=Buffer.from('# Security policy\n\n| Version | Supported |\n| --- | --- |\n| '+rc+' | yes |\n| 1.0.x | yes |\n| 0.8.x | yes |\n');
-  const finalReadme=Buffer.from(readme.toString().replaceAll(rc,final).replaceAll('@agent-blueprint-protocol/verifier@rc','@agent-blueprint-protocol/verifier'));
+  const finalReadme=Buffer.from(readme.toString().replaceAll(rc,final));
   const finalSecurity=Buffer.from(security.toString().replace('| '+rc+' | yes |\n',''));
   const rcHeading='## ['+rc+']';
   const changelog='# Changelog\n\n'+rcHeading+' - 2026-11-11\n\nCandidate package.\n\n## [0.8.4] - 2026-10-01\n\nEarlier package.\n';
@@ -106,7 +102,7 @@ function selfTest(){
   assert.notDeepEqual(security,finalSecurity);
   assert.notEqual(changelog,finalChangelog);
   check([['README.md',readme,finalReadme],['SECURITY.md',security,finalSecurity]],rc,final);
-  for(const [path,before,after] of [['README.md',readme,Buffer.from(finalReadme.toString().replaceAll(final,rc))],['README.md',readme,Buffer.from(finalReadme.toString().replaceAll('@agent-blueprint-protocol/verifier','@agent-blueprint-protocol/verifier@rc'))],['SECURITY.md',security,Buffer.from(finalSecurity.toString().replace('| 1.0.x | yes |\n',''))]])assert.throws(()=>check([[path,before,after]],rc,final),/forbidden differences/);
+  for(const [path,before,after] of [['README.md',readme,Buffer.from(finalReadme.toString().replaceAll(final,rc))],['README.md',readme,Buffer.from(finalReadme.toString().replaceAll('@agent-blueprint-protocol/verifier@'+final,'@agent-blueprint-protocol/verifier'))],['SECURITY.md',security,Buffer.from(finalSecurity.toString().replace('| 1.0.x | yes |\n',''))]])assert.throws(()=>check([[path,before,after]],rc,final),/forbidden differences/);
   for(const [path,before,after] of [['README.md',readme,finalReadme],['SECURITY.md',security,finalSecurity]])assert.throws(()=>check([[path,before,Buffer.concat([after,Buffer.from('extra text')])]],rc,final),/forbidden differences/);
   assert.throws(()=>check([seeded()],rc,final),/forbidden differences/);
   assert.throws(()=>checkTree([['lib/frozen.ex',Buffer.from(rc)]],rc),/frozen files name candidate/);

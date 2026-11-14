@@ -241,15 +241,15 @@ Before, pin the previous Hex release:
   {:agent_blueprint_protocol, "~> 0.8.4"}
 ```
 
-After, pin the 1.0 release:
+After, select the current 1.x release:
 
 ```elixir fragment
 {:agent_blueprint_protocol, "~> 1.1.0"}
 ```
 
-For TypeScript, install the same version with `npm install @agent-blueprint-protocol/verifier@1.1.0`. The Hex and npm packages carry the same version.
+For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.1.0`. The Hex and npm packages carry the same version.
 
-Before, install the previous npm release; after, install the 1.0 release:
+Before, install the previous npm release; after, install the current 1.x release:
 
 ```sh
 npm install @agent-blueprint-protocol/verifier@0.8.4

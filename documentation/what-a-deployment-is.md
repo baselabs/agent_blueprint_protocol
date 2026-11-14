@@ -32,6 +32,8 @@ The member set is closed for protocol revision 1. The table lists every member.
 
 Every member except `signatures` and `attestations` is required. A member outside the table is rejected.
 
+`as_of` is exactly `none` with a null age, or `required` with a positive integer age in milliseconds.
+
 ## Cost amounts
 
 Every `max_cost.amount` is an integer count of millionths of the currency unit named by `currency`. This applies in `host_bounds` and `model_policy`.

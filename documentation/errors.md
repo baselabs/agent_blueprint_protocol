@@ -41,7 +41,7 @@ Subjects contain schema-defined member names and array indexes where available. 
 | deployment_digest_mismatch | Blueprint-to-manifest binding check | Make the referenced Blueprint release agree. |
 | digest_algorithm_unsupported | Digest parser | Use a digest algorithm supported by this revision. |
 | digest_encoding_invalid | Digest parser | Correct the tagged digest encoding. |
-| digest_mismatch | Digest verification | Consumers reject the received artifact and obtain the intended release. Producers recompute the digest after intentional content changes and recreate affected signatures. |
+| digest_mismatch | Digest verification | Consumers reject the received artifact and obtain the intended release. Producers recompute and insert the digest after intentional content changes and recreate affected signatures. |
 | duplicate_member | JSON decoder | Remove duplicate names from the JSON object. |
 | extension_criticality_conflict | Extension negotiation | Match the registry's declared criticality. |
 | extension_duplicate | Extension validation | Include the namespace only once. |

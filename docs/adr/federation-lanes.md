@@ -1,6 +1,6 @@
 # ADR: federation lanes: A2A primary, MCP draft-tracking
 
-Status: accepted (2026-08-20).
+Status: superseded by [stability policy](stability-policy.md) (2026-11-14) for the MCP stability exception; other decisions remain accepted (2026-08-20).
 
 ## Context
 
@@ -15,9 +15,7 @@ Field-by-field mapping (23 rows) with an honest verdict per row: 3
 native, 5 partial, 15 carried via the registered
 `io.github.baselabs/federation` extension in A2A `Task.metadata` / MCP
 `_meta`. Zero native wire fields; no native transport. A2A is the
-primary lane; the MCP Tasks mapping ships flagged draft-tracking:
-outside core's deprecation guarantee, revisited when the MCP tasks extension
-leaves Beta. The extension has released tags; v0.2.3 carries the dated
+primary lane. The upstream MCP Tasks contract is draft-tracking. ABP's shipped MCP mapping and documented codec contracts remain subject to the 1.x stability policy. If an upstream change requires incompatible federation semantics, a new registered critical namespace is introduced beside the existing profile; the existing profile remains supported throughout 1.x. The extension has released tags; v0.2.3 carries the dated
 2026-07-28 contract. A2A v1.0.1 is the released baseline.
 
 The protocol's federation surface enforces the lossy boundaries:

@@ -186,55 +186,57 @@ The verifier checks canonical point encodings and requires the signature scalar 
 Create a throwaway key, sign one Blueprint input, then verify the same entry with a rejected signature value.
 
 ```elixir
-alias AgentBlueprintProtocol.{Base64Url, Blueprint, Canonicalization, Digest, Signature}
-alias AgentBlueprintProtocol.Signature.PublicKey
+(
+  alias AgentBlueprintProtocol.{Base64Url, Blueprint, Canonicalization, Digest, Signature}
+  alias AgentBlueprintProtocol.Signature.PublicKey
 
-{:ok, blueprint_value} = AgentBlueprintProtocol.Json.decode(blueprint_bytes)
-{:ok, blueprint} = Blueprint.from_value(blueprint_value)
-digest = Digest.to_tagged(Blueprint.content_digest(blueprint))
-{public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
+  {:ok, blueprint_value} = AgentBlueprintProtocol.Json.decode(blueprint_bytes)
+  {:ok, blueprint} = Blueprint.from_value(blueprint_value)
+  digest = Digest.to_tagged(Blueprint.content_digest(blueprint))
+  {public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)
 
-protected =
-  {:object,
-   [
-     {"alg", {:string, "Ed25519"}},
-     {"b64", {:boolean, false}},
-     {"crit", {:array, [{:string, "b64"}]}},
-     {"kid", {:string, "example-check-key"}}
-   ]}
+  protected =
+    {:object,
+     [
+       {"alg", {:string, "Ed25519"}},
+       {"b64", {:boolean, false}},
+       {"crit", {:array, [{:string, "b64"}]}},
+       {"kid", {:string, "example-check-key"}}
+     ]}
 
-attributes =
-  {:object,
-   [
-     {"algorithm", {:string, "Ed25519"}},
-     {"content_digest", {:string, digest}},
-     {"created_at", {:string, "2026-08-20T00:00:00Z"}},
-     {"key_id", {:string, "example-check-key"}},
-     {"purpose", {:string, "blueprint"}}
-   ]}
+  attributes =
+    {:object,
+     [
+       {"algorithm", {:string, "Ed25519"}},
+       {"content_digest", {:string, digest}},
+       {"created_at", {:string, "2026-08-20T00:00:00Z"}},
+       {"key_id", {:string, "example-check-key"}},
+       {"purpose", {:string, "blueprint"}}
+     ]}
 
-entry_with = fn bytes ->
-  {:object,
-   [
-     {"protected", protected},
-     {"signed_attributes", attributes},
-     {"signature", {:string, Base64Url.encode(bytes)}}
-   ]}
-end
+  entry_with = fn bytes ->
+    {:object,
+     [
+       {"protected", protected},
+       {"signed_attributes", attributes},
+       {"signature", {:string, Base64Url.encode(bytes)}}
+     ]}
+  end
 
-{:ok, input} = Signature.signing_input(entry_with.(<<0::512>>))
-valid_signature = :crypto.sign(:eddsa, :none, input, [private_key, :ed25519])
-key = %PublicKey{key_id: "example-check-key", algorithm: :ed25519, key: public_key}
-rejected = Signature.verify(entry_with.(<<0::512>>), [key])
+  {:ok, input} = Signature.signing_input(entry_with.(<<0::512>>))
+  valid_signature = :crypto.sign(:eddsa, :none, input, [private_key, :ed25519])
+  key = %PublicKey{key_id: "example-check-key", algorithm: :ed25519, key: public_key}
+  rejected = Signature.verify(entry_with.(<<0::512>>), [key])
 
-%{
-  valid_shape_created: byte_size(valid_signature) == 64,
-  rejected_code:
-    case rejected do
-      {:error, %AgentBlueprintProtocol.Error{code: code}} -> code
-      {:ok, _} -> :accepted
-    end
-}
+  %{
+    valid_shape_created: byte_size(valid_signature) == 64,
+    rejected_code:
+      case rejected do
+        {:error, %AgentBlueprintProtocol.Error{code: code}} -> code
+        {:ok, _} -> :accepted
+      end
+  }
+)
 ```
 
 <!-- livebook:{"output":true} -->

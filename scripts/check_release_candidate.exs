@@ -609,10 +609,10 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       command: ~w(mix test test/architecture/document_citation_gate_test.exs)
     },
     %{
-      name: "citation-dangling-link",
+      name: "citation-unpackaged-link",
       path: "README.md",
       from: "## Status\n",
-      to: "## Status\n\nSee [the note](docs/internals-note.md).\n",
+      to: "## Status\n\nSee [the note](docs/consumer-evidence.md).\n",
       command: ~w(mix test test/architecture/document_citation_gate_test.exs)
     },
     %{

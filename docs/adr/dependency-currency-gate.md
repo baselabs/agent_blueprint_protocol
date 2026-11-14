@@ -16,8 +16,7 @@ package deliberately held below latest is a pin with an inline reason in
 mix.exs (identity contract, pending major jump, resolver conflict).
 "We never bumped it" is not a reason.
 
-The gate (`scripts/check_deps_currency.exs`, battery step
-`deps.currency`):
+The `mix deps.currency` gate:
 
 - runs in the caller's working directory (no internal directory change)
   so CI gates each project from that project's own root;

@@ -15,8 +15,8 @@ transfer. This document is an inventory, not an offer.
   cases with the applicability floor, golden artifacts, and vectors.
 - **The reference implementation and the verifier** (Apache-2.0): the
   Elixir package and the second-language TypeScript verifier.
-- **The gate battery and its recorded red proofs** (the requirement
-  map): reproducible evidence infrastructure.
+- **Verification materials**: the shipped conformance corpus, execution
+  protocol, and certified per-case results.
 
 ## Requires the steward's principals
 
@@ -36,32 +36,24 @@ transfer. This document is an inventory, not an offer.
 
 ## Triggers
 
-A transfer conversation opens when a venue or foundation terms
-discussion begins (the recorded trigger in the campaign's decision
-records). The extraction job keeps submission mechanical in the
+A transfer conversation begins when a standards venue or foundation starts a terms discussion. The extraction job keeps submission mechanical in the
 meantime.
 
-## The deferred-work registry
+## Capabilities not included
 
-Work deliberately not done at this release, each with the trigger that
-reopens it: vision accounting, not silent deferral. This registry is
-the durable, shipped record; nothing on it is dropped.
+The following capabilities are not included in this release. Each row states the condition for reconsidering it.
 
-| Deferred work | Reopens when |
+| Capability | Reconsidered when |
 |---|---|
 | Repository extraction to its own repo | a standards-body submission opens (the extraction job keeps it a filter away) |
 | Foundation donation execution | a terms discussion begins (this document is the inventory) |
 | Third implementation (Rust or Go) | an external conforming implementation merges |
 | Registry codegen from the canonical json | a third implementation, or an unported registry change surviving a cycle |
 | CDDL validator automation | a maintained RFC 8610 validator passes the derivation gate |
-| npm kit distribution: DELIVERED with the installable-verifier release (`@agent-blueprint-protocol/verifier`; the agreement gate proves the kit against the escript every build) | retired; reopened only if distribution requirements change |
 | Registry public registrants (real product identities) | the portfolio products go public |
 | Benchmark program | the first host-integration performance question |
 | Federation completion (native wire fields revisit) | the MCP tasks extension leaves Beta |
 | Attestation-kind registry activation | a second attestation consumer exists |
-| Subset profiles (decode+verify only): the card projection and single-artifact verify shipped with the installable-verifier release; the NORMATIVE subset profile remains open | an adopter needs the formal profile |
-| Deterministic fixture signing keypair: DELIVERED; new fixtures use a fixed, explicitly test-only Ed25519 seed and existing signatures remain byte-identical | retired; reopened only if fixture derivation changes |
+| Normative subset profiles (decode and verify only) | an adopter needs the formal profile |
 
-Each trigger is checkable; none is a date. When one fires, the work
-re-enters the queue with the same discipline as everything in the
-requirement map.
+The maintainers reassess an item when its stated condition is met.
