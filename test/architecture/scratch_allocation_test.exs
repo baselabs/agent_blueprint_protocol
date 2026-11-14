@@ -9,8 +9,12 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
     the shared reader of `System.tmp_dir`. It creates with an exclusive mkdir
     under a random name and removes in `after`. ExUnit's `:tmp_dir` tag is
     not used: it leaves its directory behind after the test.
-    The independently reusable package notebook gate owns the same lifecycle
-    within its self-contained file; its exclusive allocation and cleanup are checked here.
+    The independently reusable package gates (notebooks, doctests and
+    snippets) own the same lifecycle within their self-contained files; their
+    exclusive allocation and cleanup are checked here. Their consumer projects
+    live under `scratch/consumers`, removed before the scratch: a consumer's
+    build links its priv directory into the unpacked package, and Windows
+    cannot remove that link once the package is gone.
   - Node and TypeScript: `const dir = mkdtempSync(join(tmpdir(), "abp-..."))`,
     removed by `rmSync(dir, ...)` in a `finally`. Every `tmpdir()` call is
     that argument, and every `mkdtempSync` result is bound and removed.
@@ -54,6 +58,7 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
 
       for broken <- [
             String.replace(standalone, "File.rm_rf!(scratch)", ":ok"),
+            String.replace(standalone, "File.rm_rf!(consumers)", ":ok"),
             String.replace(standalone, "File.mkdir!(scratch)", "File.mkdir_p!(scratch)"),
             String.replace(standalone, ":crypto.strong_rand_bytes(12)", "\"fixed\"")
           ] do
@@ -121,7 +126,11 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
       Regex.match?(~r/scratch\s*=\s*Path.join\(\s*System.tmp_dir!\(\)\s*,/s, source) and
       source =~ ":crypto.strong_rand_bytes(12)" and
       source =~ "File.mkdir!(scratch)" and
-      Regex.match?(~r/after\s+File.rm_rf!\(scratch\)/, source) and
+      source =~ ~s|consumers = Path.join(scratch, "consumers")| and
+      Regex.match?(
+        ~r/after\s+(?:#[^\n]*\n\s*)*File\.rm_rf!\(consumers\)\s+File\.rm_rf!\(scratch\)\s+end/,
+        source
+      ) and
       not String.contains?(source, "Code.require_file")
   end
 
