@@ -586,6 +586,23 @@ the Elixir compiler eliminates never-called private functions, so
 beam-census plants must be public (that elimination is itself load-bearing
 for the census gates — a private dead function cannot smuggle a call).
 
+### case: "every job that runs Go selects the pinned Go toolchain first"
+
+```red
+$ # plant: remove the setup-go step from the docs-gates secret-scan job
+$ mix test test/architecture/ci_go_toolchain_test.exs
+Go jobs without the pinned toolchain: [{".github/workflows/docs-gates.yml", "secret-scan", "selects Go 0 times, not once"}, {".github/workflows/docs-gates.yml", "secret-scan", "does not pin setup-go v7.0.0 with Go 1.27.4"}]
+Result: 0/1 passed
+$ # plant: pin Go 1.27.1 in ci.yml
+$ mix test test/architecture/ci_go_toolchain_test.exs
+Go jobs without the pinned toolchain: [{".github/workflows/ci.yml", "workflow-syntax", "does not pin setup-go v7.0.0 with Go 1.27.4"}, {".github/workflows/ci.yml", "secret-scan", "does not pin setup-go v7.0.0 with Go 1.27.4"}]
+Result: 0/1 passed
+$ # plant: move the workflow-syntax setup-go step after actionlint
+$ mix test test/architecture/ci_go_toolchain_test.exs
+Go jobs without the pinned toolchain: [{".github/workflows/ci.yml", "workflow-syntax", "runs Go before selecting the pinned toolchain"}]
+Result: 0/1 passed
+```
+
 ### case: "the quality job selects an immutable supported Node runtime"
 
 ```red

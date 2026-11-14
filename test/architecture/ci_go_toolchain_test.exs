@@ -100,7 +100,7 @@ defmodule AgentBlueprintProtocol.CiGoToolchainTest do
     [
       setups != 1 && "selects Go #{setups} times, not once",
       pinned == nil && "does not pin setup-go v7.0.0 with Go #{@go_version}",
-      pinned != nil and first_go != nil and pinned > first_go &&
+      (pinned != nil and first_go != nil and pinned > first_go) &&
         "runs Go before selecting the pinned toolchain"
     ]
     |> Enum.filter(&is_binary/1)
