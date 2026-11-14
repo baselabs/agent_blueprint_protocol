@@ -19,7 +19,7 @@ defmodule AgentBlueprintProtocol.Portability do
   # The 34-name member denylist, verbatim.
   # Stored NORMALIZED (snake + case-folded, kebab folded in at compare
   # time): the stored set carries every spelling's folded twin so camel,
-  # kebab, and SCREAMING forms of one denied name converge — the
+  # kebab, and SCREAMING forms of one denied name converge; the
   # normalization lesson swept across the whole family.
   @denied_names_source [
     "secret",
@@ -76,8 +76,8 @@ defmodule AgentBlueprintProtocol.Portability do
   @pem_marker "-----BEGIN"
   @min_signature_chars 43
   # Raw-key floors, separator-aware: 24 decoded bytes separator-free (the
-  # AES-128 hex class — hex never carries separators), 32 when the string
-  # carries `-`/`_` (the base64url calibration — real keys carry
+  # AES-128 hex class; hex never carries separators), 32 when the string
+  # carries `-`/`_` (the base64url calibration; real keys carry
   # separator characters, and separator-bearing identifiers stay green
   # below it). Hyphenated UUIDs are exempt by SHAPE in every mode
   # (the pinned honest-limit example).
@@ -91,7 +91,7 @@ defmodule AgentBlueprintProtocol.Portability do
   @b64url Regex.compile!("\\A[A-Za-z0-9_-]+\\z")
   # RFC 3986: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ), then "://"
   # and a non-empty authority run up to the first path/query/fragment/space.
-  # The scheme-less network-path reference (`//authority/path` — the same
+  # The scheme-less network-path reference (`//authority/path`, the same
   # host disclosure) matches anchored at string start only (the
   # scheme-requiring form would have let `//internal.svc/api`
   # through every scan mode).
@@ -150,8 +150,8 @@ defmodule AgentBlueprintProtocol.Portability do
 
   # Names normalize kebab/SCREAMING/camel onto the stored forms before the
   # denylist compare (the normalized
-  # comparison swept across the family: `tenant-id` is the same denied name as `tenant_id`
-  # — a plain-ASCII completeness gap of the transcribed list, not a
+  # comparison swept across the family: `tenant-id` is the same denied name as `tenant_id`:
+  # a plain-ASCII completeness gap of the transcribed list, not a
   # homoglyph; homoglyph spellings remain the accepted residual of any
   # name list).
   defp denied_name?(name) do
@@ -273,10 +273,10 @@ defmodule AgentBlueprintProtocol.Portability do
   end
 
   # Colon-chunked hex (SSH fingerprint / EUI form): 1-2 hex digits per
-  # chunk, 24+ CHUNKS — each chunk is one byte, so one-digit (zero-stripped)
+  # chunk, 24+ CHUNKS; each chunk is one byte, so one-digit (zero-stripped)
   # chunks count fully (both peers' finding: a digit-sum threshold let
   # zero-stripped keys under it). The chunk grammar spares tagged content
-  # addresses ("sha256:…" — the prefix is not a hex chunk) and MACs.
+  # addresses ("sha256:…"; the prefix is not a hex chunk) and MACs.
   defp colon_hex_fingerprint?(s) do
     chunks = String.split(s, ":")
 
@@ -311,12 +311,12 @@ defmodule AgentBlueprintProtocol.Portability do
   defp b64url?(s), do: Regex.match?(@b64url, s)
 
   # The identifier convention: one case, digits, and at least one `_` or
-  # `-` separator (snake and kebab alike — the protocol's own segment
+  # `-` separator (snake and kebab alike; the protocol's own segment
   # grammar admits both, and the [a-z0-9_-] class carries the same ≈1.6e-10
   # bound against random key material). Separator-free (hex, base32) is
   # never exempt. POSITION-SCOPED: an adversary who controls the ENCODING
   # can pack secret material into the class, so the exemption is the
-  # artifact layer's call for positions whose convention it owns — never a
+  # artifact layer's call for positions whose convention it owns, never a
   # default.
   defp identifier_style?(s) do
     (String.contains?(s, "_") or String.contains?(s, "-")) and

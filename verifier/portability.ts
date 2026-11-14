@@ -1,4 +1,4 @@
-// The never-portable structural guard — the mirror of AgentBlueprintProtocol.Portability:
+// The never-portable structural guard, the mirror of AgentBlueprintProtocol.Portability:
 // member-name and value-shape denylists over tagged values, four walks
 // (scan / scanAuthored / scanIdentifier / scanValue) with the position-scoped
 // identifier exemption and bounded recursion. Malformed inputs deny by type.
@@ -184,7 +184,7 @@ function paddedStandardB64(s: string): boolean {
   return /^[A-Za-z0-9+/]{32,}={1,6}$/.test(s) || /^[A-Za-z0-9+/]{43,}$/.test(s);
 }
 
-// 1-2 hex digits per ":" chunk, 24+ CHUNKS — each chunk is one byte in the
+// 1-2 hex digits per ":" chunk, 24+ CHUNKS; each chunk is one byte in the
 // SSH-fingerprint / EUI form, so zero-stripped one-digit chunks count fully.
 function colonHexFingerprint(s: string): boolean {
   const chunks = s.split(":");

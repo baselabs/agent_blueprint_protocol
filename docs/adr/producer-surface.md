@@ -10,7 +10,7 @@ documented per-artifact constructors (`Blueprint.from_value/2`,
 `Blueprint.content_digest/1`, `Deployment.from_value/2`, and the digest
 helpers) are the intended PRODUCER surface for hosts that render artifacts, or
 whether facade-level producers should grow (`AgentBlueprintProtocol.blah`
-entry points that mint artifacts). The consumer's reading was yes — the
+entry points that mint artifacts). The consumer's reading was yes; the
 constructors are the producer surface.
 
 ## Decision
@@ -19,8 +19,8 @@ The constructors ARE the intended producer surface. The facade stays a
 verification facade: it delegates and never implements, and no facade-level
 producer functions grow. A host rendering an artifact composes the value
 (members per its own product mapping), constructs it with
-`from_value/2` — threading `:authored_extensions` for critical namespaces whose
-bodies negotiation validated against a digest-pinned schema — computes the
+`from_value/2` (threading `:authored_extensions` for critical namespaces whose
+bodies negotiation validated against a digest-pinned schema) computes the
 content digest, and serializes with `canonical_bytes/1`. The round-trip
 property (`decode → to_value → encode` is a fixed point) is the byte-exactness
 guarantee a producer relies on.

@@ -340,7 +340,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   defp agrees?(%{"verdict" => "valid"} = expected, actual) do
     projections = Map.delete(expected, "verdict")
 
-    # A verdict-only valid expectation agrees with ANY ok-map — the vacuous
+    # A verdict-only valid expectation agrees with ANY ok-map; the vacuous
     # green an adversarial pass caught. Valid cases
     # must pin at least one projection; the loader enforces the same rule
     # at authoring so such a case cannot ship.
@@ -397,7 +397,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   # The protected lattices are atom-typed in the algebra; JSON case inputs
   # carry strings, so they convert through this compile-time map (an
-  # off-lattice string passes through and the algebra denies it — the runner
+  # off-lattice string passes through and the algebra denies it; the runner
   # does not pre-filter judgment).
   @lattice_atoms Map.new(
                    ~w(public internal confidential restricted none local_policy external_authority_required human_required separated_human_required ordinary money authority secret summary detail full pci phi)a,
@@ -757,7 +757,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
            case Map.fetch(@bounds_keys, key) do
              {:ok, atom_key} -> Map.put(acc, atom_key, value)
              # An unknown key passes through so Bounds.new denies it
-             # (:unknown_bound) — the runner does not pre-filter judgment.
+             # (:unknown_bound); the runner does not pre-filter judgment.
              :error -> Map.put(acc, key, value)
            end
          end)}
@@ -847,7 +847,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   defp build_key(_), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   defp build_support(input) do
-    # A malformed nested member denies typed — a non-map "support" must not
+    # A malformed nested member denies typed; a non-map "support" must not
     # crash the runner (BadMapError past the
     # verdict machinery).
     case Map.get(input, "support") do
@@ -961,7 +961,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   defp clamp_posture(%{"protected_clamp" => "acknowledge"}), do: :acknowledge
   defp clamp_posture(_), do: :deny
 
-  # Scope bound values carry a MapSet of markers — project as a sorted list
+  # Scope bound values carry a MapSet of markers; project as a sorted list
   # so expectations are plain JSON.
   defp project_bound_value(%{ordinal: _, markers: %MapSet{} = markers} = value) do
     %{
@@ -981,7 +981,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     case Map.get(input, "observed") do
       %{"identities" => identities} when is_list(identities) ->
         # A malformed identity element denies typed, never raises (the
-        # prior-receipts pattern) — found by the second-language
+        # prior-receipts pattern); found by the second-language
         # verifier's parity battery; the bare pattern-match crashed the
         # runner on a non-map element (probed live 2026-08-23).
         observed_identities(identities)
@@ -1067,7 +1067,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp prior_receipts(ctx) do
     case Map.get(ctx, "prior_receipts", []) do
-      # A present-but-non-list prior_receipts denies typed — Enum.map would
+      # A present-but-non-list prior_receipts denies typed; Enum.map would
       # raise Protocol.UndefinedError (the same
       # never-raising class as build_observed's fix).
       list when is_list(list) ->
@@ -1098,7 +1098,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   # --- projections ---------------------------------------------------------------------
 
-  # A decoded artifact's content digest is already verified — the error
+  # A decoded artifact's content digest is already verified; the error
   # arm is unreachable and a mismatch escapes loudly as an internal
   # invariant rather than laundering into a verdict.
   defp project_artifact(%Blueprint{} = artifact) do

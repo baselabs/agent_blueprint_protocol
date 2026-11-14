@@ -3,7 +3,7 @@ import * as predicate from "./predicate.ts";
 import { plain, jsonValue } from "./plain.ts";
 import * as canonical from "./canonical.ts";
 import { isValue } from "./value.ts";
-// The case executor — the mirror of AgentBlueprintProtocol.Conformance.Runner:
+// The case executor, the mirror of AgentBlueprintProtocol.Conformance.Runner:
 // dispatches each corpus case against the verifier's own surface twins and
 // compares to the case's code-level, shape-agnostic expectation (invalid →
 // projected error-code string; valid → per-surface projection members with
@@ -665,7 +665,7 @@ function buildObserved(input: Value): { ok: true; v: compatibility.Observed } | 
   if (identities === null || identities.t !== "arr") return { ok: false, e: "invalid_type" };
   const out: compatibility.ObservedIdentity[] = [];
   // A malformed identity element denies typed at the RUNNER (the twin's
-  // prior_receipts pattern) — never reaches Compatibility, never crashes.
+  // prior_receipts pattern), never reaches Compatibility, never crashes.
   for (const entry of identities.v) {
     if (entry.t !== "obj") return { ok: false, e: "invalid_type" };
     const kind = entry.v.find(([k]) => k === "kind");

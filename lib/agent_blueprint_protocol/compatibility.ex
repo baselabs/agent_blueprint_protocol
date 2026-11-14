@@ -9,10 +9,9 @@ defmodule AgentBlueprintProtocol.Compatibility do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
   observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
   match?({:error, %AgentBlueprintProtocol.Error{}}, AgentBlueprintProtocol.Compatibility.verify(deployment, observed))
@@ -103,10 +102,9 @@ defmodule AgentBlueprintProtocol.Compatibility do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   observed = %AgentBlueprintProtocol.Compatibility.Observed{identities: []}
@@ -177,7 +175,7 @@ defmodule AgentBlueprintProtocol.Compatibility do
   defp read_manifest_member(_absent),
     do: {:error, %Error{code: :missing_required_field, subject: ["build_identities"]}}
 
-  # Exactly the four members — an extra or duplicated key (first-wins in
+  # Exactly the four members: an extra or duplicated key (first-wins in
   # keyfind, so counted) is a struct-bypass defect decode denies
   # (unknown_member/duplicate_member); verify re-asserts it.
   defp identity_of({:object, entry_members})
@@ -199,7 +197,7 @@ defmodule AgentBlueprintProtocol.Compatibility do
 
   defp identity_of(_), do: :error
 
-  # The observed side: host-built, so every shape is checked here — exactly
+  # The observed side: host-built, so every shape is checked here: exactly
   # the four keys, every value a binary, every version an exact spelling.
   defp validated_observed(identities), do: validated_observed(identities, 0, [])
   defp validated_observed([], _index, acc), do: {:ok, Enum.reverse(acc)}
@@ -226,7 +224,7 @@ defmodule AgentBlueprintProtocol.Compatibility do
       Enum.all?(@identity_keys, &is_binary(Map.get(identity, &1)))
   end
 
-  # Match, manifest member order: per identity — its own exactness, the
+  # Match, manifest member order: per identity, its own exactness, the
   # unique-by name re-assertion, then the observed candidates with the
   # exact tuple. None denies missing; many deny duplicate; one emits the
   # check with the parsed observed digest.

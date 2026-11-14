@@ -76,7 +76,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     ~r/(?<![+x])\b0\d{3}-[a-z]/,
     ~r/\b(ticket|issue)\s+0\d{3}/i,
     # internal planning directory names (the actual internal corpus layout)
-    ~r{\b(handoffs|intents|scout|risks|designs|dogfood|issues|research|reviews|specs)/},
+    Regex.compile!(
+      "(?<!#{Regex.escape(String.replace_prefix(Mix.Project.config()[:source_url], "https://", "") <> "/")})" <>
+        "\\b(handoffs|intents|scout|risks|designs|dogfood|issues|research|reviews|specs)/"
+    ),
     # internal design-shorthand citations
     ~r/\bkimosabe\b/i,
     ~r/\bbofn\b/i,
@@ -197,6 +200,27 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     assert hits != [],
            "exemption-pin calibration is vacuous: a pattern that targets " <>
              "owner data found no fixture: registry_fixtures/ is empty or broken"
+  end
+
+  test "repository routes are spared and planning directories still red (exemption pin)" do
+    repository = Mix.Project.config()[:source_url]
+
+    spared = [
+      "#{repository}/issues/new?template=security_report.yml",
+      "[issues](#{repository}/issues)"
+    ]
+
+    caught = [
+      "see issues/ for the tracker",
+      "#{repository}/blob/v1.0.0/issues/0001-example.md",
+      "#{repository}/tree/main/scout/topic",
+      "https://github.com/another/repository/issues/new"
+    ]
+
+    hits = fn text -> Enum.filter(@text_patterns, &Regex.match?(&1, text)) end
+
+    assert Enum.filter(spared, &(hits.(&1) != [])) == []
+    assert Enum.filter(caught, &(hits.(&1) == [])) == []
   end
 
   test "corpus json members are byte-scanned but text-exempt (exemption pin)" do

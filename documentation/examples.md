@@ -2,7 +2,7 @@
 
 This guide is for readers who want to inspect valid protocol artifacts. You will see complete examples and a Federation excerpt and learn how to verify each one.
 
-The examples are stored under `examples/`. Their files are the source for the JSON shown here.
+The examples are stored under `priv/examples/`. Their files are the source for the JSON shown here.
 Timestamp values shown in these examples are fixed artifact data, not readings from the current clock.
 
 In a Mix project with the package installed, start `iex -S mix`. Run each Elixir block below in that session.
@@ -11,7 +11,7 @@ Formatted JSON is for reading, not wire-ready bytes. Download the exact canonica
 
 ## Echo Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/echo-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/echo-blueprint.json).
 
 This Blueprint declares one read capability, one input port, one output port, and operational ceilings. Its cost amount is expressed in millionths of USD.
 
@@ -110,15 +110,14 @@ This Blueprint declares one read capability, one input port, one output port, an
 Decode the Blueprint and compare its canonical bytes with the file:
 
 ```elixir
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-bytes = File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
 {:ok, ^bytes} = AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
 ```
 
 ## Echo Deployment Manifest
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/echo-deployment.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/echo-deployment.json).
 
 This manifest records environment-specific bindings and bounds for the echo Blueprint.
 
@@ -247,15 +246,14 @@ This manifest records environment-specific bindings and bounds for the echo Blue
 Decode the Deployment Manifest and compare its canonical bytes with the file:
 
 ```elixir
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-bytes = File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
 {:ok, deployment} = AgentBlueprintProtocol.decode_deployment(bytes)
 {:ok, ^bytes} = AgentBlueprintProtocol.Deployment.canonical_bytes(deployment)
 ```
 
 ## Signed Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/signed-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/signed-blueprint.json).
 
 This example adds a signature entry to the echo Blueprint. Decoding checks the artifact structure and content digest. The signature verification operation also needs the public key supplied by the caller.
 
@@ -374,8 +372,7 @@ This example adds a signature entry to the echo Blueprint. Decoding checks the a
 Decode it and compare the canonical bytes:
 
 ```elixir
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-bytes = File.read!(Path.join(dependency_root, "examples/signed-blueprint.json"))
+bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/signed-blueprint.json"))
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
 {:ok, ^bytes} = AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
 ```
@@ -384,7 +381,7 @@ This shipped signature uses the accepted `EdDSA` header spelling. The [compose g
 
 ## Extension Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/extension-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/extension-blueprint.json).
 
 This example carries an optional classification-labels namespace in the extension member.
 
@@ -489,15 +486,14 @@ This example carries an optional classification-labels namespace in the extensio
 Decode it and compare the canonical bytes:
 
 ```elixir
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-bytes = File.read!(Path.join(dependency_root, "examples/extension-blueprint.json"))
+bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/extension-blueprint.json"))
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
 {:ok, ^bytes} = AgentBlueprintProtocol.Blueprint.canonical_bytes(blueprint)
 ```
 
 ## Federation TaskEnvelope
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/federation-envelope.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/federation-envelope.json).
 
 This JSON excerpt comes from the shipped Federation TaskEnvelope. It is not a complete envelope. Its namespace and carrier fields are described in the [federation guide](federation.md).
 
@@ -514,8 +510,7 @@ This JSON excerpt comes from the shipped Federation TaskEnvelope. It is not a co
 Decode it and compare the canonical bytes:
 
 ```elixir
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-bytes = File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))
+bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/federation-envelope.json"))
 {:ok, envelope} = AgentBlueprintProtocol.decode_federation_envelope(bytes)
 {:ok, ^bytes} = AgentBlueprintProtocol.Federation.canonical_bytes(envelope)
 ```

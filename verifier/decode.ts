@@ -1,4 +1,4 @@
-// Bounded JSON scanner — the mirror of AgentBlueprintProtocol.Json over
+// Bounded JSON scanner, the mirror of AgentBlueprintProtocol.Json over
 // Erlang's :json decoder. Own scanner (JSON.parse keeps LAST duplicate, the
 // proven divergence the design names), every ceiling enforced, duplicate members
 // rejected, the integer window admitted through the one ES6 oracle.
@@ -9,7 +9,7 @@
 //   duplicate rejection at container close → trailing bytes at root.
 // A STRUCTURAL parse failure classifies by whole-input UTF-8 validity (the
 // twin's classify_parse_error): invalid_encoding when any byte is bad, else
-// invalid_syntax. Ceiling/code failures carry their own reason verbatim —
+// invalid_syntax. Ceiling/code failures carry their own reason verbatim;
 // the twin throws those from inside :json's hooks with the reason attached.
 
 import type { Bounds } from "./bounds.ts";
@@ -18,7 +18,7 @@ import { number } from "./canonical.ts";
 import type { Value } from "./value.ts";
 import { err, ok } from "./value.ts";
 
-// Thrown for ceiling/code denials — reason rides the exception.
+// Thrown for ceiling/code denials; reason rides the exception.
 export class CodeFail extends Error {
   readonly code: string;
   constructor(code: string) {
@@ -27,7 +27,7 @@ export class CodeFail extends Error {
   }
 }
 
-// Thrown for structural parse failures — classified by input validity.
+// Thrown for structural parse failures, classified by input validity.
 export class SyntaxFail extends Error {}
 
 export function decode(

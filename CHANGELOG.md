@@ -2,7 +2,37 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
-## [1.0.1] — 2026-11-12
+## [1.1.0] - 2026-11-14
+
+### Added
+
+Adds revision-specific member vocabularies for Blueprint Core (18), Deployment
+Manifest (19), and Federation TaskEnvelope (23) in Elixir and TypeScript, read
+from their decoder tables. Unsupported integer revisions and invalid types
+return the same typed refusals in both implementations.
+
+Examples ship as installed application resources. Notebooks, module doctests,
+README and guide snippets, and npm examples run against real package archives
+outside the checkout; the postpublish workflow repeats those gates against the
+registry releases. Documentation links pin this release, HexDocs extras resolve
+to rendered pages, and the public ExDoc footer remains enabled.
+
+A shipped-text gate rejects em dashes and en dashes in packaged documents,
+source inputs, generated kit text, site files, and issue templates.
+
+### Changed
+
+All dated changelog headings use `## [x.y.z] - YYYY-MM-DD`.
+
+### Compatibility
+
+Protocol revision 1 and verification-semantics version 3 are unchanged. The corpus
+contains 626 cases, digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`;
+the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`.
+Normative protocol behavior is unchanged; specification edits repair links and
+punctuation.
+
+## [1.0.1] - 2026-11-12
 
 Promotes 1.0.1-rc.1 without changes. The specification's licensing note is
 simplified to the Apache-2.0 license, the Developer Certificate of Origin
@@ -13,7 +43,7 @@ contains 626 cases, digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`
 `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest is
 `sha-256:9hm2GIG5FVX4-gGMFeJpVJfK3GMTi1TeePRopSF0r7w`.
 
-## [1.0.1-rc.1] — 2026-11-12
+## [1.0.1-rc.1] - 2026-11-12
 
 The specification's licensing note is simplified to the Apache-2.0 license, the Developer Certificate of Origin sign-off and copyright.
 The npm README now ships the installed-package walkthrough.
@@ -21,7 +51,7 @@ Library and verifier behavior are unchanged. The corpus contains 626 cases,
 digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`; the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`;
 the specification digest is `sha-256:9hm2GIG5FVX4-gGMFeJpVJfK3GMTi1TeePRopSF0r7w`.
 
-## [1.0.0] — 2026-11-11
+## [1.0.0] - 2026-11-11
 
 The 1.0 release of the Agent Blueprint Protocol. It promotes 1.0.0-rc.3
 without changes: library and verifier behavior, the protocol revision,
@@ -31,7 +61,7 @@ digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`; the registry
 digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the
 specification digest is `sha-256:jh2uy3FU7ApQmFtPHHK3YY041sDgWrICmS8Hz-LaAGE`.
 
-## [1.0.0-rc.3] — 2026-11-11
+## [1.0.0-rc.3] - 2026-11-11
 
 The specification no longer names a candidate version in its text, so
 the 1.0 specification is final as written. A documentation test now
@@ -42,7 +72,7 @@ and the registry are unchanged from 1.0.0-rc.2. The corpus contains
 626 cases, digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`; the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest
 is `sha-256:jh2uy3FU7ApQmFtPHHK3YY041sDgWrICmS8Hz-LaAGE`.
 
-## [1.0.0-rc.2] — 2026-11-11
+## [1.0.0-rc.2] - 2026-11-11
 
 Documentation corrections cover the README, npm package README, guides, Livebooks, and site. The npm package description states the verifier's checks.
 The unused TypeScript `Context` type is no longer exported; no exported function
@@ -78,7 +108,7 @@ the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`.
 The obsolete `verifier/RUNNER.md` redirect is removed from the repository and
 the standalone archive. The runner contract is `spec/conformance/runner.md`.
 
-## [1.0.0-rc.1] — 2026-11-11
+## [1.0.0-rc.1] - 2026-11-11
 
 ### Breaking
 
@@ -181,7 +211,7 @@ Prior released verdicts remain equivalent. The
 `negotiation-estate-contract-valid` case now projects the
 `extension_deprecated` notice for the legacy federation namespace.
 
-## [0.8.4] — 2026-11-10
+## [0.8.4] - 2026-11-10
 
 ### Fixed
 
@@ -215,9 +245,9 @@ The corpus contains 199 cases, digest
 `sha-256:YfVuNANOdTyQD2rXtXPbonyguVQBCZQheb9WCv4DR8E`. Protocol revision and
 `verification_semantics_version` remain 1.
 
-## [0.8.3] — 2026-11-10
+## [0.8.3] - 2026-11-10
 
-### Fixed — security
+### Fixed: security
 
 - Hostile JSON containing lone surrogate escapes or malformed Unicode escapes
   could raise an exception in the Elixir decoder. Every decode surface now
@@ -242,9 +272,9 @@ The corpus contains 190 cases, digest
 `sha-256:UDRV0o-JUWvHBZPiODetlEQYHALStnIOlWI4qZKxUcc`. Protocol revision and
 `verification_semantics_version` remain 1.
 
-## [0.8.2] — 2026-11-05
+## [0.8.2] - 2026-11-05
 
-### Fixed — documentation
+### Fixed: documentation
 
 - Correction to an earlier entry: bare `npx agent-blueprint-protocol` and
   `npx verifier` work only where `@agent-blueprint-protocol/verifier` is
@@ -253,7 +283,7 @@ The corpus contains 190 cases, digest
 - The post-publish check runs `npx --no-install verifier`, so it can never
   fetch the unrelated npm package named `verifier`.
 
-### Added — documentation
+### Added: documentation
 
 - A Livebook walkthrough, `docs/livebooks/abp-walkthrough.livemd`,
   shipped in the package and on HexDocs. It installs the package from
@@ -270,7 +300,7 @@ The corpus contains 190 cases, digest
   quality step, `mix typescript.guide`, which the doc-gates workflow also
   runs.
 
-### Changed — documentation
+### Changed: documentation
 
 - The CI workflows' GitHub Action pins move with their dependabot bumps
   (`actions/setup-node` v7.1.0, `actions/upload-pages-artifact` v5.0.0,
@@ -323,7 +353,7 @@ coverage. Corpus: 129 cases, digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:aBgeih79woOR7YmJ_OBhyFgKU0j2euO-eieJKxLVDeA`.
 
-## [0.8.1] — 2026-10-14
+## [0.8.1] - 2026-10-14
 
 ### Fixed
 
@@ -351,7 +381,7 @@ digest `sha-256:aBgeih79woOR7YmJ_OBhyFgKU0j2euO-eieJKxLVDeA`.
   commands (the bin over the embedded corpus, `--corpus`, `--artifact`,
   and the importable modules) are unchanged.
 
-### Changed — corpus and specification
+### Changed: corpus and specification
 
 - The conformance corpus grows from 96 to 129 cases, all on
   `signature.verify`. Signature-rule cases: R = the identity with
@@ -392,21 +422,21 @@ tests (63 properties) at 100% coverage. Corpus: 129 cases, digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
 
-## [0.8.0] — 2026-09-24
+## [0.8.0] - 2026-09-24
 
-### Added — the release-identity consumer contract
+### Added: the release-identity consumer contract
 
 - `priv/release-metadata.json` is now a versioned public contract
   (`manifest_version: 2`; additive-only within a version). New fields:
   the manifest version, `verification_semantics_version` (the
-  semantics/census split — unchanged at 1), the `digest_identity` label
-  (RFC 8785 JCS + SHA-256 + domain separation + unpadded base64url —
+  semantics/census split, unchanged at 1), the `digest_identity` label
+  (RFC 8785 JCS + SHA-256 + domain separation + unpadded base64url,
   unchanged across every release), `protocol_revisions_supported`, the
   certified compatibility matrix `prior_census_verdicts` (the prior
   census `sha-256:sg6Fo7…` is certified `equivalent` by replay), and
   the verifier-kit identity derived from `package.json`. The npm kit
   embeds the manifest byte-identically (agreement-gated).
-- `priv/release-history.json`: the append-only retroactive mapping —
+- `priv/release-history.json`: the append-only retroactive mapping:
   one row per manifest-era release, every PRIOR release's row verified
   against derived state (the corpus digest recomputed from the loaded
   census bytes, the registry digest from the census index, the
@@ -418,10 +448,10 @@ digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
   this release's gate re-establishes it mechanically on every run), so
   exact-pinned consumers upgrading between any of these releases keep
   historical replays green when they bind the semantics identity. The record also shows the specification
-  digest moved at 0.4.0 and 0.4.1 — movement the changelog prose of
+  digest moved at 0.4.0 and 0.4.1: movement the changelog prose of
   those releases never stated.
 - `mix compatibility.replay` (quality battery): certifies the
-  compatibility claims and the history from live repository state —
+  compatibility claims and the history from live repository state,
   every manifest-era census loads through the new prior-census loader
   mode and replays under the current Runner (each PRIOR census also
   through the TS verifier, byte-compared; the current census's TS
@@ -434,16 +464,16 @@ digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
   a self-contradictory `not_equivalent` claim), a tampered census file,
   a tampered history row, and both tag-absent refusal arms. The prior-census loader mode
   (`Corpus.load_prior_census/1`, mirrored in the TS verifier's
-  `--prior-corpus`) suspends exactly the two current-state couplings —
-  the compiled registry digest and the compiled applicability floor —
+  `--prior-corpus`) suspends exactly the two current-state couplings
+  (the compiled registry digest and the compiled applicability floor)
   because a released census was certified against the registry and
   floor of its release; the ordinary loader's couplings are unchanged
   and correct for conformance runs.
 - The Evolution clause gains the normative semantics/census law and the
   immutability policy (released identities are never edited in place;
   corrections are new releases); the upgrading guide gains the
-  exact-pinned consumer partition — replay identity versus provenance
-  metadata — and the fail-closed enumeration guidance; the decision
+  exact-pinned consumer partition (replay identity versus provenance
+  metadata) and the fail-closed enumeration guidance; the decision
   record `docs/adr/release-identity-semantics.md` ships with the
   `no-versioning-rule` axis amendment (precedence: the wire revision,
   the semantics version, and the release identity are independent
@@ -454,14 +484,14 @@ digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
   first entry reserved for an exact-pinned consumer's rehearsal.
 
 The correction the record now states plainly: the 0.6.0 corpus change
-was not purely additive at the byte level — the golden vectors' fixture
+was not purely additive at the byte level; the golden vectors' fixture
 signature rotated on unchanged covered bytes (`content_digest`
 identical), verdict-neutral and replay-proven, but the 0.6.0 entry's
 "grows 94 → 96" prose under-recorded it.
 
 The public-history privacy scan's budget grows with the repository
 (the scan is O(tracked files × commits)); its ceiling moves 960s →
-1920s on the same evidence as every prior raise — a borderline clip on
+1920s on the same evidence as every prior raise, a borderline clip on
 this release's tree, a timeout there being a flake, never a privacy
 finding.
 
@@ -471,9 +501,9 @@ The test suite is 924 tests (59 properties) at 100% coverage. Corpus:
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
 
-## [0.7.1] — 2026-09-16
+## [0.7.1] - 2026-09-16
 
-### Changed — the toolchain enforces itself (hygiene release)
+### Changed: the toolchain enforces itself (hygiene release)
 
 - The declared Elixir requirement is a supported range (`~> 1.19`: the
   1.19 and 1.20 lines are admitted, and Mix refuses anything outside
@@ -482,12 +512,12 @@ digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
   The set was probed from the official precompiled build lists, not
   assumed; the decision record ships as
   `docs/adr/supported-otp-set.md`. The assert governs development and
-  CI only — the Hex archive does not ship `config/`, so package
+  CI only; the Hex archive does not ship `config/`, so package
   consumers see no new requirement.
 - CI exercises every lane of the supported matrix: Elixir 1.19 on
   OTP 28, and Elixir 1.20 on OTP 27, 28, and 29 (the dev pin, mirrored
-  in the new `.tool-versions`). The four toolchain declarations — the
-  Elixir range, the supported-OTP set, the dev pin, and the CI lanes —
+  in the new `.tool-versions`). The four toolchain declarations (the
+  Elixir range, the supported-OTP set, the dev pin, and the CI lanes)
   move together in one commit.
 - A dependency-currency gate (`mix deps.currency`; decision record at
   `docs/adr/dependency-currency-gate.md`) reds the battery on any
@@ -501,7 +531,7 @@ digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
   characters, case collisions, symlinks, path length): none found.
 - Development documentation re-trued to the enforced-range story
   (README, CONTRIBUTING, quickstart). No Livebooks ship in this
-  repository (probed — no notebook files and no `Mix.install`
+  repository (probed; no notebook files and no `Mix.install`
   anywhere), so no notebook cells were in scope. The npm kit version
   moves with the Hex line under the version-sync gate; no kit behavior
   changed.
@@ -515,9 +545,9 @@ coverage. Corpus: 96 cases, digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
 
-## [0.7.0] — 2026-09-14
+## [0.7.0] - 2026-09-14
 
-### Changed — the npm kit moves to `@agent-blueprint-protocol/verifier`
+### Changed: the npm kit moves to `@agent-blueprint-protocol/verifier`
 
 - Portfolio naming consistency with the bounded-authority kit: the
   verifier publishes under a project-named npm organization with a
@@ -525,12 +555,12 @@ digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
   (`@rjpalermo/agent-blueprint-protocol`) is deprecated with a forward
   pointer. Version numbering continues the protocol's single release
   line (the version-sync gate binds npm semver == the Hex line).
-- The bin gains a `verifier` alias alongside `agent-blueprint-protocol`
-  — `npx @agent-blueprint-protocol/verifier` and
+- The bin gains a `verifier` alias alongside `agent-blueprint-protocol`:
+  `npx @agent-blueprint-protocol/verifier` and
   `npx agent-blueprint-protocol` both work after install.
 - The publish workflow is fully idempotent: registry-published
   versions skip loudly instead of erroring (re-runs, and releases
-  bootstrapped by a local first publish — required for a brand-new
+  bootstrapped by a local first publish, required for a brand-new
   package, since a trusted publisher cannot be configured before the
   package exists), and the GitHub release step creates only when
   absent.
@@ -546,14 +576,14 @@ properties) at 100% coverage. Corpus: 96 cases, digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
 
-## [0.6.0] — 2026-09-14
+## [0.6.0] - 2026-09-14
 
-### Added — the installable verifier (npm kit)
+### Added: the installable verifier (npm kit)
 
 - `@rjpalermo/agent-blueprint-protocol` on npm: the verifier compiled
   to `.js` + `.d.ts` (strict, declarations, zero runtime dependencies,
   Node >= 24), the conformance corpus embedded byte-identically to the
-  release-certified copy, and a single bin — `npx` verifies out of the
+  release-certified copy, and a single bin: `npx` verifies out of the
   box. The verifier itself typechecks clean for the first time (66
   type-level fixes, byte-frozen against the strip-types baseline).
 - `--artifact <file>` single-artifact mode (kit-only by design; the
@@ -567,7 +597,7 @@ digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
   inverted-expectation seed. `kit.build` is a quality-alias step; CI
   builds the kit before the battery.
 - The TypeScript quickstart (`documentation/typescript.md`); the ARD
-  mapping (`docs/ard-mapping.md` — sources pinned at exact commits,
+  mapping (`docs/ard-mapping.md`; sources pinned at exact commits,
   trust-manifest DNA shared, the capability layer instrument-verified
   absent); the EU AI Act evidence anchor
   (`documentation/evidence-commitments.md`); the blueprint-card
@@ -578,7 +608,7 @@ digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
   line).
 - Two new examples, both byte-exact corpus cases:
   `examples/signed-blueprint.json` (a producer-signed envelope over
-  the golden digest — signing never changes the digest it covers) and
+  the golden digest; signing never changes the digest it covers) and
   `examples/extension-blueprint.json` (a registered optional
   namespace retained by a supporting host, quarantined byte-exactly
   by one without it).
@@ -590,7 +620,7 @@ digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
   claim re-tied.
 - The privacy history-scan budget grows with the repository (480s →
   960s; the scan is O(tracked files × commits) and clipped its old
-  ceiling under full-suite load — a timeout there is a flake, never a
+  ceiling under full-suite load; a timeout there is a flake, never a
   privacy finding).
 
 The test suite is 917 tests (59 properties) at 100% coverage. The
@@ -599,17 +629,17 @@ conformance corpus is 96 cases, digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
 
-## [0.5.0] — 2026-09-12
+## [0.5.0] - 2026-09-12
 
-### Fixed — the credibility floor
+### Fixed: the credibility floor
 
 - Dependency pull requests can go green again. The public-surface
   privacy history scan hard-requires the maintainer HMAC key, which
-  GitHub never delivers to dependabot or fork runs — every dependency
+  GitHub never delivers to dependabot or fork runs; every dependency
   PR was structurally red. The gate now has exactly one relaxation:
   CI marks true fork pull requests `ABP_PRIVACY_SCAN=fork-skip`, where
   the scan skips LOUDLY (a greppable `[privacy-scan] SKIPPED` banner
-  naming what did not run); every other mode value — including typos —
+  naming what did not run); every other mode value (including typos)
   fails closed exactly as before, and a fork run whose secret IS
   present still enforces. All three arms are red-proven in the
   requirement map; the dependabot green run is recorded as a green
@@ -625,7 +655,7 @@ digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
   `spec/` shifted the specification digest and red the
   release-candidate check on any Mac that had previewed the folder.
 
-### Added — the adoption surface
+### Added: the adoption surface
 
 - Community intake: bug-report and registry-request issue templates
   (the registry template follows `spec/registry/OPERATIONS.md`),
@@ -640,11 +670,11 @@ digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
 - The worked host integration: a full `reconcile/3` over the shipped
   echo pair under the default `:deny` clamp posture (the typed
   protected-clamp denial) and under `:acknowledge` (a green Evidence
-  record whose `not_verified` names the seven host-owned surfaces) —
+  record whose `not_verified` names the seven host-owned surfaces),
   mirror-tested line by line.
 - The producer signing recipe: the detached-JWS Ed25519 envelope built
   with `:crypto` over the RFC 7797 preimage and verified end-to-end
-  against the shipped verifier — mirror-tested. The package itself
+  against the shipped verifier, mirror-tested. The package itself
   remains verify-only.
 - `examples/federation-envelope.json`: the 23-member federation
   TaskEnvelope as a byte-exact conformance corpus case, documented in
@@ -654,7 +684,7 @@ digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
   governance).
 - A CI compatibility job: the previous supported Elixir/OTP pair
   (1.20.1 / 29.0.2) runs the test suite and the conformance corpus on
-  every push and pull request — the broadened-target receipt the
+  every push and pull request; the broadened-target receipt the
   README's support claim now rests on.
 
 The test suite is 917 tests (59 properties) at 100% coverage. The
@@ -663,9 +693,9 @@ conformance corpus is unchanged at 94 cases, digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
 
-## [0.4.1] — 2026-08-26
+## [0.4.1] - 2026-08-26
 
-### Fixed — verification posture hardening
+### Fixed: verification posture hardening
 
 - CI green on the public repository (GitHub Actions is free for
   public repos; the prior 'billing-blocked' posture was wrong and is
@@ -678,7 +708,7 @@ digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
   divergence arms red-proven and replanted in the evidence map).
 - The deferred-work registry (twelve named items, each with its
   checkable reopen trigger) ships inside the specification tree's
-  FOUNDATION-TRANSITION document — the durable record no longer lives
+  FOUNDATION-TRANSITION document; the durable record no longer lives
   only in planning artifacts.
 
 The conformance corpus is unchanged at 94 cases, digest
@@ -686,17 +716,17 @@ The conformance corpus is unchanged at 94 cases, digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
 
-## [0.4.0] — 2026-08-26
+## [0.4.0] - 2026-08-26
 
-### Added — examples gallery + minutes-long quickstart
+### Added: examples gallery + minutes-long quickstart
 
-- `examples/`: complete, corpus-verified artifact pairs — byte-exact
+- `examples/`: complete, corpus-verified artifact pairs, byte-exact
   conformance corpus cases (the gallery gate proves it against the
   corpus on every build; a drifted example reds). The echo pair
   (blueprint + deployment) is annotated member-by-member in the
   examples guide.
 - The quickstart (`documentation/quickstart.md`): from `mix deps.get`
-  to a green verification in `iex` — no heavyweight gates; its
+  to a green verification in `iex`; no heavyweight gates; its
   result-claiming lines are mirror-tested like every guide example.
 - The documentation corpus: 13 adopter guides (getting started, the
   artifacts, extension authoring, host integration, producing,
@@ -710,9 +740,9 @@ The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`.
 
-## [0.3.0] — 2026-08-26
+## [0.3.0] - 2026-08-26
 
-### Added — the specification corpus (normative hardening + governance)
+### Added: the specification corpus (normative hardening + governance)
 
 The normative specification is a specification in the standards sense:
 
@@ -731,7 +761,7 @@ The normative specification is a specification in the standards sense:
   the positioning boundary (AI Catalog owns discovery + identity +
   attestation; this protocol owns the portable contract layer).
 - Machine-readable grammar: CDDL (RFC 8610) normative under
-  spec/grammar/ with JSON Schema derived (never hand-edited) — bound
+  spec/grammar/ with JSON Schema derived (never hand-edited); bound
   to the compiled tables and the corpus goldens by the
   grammar-derivation gate.
 - Registry data governance: spec/registry/registry.json as the
@@ -745,7 +775,7 @@ The normative specification is a specification in the standards sense:
   unincorporated BaseLabs org, Russ Palermo as named maintainer.
 - The release identity chain: priv/release-metadata.json pins the
   specification digest, package version, corpus and registry digests,
-  and the corpus index hash — asserted from live state on every run.
+  and the corpus index hash, asserted from live state on every run.
 - Specification extraction is a tested proof (spec/ + the conformance
   corpus extract self-contained; the CI job runs the literal
   repository-filter extraction).
@@ -757,15 +787,15 @@ The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`.
 
-## [0.2.1] — 2026-08-25
+## [0.2.1] - 2026-08-25
 
-### Fixed — public documentation credibility
+### Fixed: public documentation credibility
 
 - README install pin corrected to the current release line (`~> 0.2.1`;
   the previous `~> 0.1.0` excluded every 0.2.x release in Hex
   requirement semantics).
 - SECURITY.md's supported-version table names the 0.2.x line (0.1.x is
-  no longer supported — upgrade to the current line).
+  no longer supported; upgrade to the current line).
 - Two changelog entries cited an internal working document by section
   number (a document that ships nowhere); both are reworded to
   self-contained prose, and a new document-citation gate (below) keeps
@@ -783,7 +813,7 @@ The conformance corpus is unchanged at 94 cases, digest
   badges; an outsider-readable status section; current test and corpus
   counts.
 
-### Added — documentation gates
+### Added: documentation gates
 
 - Documentation-currency gate
   (`test/architecture/documentation_currency_test.exs`): README,
@@ -792,7 +822,7 @@ The conformance corpus is unchanged at 94 cases, digest
   total) are checked against the live project on every run.
 - Document-citation gate
   (`test/architecture/document_citation_gate_test.exs`): shipped
-  markdown documents may cite only documents that exist — a named
+  markdown documents may cite only documents that exist; a named
   section citation must name a shipped document or a pinned external
   standard, and every repository-relative link must resolve to a real
   file.
@@ -801,12 +831,12 @@ The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`.
 
-## [0.2.0] — 2026-08-25
+## [0.2.0] - 2026-08-25
 
-### Added — product-extension registration
+### Added: product-extension registration
 
 - The extension registry registers `com.example.platform/estate-contract`
-  (owner `ExamplePlatform`, **critical**, active, never promoted) — the first
+  (owner `ExamplePlatform`, **critical**, active, never promoted), the first
   product-owned critical namespace with an authored schema digest pin, riding
   the `:authored_extensions` validated channel: critical bodies validate
   against a host-supplied schema whose `extension_schema` JCS digest matches
@@ -816,12 +846,12 @@ The conformance corpus is unchanged at 94 cases, digest
   (leaves `materialization_present` / `materialization_stale` /
   `materialization_count_within`; composites `and`/`or` n-ary, `not` unary),
   hand-tiered as uniform-depth strict tiers because the bounded dialect denies
-  `$ref` cycles — portable condition depth is three composite tiers
-  (metered complexity 417/512; the single free-form string — `definition.name` — is bounded to 128 bytes by the schema itself, the bound on the authored channel's unscanned surface). See `docs/adr/product-extension-registration.md`.
+  `$ref` cycles; portable condition depth is three composite tiers
+  (metered complexity 417/512; the single free-form string (`definition.name`) is bounded to 128 bytes by the schema itself, the bound on the authored channel's unscanned surface). See `docs/adr/product-extension-registration.md`.
 - The schema document ships as corpus data
   (`priv/conformance/schemas/estate-contract.schema.json`); `lib/` records only
   the digest pin, and a test binds the pin to the SHIPPED document (the corpus
-  index hashes raw file bytes, the pin hashes JCS of the parsed document — the
+  index hashes raw file bytes, the pin hashes JCS of the parsed document; the
   test is the bridge between the two domains).
 - The conformance corpus grows 88 → 94 cases: the validated-channel cells
   (valid attach with matching schema, schema absent, digest mismatch,
@@ -838,8 +868,8 @@ The conformance corpus is unchanged at 94 cases, digest
 ### Deprecated
 
 - `com.example.platform/estate` (the placeholder optional namespace) is
-  `deprecated`: its payload role — a condition body carried verbatim as a free
-  object — is superseded by the schema-validated channel. Optional bodies in
+  `deprecated`: its payload role (a condition body carried verbatim as a free
+  object) is superseded by the schema-validated channel. Optional bodies in
   existing artifacts remain verifiable, retained with a typed
   `extension_deprecated` notice.
 
@@ -847,7 +877,7 @@ The conformance corpus is unchanged at 94 cases, digest
 
 - Cross-vendor review fix pass: the schema document bounds
   `definition.name` with `maxLength: 128` (the free-form string in a body
-  that skips the portability value-shape heuristics — the schema is the
+  that skips the portability value-shape heuristics; the schema is the
   bound on that surface); the registry's closed-schema lens test now fails
   loudly for any future pinned namespace without its own document binding;
   stale 0.1.x release-line claims and the generator's section counts were
@@ -859,11 +889,11 @@ The conformance corpus is unchanged at 94 cases, digest
   corpus-bearing `items` user; the byte-identical agreement gate now proves
   both languages validate items identically.
 
-### Changed — from the unreleased queue
+### Changed: from the unreleased queue
 
 - The gitleaks secret-scan configuration was invalid TOML (a string
   concatenation TOML does not support) and, independently, nothing executed
-  it — no CI job or alias ran gitleaks, so a committed credential would have
+  it; no CI job or alias ran gitleaks, so a committed credential would have
   passed the complete quality gate. The config now parses (the corpus key
   fragment is matched via a single-character class instead of concatenation),
   the generated conformance corpus is allowlisted by path (per-value fragments
@@ -880,18 +910,18 @@ The conformance corpus is unchanged at 94 cases, digest
   live public 0.1.x package state (obsolete pre-publication/release-candidate
   framing removed).
 
-## [0.1.1] — 2026-08-23
+## [0.1.1] - 2026-08-23
 
-### Changed — documentation packaging (no code change)
+### Changed: documentation packaging (no code change)
 
 - The Hex archive and hexdocs now ship the seven architecture decision
   records (`docs/adr/`), and `docs/federation-mapping.md` joins the
-  hexdocs extras — matching the house packaging convention of the
+  hexdocs extras, matching the house packaging convention of the
   published `bounded_authority_protocol` package.
 - The requirement map stays repository-side BY DESIGN (public in the
   repository, not in the archive): its verbatim red receipts quote the
   very internal tokens the publish guard bans from the archive, so
-  archiving it reds the guard — that red is now recorded in the map's
+  archiving it reds the guard; that red is now recorded in the map's
   own publish-guard entry as the boundary's proof. An earlier draft of
   this release stripped the map's receipt fences from the guard's scan
   instead; cross-vendor review correctly blocked it as a guard blind
@@ -900,7 +930,7 @@ The conformance corpus is unchanged at 94 cases, digest
   after the introduction, a function-level "What it provides" section,
   and the requirement map's boundary stated.
 
-## [0.1.0] — 2026-08-23
+## [0.1.0] - 2026-08-23
 
 Initial public release: the Agent Blueprint Protocol, its Elixir
 reference implementation, the conformance corpus, and the
@@ -909,7 +939,7 @@ second-language verifier.
 ### Normative docs + release-candidate gates
 
 - `docs/protocol.md`: the normative protocol document (ships in the Hex
-  archive) — artifacts and the closed member registries, bounded bytes
+  archive): artifacts and the closed member registries, bounded bytes
   and the integer window, RFC 8785 canonicalization, domain-separated
   digests, the detached-JWS envelope, evolution and extension rules, the
   compiled registry's first-release entries, the bounds algebra laws,
@@ -917,22 +947,22 @@ second-language verifier.
   conformance corpus identity (88 cases at the recorded digest).
 - `docs/design/requirement-map.md` (repository-side, not in the Hex
   archive): every build gate's recorded red
-  proof — each quality-alias step, every architecture-lane test case,
-  and the conformance lanes — re-derived live (plant → run → restore)
+  proof (each quality-alias step, every architecture-lane test case,
+  and the conformance lanes) re-derived live (plant → run → restore)
   with verbatim failing output.
 - `docs/adr/` (repository-side, slug-only filenames): the seven
-  decisions of record —
+  decisions of record:
   the non-authorizing boundary, the detached JWS envelope, the
   two-consumer amendment, deny-default protected-bound clamps, the
   compiled-in registry (closing the package-boundary contradiction of
   record), the federation lanes, and the no-versioning rule.
 - New architecture gates, both red-proven at birth:
-  - **publish guard** — no internal-planning reference, private-tool
+  - **publish guard**: no internal-planning reference, private-tool
     path, or home-directory path in any archived file (byte patterns
     plus word-bounded text patterns that cannot false-positive inside
     base64url tokens; registry owner/namespace/URI data is published by
     design and exempted on record);
-  - **spec coverage** — every public function carries a matching
+  - **spec coverage**: every public function carries a matching
     `@spec` (default-arity rule recorded) and every shipped module's
     moduledoc states the non-authorizing boundary (39 modules gained
     an honest stance sentence; `ExtensionRegistry.federation_schema/0`
@@ -946,7 +976,7 @@ second-language verifier.
 - Internal-reference scrub of the shipped surface: tracker numerals,
   internal design-shorthand citations, and a portfolio-terminology
   section removed from `docs/federation-mapping.md`, README, CHANGELOG,
-  and `lib/` comments/`@doc`s (comments and docs only — zero behavior
+  and `lib/` comments/`@doc`s (comments and docs only; zero behavior
   change).
 - README Status and Installation rewritten to the published 0.1.0
   state.
@@ -954,7 +984,7 @@ second-language verifier.
 ### Second-language verifier + agreement gate
 
 - `conformance/verifier/`: the repo-side TypeScript verifier (Node ≥ 24,
-  `node:` builtins only, zero npm runtime deps; never in the Hex archive) —
+  `node:` builtins only, zero npm runtime deps; never in the Hex archive):
   an independent recomputation of every corpus surface and integrity check,
   with a CLI byte-compatible with the Elixir escript (`--corpus` required;
   exit 0/1/2; report bytes on stdout, no trailing newline).
@@ -963,13 +993,13 @@ second-language verifier.
   runs the self-check battery (RFC 8785 Appendix B three-way, the integer-window
   matrix incl. the mis-round lexeme, Ed25519 key acceptance, stored
   JOSE vectors), and proves three seeded reds fire (verdict inversion,
-  report member drift, window-check deletion) — with a calibration
+  report member drift, window-check deletion), with a calibration
   self-proof of the raise path.
 - `conformance/verifier/testdata/jose-vectors.json` +
   `scripts/generate_jws_vectors.exs`: the stored detached-JWS vectors, KAT-
   anchored to RFC 8032 §7.1 TEST 1, verified Elixir-signed → node-verified
   in both detached and compact forms.
-- `Signature`: small-order key rejection hardened — the identity (order 1)
+- `Signature`: small-order key rejection hardened: the identity (order 1)
   and order-2 encodings no longer pass `usable_ed25519_key?` (found by the
   mirror's torsion battery; latent on this OTP).
 - `Federation.decode`: an empty claim value or compatibility identity now
@@ -987,7 +1017,7 @@ second-language verifier.
 
 ### Conformance corpus subsystem
 
-- `Conformance.{Corpus,Runner,Report,Cli}`: the portable conformance corpus —
+- `Conformance.{Corpus,Runner,Report,Cli}`: the portable conformance corpus:
   pure loader with the 16×29 applicability floor compiled in, two-directional
   integrity with typed errors (corpus-registry and corpus-digest bindings,
   tamper verbatim-vs-derived audits, vacuous-green refusal), a code-level
@@ -996,7 +1026,7 @@ second-language verifier.
 - `priv/conformance/`: 86 shipped cases, full-registry goldens (evidence
   members included), RFC 8785 vectors, deterministic key fixtures.
 - `mix conformance.verify` + `mix conformance.mutations` wired into
-  `mix quality` — five named implementation mutations each proven to redden
+  `mix quality`, five named implementation mutations each proven to redden
   the corpus, plus a corpus-expectation-flip calibration entry.
 - `ExtensionRegistry.digest/0` (+ the `:extension_registry` digest domain):
   the corpus-registry binding.
@@ -1018,11 +1048,11 @@ second-language verifier.
   (UNSPECIFIED denies at intake; crossing into MCP denies for
   rejected/submitted/auth_required; cancellation is never a terminal
   receipt); the carrier placement laws for both transports
-  (`Task.metadata[a2a_uri]` on A2A, `_meta[namespace]` on MCP — the
+  (`Task.metadata[a2a_uri]` on A2A, `_meta[namespace]` on MCP; the
   `_meta` key grammar forbids a URI key); `terminal_commitment/1` over
   the seven commitment components; and `verify_commitment/2` with the signature
   BINDING step (the signed content digest must name the receiving
-  envelope's covered bytes — an honestly-signed statement naming a
+  envelope's covered bytes: an honestly-signed statement naming a
   different digest is evidence over THAT digest), the
   issuer/subject/audience comparison (`:audience_mismatch`), and
   `:federation_terminal_conflict` on any divergence between receipts for
@@ -1036,11 +1066,11 @@ second-language verifier.
 - Federation hardening (independent review): a
   signature whose signed `purpose` is not `federation-envelope` never
   verifies a federation receipt (the symmetric cross-surface purpose gap, closed
-  on this surface — cross-surface signature lifting denied
+  on this surface; cross-surface signature lifting denied
   `:invalid_constraint`); the receipt's `kid`/`key_id` positions are
   portability-scanned strict (PEM/hex secrets deny
   `:forbidden_portable_value`; the signature blob stays deliberately
-  opaque — every honest signature is entropy-dense and never survives
+  opaque; every honest signature is entropy-dense and never survives
   verification without the key); `terminal_commitment/1` and
   `verify_commitment/2` are total over hand-built structs (typed denials
   replace raises on absent/non-string members and malformed commitment
@@ -1050,16 +1080,16 @@ second-language verifier.
   Receiver posture documented (purpose pinning, key-ids-as-labels,
   keys-are-not-issuers, replay-is-receiver-policy).
 - Federation residual hardening: `Federation.Context` gains
-  `issuer_key_sets` — per-issuer key attribution where the receipt's
+  `issuer_key_sets`: per-issuer key attribution where the receipt's
   claimed (and binding-proven) `issuer` member selects the signature key
   pool, with strictest-wins precedence over the flat pool and deny-all
-  for an empty map (cross-attribution now denies by mechanism) — and
+  for an empty map (cross-attribution now denies by mechanism), and
   `created_after`/`created_before` freshness pins over the SIGNED
   `created_at` (receiver-supplied inclusive window, Z-form double-gated,
   checked after conflict detection so equivocation still reports
   `:federation_terminal_conflict`). Fixes a live crash the adversarial
   pass reproduced: `verify_commitment` with the Context's `keys: nil`
-  default raised `FunctionClauseError` — nil/malformed pools now deny
+  default raised `FunctionClauseError`; nil/malformed pools now deny
   `:invalid_type` typed. Attribution-miss denials name the issuer
   subject; a value-free structural guard pins every federation denial's
   subject to schema shape with nil detail. Signature-blob opacity ruled
@@ -1068,7 +1098,7 @@ second-language verifier.
   verification without the key.
 - Error vocabulary: `:forbidden_portable_value` is now declared and
   emitted through per-site literals (the per-site vocabulary walk could
-  not see the module-attribute-carried emission — a live closedness hole,
+  not see the module-attribute-carried emission: a live closedness hole,
   closed with a staged red); the federation codes
   `:federation_state_unmappable`, `:federation_mapping_conflict`,
   `:nonportable_content`, `:audience_mismatch`, and
@@ -1078,7 +1108,7 @@ second-language verifier.
   composed pass gates non-object artifact roots at the canonical stage
   (typed denial, never a raise); `Reconcile.Inputs` drops the unused
   observed-identities field (the eight-stage pass performs no
-  compatibility verification — hosts call `verify_compatibility/2`;
+  compatibility verification; hosts call `verify_compatibility/2`;
   recorded contract delta); the portability stage mirrors each
   artifact's own per-position scan modes (authored schema documents and
   predicate operands, the blueprint's five identifier member tables,
@@ -1092,14 +1122,14 @@ second-language verifier.
   dynamic build failures, sees piped call sites, and fixes the
   case/cond branch tag.
 - Reconcile, compatibility, and the evidence record:
-  `AgentBlueprintProtocol.Reconcile.reconcile/3` — the one call per
+  `AgentBlueprintProtocol.Reconcile.reconcile/3`, the one call per
   import, running the pinned stage order canonical → digest →
   negotiation → structure → portability → signatures → bind → bounds,
   each stage reject-or-annotate, never repair, under host-supplied
   `Reconcile.Inputs` (host policy bounds, negotiation support, trusted
   public keys, observed build identities, the protected-clamp posture,
   and the bind-time observations). The signature stage BINDS each
-  entry's signed `content_digest` to the artifact's recomputed digest —
+  entry's signed `content_digest` to the artifact's recomputed digest,
   an honestly-signed statement naming a different digest is evidence
   over that digest, not this artifact (`:digest_mismatch`). The
   portability stage runs the direct scans under the authored channel
@@ -1107,7 +1137,7 @@ second-language verifier.
   structure stage is the registry validation, kept disjoint so both
   guards are independently observable. Every clamp lands as
   `Evidence.clamps` and as a per-bound `:bounds` check carrying the
-  `%ClampEvidence{}`. `AgentBlueprintProtocol.Compatibility.verify/2` —
+  `%ClampEvidence{}`. `AgentBlueprintProtocol.Compatibility.verify/2`:
   identity-exact matching of manifest `build_identities` against
   host-observed identities: ranges deny `:compatibility_identity_inexact`
   on both sides, duplicate candidates (including byte-identical
@@ -1115,7 +1145,7 @@ second-language verifier.
   `:compatibility_duplicate_entry`, unmatched entries deny
   `:compatibility_entry_missing`, extra observed identities are
   evidence-neutral; `exact?/1` is the public exact-version predicate.
-  `AgentBlueprintProtocol.Evidence` — the non-authorizing verification
+  `AgentBlueprintProtocol.Evidence`, the non-authorizing verification
   record whose `not_verified` is non-empty BY CONSTRUCTION: `build/1`
   unions in the seven host-owned surfaces (tenancy, live_policy,
   authority, effect_ownership, execution, billing, evaluation_truth),
@@ -1127,14 +1157,14 @@ second-language verifier.
 
 - Bounds-algebra hardening pass: classification comparison
   moves to the PRODUCT order the meet computes in (ordinal ≤ AND markers
-  ⊇) — a marker dropped at ANY ordinal is a widening (obligations are not
+  ⊇); a marker dropped at ANY ordinal is a widening (obligations are not
   tradeable against scope), `widens?` becomes `¬(a ⪯ b)` and so
   fail-closed on every incomparable pair (an independent review's
   blocking finding: `{pci}` vs `{phi}` previously compared non-widening
   in both directions), and `narrower` requires both components. The rim is now
   deny-typed everywhere it previously raised on struct-bypass inputs:
   hostile map keys and unknown/extra names deny `:bound_unknown` with the
-  CONTAINING surface as subject (never the attacker key — the echo
+  CONTAINING surface as subject (never the attacker key; the echo
   channel closes), plain-map markers and marker maps with extra keys deny
   `:bound_value_invalid` at construction and again at `intersect`'s
   revalidation, malformed lifter sub-shapes read as absent (total,
@@ -1147,14 +1177,14 @@ second-language verifier.
   forged values (total predicates, fail-closed in the widening
   direction), and `Result.t`'s clamps type resolves its module. Every
   fix re-probed live against the finding's original probe input.
-- Bounds algebra: `AgentBlueprintProtocol.BoundsAlgebra` —
+- Bounds algebra: `AgentBlueprintProtocol.BoundsAlgebra`:
   the pointwise narrowest intersection of the Blueprint's declared
   bounds, the Deployment's `host_bounds`, and the host's live policy over
   the closed thirteen-bound vocabulary, with per-family direction
   (scope families narrow at the low end; authority/approval/effect
   narrow at the STRICT end; classification markers are
   retained regulatory obligations whose effective set is the UNION of
-  the sources' sets — dropping one is the widening the mutation gate
+  the sources' sets; dropping one is the widening the mutation gate
   names). Protected narrowings never happen silently: under the default
   `:deny` posture they deny `:protected_bound_clamp_denied` carrying
   the field/requested/effective triple; under `:acknowledge` they clamp
@@ -1169,12 +1199,12 @@ second-language verifier.
   then numerics → cost → protected, each name-sorted). `widens?/2` is
   fail-closed on incomparable pairs; `Bound.narrower/2` is
   direction-encoded per family and function-total (marker-bearing
-  classification is a partial order — the lexicographic
+  classification is a partial order; the lexicographic
   ordinal-then-marker superset relation). The lifters derive the
   Blueprint side totally (classification is the WIDEST across all five
   declaration sites; approval/authority/impact are the strictest claims
   across capabilities/effects with bottoms for empty arrays; disclosure
-  is the identity element `:full` — the Blueprint declares no
+  is the identity element `:full`; the Blueprint declares no
   disclosure member) and lift the Deployment from `host_bounds` only
   (`model_policy` and `data_bindings` are not intersection inputs).
   The new `AgentBlueprintProtocol.Error{code, subject, detail}` record
@@ -1182,7 +1212,7 @@ second-language verifier.
   protected deny) lands with the algebra surface; the facade gains
   `intersect/1`. Property lane: idempotent/commutative/associative
   (pinned fold encoding), `not widens?(effective, host)` universal,
-  clamp iff `effective ≠ requested`, marker-union law — with the
+  clamp iff `effective ≠ requested`, marker-union law, with the
   min→max, marker-intersection, direction-flip, struct-default, and
   silent-path mutations each proven RED against them.
 
@@ -1190,7 +1220,7 @@ second-language verifier.
 
 - The bounds-algebra rim's coverage claim was corrected to a true
   100% (measured 2026-08-22: the then-committed suite reached only
-  97.7% — the deny-typed rim's catch-all clauses had no tests). The rim probes now ship as tests: struct-bypass forged
+  97.7%; the deny-typed rim's catch-all clauses had no tests). The rim probes now ship as tests: struct-bypass forged
   values through `widens?/2` and `Bound.narrower/2` for every family,
   wrong-shape cost at construction, non-map `new/1`, absent-name
   `fetch/2`, non-`Sources`/junk-posture/non-set-source `intersect/1`,
@@ -1215,8 +1245,8 @@ second-language verifier.
 - A one-off suite flake, root-caused: the
   "mutating the signatures member" test replaced the first `A` in the
   base64url signature, which lands on the FINAL character ~7% of random
-  signatures — the one position whose value is canonicality-constrained
-  — producing a correctly-rejected non-canonical string
+  signatures (the one position whose value is canonicality-constrained)
+  producing a correctly-rejected non-canonical string
   (`:signature_malformed`). The tamper now targets the first character
   (a significant 6-bit position at every base64url length), making the
   test deterministic for every key.
@@ -1225,7 +1255,7 @@ second-language verifier.
 
 - Deployment Manifest + binding: the 19-member table
   (re-derived against the protocol's Deployment Manifest definition) on the
-  SAME generic engine — `AgentBlueprintProtocol.Deployment` mirrors the
+  SAME generic engine; `AgentBlueprintProtocol.Deployment` mirrors the
   Blueprint pipeline stage-for-stage (canonical verify → registry
   validation → portability scan → digest comparison) under the
   `:deployment_content` domain, with only the table, the scan's open
@@ -1233,7 +1263,7 @@ second-language verifier.
   domain as deltas. The binding surface: `binds?/2` (digest equality and
   nothing else, against the paired Blueprint's recomputed digest,
   constant-time, total over malformed deployment input) and the six-stage
-  `verify_binding/3` with a pinned order — release digest
+  `verify_binding/3` with a pinned order: release digest
   (`:deployment_digest_mismatch`), release identity and tool-binding
   completeness (`:binding_incomplete`), mutation/recovery
   (`:no_authoritative_recovery`, the stricter of both operation sources),
@@ -1241,27 +1271,27 @@ second-language verifier.
   deny), and observed rug-pull (`:binding_descriptor_mismatch`); stages
   carrying host observations skip exactly when their inputs are absent.
   Table semantics: `blueprint_release` with a REQUIRED digest;
-  exact-only build identities (the range vocabulary — comparators,
-  wildcards, `latest`, range spans — denies
+  exact-only build identities (the range vocabulary, comparators,
+  wildcards, `latest`, range spans, denies
   `:compatibility_identity_inexact`; prerelease/build suffixes are exact
   pins); the `as_of` total rule; lifecycle temporal rules
   (`:lifecycle_state_invalid`); `host_bounds` totality over the thirteen
-  bound names (structure only — the algebra surface owns the rest); empty
+  bound names (structure only; the algebra surface owns the rest); empty
   `allowed_model_roles` valid. Every `adapter_identity`/`profile_identity`
   and every string nested in tool/data/build members is strict-scanned
   (`:forbidden_portable_value` in deployment positions). A signature's
   `purpose` is asserted per artifact (`deployment` here, `blueprint` in
-  `Blueprint` — the symmetric cross-surface gap this closes). The extension
+  `Blueprint`; the symmetric cross-surface gap this closes). The extension
   envelope judgment is extracted to `AgentBlueprintProtocol.Extension` so
   both tables carry one definition, and `Negotiation` resolves the
   artifact kind from the digest member so each
   artifact's `required_core_fields` check against its own vocabulary. The
   facade gains `decode_deployment/2`, and a new architecture gate proves
   the no-second-pipeline invariant (delegation to `Registry.validate` plus
-  no local stage definitions — planted-red proven, after the exports-only
+  no local stage definitions; planted-red proven, after the exports-only
   form was found vacuous by the same mutation).
 - Deployment hardening pass: `verify_binding/3` gains a
-  stage-0 shape totality — a non-object root, DUPLICATE root members, or a
+  stage-0 shape totality: a non-object root, DUPLICATE root members, or a
   malformed `tool_bindings` entry (shape, operands, digest) denies before
   any cross-artifact judgment, and validated entries thread every later
   stage (the blocking finding of an independent review: malformed
@@ -1280,7 +1310,7 @@ second-language verifier.
   evolution gate (`AgentBlueprintProtocol.Negotiation`) with the pinned
   internal precedence (revision → required_core_fields → extensions) and
   registry-consistent reason rules for malformed machinery; explicit revision
-  SET support (never ranges — a miss denies `:protocol_revision_unsupported`
+  SET support (never ranges; a miss denies `:protocol_revision_unsupported`
   in both directions); the three fail-closed required-core-field checks;
   the positional extension state machine (unregistered critical denies,
   unregistered optional QUARANTINES byte-exactly with a notice fact,
@@ -1290,8 +1320,8 @@ second-language verifier.
   / `:extension_schema_digest_mismatch`); and a reserved-semantics
   denylist (bound-shaped member names, camelCase twins included) over ALL
   extension bodies. The registry (`ExtensionRegistry`) is compiled-in
-  data — drift unrepresentable, backed by a new beam-census gate that
-  asserts no shipped module touches the filesystem (planted-red proven) —
+  data (drift unrepresentable, backed by a new beam-census gate that
+  asserts no shipped module touches the filesystem (planted-red proven)),
   carrying the five first-release entries with `com.example/federation`'s schema
   authored in-repo under the new `:extension_schema` digest domain.
   `Blueprint.from_value/2`'s `:authored_extensions` option opens the
@@ -1313,10 +1343,10 @@ second-language verifier.
   (unknown member → missing required → type → constraint → cardinality →
   nested → cross-field hooks). `Blueprint.decode/2` runs the fail-closed
   pipeline in order: canonical verify (`:non_canonical_bytes` before any
-  semantic read or digest work — the canonicality obligation, digests computed only
+  semantic read or digest work: the canonicality obligation, digests computed only
   over exact received bytes), registry validation (closed world;
   tag-strict integer typing so a float-tagged window value in an
-  integer-typed core field denies `:invalid_type` — the window-float obligation,
+  integer-typed core field denies `:invalid_type`; the window-float obligation,
   visible only at this layer), the portability scan, then the
   content-digest comparison (`:digest_mismatch`). Also ships
   `AgentBlueprintProtocol.Predicate` (the closed, order-independent
@@ -1324,8 +1354,8 @@ second-language verifier.
   256-node ceiling, and error-dominant `evaluate/2`), and
   `AgentBlueprintProtocol.Portability` (the never-portable structural
   guard: the 34-name member denylist over the open regions and the
-  value-shape denylist — PEM armour, compact JWS, network-authority URIs,
-  ≥32-byte clean base64url with the identifier-style exemption — over every
+  value-shape denylist (PEM armour, compact JWS, network-authority URIs,
+  ≥32-byte clean base64url with the identifier-style exemption) over every
   other string including signature `key_id`). The facade gains
   `decode_blueprint/2`.
 - Public Elixir package starter with zero third-party/Hex production
@@ -1339,7 +1369,7 @@ second-language verifier.
   invalid UTF-8/lone surrogates, and out-of-bound integers on the encode path.
 - Strict unpadded base64url codec (`AgentBlueprintProtocol.Base64Url`):
   RFC 4648 §5 alphabet, RFC 7515 §2 padding-free wire form, and RFC 4648
-  §3.3/§3.5 canonicality — padded input, non-alphabet characters, and
+  §3.3/§3.5 canonicality: padded input, non-alphabet characters, and
   non-canonical pad-bit spellings (which alias the same bytes) all reject
   with value-free reasons.
 - Tagged content digests (`AgentBlueprintProtocol.Digest`):
@@ -1352,13 +1382,13 @@ second-language verifier.
   FIPS 180-4 known-answer vectors.
 - Detached JWS signature envelope (`AgentBlueprintProtocol.Signature`):
   RFC 7515 compact serialization with the RFC 7797 `b64=false` unencoded
-  detached payload — the signing input is
-  `BASE64URL(JCS(protected_header)) || "." || JCS(signed_attributes)` —
+  detached payload: the signing input is
+  `BASE64URL(JCS(protected_header)) || "." || JCS(signed_attributes)`,
   Ed25519 verified through `:crypto`, verify-only (an architecture gate
   enforces no `:crypto.sign` call, no private-key parameters, and no
   key-material shape anywhere in the shipped source). Host-supplied trusted
   keys match by `key_id` (`:signature_key_unsupported` when absent,
-  `:signature_not_verified` on divergence — facts, never authorization).
+  `:signature_not_verified` on divergence; facts, never authorization).
   The exact four-member protected header (`alg/crit/b64/kid`) and the five
   signed attributes are closed-world with fail-closed, value-free denials;
   `kid` must equal the signed `key_id`, which is dot-free so the unencoded
@@ -1383,22 +1413,22 @@ second-language verifier.
   (`AgentBlueprintProtocol.Schema`): the closed 16-keyword subset
   (`type properties required items enum const minimum maximum minLength
   maxLength minItems maxItems additionalProperties oneOf $defs` plus
-  document-local `$ref`) over the tagged algebra, with everything else —
-  `pattern`/`format`/`patternProperties`/`if-then-else`/`allOf`/remote
-  `$ref` and the rest of the 2020-12 keyword universe — denying
+  document-local `$ref`) over the tagged algebra, with everything else
+  (`pattern`/`format`/`patternProperties`/`if-then-else`/`allOf`/remote
+  `$ref` and the rest of the 2020-12 keyword universe) denying
   `:schema_keyword_not_allowed`. 2020-12 semantics read first-hand and
   pinned: type-targeted assertions auto-pass other types, missing keywords
   never fail, `oneOf` is exactly-one, boolean schemas are the substrate,
   numbers compare by mathematical value across the integer/float tags
-  (tag-blind `type:"integer"` — the tags do not survive the wire), object
+  (tag-blind `type:"integer"`; the tags do not survive the wire), object
   equality is order-blind, and string lengths count codepoints (not
   graphemes, not UTF-16 units). Resource posture: complexity metered as
   `nodes + keywords + Σ(branches) + depth × 4` against the 512 profile
-  ceiling; evaluation memoized on (schema node, instance location) —
+  ceiling; evaluation memoized on (schema node, instance location),
   closing the acyclic-`$ref`-DAG exponential blowup for passing AND failing
   instances; document-local RFC 6901 pointers (split-then-unescape, `~1`
   before `~0`) resolve at parse, and application-reachable reference cycles
   deny while dead `$defs` self-references parse. Both `parse/2` and
-  `validate_instance/3` are total — malformed tagged shapes deny, never
+  `validate_instance/3` are total; malformed tagged shapes deny, never
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).

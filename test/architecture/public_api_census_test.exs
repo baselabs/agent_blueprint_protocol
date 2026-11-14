@@ -16,6 +16,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicApiCensusTest do
       digest_input: 1,
       from_value: 1,
       from_value: 2,
+      members: 1,
       to_value: 1,
       verify_binding: 3,
       verify_content_digest: 1
@@ -86,6 +87,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicApiCensusTest do
       digest_input: 1,
       from_value: 1,
       from_value: 2,
+      members: 1,
       to_value: 1,
       verify_content_digest: 1
     ],
@@ -124,6 +126,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicApiCensusTest do
       from_value: 1,
       mapping: 0,
       mcp_carrier_key: 0,
+      members: 1,
       terminal_commitment: 1,
       to_a2a_carrier: 1,
       to_a2a_state: 1,

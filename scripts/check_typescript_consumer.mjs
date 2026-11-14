@@ -22,12 +22,12 @@ try {
   const sample=guide.match(/```js\n([\s\S]*?)```/)[1];
   const claimed=sample.match(/console\.log\(.*\); \/\/ (\S+)\n/)[1];
   writeFileSync(join(scratch,'verify.mjs'),sample);
-  const example=readFileSync('examples/echo-blueprint.json','utf8');
-  mkdirSync(join(scratch,'examples'),{recursive:true});
-  writeFileSync(join(scratch,'examples','echo-blueprint.json'),example);
+  const example=readFileSync('priv/examples/echo-blueprint.json','utf8');
+  const examplePath=join(scratch,'node_modules/@agent-blueprint-protocol/verifier/dist/examples/echo-blueprint.json');
+  assert.equal(readFileSync(examplePath,'utf8'),example);
   assert.equal(command(process.execPath,['verify.mjs']).stdout.trim(),claimed);
   const edited=example.replace('"max_attempts":3','"max_attempts":4');assert.notEqual(edited,example);
-  writeFileSync(join(scratch,'examples','echo-blueprint.json'),edited);
+  writeFileSync(examplePath,edited);
   assert.notEqual(command(process.execPath,['verify.mjs']).stdout.trim(),claimed);
   const codes=[...readFileSync('verifier/errors.ts','utf8').matchAll(/\| "([^"]+)"/g)].map(x=>x[1]);
   const ex=readFileSync('lib/agent_blueprint_protocol/error.ex','utf8');

@@ -86,8 +86,7 @@ In `iex -S mix` with the package installed, run:
 
 ```elixir
 alias AgentBlueprintProtocol.Federation
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-{:ok, envelope} = Federation.decode(File.read!(Path.join(dependency_root, "examples/federation-envelope.json")))
+{:ok, envelope} = Federation.decode(File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/federation-envelope.json")))
 {:ok, a2a} = Federation.to_a2a_carrier(envelope)
 {:ok, mcp} = Federation.to_mcp_carrier(envelope)
 {:ok, _a2a_round_trip} = Federation.from_a2a_carrier(a2a)
@@ -104,14 +103,14 @@ The logical and A2A spelling is `canceled`; MCP uses `cancelled`. Some native st
 |---|---|---|
 | Envelope decode / canonical bytes | `Federation.decode/2`, `canonical_bytes/1` | `decodeFederationEnvelope`, `canonicalBytes` |
 | Mapping rows | `federation_mapping/0` | `federationMapping()` returning a `Result` |
-| State and carrier codecs | `from_a2a_state/1`, `to_a2a_state/1`, MCP equivalents; `to_a2a_carrier/1`, `from_a2a_carrier/1`, MCP equivalents | Not exported in 1.0.1 |
-| Commitment verification and receiver context | `Federation.verify_commitment/2`, `Federation.Context` | Not exported in 1.0.1 |
+| State and carrier codecs | `from_a2a_state/1`, `to_a2a_state/1`, MCP equivalents; `to_a2a_carrier/1`, `from_a2a_carrier/1`, MCP equivalents | Not exported in 1.1.0 |
+| Commitment verification and receiver context | `Federation.verify_commitment/2`, `Federation.Context` | Not exported in 1.1.0 |
 
 Do not deep-import npm implementation modules. Exposing more functions requires a code release; the [root reference](typescript.md#package-root-reference) is the supported surface.
 
 ## Terminal commitments
 
-The public `AgentBlueprintProtocol.Federation.verify_commitment/2` function performs federation commitment verification. The shipped fixtures demonstrate a valid terminal commitment and cases that return `federation_terminal_conflict`. See the [federation commitment cases](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1/priv/conformance/cases/federation-verify_commitment.json).
+The public `AgentBlueprintProtocol.Federation.verify_commitment/2` function performs federation commitment verification. The shipped fixtures demonstrate a valid terminal commitment and cases that return `federation_terminal_conflict`. See the [federation commitment cases](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/priv/conformance/cases/federation-verify_commitment.json).
 
 ### Receiver context and returned facts
 

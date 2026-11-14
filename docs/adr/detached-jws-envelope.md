@@ -15,14 +15,14 @@ used a bespoke preimage form.
 Real detached JWS: RFC 7515 compact serialization + RFC 7797 `b64=false`
 unencoded detached payload. Payload = JCS(signed_attributes) carrying
 `algorithm`, `content_digest`, `created_at`, `key_id`, `purpose`;
-protected header `{alg: Ed25519, kid, crit: ["b64"], b64: false}` —
+protected header `{alg: Ed25519, kid, crit: ["b64"], b64: false}`:
 A2A §8.4-aligned, verifiable by stock JOSE libraries.
 
 Ed25519 only. The normative algorithm succession rule is protocol §6. The package verifies only:
 never signs, never accepts a private key on any public function
 (three-way architecture gate: banned parameter names, banned
 `:crypto.sign` call sites, plus a beam census that resolves every remote
-call with aliases expanded — no spelling hides). No key discovery, no
+call with aliases expanded; no spelling hides). No key discovery, no
 fetch, no trust selection: hosts supply trusted keys.
 
 ## Consequences

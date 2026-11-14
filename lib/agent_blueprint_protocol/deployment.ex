@@ -9,8 +9,7 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-  bytes = File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+  bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
   match?({:ok, %AgentBlueprintProtocol.Deployment{}}, AgentBlueprintProtocol.Deployment.decode(bytes))
   ```
   """
@@ -122,6 +121,36 @@ defmodule AgentBlueprintProtocol.Deployment do
             observed: %{optional(binary()) => binary()}
           }
   end
+
+  @doc """
+    Returns the sorted Deployment Manifest member names for a supported protocol revision.
+
+    Hosts that support every core field of a revision declare the union of
+    `AgentBlueprintProtocol.Blueprint.members/1` and
+    `AgentBlueprintProtocol.Deployment.members/1` in
+    `AgentBlueprintProtocol.Negotiation.Support.core_fields`.
+
+    Revision 1 is supported. Other integers return `:protocol_revision_unsupported`
+    with subject `["protocol_revision"]`; non-integers return `:invalid_type`.
+
+    ## Example
+
+        iex> with {:ok, names} <- AgentBlueprintProtocol.Deployment.members(1), do: length(names)
+        19
+  """
+  @doc since: "1.1.0"
+  @spec members(integer()) :: {:ok, [binary()]} | {:error, AgentBlueprintProtocol.Error.t()}
+  def members(1), do: {:ok, table() |> Enum.map(& &1.name) |> Enum.sort()}
+
+  def members(revision) when is_integer(revision) do
+    {:error,
+     %AgentBlueprintProtocol.Error{
+       code: :protocol_revision_unsupported,
+       subject: ["protocol_revision"]
+     }}
+  end
+
+  def members(_revision), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # ---- the table --------------------------------------------------------------------
 
@@ -359,21 +388,19 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   match?(
     {:ok, %AgentBlueprintProtocol.Deployment{}},
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
   )
   ```
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   match?(
     {:ok, %AgentBlueprintProtocol.Deployment{}},
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json")),
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json")),
       AgentBlueprintProtocol.Bounds.maximum()
     )
   )
@@ -391,7 +418,7 @@ defmodule AgentBlueprintProtocol.Deployment do
     end
   end
 
-  # The API type boundary — the never-raising posture at this clause too: a
+  # The API type boundary: the never-raising posture at this clause too: a
   # non-binary input denies :invalid_type instead of raising
   # FunctionClauseError (the corpus floor's json surface fix, applied
   # symmetrically to the artifact decoders).
@@ -424,10 +451,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, value} =
     AgentBlueprintProtocol.Json.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   match?(
@@ -437,10 +463,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   ```
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, value} =
     AgentBlueprintProtocol.Json.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   match?(
@@ -475,10 +500,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   match?({:object, _}, AgentBlueprintProtocol.Deployment.to_value(deployment))
@@ -497,10 +521,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   match?({:object, _}, AgentBlueprintProtocol.Deployment.digest_input(deployment))
@@ -538,10 +561,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   match?(
@@ -561,10 +583,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   match?(
@@ -590,10 +611,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   AgentBlueprintProtocol.Deployment.verify_content_digest(deployment)
@@ -633,10 +653,9 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   match?(
@@ -681,15 +700,14 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   AgentBlueprintProtocol.Deployment.binds?(deployment, blueprint)
@@ -715,15 +733,14 @@ defmodule AgentBlueprintProtocol.Deployment do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   AgentBlueprintProtocol.Deployment.verify_binding(
@@ -811,7 +828,7 @@ defmodule AgentBlueprintProtocol.Deployment do
     do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # A present-but-non-integer max age is a fail-OPEN hole (integer-vs-binary
-  # term comparison always false — the bound would silently not apply), so
+  # term comparison always false; the bound would silently not apply), so
   # the shape denies.
   defp stage_staleness(_bindings, %Observations{
          now: _now,
@@ -932,10 +949,10 @@ defmodule AgentBlueprintProtocol.Deployment do
 
   # The one total reader every binding stage consumes (malformed
   # tool_bindings must DENY, never silently
-  # discard as if unbound — a non-array member, a non-object entry, a
+  # discard as if unbound: a non-array member, a non-object entry, a
   # non-string operand, or an unparsable descriptor digest is a malformed
   # deployment, not an empty binding set).
-  # Stage 0: the deployment's own shape is total and fail-closed — a
+  # Stage 0: the deployment's own shape is total and fail-closed: a
   # non-object root, a DUPLICATE root member (first-wins reads must never
   # decide a binding), or a malformed tool_bindings member denies before
   # any cross-artifact judgment.
@@ -1099,7 +1116,7 @@ defmodule AgentBlueprintProtocol.Deployment do
   end
 
   # A signature entry's PURPOSE is this artifact's fact: the envelope
-  # parses (the closed set) AND must be "deployment" here — a
+  # parses (the closed set) AND must be "deployment" here; a
   # blueprint-purpose signature riding a Deployment is a wrong-position
   # entry, denied as a table constraint. Blueprint asserts its own symmetric
   # half.
@@ -1125,7 +1142,7 @@ defmodule AgentBlueprintProtocol.Deployment do
     end
   end
 
-  # An eligibility expression: any non-empty JSON object — the host's policy
+  # An eligibility expression: any non-empty JSON object; the host's policy
   # DSL, held verbatim and name-denylist-scanned (see the scan). "No
   # constraint" must be an explicit host act, never a decode default.
   defp check_expression({:object, members}) when members != [], do: :ok
@@ -1133,10 +1150,10 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp check_expression(_other),
     do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}}
 
-  # The as_of total rule: exactly (required + positive age) or (none + null)
-  # — the contradictory spellings are not requirements. A MISSING max_age_ms
+  # The as_of total rule: exactly (required + positive age) or (none + null);
+  # the contradictory spellings are not requirements. A MISSING max_age_ms
   # defers to the member recursion (:missing_required_field), and a bad mode
-  # defers to its enum — one reason per defect, no collisions.
+  # defers to its enum; one reason per defect, no collisions.
   # Non-object as_of shapes deny at the member kind's type stage first.
   defp check_as_of({:object, members}) do
     as_of_judgment(member_of(members, "mode"), member_of(members, "max_age_ms"))
@@ -1201,8 +1218,8 @@ defmodule AgentBlueprintProtocol.Deployment do
     do: {:error, %AgentBlueprintProtocol.Error{code: :lifecycle_state_invalid}}
 
   # The exact-only version pin: the protocol rejects the RANGE VOCABULARY
-  # (base: "version ranges and silent fallback fail"), not semver semantics
-  # — prerelease/build suffixes are exact pins. The charset rule is TOTAL:
+  # (base: "version ranges and silent fallback fail"), not semver semantics;
+  # prerelease/build suffixes are exact pins. The charset rule is TOTAL:
   # every range operator (~ ^ = < > | , ! and whitespace) sits outside the
   # strict-semver character set [A-Za-z0-9.+-], so one class denies npm/cargo
   # tildes, pip/Composer equals, OR-lists, comparators, and spans alike.
@@ -1261,10 +1278,10 @@ defmodule AgentBlueprintProtocol.Deployment do
   end
 
   # Open regions: extension bodies (names + strict values, except
-  # negotiation-validated critical namespaces — their controls are the
+  # negotiation-validated critical namespaces; their controls are the
   # digest-pinned schema validation and the reserved-semantics denylist, both
   # at negotiation) and eligibility expressions (names strict, values under
-  # the authored exemption — a policy DSL naming roles legitimately carries
+  # the authored exemption; a policy DSL naming roles legitimately carries
   # identifier-shaped strings, the same posture as schema documents).
   defp scan_open_regions(members, validated_ns) do
     {_validated_bodies, strict_bodies} =
@@ -1295,12 +1312,12 @@ defmodule AgentBlueprintProtocol.Deployment do
     Enum.map(expressions, fn {_name, {:object, _inner} = expression} -> expression end)
   end
 
-  # Value shapes over every other core string, recursively — every string
+  # Value shapes over every other core string, recursively: every string
   # inside tool_bindings/data_bindings/build_identities (logical operations,
   # dataset names, identity names, AND the adapter identities beside them) is
   # strict-scanned: the raw-key heuristic's separator floor (43+ pure-b64url
   # chars) leaves the dotted/underscore identifier conventions clean, and no
-  # member of this artifact is exempt — a raw endpoint hides nowhere.
+  # member of this artifact is exempt; a raw endpoint hides nowhere.
   defp scan_core_strings(members) do
     members
     |> Enum.reject(fn {name, _} -> name in @evidence_members or name == "extensions" end)
@@ -1314,13 +1331,13 @@ defmodule AgentBlueprintProtocol.Deployment do
   defp pass_nil(:ok), do: nil
   defp pass_nil({:error, _reason} = error), do: error
 
-  # Eligibility is an open region — full scan_authored above.
+  # Eligibility is an open region; full scan_authored above.
   defp core_member_scan("eligibility", _value), do: :ok
 
   defp core_member_scan(_name, value), do: Portability.scan_value(value)
 
   # The one free string inside an evidence entry: evidence members are
-  # digest-UNCOVERED — a secret-shaped key there must still red.
+  # digest-UNCOVERED; a secret-shaped key there must still red.
   defp scan_evidence_key_ids(members) do
     members
     |> member_array("signatures")

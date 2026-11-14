@@ -71,6 +71,83 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
 
   @reprove_plants [
     %{
+      name: "package-consumer-gate-wrapper-reused",
+      path: "mix.exs",
+      from: "run --no-start scripts/check_packaged_doctests.exs",
+      to: "run --no-start scripts/check_packaged_examples.exs",
+      command: [
+        "mix",
+        "do",
+        "kit.build,",
+        "test",
+        "test/architecture/package_consumer_gates_test.exs"
+      ]
+    },
+    %{
+      name: "public-package-footer-links",
+      path: "mix.exs",
+      from: ~s|      main: "readme",\n|,
+      to: ~s|      main: "readme",\n      footer: false,\n|,
+      command: ~w(mix test test/architecture/document_citation_gate_test.exs)
+    },
+    %{
+      name: "consumer-example-cwd-resource",
+      path: "README.md",
+      from:
+        ~s|example_path = Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json")|,
+      to: ~s|example_path = "priv/examples/echo-blueprint.json"|,
+      command: ~w(mix test test/architecture/documentation_currency_test.exs)
+    },
+    %{
+      name: "published-link-to-unpublished-file",
+      path: "CONTRIBUTING.md",
+      from: "The CI workflow at `.github/workflows/ci.yml` defines these jobs:",
+      to: "The [CI workflow](.github/workflows/ci.yml) defines these jobs:",
+      command: ~w(mix test test/architecture/document_citation_gate_test.exs)
+    },
+    %{
+      name: "published-link-missing-anchor",
+      path: "documentation/quickstart.md",
+      from: "(glossary.md#blueprint)",
+      to: "(glossary.md#missing-anchor-probe)",
+      command: ~w(mix test test/architecture/document_citation_gate_test.exs)
+    },
+    %{
+      name: "packaged-livebooks-missing-examples",
+      path: "mix.exs",
+      from: ~s|        "priv/examples",\n|,
+      to: "",
+      command: ~w(mix livebooks.package)
+    },
+    %{
+      name: "packaged-doctests-missing-examples",
+      path: "mix.exs",
+      from: ~s|        "priv/examples",\n|,
+      to: "",
+      command: ~w(mix doctests.package)
+    },
+    %{
+      name: "unmarked-guide-snippet-fails",
+      path: "README.md",
+      from: "## Contributing\n",
+      to: "## Contributing\n\n```elixir\nraise \"snippet failure probe\"\n```\n",
+      command: ~w(mix snippets.package)
+    },
+    %{
+      name: "unmarked-typescript-example-fails",
+      path: "documentation/typescript.md",
+      from: "## Prerequisites\n",
+      to: "## Prerequisites\n\n```ts\nthrow new Error(\"TypeScript failure probe\");\n```\n",
+      command: ["mix", "do", "kit.build,", "typescript.package"]
+    },
+    %{
+      name: "mix-project-build-group-missing",
+      path: "test/scratch_test.exs",
+      from: "use ExUnit.Case, async: true, group: :project_build",
+      to: "use ExUnit.Case, async: true",
+      command: ~w(mix test test/architecture/project_build_concurrency_test.exs)
+    },
+    %{
       name: "public-api-function-added",
       path: "lib/agent_blueprint_protocol/base64url.ex",
       from: "defmodule AgentBlueprintProtocol.Base64Url do\n",
@@ -513,7 +590,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
       from:
         "# Changelog\n\nAll notable public changes to `agent_blueprint_protocol` are documented here.\n",
       to:
-        "# Changelog\n\nAll notable public changes to `agent_blueprint_protocol` are documented here.\n\n## [0.0.0] — 1970-01-01\n\nstale placeholder\n",
+        "# Changelog\n\nAll notable public changes to `agent_blueprint_protocol` are documented here.\n\n## [0.0.0] - 1970-01-01\n\nstale placeholder\n",
       command: ~w(mix test test/architecture/documentation_currency_test.exs)
     },
     %{
@@ -560,7 +637,7 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     },
     %{
       name: "examples-gallery-drift",
-      path: "examples/echo-blueprint.json",
+      path: "priv/examples/echo-blueprint.json",
       from: "\"max_attempts\":3",
       to: "\"max_attempts\":4",
       command: ~w(mix test test/architecture/examples_gallery_test.exs)

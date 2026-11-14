@@ -28,15 +28,29 @@ Build a parsing profile before reading artifacts. This is independent of the thi
 profile.depth # => 32
 ```
 
+## Declare core-field support
+
+A host that supports every core field of a protocol revision declares the union of `Blueprint.members/1` and `Deployment.members/1` in `Negotiation.Support.core_fields`. The functions return sorted names from the same compiled tables used by the decoders. Declare only fields the host actually supports; the full union is for a host that supports every core field.
+
+```elixir
+{:ok, blueprint_members} = AgentBlueprintProtocol.Blueprint.members(1)
+{:ok, deployment_members} = AgentBlueprintProtocol.Deployment.members(1)
+core_fields = MapSet.new(blueprint_members ++ deployment_members)
+support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: core_fields}
+MapSet.member?(support.core_fields, "blueprint_id") # => true
+MapSet.member?(support.core_fields, "tool_bindings") # => true
+```
+
+Pass this `support` to `negotiate/2` or in `Reconcile.Inputs` to `reconcile/3`. `Federation.members/1` separately exposes the TaskEnvelope vocabulary; its members are not added to this core-field union.
+
 ## Decode the installed samples
 
 ```elixir
 alias AgentBlueprintProtocol.{BoundsAlgebra, Compatibility, Deployment, Reconcile}
 alias AgentBlueprintProtocol.Negotiation.Support
 
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-blueprint_bytes = File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
-deployment_bytes = File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+blueprint_bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
+deployment_bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(blueprint_bytes, %{depth: 32})
 {:ok, deployment} = AgentBlueprintProtocol.decode_deployment(deployment_bytes, %{depth: 32})
 ```
@@ -73,7 +87,7 @@ The first eight fields are operational maxima. Cost is integer millionths of the
 ```elixir
 support = %Support{
   revisions: MapSet.new([1]),
-  core_fields: MapSet.new(),
+  core_fields: core_fields,
   registry: %{},
   schemas: %{}
 }

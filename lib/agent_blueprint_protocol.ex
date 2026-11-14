@@ -9,8 +9,7 @@ defmodule AgentBlueprintProtocol do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-  bytes = File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+  bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
   match?({:ok, %AgentBlueprintProtocol.Blueprint{}}, AgentBlueprintProtocol.decode_blueprint(bytes))
   ```
   """
@@ -38,10 +37,7 @@ defmodule AgentBlueprintProtocol do
   Decodes and validates Blueprint bytes under the supplied parse limits.
 
   ## Example
-
-      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-      :ok
-      iex> bytes = File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      iex> bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
       iex> match?({:ok, %AgentBlueprintProtocol.Blueprint{}}, AgentBlueprintProtocol.decode_blueprint(bytes))
       true
       iex> match?({:ok, %AgentBlueprintProtocol.Blueprint{}}, AgentBlueprintProtocol.decode_blueprint(bytes, %{bytes: 5000}))
@@ -57,10 +53,7 @@ defmodule AgentBlueprintProtocol do
   Decodes and validates Deployment bytes under the supplied parse limits.
 
   ## Example
-
-      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-      :ok
-      iex> bytes = File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      iex> bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
       iex> match?({:ok, %AgentBlueprintProtocol.Deployment{}}, AgentBlueprintProtocol.decode_deployment(bytes))
       true
       iex> match?({:ok, %AgentBlueprintProtocol.Deployment{}}, AgentBlueprintProtocol.decode_deployment(bytes, %{bytes: 5000}))
@@ -79,10 +72,7 @@ defmodule AgentBlueprintProtocol do
   Checks an artifact against a consumer support posture.
 
   ## Example
-
-      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-      :ok
-      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.negotiate(blueprint, support))
+      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.negotiate(blueprint, support))
       true
   """
   @doc since: "1.0.0"
@@ -105,10 +95,7 @@ defmodule AgentBlueprintProtocol do
   Intersects the Blueprint, Deployment, and host bound sources.
 
   ## Example
-
-      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-      :ok
-      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))), {:ok, deployment} <- AgentBlueprintProtocol.Deployment.decode(File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))), {:ok, blueprint_bounds} <- AgentBlueprintProtocol.BoundsAlgebra.from_blueprint(blueprint), {:ok, deployment_bounds} <- AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment), sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{blueprint: blueprint_bounds, deployment: deployment_bounds, host: deployment_bounds, protected_clamp: :acknowledge}, do: match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.Result{}}, AgentBlueprintProtocol.intersect(sources))
+      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))), {:ok, deployment} <- AgentBlueprintProtocol.Deployment.decode(File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))), {:ok, blueprint_bounds} <- AgentBlueprintProtocol.BoundsAlgebra.from_blueprint(blueprint), {:ok, deployment_bounds} <- AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment), sources = %AgentBlueprintProtocol.BoundsAlgebra.Sources{blueprint: blueprint_bounds, deployment: deployment_bounds, host: deployment_bounds, protected_clamp: :acknowledge}, do: match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.Result{}}, AgentBlueprintProtocol.intersect(sources))
       true
   """
   @doc since: "1.0.0"
@@ -144,10 +131,7 @@ defmodule AgentBlueprintProtocol do
   Runs the composed verification pass for a Blueprint and Deployment pair.
 
   ## Example
-
-      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-      :ok
-      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))), {:ok, deployment} <- AgentBlueprintProtocol.Deployment.decode(File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))), {:ok, host_bounds} <- AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment), inputs = %AgentBlueprintProtocol.Reconcile.Inputs{host_bounds: host_bounds, support: %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, keys: [], protected_clamp: :acknowledge, observations: %AgentBlueprintProtocol.Deployment.Observations{}}, do: match?({:ok, %AgentBlueprintProtocol.Evidence{}}, AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs))
+      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))), {:ok, deployment} <- AgentBlueprintProtocol.Deployment.decode(File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))), {:ok, host_bounds} <- AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment), inputs = %AgentBlueprintProtocol.Reconcile.Inputs{host_bounds: host_bounds, support: %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, keys: [], protected_clamp: :acknowledge, observations: %AgentBlueprintProtocol.Deployment.Observations{}}, do: match?({:ok, %AgentBlueprintProtocol.Evidence{}}, AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs))
       true
   """
   @doc since: "1.0.0"
@@ -173,10 +157,7 @@ defmodule AgentBlueprintProtocol do
   Decodes and validates Federation envelope bytes under the supplied parse limits.
 
   ## Example
-
-      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-      :ok
-      iex> bytes = File.read!(Path.join(dependency_root, "examples/federation-envelope.json"))
+      iex> bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/federation-envelope.json"))
       iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.decode_federation_envelope(bytes))
       true
       iex> match?({:ok, %AgentBlueprintProtocol.Federation{}}, AgentBlueprintProtocol.decode_federation_envelope(bytes, %{bytes: 5000}))
@@ -204,10 +185,7 @@ defmodule AgentBlueprintProtocol do
   Returns canonical JSON bytes for the supplied artifact.
 
   ## Example
-
-      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-      :ok
-      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))), do: match?({:ok, bytes} when is_binary(bytes), AgentBlueprintProtocol.canonical_bytes(blueprint))
+      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))), do: match?({:ok, bytes} when is_binary(bytes), AgentBlueprintProtocol.canonical_bytes(blueprint))
       true
   """
   @doc since: "1.0.0"

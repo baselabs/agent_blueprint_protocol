@@ -26,7 +26,6 @@ Formatted JSON is for reading. Artifact decoding requires canonical bytes, inclu
 Load the installed template, change the release number, and compute/insert the digest before canonical encoding. The original declared digest is only a draft value after editing; `from_value/2` does not verify it. In a new artifact, a well-formed placeholder serves the same purpose until replaced.
 
 ```elixir
-package_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
 alias AgentBlueprintProtocol.{Blueprint, Canonicalization, Digest, Json}
 
 put_member = fn {:object, members}, name, value ->
@@ -43,7 +42,7 @@ replace_path = fn replace_path, {:object, members}, [name | rest], value ->
   end
 end
 
-blueprint_path = Path.join(package_root, "examples/echo-blueprint.json")
+blueprint_path = Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json")
 {:ok, blueprint_value} = File.read!(blueprint_path) |> Json.decode()
 {:ok, original_blueprint} = Blueprint.from_value(blueprint_value)
 original_digest = original_blueprint |> Blueprint.content_digest() |> Digest.to_tagged()
@@ -74,7 +73,7 @@ Bind it to the new release and digest, change the model token limit, then comput
 ```elixir
 alias AgentBlueprintProtocol.Deployment
 
-deployment_path = Path.join(package_root, "examples/echo-deployment.json")
+deployment_path = Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json")
 {:ok, deployment_value} = File.read!(deployment_path) |> Json.decode()
 
 deployment_value =
@@ -249,7 +248,7 @@ The summary preserves both subjects. With an unsigned Manifest, the Blueprint si
 Choose a fresh output directory. This cell refuses to overwrite an existing one. Keys remain in memory; only canonical artifact bytes are written. Re-evaluating this stage requires choosing a new directory or removing your previous example output.
 
 ```elixir
-output_dir = Path.join(File.cwd!(), "abp-artifacts")
+output_dir = Path.expand("abp-artifacts")
 :ok = File.mkdir(output_dir)
 System.at_exit(fn _status -> File.rm_rf!(output_dir) end)
 blueprint_output = Path.join(output_dir, "blueprint.json")
@@ -273,13 +272,13 @@ deployment_output = Path.join(output_dir, "deployment.json")
 From the directory containing `abp-artifacts`, with Node.js 24 or newer:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.0.1 --artifact abp-artifacts/blueprint.json
-npx @agent-blueprint-protocol/verifier@1.0.1 --artifact abp-artifacts/deployment.json
+npx @agent-blueprint-protocol/verifier@1.1.0 --artifact abp-artifacts/blueprint.json
+npx @agent-blueprint-protocol/verifier@1.1.0 --artifact abp-artifacts/deployment.json
 ```
 
 Each command prints a valid report and exits `0`. Decoder-only artifact mode establishes no key verification or pair reconciliation. See [CI pair verification](verifying-in-ci.md) for a complete script with host inputs. Copy the files into your project before exiting IEx. The walkthrough owns `abp-artifacts` and removes it when its runtime exits; run the CLI in a second terminal while that runtime is open.
 
-The walkthrough follows `Blueprint.from_value/2`, `Deployment.from_value/2`, their digest/encoder/decoder functions, `Signature.signing_input/1`, `Signature.verify/2`, and `Reconcile.reconcile/3`. These are the public contracts checked in the 1.0.1 source.
+The walkthrough follows `Blueprint.from_value/2`, `Deployment.from_value/2`, their digest/encoder/decoder functions, `Signature.signing_input/1`, `Signature.verify/2`, and `Reconcile.reconcile/3`. These are the public contracts checked in the 1.1.0 source.
 
 ## Next steps
 

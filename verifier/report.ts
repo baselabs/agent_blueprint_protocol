@@ -1,4 +1,4 @@
-// The report builder — the mirror of AgentBlueprintProtocol.Conformance.Report:
+// The report builder, the mirror of AgentBlueprintProtocol.Conformance.Report:
 // refuses vacuous green (agreement requires total > 0 AND zero disagreements)
 // and emits deterministic JCS report bytes identity-bound to the corpus.
 

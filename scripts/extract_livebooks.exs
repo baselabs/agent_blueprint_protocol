@@ -1,120 +1,187 @@
-defmodule AgentBlueprintProtocol.LivebookExtractor do
+defmodule PackageLivebooks do
   @moduledoc false
 
-  @open_cell <<96, 96, 96, "elixir">>
-  @fence <<96, 96, 96>>
-  @version_pattern ~r/\A[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?\z/
+  # Standalone, package-independent gate:
+  # elixir scripts/extract_livebooks.exs --archive package.tar notebook.livemd ...
+  # Uses only the archive, notebook files, and the running Elixir/OTP toolchain.
+  @cell ~r/^```elixir\r?\n(.*?)^```[ \t]*$/ms
 
-  def extract(markdown, version) when is_binary(markdown) and is_binary(version) do
-    with true <- Regex.match?(@version_pattern, version),
-         cells when cells != [] <- code_cells(markdown),
-         [install | rest] <- cells,
-         true <- source_install?(install),
-         false <- Enum.any?(rest, &String.contains?(&1, "Mix.install(")) do
-      {:ok, runner_script(version, rest)}
-    else
-      _ -> {:error, :invalid_notebook}
-    end
-  end
-
-  def extract(_, _), do: {:error, :invalid_notebook}
-
-  def extract_directory(input_dir, output_dir, version) do
-    # Path.wildcard/1 matches forward slashes only; Path.expand/1 normalizes
-    # Windows separators so a temporary directory resolves on every platform.
-    paths =
-      input_dir
-      |> Path.expand()
-      |> Path.join("*.livemd")
-      |> Path.wildcard()
-      |> Enum.sort()
-
-    with true <- paths != [],
-         :ok <- File.mkdir_p(output_dir) do
-      Enum.reduce_while(paths, {:ok, []}, fn path, {:ok, written} ->
-        with {:ok, source} <- File.read(path),
-             {:ok, script} <- extract(source, version),
-             output = Path.join(output_dir, Path.basename(path, ".livemd") <> ".exs"),
-             :ok <- File.write(output, script) do
-          {:cont, {:ok, [output | written]}}
-        else
-          _ -> {:halt, {:error, {:invalid_notebook, path}}}
-        end
+  def extract(markdown, app, package, notebook) do
+    cells =
+      @cell
+      |> Regex.scan(markdown, return: :index, capture: :all_but_first)
+      |> Enum.with_index(1)
+      |> Enum.map(fn {[{offset, size}], index} ->
+        code = binary_part(markdown, offset, size)
+        line = markdown |> binary_part(0, offset) |> String.split("\n") |> length()
+        %{code: code, index: index, line: line}
       end)
-      |> case do
-        {:ok, written} -> {:ok, Enum.reverse(written)}
-        error -> error
+
+    with true <- cells != [],
+         {:ok, installs} <- install_cells(cells, notebook),
+         [install] <- installs do
+      rewritten =
+        Enum.map(cells, fn cell ->
+          if cell.index == install,
+            do: %{cell | code: "Mix.install([{#{inspect(app)}, path: #{inspect(package)}}])"},
+            else: cell
+        end)
+
+      {:ok, runner(rewritten, notebook)}
+    else
+      {:error, reason} -> {:error, reason}
+      _ -> {:error, "#{notebook} cell 1: expected exactly one standalone Mix.install cell"}
+    end
+  end
+
+  def run(archive, notebooks) when notebooks != [] do
+    scratch =
+      Path.join(
+        System.tmp_dir!(),
+        "package-livebooks-#{Base.encode16(:crypto.strong_rand_bytes(12), case: :lower)}"
+      )
+
+    File.mkdir!(scratch)
+
+    try do
+      package = Path.join(scratch, "package")
+      consumer = Path.join(scratch, "consumer")
+      installs = Path.join(scratch, "installs")
+      File.mkdir!(package)
+      File.mkdir!(consumer)
+      {name, version, app} = unpack!(Path.expand(archive), package, scratch)
+      IO.puts("package Livebooks: #{name} #{version}")
+
+      for {notebook, index} <- Enum.with_index(notebooks, 1) do
+        notebook = Path.expand(notebook)
+        source = File.read!(notebook)
+
+        script =
+          case extract(source, app, package, notebook) do
+            {:ok, script} -> script
+            {:error, reason} -> raise reason
+          end
+
+        path = Path.join(scratch, "notebook-#{index}.exs")
+        File.write!(path, script)
+
+        {output, status} =
+          System.cmd(elixir(), [path],
+            cd: consumer,
+            stderr_to_stdout: true,
+            env: [
+              {"MIX_ENV", "prod"},
+              {"MIX_INSTALL_DIR", installs},
+              {"MIX_BUILD_PATH", nil},
+              {"MIX_DEPS_PATH", nil},
+              {"PATH",
+               Path.join(List.to_string(:code.root_dir()), "bin") <>
+                 path_separator() <> System.get_env("PATH", "")}
+            ]
+          )
+
+        IO.write(output)
+        if status != 0, do: raise("#{notebook}: exit #{status}")
+        IO.puts("package Livebook #{Path.basename(notebook)}: passed")
       end
-    else
-      _ -> {:error, :no_notebooks}
+
+      IO.puts("package Livebooks: #{length(notebooks)} notebooks passed outside the checkout")
+      :ok
+    after
+      File.rm_rf!(scratch)
     end
   end
 
-  def main(["--version", version, "--input", input_dir, "--output", output_dir]) do
-    case extract_directory(input_dir, output_dir, version) do
-      {:ok, paths} ->
-        Enum.each(paths, &IO.puts/1)
-        :ok
-
-      {:error, reason} ->
-        IO.puts(:stderr, "Could not extract Livebook scripts: #{inspect(reason)}")
-        {:error, reason}
-    end
+  def main(["--archive", archive | notebooks]) when notebooks != [] do
+    run(archive, notebooks)
   end
 
-  def main(_args), do: {:error, :usage}
+  def main(_args), do: raise("usage: --archive package.tar notebook.livemd ...")
 
-  defp code_cells(markdown) do
-    pattern =
-      "^" <>
-        Regex.escape(@open_cell) <>
-        "\\r?\\n(.*?)^" <>
-        Regex.escape(@fence) <>
-        "[ \\t]*$"
+  defp unpack!(archive, package, scratch) do
+    {:ok, entries} = :erl_tar.extract(String.to_charlist(archive), [:memory])
+    metadata = entries |> List.keyfind(~c"metadata.config", 0) |> elem(1)
+    contents = entries |> List.keyfind(~c"contents.tar.gz", 0) |> elem(1)
+    path = Path.join(scratch, "metadata.config")
+    File.write!(path, metadata)
+    {:ok, terms} = :file.consult(String.to_charlist(path))
+    fields = Map.new(terms)
+    name = Map.fetch!(fields, "name")
+    version = Map.fetch!(fields, "version")
+    app = Map.fetch!(fields, "app")
+    true = is_binary(name) and is_binary(version) and is_binary(app)
 
-    Regex.compile!(pattern, "ms")
-    |> Regex.scan(markdown, capture: :all_but_first)
-    |> Enum.map(&hd/1)
-    |> Enum.map(&String.trim/1)
+    :ok =
+      :erl_tar.extract({:binary, contents}, [:compressed, {:cwd, String.to_charlist(package)}])
+
+    {name, version, String.to_atom(app)}
   end
 
-  defp source_install?(cell) do
-    pattern = ~r/\AMix\.install\(\[\{:agent_blueprint_protocol, "(~> [^"]+)"\}\]\)\z/
+  defp install_cells(cells, notebook) do
+    Enum.reduce_while(cells, {:ok, []}, fn cell, {:ok, installs} ->
+      case Code.string_to_quoted(cell.code, file: notebook, line: cell.line) do
+        {:ok, quoted} ->
+          {_ast, calls} =
+            Macro.prewalk(quoted, 0, fn
+              {{:., _, [{:__aliases__, _, [:Mix]}, :install]}, _, _} = node, count ->
+                {node, count + 1}
 
-    with [_, requirement] <- Regex.run(pattern, cell),
-         {:ok, _requirement} <- Version.parse_requirement(requirement) do
-      true
-    else
-      _ -> false
-    end
+              node, count ->
+                {node, count}
+            end)
+
+          cond do
+            calls == 0 ->
+              {:cont, {:ok, installs}}
+
+            calls == 1 and standalone_install?(quoted) ->
+              {:cont, {:ok, [cell.index | installs]}}
+
+            true ->
+              {:halt,
+               {:error, "#{notebook} cell #{cell.index}: expected a standalone Mix.install cell"}}
+          end
+
+        {:error, reason} ->
+          {:halt, {:error, "#{notebook} cell #{cell.index}: #{inspect(reason)}"}}
+      end
+    end)
   end
 
-  defp published_install(version),
-    do: ~s|Mix.install([{:agent_blueprint_protocol, "== #{version}"}])|
+  defp standalone_install?({{:., _, [{:__aliases__, _, [:Mix]}, :install]}, _, [_deps | _opts]}),
+    do: true
 
-  defp runner_script(version, cells) do
-    cell_literals = Enum.map_join(cells, ",\n", &("  " <> inspect(&1)))
+  defp standalone_install?(_quoted), do: false
 
+  defp runner(cells, notebook) do
     """
-    #{published_install(version)}
+    notebook = #{inspect(notebook)}
+    cells = #{inspect(cells, limit: :infinity, printable_limit: :infinity)}
 
-    notebook_cells = [
-    #{cell_literals}
-    ]
-
-    Enum.reduce(notebook_cells, {[], Code.env_for_eval(file: __ENV__.file)}, fn code,
-                                                                                {binding, env} ->
-      quoted = Code.string_to_quoted!(code, file: __ENV__.file)
-      {_value, binding, env} = Code.eval_quoted_with_env(quoted, binding, env)
-      {binding, env}
+    Enum.reduce(cells, {[], Code.env_for_eval(file: notebook)}, fn cell, {binding, env} ->
+      try do
+        quoted = Code.string_to_quoted!(cell.code, file: notebook, line: cell.line)
+        {_value, binding, env} = Code.eval_quoted_with_env(quoted, binding, env)
+        {binding, env}
+      rescue
+        error ->
+          IO.puts(:stderr, "notebook \#{notebook} cell \#{cell.index} (line \#{cell.line}): " <> Exception.format(:error, error, __STACKTRACE__))
+          System.halt(1)
+      catch
+        kind, reason ->
+          IO.puts(:stderr, "notebook \#{notebook} cell \#{cell.index} (line \#{cell.line}): " <> Exception.format(kind, reason, __STACKTRACE__))
+          System.halt(1)
+      end
     end)
     """
   end
+
+  defp elixir do
+    executable = if match?({:win32, _}, :os.type()), do: "elixir.bat", else: "elixir"
+    Path.expand("../../../bin/" <> executable, Path.dirname(List.to_string(:code.which(Kernel))))
+  end
+
+  defp path_separator, do: if(match?({:win32, _}, :os.type()), do: ";", else: ":")
 end
 
-if "--version" in System.argv() do
-  case AgentBlueprintProtocol.LivebookExtractor.main(System.argv()) do
-    :ok -> :ok
-    {:error, _reason} -> System.halt(1)
-  end
-end
+if "--archive" in System.argv(), do: PackageLivebooks.main(System.argv())

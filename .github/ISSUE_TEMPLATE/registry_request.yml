@@ -8,8 +8,8 @@ body:
         Registry requests follow the process in
         [`spec/registry/OPERATIONS.md`](https://github.com/baselabs/agent_blueprint_protocol/blob/main/spec/registry/OPERATIONS.md).
         A namespace must be producer-qualified (reverse-DNS under an identity
-        you own), carry a criticality declaration, and — for critical
-        extensions with schemas — a pinned schema digest.
+        you own), carry a criticality declaration, and (for critical
+        extensions with schemas) a pinned schema digest.
   - type: input
     id: namespace
     attributes:

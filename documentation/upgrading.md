@@ -14,13 +14,13 @@ The protocol uses separate version values for separate contracts:
 The Hex and npm packages carry the same complete version, including prerelease identifiers. Pin this release with this Hex requirement:
 
 ```elixir
-{:agent_blueprint_protocol, "~> 1.0.1"}
+{:agent_blueprint_protocol, "~> 1.1.0"}
 ```
 
 Install the same version from npm:
 
 ```sh
-npm install @agent-blueprint-protocol/verifier@1.0.1
+npm install @agent-blueprint-protocol/verifier@1.1.0
 ```
 
 ## Release identity
@@ -46,7 +46,7 @@ returned signature algorithm and purpose identifiers are open. Find the
 names you know, retain a default branch, and never count an unknown entry
 as proof. Select only the Elixir struct fields you use:
 
-```elixir
+```elixir fragment
 case result do
   {:ok, %AgentBlueprintProtocol.Evidence{checks: checks}} ->
     Enum.filter(checks, fn

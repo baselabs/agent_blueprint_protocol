@@ -131,7 +131,7 @@ defmodule AgentBlueprintProtocol.Conformance.Cli do
   defp encode_value(nil, _encoder), do: "null"
   defp encode_value(value, encoder), do: :json.encode_value(value, encoder)
 
-  # Reads EVERY file under the corpus directory — dotfiles included — so the
+  # Reads EVERY file under the corpus directory (dotfiles included) so the
   # loader's file-set equality sees exactly what the directory carries.
   # The read is size-capped and total-failure typed: a hostile corpus
   # directory cannot exhaust memory or crash past the exit-code contract

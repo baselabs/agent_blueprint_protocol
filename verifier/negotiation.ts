@@ -1,5 +1,5 @@
 import { isValue } from "./value.ts";
-// Negotiation — the mirror of AgentBlueprintProtocol.Negotiation: the
+// Negotiation, the mirror of AgentBlueprintProtocol.Negotiation: the
 // evolution gate over protocol machinery only (protocol_revision →
 // required_core_fields → extensions, precedence pinned), the host-pinned
 // lifecycle-only registry view layered over the compiled registry, the
@@ -92,7 +92,7 @@ interface ResolvedEntry {
   schemaDigest: string | null;
 }
 
-// The protected families + the eight ceilings, snake and camel — stored
+// The protected families + the eight ceilings, snake and camel: stored
 // NORMALIZED; kebab/upper/case-collapsed spellings converge at compare time.
 const RESERVED_NAMES = new Set([
   "approval_trait",
@@ -128,7 +128,7 @@ export function negotiate(artifact: Value, support: Support): { ok: true; v: Out
       !support.registry || typeof support.registry !== "object" || Array.isArray(support.registry) ||
       Object.values(support.registry).some((entry) => !entry || typeof entry !== "object") ||
       !support.schemas || typeof support.schemas !== "object" || Array.isArray(support.schemas)) return { ok: false, e: "invalid_type" };
-  // Revision stays FIRST — a max+1 artifact reports its revision reason
+  // Revision stays FIRST; a max+1 artifact reports its revision reason
   // before any other defect.
   const revision = revisionCheck(artifact, support);
   if (!revision.ok) return revision;
@@ -220,7 +220,7 @@ function extensionsCheck(value: Value, support: Support): { ok: true; v: Extensi
   if (found.t !== "obj") return { ok: false, e: "invalid_type" };
   const regions = found.v;
 
-  // Both regions present, both objects — anything else is malformed machinery.
+  // Both regions present, both objects; anything else is malformed machinery.
   const names = regions.map(([name]) => name).sort();
   const allObjects = regions.every(([, region]) => region.t === "obj");
   if (names.length !== 2 || names[0] !== "critical" || names[1] !== "optional" || !allObjects) {

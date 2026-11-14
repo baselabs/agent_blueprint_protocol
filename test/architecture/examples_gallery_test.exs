@@ -10,7 +10,7 @@ defmodule AgentBlueprintProtocol.Architecture.ExamplesGalleryTest do
 
   use ExUnit.Case, async: true
 
-  @examples_dir "examples"
+  @examples_dir "priv/examples"
 
   test "every example artifact is a byte-exact corpus case" do
     examples = Path.wildcard(Path.join(@examples_dir, "*.json")) |> Enum.sort()

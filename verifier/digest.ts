@@ -1,4 +1,4 @@
-// Domain-separated SHA-256 digests — the mirror of AgentBlueprintProtocol.Digest:
+// Domain-separated SHA-256 digests, the mirror of AgentBlueprintProtocol.Digest:
 // preimage `separator || 0x00 || jcs_bytes` under the registered separator
 // (protocol §5), tagged wire form "sha-256:<43-char unpadded base64url>".
 

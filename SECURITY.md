@@ -4,7 +4,8 @@
 
 | Version | Supported |
 | --- | --- |
-| 1.0.x | yes |
+| 1.1.x | yes |
+| 1.0.x | no; upgrade to the current line |
 | 0.8.x | yes |
 | 0.7.x | no; upgrade to the current line |
 | 0.6.x | no; upgrade to the current line |
@@ -14,7 +15,7 @@
 | 0.2.x | no; upgrade to the current line |
 | 0.1.x | no; upgrade to the current line |
 
-The 1.0 line and the 0.8 transition
+The 1.1 line and the 0.8 transition
 line receive security fixes. See the [stability policy](documentation/stability.md).
 Reports are handled on a best-effort basis; there is no guaranteed response time.
 

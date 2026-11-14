@@ -31,15 +31,18 @@ jobs:
         shell: pwsh
 
   livebooks:
-    name: Published Livebooks - ${{ matrix.os }}
+    name: Published consumer examples - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
     steps:
-      - name: Check out notebook extractor
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.19.0"
+          package-manager-cache: false
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
@@ -49,17 +52,23 @@ jobs:
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
         shell: pwsh
-      - name: Extract every notebook at the published version
+      - name: Fetch the published gates and run every published consumer example
         env:
           ABP_VERSION: ${{ inputs.version }}
-        run: elixir scripts/extract_livebooks.exs --version "$env:ABP_VERSION" --input docs/livebooks --output "$env:RUNNER_TEMP/livebooks"
-        shell: pwsh
-      - name: Run every published-package notebook
         run: |
-          $scripts = Get-ChildItem (Join-Path $env:RUNNER_TEMP "livebooks") -Filter "*.exs" -File
-          if ($scripts.Count -ne 5) { throw "Expected five notebook scripts, found $($scripts.Count)" }
-          foreach ($script in $scripts) {
-            elixir $script.FullName
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:ABP_VERSION -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw "Invalid version" }
+          $scratch = Join-Path $env:RUNNER_TEMP ([System.IO.Path]::GetRandomFileName())
+          New-Item -ItemType Directory -Path $scratch | Out-Null
+          try {
+            $archive = Join-Path $scratch "package.tar"
+            Invoke-WebRequest "https://repo.hex.pm/tarballs/agent_blueprint_protocol-$env:ABP_VERSION.tar" -OutFile $archive
+            $package = Join-Path $scratch "package"
+            New-Item -ItemType Directory -Path $package | Out-Null
+            elixir -e '{:ok, entries} = :erl_tar.extract(String.to_charlist(hd(System.argv())), [:memory]); {_, contents} = List.keyfind(entries, ~c"contents.tar.gz", 0); :ok = :erl_tar.extract({:binary, contents}, [:compressed, {:cwd, String.to_charlist(Enum.at(System.argv(), 1))}])' -- $archive $package
+            if ($LASTEXITCODE -ne 0) { throw "Published Hex extraction failed" }
+            node (Join-Path $package "scripts/postpublish_examples.mjs") $env:ABP_VERSION
+            if ($LASTEXITCODE -ne 0) { throw "Published consumer examples failed" }
+          } finally {
+            Remove-Item -Recurse -Force $scratch
           }
         shell: pwsh

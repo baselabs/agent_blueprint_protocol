@@ -69,7 +69,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   # The federation envelope's minimal schema, authored here because this
   # package owns the namespace. Inside the bounded dialect: closed object,
   # no reserved-semantics names (the denylist applies to critical bodies
-  # too — a legitimate owner schema does not shadow core bound names).
+  # too; a legitimate owner schema does not shadow core bound names).
   @spec federation_schema() :: Json.value()
   @doc """
   Returns the schema used for Federation extension content.
@@ -102,7 +102,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
 
   # Compile-time content as a literal-returning function (module attributes
   # cannot hold the defining module's own structs); a change here is a code
-  # release either way — the drift-unrepresentable acceptance holds.
+  # release either way; the drift-unrepresentable acceptance holds.
   defp entries do
     [
       %__MODULE__{

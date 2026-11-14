@@ -1,11 +1,11 @@
-# Agent Blueprint Protocol — specification
+# Agent Blueprint Protocol: specification
 
 Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
 `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`, 626 cases) are
 certified against this document at every release through the release
-identity chain — the specification digest, the package version, and the
+identity chain: the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
 release-candidate check asserts the chain from live state. Where this
 document and the implementation disagree, one of them is defective and
@@ -24,16 +24,16 @@ informative.
 bytes, bounds, compatibility, and evidence. Protocol validity never
 grants authority: a consuming host remains responsible for identity,
 tenancy, live policy, effect ownership, execution, and evidence
-retention. Every verification result — including a fully green one — is
+retention. Every verification result (including a fully green one) is
 evidence, never a decision.
 
 ## 1. Scope, non-goals, and terminology
 
 Two language-neutral artifacts:
 
-- **Blueprint Core** — stable identity, typed ports, logical capability
+- **Blueprint Core**: stable identity, typed ports, logical capability
   requirements, bounds, evidence commitments, registered extensions.
-- **Deployment Manifest** — environment-local tool, principal, data,
+- **Deployment Manifest**: environment-local tool, principal, data,
   authority, effect, evaluation, and exact-build bindings for one
   Blueprint release digest.
 
@@ -43,44 +43,44 @@ clients, billing, evaluation truth. The reference implementation is an inert lib
 
 ### Terminology
 
-- **Artifact** — a Blueprint or Deployment Manifest value together with
+- **Artifact**: a Blueprint or Deployment Manifest value together with
   its exact canonical bytes; the artifact's identity is its content
-  digest — the digest of the artifact's digest-covered members over
+  digest, the digest of the artifact's digest-covered members over
   those canonical bytes (the digest section defines the exact input;
   the digest member itself, signatures, and attestations are
   excluded).
-- **Host** — the consuming runtime. Every non-establishment obligation
+- **Host**: the consuming runtime. Every non-establishment obligation
   in this protocol belongs to a host, and a green result never
   transfers one to the package.
-- **Deny** — the fail-closed outcome: a typed error code with subject
+- **Deny**: the fail-closed outcome: a typed error code with subject
   and optional detail. A deny is never a repair and never a silent
   skip; where this document states a requirement as a deny, the
   requirement is absolute (MUST-level) and the error code named is the
   code that enforces it.
-- **Quarantine** — retain byte-exactly without validating or executing:
+- **Quarantine**: retain byte-exactly without validating or executing:
   an unknown optional extension's payload round-trips, is typed as
   unscanned, and confers no portability claim.
-- **Clamp** — the effective narrowing of an operational bound, emitted
+- **Clamp**: the effective narrowing of an operational bound, emitted
   with evidence whenever effective differs from requested; protected
   bounds deny instead of clamping.
-- **Ceiling vs bound** — operational bounds are magnitude limits that
+- **Ceiling vs bound**: operational bounds are magnitude limits that
   narrow pointwise; protected ceilings are ordinal-lattice positions
   (classification, disclosure, effect impact, authority, approval) that
   never widen and deny narrowing by default (both in the evolution
   laws). A parse ceiling is neither: it is a tighten-only decoder
   limit, never an intersection input.
-- **Evidence** — a structured observation about bytes or structure:
+- **Evidence**: a structured observation about bytes or structure:
   per-surface check results, clamp records, and the non-empty
   `not_verified` set naming what was NOT established. Evidence is
   input to a host decision; it is never a decision.
-- **Portability** — the property that an artifact carries no
+- **Portability**: the property that an artifact carries no
   environment-bound values (secrets, keys, grants, tenant ids,
   endpoints, engine ids); enforced structurally and honestly limited
   (the portability section).
-- **Posture** — the declared stance of a surface: fail-closed (deny),
+- **Posture**: the declared stance of a surface: fail-closed (deny),
   acknowledge-and-record (clamp with evidence, or a typed notice), or
   opt-in (a host-supplied policy).
-- **Authored channel** — the validated critical-extension path by which a
+- **Authored channel**: the validated critical-extension path by which a
   producer-declared critical extension body, validated against a
   digest-pinned host schema, is treated as authored content and spared
   the generic value-shape heuristics (still covered by the artifact's
@@ -89,12 +89,12 @@ clients, billing, evaluation truth. The reference implementation is an inert lib
 ## 2. Artifacts and the closed world
 
 Both artifacts MUST decode as JSON objects under the bounded ceilings
-(depth, members, items, nodes, string bytes, key bytes, number lexemes
-— the ceiling family). Decoding MUST be fail-closed under the pinned
+(depth, members, items, nodes, string bytes, key bytes, number lexemes:
+the ceiling family). Decoding MUST be fail-closed under the pinned
 failure precedence: unknown member → missing required → type →
 constraint → cardinality → nested → cross-field hooks.
 
-The registries are closed worlds — the exact member sets the shipped
+The registries are closed worlds: the exact member sets the shipped
 tables define:
 
 - **Blueprint Core (18 members).** Required: `blueprint_id`,
@@ -118,14 +118,14 @@ vocabulary can only evolve at a revision boundary. Protocol revisions and verifi
 Release package versions do not appear in the artifact grammar.
 
 A complete, valid Blueprint as it travels on the wire (the conformance
-corpus's `blueprint-decode-valid` case, byte-exact — every fenced
+corpus's `blueprint-decode-valid` case, byte-exact; every fenced
 JSON example in this specification is a corpus case):
 
 ```json-corpus:blueprint-decode-valid
 {"blueprint_id":"example.demo/echo","capability_requirements":[{"approval_trait":"none","argument_schema":{"type":"object"},"authority_trait":"none","classification_ceiling":"internal","impact_class":"ordinary","operation_family":"example.demo.read_shape","operation_kind":"read","result_schema":{"type":"object"}}],"ceilings":{"max_attempts":3,"max_concurrency":2,"max_cost":{"amount":1000,"currency":"USD"},"max_depth":8,"max_descendants":64,"max_elapsed_ms":60000,"max_fan_out":4,"max_tokens":100000},"classification_ceiling":"internal","content_digest":"sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8","effect_intents":[{"impact_class":"ordinary","logical_operation":"record_summary","operation_kind":"mutation"}],"evaluation_assertions":[{"kind":"output_schema","port":"result","schema":{"type":"object"}}],"extensions":{"critical":{},"optional":{}},"input_ports":[{"classification_ceiling":"internal","name":"request","required":true,"schema":{"type":"object"}}],"output_contract":{"classification_ceiling":"internal","port":"result"},"output_ports":[{"classification_ceiling":"internal","name":"result","required":true,"schema":{"type":"object"}}],"producer":{"created_at":"2026-08-20T00:00:00Z","identity":"example.demo","toolchain":"example.demo.toolchain"},"protocol_revision":1,"release_number":1,"required_core_fields":[],"triggers":["manual"]}
 ```
 
-### Member grammar — Blueprint Core (18 members)
+### Member grammar: Blueprint Core (18 members)
 
 Cardinality `1` members are required; `0..1` members are optional.
 The failure precedence is the pinned closed-world order: unknown
@@ -144,15 +144,15 @@ reference implementation's to enforce.
 |---|---|---|---|
 | `blueprint_id` | 1 | string | value: producer-qualified name |
 | `capability_requirements` | 1 | array<object{ operation_family:string; argument_schema:custom; result_schema:custom; operation_kind:enum(computation\|mutation\|read); impact_class:enum(authority\|money\|ordinary\|secret); classification_ceiling:enum(confidential\|internal\|public\|restricted); approval_trait:enum(human_required\|none\|separated_human_required); authority_trait:enum(external_authority_required\|local_policy\|none) }> | max 64, unique by operation_family |
-| `ceilings` | 1 | object{ max_attempts:integer; max_concurrency:integer; max_depth:integer; max_descendants:integer; max_elapsed_ms:integer; max_fan_out:integer; max_tokens:integer; max_cost:object{ amount:integer; currency:string } } | — |
-| `classification_ceiling` | 1 | enum(confidential\|internal\|public\|restricted) | — |
+| `ceilings` | 1 | object{ max_attempts:integer; max_concurrency:integer; max_depth:integer; max_descendants:integer; max_elapsed_ms:integer; max_fan_out:integer; max_tokens:integer; max_cost:object{ amount:integer; currency:string } } | - |
+| `classification_ceiling` | 1 | enum(confidential\|internal\|public\|restricted) | - |
 | `effect_intents` | 1 | array<object{ logical_operation:string; operation_kind:enum(computation\|mutation\|read); impact_class:enum(authority\|money\|ordinary\|secret) }> | max 64, unique by logical_operation |
 | `evaluation_assertions` | 1 | array<custom> | max 128 |
-| `extensions` | 1 | custom | — |
+| `extensions` | 1 | custom | - |
 | `input_ports` | 1 | array<object{ name:string; schema:custom; classification_ceiling:enum(confidential\|internal\|public\|restricted); required:boolean }> | max 64, unique by name |
-| `output_contract` | 1 | object{ port:string; classification_ceiling:enum(confidential\|internal\|public\|restricted) } | — |
+| `output_contract` | 1 | object{ port:string; classification_ceiling:enum(confidential\|internal\|public\|restricted) } | - |
 | `output_ports` | 1 | array<object{ name:string; schema:custom; classification_ceiling:enum(confidential\|internal\|public\|restricted); required:boolean }> | max 64, unique by name |
-| `producer` | 1 | object{ identity:string; created_at:string; toolchain:string } | — |
+| `producer` | 1 | object{ identity:string; created_at:string; toolchain:string } | - |
 | `protocol_revision` | 1 | integer | value: positive integer |
 | `release_number` | 1 | integer | value: positive integer |
 | `required_core_fields` | 1 | array<string> | unique by value |
@@ -161,7 +161,7 @@ reference implementation's to enforce.
 | `attestations` | 0..1 | array<any> | max 16 |
 | `content_digest` | 1 | string | value: tagged digest |
 
-### Member grammar — Deployment Manifest (19 members)
+### Member grammar: Deployment Manifest (19 members)
 
 Cardinality `1` members are required; `0..1` members are optional.
 The failure precedence is the pinned closed-world order: unknown
@@ -178,21 +178,21 @@ reference implementation's to enforce.
 
 | Member | Card. | Type | Constraints |
 |---|---|---|---|
-| `authority_requirement` | 1 | object{ adapter_identity:string; profile_identity:string } | — |
-| `blueprint_release` | 1 | object{ blueprint_id:string; release_number:integer; content_digest:string } | — |
+| `authority_requirement` | 1 | object{ adapter_identity:string; profile_identity:string } | - |
+| `blueprint_release` | 1 | object{ blueprint_id:string; release_number:integer; content_digest:string } | - |
 | `build_identities` | 1 | array<object{ kind:enum(adapter\|build\|extension\|package); name:string; version:string; digest:string }> | max 128, min 1, unique by name |
 | `data_bindings` | 1 | array<object{ logical_dataset:string; classification_ceiling:enum(confidential\|internal\|public\|restricted); as_of:object{ mode:enum(none\|required); max_age_ms:custom } }> | max 64, unique by logical_dataset |
-| `effect_owner` | 1 | object{ adapter_identity:string; idempotency:object{ key_derivation:enum(host); recovery:enum(authoritative\|none) } } | — |
-| `eligibility` | 1 | object{ owner:custom; beneficiary:custom; runtime_principal:custom } | — |
-| `evaluation_binding` | 1 | object{ adapter_identity:string; corpus:object{ name:string; digest:string } } | — |
-| `extensions` | 1 | custom | — |
-| `host_bounds` | 1 | object{ approval_trait:enum(human_required\|none\|separated_human_required); authority_trait:enum(external_authority_required\|local_policy\|none); classification_ceiling:enum(confidential\|internal\|public\|restricted); disclosure_ceiling:enum(detail\|full\|none\|summary); effect_impact_ceiling:enum(authority\|money\|ordinary\|secret); max_attempts:integer; max_concurrency:integer; max_cost:object{ amount:integer; currency:string }; max_depth:integer; max_descendants:integer; max_elapsed_ms:integer; max_fan_out:integer; max_tokens:integer } | — |
-| `lifecycle` | 1 | object{ state:enum(active\|draft\|retired); activated_at (opt):string; retired_at (opt):string } | — |
-| `model_policy` | 1 | object{ allowed_model_roles:array<string>; max_tokens:integer; max_cost:object{ amount:integer; currency:string } } | — |
+| `effect_owner` | 1 | object{ adapter_identity:string; idempotency:object{ key_derivation:enum(host); recovery:enum(authoritative\|none) } } | - |
+| `eligibility` | 1 | object{ owner:custom; beneficiary:custom; runtime_principal:custom } | - |
+| `evaluation_binding` | 1 | object{ adapter_identity:string; corpus:object{ name:string; digest:string } } | - |
+| `extensions` | 1 | custom | - |
+| `host_bounds` | 1 | object{ approval_trait:enum(human_required\|none\|separated_human_required); authority_trait:enum(external_authority_required\|local_policy\|none); classification_ceiling:enum(confidential\|internal\|public\|restricted); disclosure_ceiling:enum(detail\|full\|none\|summary); effect_impact_ceiling:enum(authority\|money\|ordinary\|secret); max_attempts:integer; max_concurrency:integer; max_cost:object{ amount:integer; currency:string }; max_depth:integer; max_descendants:integer; max_elapsed_ms:integer; max_fan_out:integer; max_tokens:integer } | - |
+| `lifecycle` | 1 | object{ state:enum(active\|draft\|retired); activated_at (opt):string; retired_at (opt):string } | - |
+| `model_policy` | 1 | object{ allowed_model_roles:array<string>; max_tokens:integer; max_cost:object{ amount:integer; currency:string } } | - |
 | `protocol_revision` | 1 | integer | value: positive integer |
 | `required_core_fields` | 1 | array<string> | unique by value |
-| `scope_projection` | 1 | object{ adapter_identity:string } | — |
-| `signer_custody` | 1 | enum(external_kms\|holder_edge\|host_managed) | — |
+| `scope_projection` | 1 | object{ adapter_identity:string } | - |
+| `signer_custody` | 1 | enum(external_kms\|holder_edge\|host_managed) | - |
 | `tool_bindings` | 1 | array<object{ logical_operation:string; adapter_identity:string; descriptor_digest:string; schema_digest:string; attested_at:string }> | max 128, unique by logical_operation |
 | `signatures` | 0..1 | array<custom> | max 16 |
 | `attestations` | 0..1 | array<any> | max 16 |
@@ -275,7 +275,7 @@ and free string members can contain other Unicode scalar values.
   `invalid_type`.
 - **base64url:** unpadded, exact alphabet; padded input MUST deny
   `base64url_padded`, non-alphabet input MUST deny `base64url_invalid`.
-- **Canonicality:** interchange bytes MUST already be canonical —
+- **Canonicality:** interchange bytes MUST already be canonical;
   decode → re-encode → byte-compare; non-canonical bytes MUST deny
   `non_canonical_bytes` before any semantic read, and digests MUST be
   computed only over the exact received bytes.
@@ -292,7 +292,7 @@ before that value's sink checks.
 The canonical form MUST be RFC 8785 JSON Canonicalization Scheme:
 
 - No whitespace between tokens (§3.2.1).
-- Control characters U+0000–U+001F escaped as lowercase `\uXXXX` except
+- Control characters U+0000 to U+001F escaped as lowercase `\uXXXX` except
   the five short escapes; `"` and `\` escaped; a lone surrogate denies
   (§3.2.2.2).
 - Numbers per ECMA-262 7.1.12.1 including the Note 2 enhancement:
@@ -300,7 +300,7 @@ The canonical form MUST be RFC 8785 JSON Canonicalization Scheme:
   `1.7976931348623157e308 → "1.7976931348623157e+308"`; NaN and Infinity
   deny (§3.2.2.3).
 - Object members sorted as UTF-16 code units compared as unsigned
-  integers (§3.2.3) — NOT by UTF-8 byte order: for `U+FF3A` vs
+  integers (§3.2.3), NOT by UTF-8 byte order: for `U+FF3A` vs
   `U+10000`, UTF-16 order puts `U+10000` first.
 
 On the conformance `canonicalization.encode` surface, input JSON is decoded
@@ -313,7 +313,7 @@ digest_bytes = SHA-256( UTF8(domain_separator) || zero_octet || UTF8(JCS(digest_
 ```
 
 `digest_input` is the artifact object minus `content_digest` (or
-`deployment_digest`), `signatures`, and `attestations` — everything
+`deployment_digest`), `signatures`, and `attestations`: everything
 else is covered, including extensions and unknown-but-optional
 extension payloads retained verbatim.
 
@@ -373,15 +373,15 @@ The `signature.verify` algorithm cases pin this shape.
   extensions, and `required_core_fields`, a signature cannot be lifted
   onto a different artifact, revision, or purpose; `key_id` prevents key
   substitution. A `key_id` matching no supplied key MUST halt verification
-  with `signature_key_unsupported`, including during reconcile — the
+  with `signature_key_unsupported`, including during reconcile; the
   package performs no key discovery, fetch, or trust selection.
 - The attestation kind registry is empty; a nonempty attestation array
   denies `attestation_malformed`.
 - A supplied key whose `key_id` matches but which is not a usable
-  Ed25519 public key — not exactly 32 bytes, a non-canonical encoding
+  Ed25519 public key (not exactly 32 bytes, a non-canonical encoding
   (y ≥ p, or x = 0 with the sign bit set), an encoding that decodes to
   no curve point, or a small-order point (any of the eight 8-torsion
-  points, the identity and the order-2 point included) — MUST deny
+  points, the identity and the order-2 point included)) MUST deny
   `signature_algorithm_unsupported` when no matched key is usable.
   `signature_key_unsupported` is reserved for a `key_id` that matches
   no supplied key.
@@ -407,7 +407,7 @@ The `signature.verify` algorithm cases pin this shape.
   `Ed25519` denies `signature_algorithm_unsupported` and any other
   attribute violation `signature_malformed`; `kid` equal to `key_id`;
   and a signature body that decodes (unpadded base64url) to exactly
-  64 bytes — all else `signature_malformed`. (2) The key facts: with no
+  64 bytes; all else `signature_malformed`. (2) The key facts: with no
   supplied key for the `key_id`, `signature_key_unsupported`; with
   matched keys none of which is usable, `signature_algorithm_unsupported`,
   whatever the well-formed 64-byte signature (an all-zero signature
@@ -429,13 +429,13 @@ never judge its time.
 `protocol_revision` is a digest-covered body member. This release is
 revision 1. A consumer's support MUST declare an explicit revision SET
 (never a range); a revision outside the set MUST deny
-`protocol_revision_unsupported` — above-max and below-min alike, both
+`protocol_revision_unsupported`, above-max and below-min alike, both
 fail-closed.
 
 `required_core_fields` is the producer's declaration of which covered
 core members a consumer must honor. Three checks, all fail-closed:
 every entry names a known core member (`required_core_field_unsupported`),
-is digest-covered (`required_core_field_not_digest_covered` — an
+is digest-covered (`required_core_field_not_digest_covered`: an
 evidence-only member laundered into a requirement is a tamper blind
 spot), and is in the consumer's supported set.
 
@@ -478,9 +478,9 @@ divergence; a release whose semantics version is
 unchanged MUST produce, for every input certified under a prior census
 of the same semantics version, the same verdict that prior release
 produced. A registry change that alters negotiation outcomes for
-previously-certified artifacts — for example a newly registered
+previously-certified artifacts (for example a newly registered
 critical namespace flipping `extension_unknown_critical` denials to
-supported — is a verification-semantics change; registry census growth
+supported) is a verification-semantics change; registry census growth
 that moves no previously-certified artifact's verdict is not. The two
 axes are independent of `protocol_revision`, which governs what
 artifacts may say; one event may move more than one axis.
@@ -560,7 +560,7 @@ entries after it was produced; hosts wanting pinning SHOULD use
 Two bound families, never conflated with parse ceilings (those are
 tighten-only decoder limits):
 
-- **Operational** (8 members, all REQUIRED — absent is
+- **Operational** (8 members, all REQUIRED; absent is
   `missing_ceiling`, never infinity): `max_attempts`,
   `max_concurrency`, `max_cost`, `max_depth`, `max_descendants`,
   `max_elapsed_ms`, `max_fan_out`, `max_tokens`. Pointwise narrowest
@@ -573,7 +573,7 @@ tighten-only decoder limits):
   an acknowledge posture, which MUST always record evidence.
   Obligation families (authority, approval, effect impact) meet at the
   STRICTEST value; markers are retained regulatory obligations whose
-  effective set is the UNION of sources — dropping one is a widening.
+  effective set is the UNION of sources; dropping one is a widening.
   Despite its name, `effect_impact_ceiling` is an obligation: the strictest
   value wins. It does not cap what a Blueprint declares. A Blueprint
   declaring `secret` with deployment and host values `ordinary` produces
@@ -658,14 +658,14 @@ complexity, reference, type and cardinality cases on `schema.validate_instance`.
 ## 10. Compatibility and binding
 
 A manifest's `blueprint_release` MUST bind to exactly one Blueprint
-content digest (digest equality only — no fuzzy match).
+content digest (digest equality only; no fuzzy match).
 `build_identities` carry exact identities; compatibility verification
 MUST be identity-exact or deny: a range expression, missing entry, or
 duplicate denies (`compatibility_identity_inexact`,
 `compatibility_entry_missing`, `compatibility_duplicate_entry`).
 Binding verification is a pinned deny-ordered check including
 attestation freshness (`binding_attestation_stale`) and
-descriptor-digest equality (`binding_descriptor_mismatch` — the tool
+descriptor-digest equality (`binding_descriptor_mismatch`: the tool
 rug-pull case).
 
 ## 11. Federation profile
@@ -711,7 +711,7 @@ Terminal Commitment digests task identity, terminal state, result
 digest, result classification, compatibility ref, authority-proof
 refs, and checkpoint-history commitment; ANY divergence between
 receipts for one task identity MUST deny
-`federation_terminal_conflict` — not just state divergence.
+`federation_terminal_conflict`, not just state divergence.
 `Federation.verify_commitment` compares issuer/subject/audience
 against the receiving context (`audience_mismatch`). AgentCard
 signing carries a protobuf field-presence pre-normalization on top of
@@ -733,12 +733,12 @@ The hash preimage is UTF-8 `agent-blueprint-protocol/federation-envelope`,
 one zero octet, then UTF-8 JCS of that object. Corpus reference:
 the terminal-equivocation cases on `federation.verify_commitment`.
 
-### Member grammar — Federation TaskEnvelope (23 members)
+### Member grammar: Federation TaskEnvelope (23 members)
 
 The reconstructed envelope is a closed world: one member per logical
 field. The carrier placement above supplies its native members and
 extension body before this grammar is applied. Cardinality `1` members are required;
-`0..1` members are optional (absent — there is no null form). The
+`0..1` members are optional (absent; there is no null form). The
 machine-readable grammar ships as the CDDL artifact under
 `spec/grammar/` with the derived JSON Schema beside it. Cross-
 member hooks: `checkpoint_status` MUST NOT coexist with `terminal_state`
@@ -865,7 +865,7 @@ raised, the subject it names, and the host action it demands):
 | `unknown_member` | a member is outside the closed world | the member | reject the artifact |
 Plus the parameterized ceiling family `ceiling:<key>` over the eight
 decoder limit names. No authorization vocabulary exists in any
-identifier — no `unauthorized` in either polarity (source-scanned
+identifier: no `unauthorized` in either polarity (source-scanned
 gate).
 
 Non-error notices (not members of the error-code union):
@@ -890,7 +890,7 @@ or receiving identity pins retain their existing absent-input meaning.
 canonical → digest → negotiation → structure → portability →
 signatures → bind → bounds, in that pinned order. Its result is an
 evidence record of per-surface checks, effective bounds, clamp evidence,
-and `not_verified` — which MUST be non-empty BY CONSTRUCTION, always
+and `not_verified`, which MUST be non-empty BY CONSTRUCTION, always
 naming at least the seven host-owned surfaces this protocol structurally
 cannot establish: `tenancy`, `live_policy`, `authority`,
 `effect_ownership`, `execution`, `billing`, `evaluation_truth`. A
@@ -925,10 +925,10 @@ denies `invalid_constraint`.
 
 Portable artifacts MUST NOT contain secrets, private keys, live grants,
 tenant identifiers, raw endpoints, database primary keys, or backend
-engine identifiers — enforced structurally (member-name and value-shape
+engine identifiers, enforced structurally (member-name and value-shape
 denylists over the open regions, at any depth, name-spelling-normalized)
 and red-cased per class in the corpus. A portability pass is not
-sufficiency — the guard is necessary, not sufficient: opaque
+sufficiency; the guard is necessary, not sufficient: opaque
 quarantined extension bodies are typed as unscanned, and portability
 claims attach only to schema-validated content. Concrete provider/model
 names, credentials, engine ids, and endpoints resolve host-side and are
@@ -941,7 +941,7 @@ The package ships a portable conformance corpus (`priv/conformance/`):
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
 `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`. Corpus identity
-is the digest of the domain-separated index — versioned by digest, not
+is the digest of the domain-separated index, versioned by digest, not
 by name. The loader is pure over an in-memory path-to-bytes map and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
 and applicability totality; the report refuses a vacuous green. Each shipped
@@ -958,7 +958,7 @@ check with its own scanner, canonicalizer, and `node:crypto` Ed25519
 path; the release gate requires its report to be byte-identical to the
 Elixir escript's over both the repo corpus and the built archive's
 corpus. Mutation gates break the implementation at pinned
-points, including each reconcile stage and its order, and require the corpus to go red on each — a vacuous case set
+points, including each reconcile stage and its order, and require the corpus to go red on each; a vacuous case set
 is a build failure. A `signature.verify` case whose signature decodes
 to 64 bytes also pins `expected.strict_signature`, the strict
 signature rule's verdict on those bytes (§6), and an implementation
@@ -971,7 +971,7 @@ backend already rejects the same bytes.
 The verifier class covers every applicable cell of the corpus. An
 implementation conforms at a release only when its complete results
 document for the release-certified corpus is byte-identical to the
-[certified results document](conformance/certified-results.json) shipped
+certified results document at `spec/conformance/certified-results.json` shipped
 with that release. The [runner contract](conformance/runner.md) specifies
 the case format, dispatch, projections, integrity checks, and summary.
 The [execution protocol](conformance/execution.md) lets an external harness
@@ -986,7 +986,7 @@ or any host behavior. No producer conformance class is defined: producer
 round trips and wire validity are covered by verifier cases, not a
 separate claim of producer behavior.
 
-## 16. The shipped surface (informative — the reference implementation)
+## 16. The shipped surface (informative: the reference implementation)
 
 The facade (`AgentBlueprintProtocol`) delegates and never implements;
 every public function carries a `@spec` (build-gated), every public module a
@@ -1031,48 +1031,48 @@ without changing the canonical stdout report (§15). The facade stays a verifica
 never implements, and no facade-level producer functions grow (the
 accepted producer-surface decision record).
 
-### The blueprint card (informative — a derived projection)
+### The blueprint card (informative: a derived projection)
 
 A "blueprint card" is a DERIVED, non-normative projection of a
 Blueprint for discovery and display contexts: a small member set
 (typically the identity, producer, classification ceiling, a capability
 summary, and the content digest) extracted from VERIFIED artifact
 bytes. Three rules govern it. The full artifact remains the only
-source of truth — a card asserts nothing the artifact does not, and
+source of truth; a card asserts nothing the artifact does not, and
 carries the content digest precisely so any reader can bind the
 summary back to the exact verified bytes. A card is never a conforming
 implementation surface: partial conformance is not conformance (the
 conformance clause), and nothing in this protocol verifies a card as a
 standalone artifact. Consumers either re-derive a card from bytes they
 verified themselves or treat one they received as unverified display
-data — the same posture as any other pre-verification summary.
+data, the same posture as any other pre-verification summary.
 
-### The release-identity manifest (informative — the reference implementation)
+### The release-identity manifest (informative: the reference implementation)
 
 The reference implementation ships
 `priv/release-metadata.json` (mirrored byte-identically inside its npm
 kit) as the machine-readable release identity. It is a versioned public
-contract of the REFERENCE IMPLEMENTATION — not a conformance
+contract of the REFERENCE IMPLEMENTATION, not a conformance
 requirement: a third-party conformer publishes its own identity
 statement satisfying the conformance clause (§15). Within a
-`manifest_version`, evolution is additive-only — fields are added,
+`manifest_version`, evolution is additive-only: fields are added,
 never removed, retyped, or resemanticized; a breaking shape change bumps
 `manifest_version` and is itself a release. The fields at manifest
 version 2: the format tag, the manifest version, the package name and
 version, the `verification_semantics_version` (§7's axis), the
 `digest_identity` label naming the closed digest scheme (RFC 8785 JCS
 canonical bytes; SHA-256; domain-separated preimages; tagged unpadded
-base64url — unchanged across every release to date), the wire
+base64url, unchanged across every release to date), the wire
 `protocol_revisions_supported`, `prior_census_verdicts` (the certified
 compatibility matrix: per prior census digest,
-`equivalent` — per-case verdict agreement, certified by replay; or
-`diverged_by_registry_census` — divergences explained by registry
+`equivalent`: per-case verdict agreement, certified by replay; or
+`diverged_by_registry_census`: divergences explained by registry
 differences; or `not_equivalent`, an authored semantics-break claim), the
 specification, corpus, and registry digests, the corpus index hash, the
 verifier runtime floor, the verifier-kit identity (name, registry,
 version), and the archive-authorization stance. The companion
 `priv/release-history.json` carries one append-only row per manifest-era
-release — the retroactive mapping a consumer binds when upgrading
+release: the retroactive mapping a consumer binds when upgrading
 between pins.
 
 ## 17. Security considerations (normative)
@@ -1101,7 +1101,7 @@ The non-authorizing boundary is itself a security property: every
 verification result is evidence, the `not_verified` set is non-empty by
 construction naming the host-owned surfaces, and no code path grants
 authority. Small-order Ed25519 keys reject; the package performs no key
-discovery or trust selection — a wrong key is a typed denial, never a
+discovery or trust selection; a wrong key is a typed denial, never a
 silent pass.
 
 ## 18. Privacy considerations (normative)
@@ -1109,28 +1109,28 @@ silent pass.
 The portability guard is the protocol's data-minimization profile,
 stated as a normative constraint set: portable artifacts MUST NOT carry
 secrets, private keys, live grants, tenant identifiers, raw endpoints,
-database primary keys, or backend engine identifiers — enforced
+database primary keys, or backend engine identifiers, enforced
 structurally at any depth (member-name and value-shape denylists,
 name-spelling-normalized) and exercised per class by the corpus
 (`forbidden_portable_value`). The honest limits are part of the
 contract: identifier-shaped values with the UUID grammar are exempt
-by shape, so the guard is structural, not semantic — a tenant
+by shape, so the guard is structural, not semantic; a tenant
 identifier encoded as a UUID is not caught by the value-shape arm; quarantined extension bodies are typed as unscanned
 (`extension_unknown_optional_roundtrip` carries the round-trip
 obligation), and portability claims attach only to schema-validated
-content — a producer MUST NOT present a portability pass as a privacy
+content; a producer MUST NOT present a portability pass as a privacy
 guarantee. Federation identity members (`issuer`, `subject`,
 `audience`, `identity_mapping_evidence`) are correlation material only:
 an authority-shaped claim in the evidence block denies
 `nonportable_content`, and possession of a key is never an identity
 claim.
 
-## 19. Positioning — protocol neighbors (informative)
+## 19. Positioning: protocol neighbors (informative)
 
 The Agent Blueprint Protocol does not compete with the transport and
 discovery protocols; it completes them. AI Catalog owns discovery,
 verifiable identity, and attestation; A2A owns agent-to-agent tasks;
-MCP owns tools and data. ABP owns the portable CONTRACT layer — the
+MCP owns tools and data. ABP owns the portable CONTRACT layer: the
 artifact that says what an agent is, what it may do (bounds, ceilings),
 what it must prove (evidence), and how a host verifies all of it
 fail-closed without granting authority. A blueprint rides IN A2A task

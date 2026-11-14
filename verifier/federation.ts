@@ -1,5 +1,5 @@
 import { isValue } from "./value.ts";
-// The federation profile — the mirror of AgentBlueprintProtocol.Federation:
+// The federation profile, the mirror of AgentBlueprintProtocol.Federation:
 // the 23-member TaskEnvelope decoded through the registry engine (carrier-key
 // placement laws, R1-R4 root hooks), the lossy-aware A2A/MCP state codecs
 // (federation_state_unmappable, never a silent degrade), the bounded
@@ -31,7 +31,7 @@ export interface PriorReceipt {
 export interface Context {
   keys: signature.PublicKey[];
   // issuer/subject/audience ride as RAW tagged values: the twin compares the
-  // envelope member against {:string, pin} exactly — a present non-string pin
+  // envelope member against {:string, pin} exactly; a present non-string pin
   // DENIES the audience check, never silently skips it. null/undefined = no pin.
   issuer?: unknown;
   subject?: unknown;
@@ -390,7 +390,7 @@ function scan(value: Value): VResult {
   return { ok: true };
 }
 
-// R4: correlation grants nothing — an authority-shaped claim is nonportable
+// R4: correlation grants nothing; an authority-shaped claim is nonportable
 // content, denied with the claim's schema path.
 function claimScan(claim: Value, index: number): VResult {
   if (claim.t !== "obj") return { ok: true };
@@ -405,7 +405,7 @@ function claimScan(claim: Value, index: number): VResult {
 }
 
 // The receipt's signature entry carries key ids in two positions (protected
-// kid and signed key_id — equal by the JWS shape check), both scanned STRICT.
+// kid and signed key_id; equal by the JWS shape check), both scanned STRICT.
 function keyIdPositions(entry: [string, Value][]): [string, Value][] {
   const header = keyfind(entry, "protected");
   const attrs = keyfind(entry, "signed_attributes");
@@ -744,7 +744,7 @@ function contextCompare(members: Map<string, Value>, context: Context): VResult 
     if (pin === undefined || pin === null) continue;
     // The twin's exact match: members[m] must equal {:string, pin}. A pin
     // that is present but not a string can NEVER equal a string member, so
-    // it denies — the receiver's constraint is enforced, never dropped.
+    // it denies; the receiver's constraint is enforced, never dropped.
     const found = members.get(member);
     const pinValue = pin as Value;
     const matches =
@@ -811,4 +811,11 @@ function parseTimestampMs(stamped: string): number | null {
   const [, y, mo, d, h, mi, s] = matched;
   if (!blueprint.validZFormDate(stamped)) return null;
   return Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
+}
+
+/** Sorted artifact vocabulary for a supported protocol revision. */
+export function members(revision: unknown) {
+  if (revision === 1) return {ok:true as const,v:table().map(spec=>spec.name!).sort()};
+  if (typeof revision === 'number' && Number.isInteger(revision)) return {ok:false as const,e:'protocol_revision_unsupported',subject:['protocol_revision']};
+  return {ok:false as const,e:'invalid_type'};
 }

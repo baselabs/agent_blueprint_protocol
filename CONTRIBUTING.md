@@ -32,7 +32,9 @@ mix docs --warnings-as-errors
 mix typescript.guide
 ```
 
-The public examples have checks of their own. The Elixir documentation examples and Livebook cells run through tests. `mix typescript.guide` installs the packed npm kit in a scratch project and checks the TypeScript guide's import example.
+Consumer examples run outside the checkout against real archives. `mix livebooks.package` runs every notebook against a built Hex archive. `mix doctests.package` runs every shipped module's doctests in a scratch consumer Mix project. `mix snippets.package` runs Elixir blocks from README, the guides, and the cheatsheet in that consumer; blocks share bindings within each document. `mix typescript.package` packs and installs the npm tarball and runs every JavaScript and TypeScript example in the npm README and TypeScript guide. All four gates are part of `mix quality` and remove their scratch directories on success and failure.
+
+An `elixir` fence is runnable. Mark a partial example or configuration excerpt with `elixir fragment`; use `text` for output and `sh` for shell commands. The same `fragment` suffix applies to `js` and `ts` excerpts. All unmarked runtime blocks must run; a failing block fails the gate. TypeScript examples are independent programs. The postpublish workflow fetches both packages from the registries for the requested version and runs these same generic gates from the published archive, without a source checkout.
 
 To run the corpus from the repository checkout:
 
@@ -52,11 +54,11 @@ The complete pre-push gate is `mix quality`; focused checks help during editing 
 
 The publication privacy guard runs separately in the pre-push hook and CI with the same build-free command: `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
 
-The suite currently defines 997 tests (64 properties). The coverage threshold is 100% coverage.
+The suite currently defines 1020 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
 
-The [CI workflow](https://github.com/baselabs/agent_blueprint_protocol/blob/main/.github/workflows/ci.yml) defines these jobs:
+The CI workflow at `.github/workflows/ci.yml` defines these jobs:
 
 - **Workflow syntax** runs `actionlint` on Ubuntu 24.04.
 - **Secret scan** runs `gitleaks` over full repository history on Ubuntu 24.04.

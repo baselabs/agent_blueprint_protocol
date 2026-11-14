@@ -1,4 +1,4 @@
-# Agent Blueprint Protocol — specification directory
+# Agent Blueprint Protocol: specification directory
 
 This directory holds the normative specification of the Agent Blueprint
 Protocol (`protocol.md`), kept deliberately self-contained: no build
@@ -34,7 +34,7 @@ Every release pins the specification and its evidence together:
 | corpus digest · registry digest | the conformance corpus and compiled registry this release ships |
 | corpus index hash | SHA-256 of the corpus index bytes |
 | manifest version | the SHAPE version of the release-identity manifest (additive-only within a version) |
-| verification semantics version | the release's computational meaning for previously-certified inputs — the semantics/census split's axis (the specification's Evolution clause) |
+| verification semantics version | the release's computational meaning for previously-certified inputs, the semantics/census split's axis (the specification's Evolution clause) |
 | digest identity | the closed digest scheme (canonical bytes, hash, domain separation, wire form), stable across every release |
 | compatibility matrix | the certified verdict per prior census digest, replay-certified by the reference implementation's gate |
 | verifier kit identity | the npm kit's name and version, bound to the Hex line |

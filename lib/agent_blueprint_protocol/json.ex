@@ -67,7 +67,7 @@ defmodule AgentBlueprintProtocol.Json do
         :throw, {:abp_error, reason} ->
           {:error, %AgentBlueprintProtocol.Error{code: reason}}
 
-        # OTP 27–29 decode errors: unexpected_end, invalid_byte, and
+        # OTP 27 to 29 decode errors: unexpected_end, invalid_byte, and
         # unexpected_sequence (malformed Unicode escapes). Classify using the
         # whole input without returning the byte or sequence. Other errors,
         # including callback invariant failures, must still escape loudly.
@@ -84,7 +84,7 @@ defmodule AgentBlueprintProtocol.Json do
   end
 
   # The API type boundary: a non-binary input is the decoder's one
-  # invalid_type surface (the corpus floor's json.decode cell) — typed
+  # invalid_type surface (the corpus floor's json.decode cell); typed
   # denial, never a FunctionClauseError raise.
   def decode(_input, _bounds), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
@@ -138,7 +138,7 @@ defmodule AgentBlueprintProtocol.Json do
   end
 
   defp finalize_root(value, bounds, counters) do
-    # The root value is a node too — count it so `nodes` is an exact bound.
+    # The root value is a node too; count it so `nodes` is an exact bound.
     bump_nodes(counters, bounds)
     {:ok, sink(value, bounds)}
   end
@@ -149,7 +149,7 @@ defmodule AgentBlueprintProtocol.Json do
 
     if abs(integer) > @ijson_max do
       # Integer window: admit iff the double's own canonical ES6 form IS
-      # the lexeme — byte-exact round-trip through the one serializer. The
+      # the lexeme, byte-exact round-trip through the one serializer. The
       # double must be the CORRECTLY-ROUNDED one an ECMAScript peer parses
       # from these digits: `Float.parse` (e.g. "73639773945516200000" ->
       # bits …1479, node-verified), while `integer * 1.0` lands one ULP low

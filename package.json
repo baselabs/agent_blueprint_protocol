@@ -1,6 +1,6 @@
 {
   "name": "@agent-blueprint-protocol/verifier",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Installable verifier for the Agent Blueprint Protocol: canonical-bytes, digest, signature, bounds, and conformance-corpus verification. Non-authorizing: evidence, never a decision.",
   "license": "Apache-2.0",
   "repository": {
@@ -26,7 +26,8 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "dist/examples"
   ],
   "scripts": {
     "build": "node scripts/build_kit.mjs --clean && node node_modules/typescript/bin/tsc -p tsconfig.json && node scripts/build_kit.mjs",

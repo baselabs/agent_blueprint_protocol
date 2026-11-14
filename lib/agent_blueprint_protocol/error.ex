@@ -102,7 +102,7 @@ defmodule AgentBlueprintProtocol.Error do
     :audience_mismatch,
     :federation_terminal_conflict,
     # conformance corpus (the seven integrity codes + the recorded addition
-    # :corpus_case_invalid — case-data structural corruption has no honest
+    # :corpus_case_invalid: case-data structural corruption has no honest
     # home among the seven)
     :corpus_index_invalid,
     :corpus_hash_mismatch,
@@ -115,7 +115,7 @@ defmodule AgentBlueprintProtocol.Error do
   ]
 
   # The ceiling family's keys: exactly the decoder limit names (Bounds'
-  # own field set — the gate pins the parity, red-capable on either side).
+  # own field set; the gate pins the parity, red-capable on either side).
   @ceiling_keys ~w(bytes depth members items nodes string key number_lexeme)a
 
   @spec codes() :: [code()]

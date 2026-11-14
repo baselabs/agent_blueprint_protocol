@@ -1,5 +1,5 @@
 import { isValue } from "./value.ts";
-// The Deployment Manifest artifact — the mirror of AgentBlueprintProtocol.Deployment:
+// The Deployment Manifest artifact, the mirror of AgentBlueprintProtocol.Deployment:
 // canonical verify → the 19-member registry table (exact-only build-identity
 // versions, lifecycle temporal rules, the as_of total rule) → the portability
 // scan (eligibility expressions as the open region) → the content-digest
@@ -715,7 +715,7 @@ function checkSignatureEntry(entry: Value): VResult {
   return attrs.v.purpose === "deployment" ? { ok: true } : { ok: false, e: "invalid_constraint" };
 }
 
-// An eligibility expression: any non-empty JSON object — the host's policy
+// An eligibility expression: any non-empty JSON object; the host's policy
 // DSL, held verbatim and name-denylist-scanned.
 function checkExpression(value: Value): VResult {
   if (value.t === "obj" && value.v.length > 0) return { ok: true };
@@ -724,7 +724,7 @@ function checkExpression(value: Value): VResult {
 
 // The as_of total rule: exactly (required + positive age) or (none + null).
 // A MISSING max_age_ms defers to the member recursion; a bad mode defers to
-// its enum — one reason per defect, no collisions.
+// its enum; one reason per defect, no collisions.
 function checkAsOf(value: Value): VResult {
   if (value.t !== "obj") return { ok: true };
   const members = value.v;
@@ -841,7 +841,7 @@ function scanOpenRegions(members: [string, Value][], validatedNs: Set<string>): 
   return { ok: true };
 }
 
-// Value shapes over every other core string, recursively — no member of this
+// Value shapes over every other core string, recursively; no member of this
 // artifact is exempt.
 function scanCoreStrings(members: [string, Value][]): VResult {
   for (const [name, value] of members) {
@@ -854,7 +854,7 @@ function scanCoreStrings(members: [string, Value][]): VResult {
 }
 
 // The one free string inside an evidence entry: evidence members are
-// digest-UNCOVERED — a secret-shaped key there must still red.
+// digest-UNCOVERED; a secret-shaped key there must still red.
 function scanEvidenceKeyIds(members: [string, Value][]): VResult {
   const signatures = keyfind(members, "signatures");
   if (signatures === null || signatures.t !== "arr") return { ok: true };
@@ -890,4 +890,11 @@ export function parseTimestamp(stamped: string): number | null {
     ms -= sign * offset * 60_000;
   }
   return ms;
+}
+
+/** Sorted artifact vocabulary for a supported protocol revision. */
+export function members(revision: unknown) {
+  if (revision === 1) return {ok:true as const,v:table().map(spec=>spec.name!).sort()};
+  if (typeof revision === 'number' && Number.isInteger(revision)) return {ok:false as const,e:'protocol_revision_unsupported',subject:['protocol_revision']};
+  return {ok:false as const,e:'invalid_type'};
 }

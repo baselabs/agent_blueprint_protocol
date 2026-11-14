@@ -545,7 +545,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
 
     shape_ok? =
       Enum.all?(all, fn case_obj ->
-        # A verdict-only valid expectation agrees with any ok-map — the
+        # A verdict-only valid expectation agrees with any ok-map; the
         # vacuous green; a valid case must
         # pin at least one projection field.
         is_map(case_obj) and is_binary(case_obj["id"]) and
@@ -654,7 +654,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   end
 
   # Prior-census mode: the census's applicability map is checked against the
-  # census's OWN cases (both directions) instead of the compiled floor — a
+  # census's OWN cases (both directions) instead of the compiled floor; a
   # released census was authored against the floor of its release.
   defp verify_applicability(%{"applicability" => applicability}, cases, :prior_census) do
     verify_observed_census(applicability, observed_counts(cases))

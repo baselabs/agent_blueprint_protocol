@@ -101,6 +101,12 @@ function guarded<T>(f:()=>any):Result<T> {try {const r=f();return r?.ok===false?
 function bytes(input:Uint8Array|string):Buffer|string {if(typeof input==='string')return input;if(input instanceof Uint8Array)return Buffer.from(input);throw new TypeError();}
 function support(s:Support):neg.Support {return {revisions:new Set(s.revisions),coreFields:new Set(s.coreFields),registry:{...s.registry},schemas:Object.fromEntries(Object.entries(s.schemas).map(([k,v])=>[k,tagged(v)]))};}
 function artifact(kind:Artifact['kind'],result:any,mod:any):any {if(!result.ok)return result;const encoded=mod.canonicalBytes(result.v);if(!encoded.ok)return encoded;return {ok:true,v:{kind,value:plain(result.v.value),canonicalBytes:Buffer.from(encoded.v),contentDigest:kind==='federation'?null:mod.contentDigest(result.v)}};}
+/** Return the sorted Blueprint Core vocabulary for the revision (since 1.1.0). */
+export function blueprintMembers(revision:unknown):Result<readonly string[]>{return guarded(()=>bp.members(revision));}
+/** Return the sorted Deployment Manifest vocabulary for the revision (since 1.1.0). */
+export function deploymentMembers(revision:unknown):Result<readonly string[]>{return guarded(()=>dep.members(revision));}
+/** Return the sorted Federation TaskEnvelope vocabulary for the revision (since 1.1.0). */
+export function federationMembers(revision:unknown):Result<readonly string[]>{return guarded(()=>fed.members(revision));}
 /** Decode canonical Blueprint bytes under optional tightened ceilings. */
 export function decodeBlueprint(input:Uint8Array|string,options:DecodeOptions={}):Result<Blueprint>{return guarded(()=>artifact('blueprint',bp.decode(bytes(input),options.bounds as Record<string,unknown>|undefined),bp));}
 /** Decode canonical Deployment bytes under optional tightened ceilings. */

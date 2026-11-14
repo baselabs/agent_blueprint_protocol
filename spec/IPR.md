@@ -1,4 +1,4 @@
-# Intellectual property and licensing — specification tree
+# Intellectual property and licensing: specification tree
 
 The specification is licensed under Apache-2.0 (the LICENSE copy beside
 this document; the same terms as the reference implementation).

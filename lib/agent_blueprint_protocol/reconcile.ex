@@ -9,14 +9,13 @@ defmodule AgentBlueprintProtocol.Reconcile do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
   {:ok, host_bounds} = AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment)
   support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
@@ -257,7 +256,7 @@ defmodule AgentBlueprintProtocol.Reconcile do
   end
 
   # The portability stage runs the DIRECT scans under the authored channel
-  # re-derived from THIS import's negotiated critical extensions — NOT
+  # re-derived from THIS import's negotiated critical extensions, NOT
   # `from_value/2` (its registry half would re-run `stage_structure`'s
   # checks, making that stage's guard unobservable). The per-position scan
   # MODES mirror each artifact's own decode-side composition exactly (the
@@ -410,7 +409,7 @@ defmodule AgentBlueprintProtocol.Reconcile do
         do: schema
   end
 
-  # The arbitrary-JSON operands a deterministic_predicate carries — open
+  # The arbitrary-JSON operands a deterministic_predicate carries: open
   # content in a digest-covered core position (blueprint.ex's own rule).
   defp predicate_operands(members) do
     for {:object, assertion} <- member_array(members, "evaluation_assertions"),

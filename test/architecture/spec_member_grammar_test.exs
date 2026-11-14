@@ -86,7 +86,7 @@ defmodule AgentBlueprintProtocol.Architecture.SpecMemberGrammarTest do
   defp table_drift(spec, title, compiled) do
     section =
       spec
-      |> String.split("### Member grammar — ")
+      |> String.split("### Member grammar: ")
       |> Enum.find("", &String.starts_with?(&1, title))
 
     if section == "" do

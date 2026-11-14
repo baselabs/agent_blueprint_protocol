@@ -340,7 +340,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
         end
 
       :error ->
-        # The subject is the containing surface, never the unknown name —
+        # The subject is the containing surface, never the unknown name;
         # an attacker-supplied key must not ride the error channel, and a
         # non-atom/binary key must not crash to_string (the
         # unknown_member pattern).
@@ -348,7 +348,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
     end
   end
 
-  # The parse profile's declared integer magnitude — the
+  # The parse profile's declared integer magnitude: the
   # algebra re-asserts it so a bypassed struct cannot smuggle a bignum.
   @integer_magnitude 9_007_199_254_740_991
 
@@ -465,7 +465,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   end
 
   # Extra names deny first (a forged set is never more permissive than one
-  # built through new/1 — the closed-vocabulary posture); then the pinned
+  # built through new/1; the closed-vocabulary posture); then the pinned
   # precedence: a present member is re-validated in place; the first
   # missing member denies by family.
   defp first_defect(set, present) do
@@ -588,7 +588,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   # The non-blueprint source whose value IS the effective; ties and
   # composites attribute :host (the live policy is the operative
-  # constraint — pinned, deterministic).
+  # constraint, pinned, deterministic).
   defp attribution(name, sources, effective) do
     cond do
       value_of_role(:host, sources, name) == effective -> :host
@@ -652,11 +652,11 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   def widens?(_, _), do: true
 
   # Classification compares in the PRODUCT order the meet computes in
-  # (ordinal ≤ AND markers ⊇ — the marker-retention rule; a marker dropped at
+  # (ordinal ≤ AND markers ⊇: the marker-retention rule; a marker dropped at
   # ANY ordinal is a widening, obligations are not tradeable against
   # scope). `a widens b` = ¬(a ⪯ b): fail-closed on every incomparable or
   # malformed pair. Total and never-raising on forged values.
-  # The name always comes from names/0 iteration (a @table key) — unlike
+  # The name always comes from names/0 iteration (a @table key); unlike
   # narrower_value/3, which takes struct-forged names via Bound.narrower/2
   # and needs its :error arm.
   defp widens_value(name, a, b) do
@@ -779,10 +779,9 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_blueprint(blueprint))
@@ -805,10 +804,9 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, deployment} =
     AgentBlueprintProtocol.Deployment.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-deployment.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-deployment.json"))
     )
 
   match?({:ok, %AgentBlueprintProtocol.BoundsAlgebra.BoundSet{}}, AgentBlueprintProtocol.BoundsAlgebra.from_deployment(deployment))
@@ -865,7 +863,7 @@ defmodule AgentBlueprintProtocol.BoundsAlgebra do
 
   # The lifted object is CLOSED and duplicate-free even on the hand-built
   # struct path (decode enforces both; protocol §9 "Reject duplicate
-  # members" — first-wins List.keyfind must not become a silent hole).
+  # members"; first-wins List.keyfind must not become a silent hole).
   defp closed_members?(bound_members, subject) do
     member_names = Enum.map(bound_members, &elem(&1, 0))
     allowed = Enum.map(names(), &to_string/1)

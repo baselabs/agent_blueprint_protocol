@@ -3,7 +3,7 @@ import { readFileSync,readdirSync,existsSync } from 'node:fs';
 import { join } from 'node:path';
 import * as api from '@agent-blueprint-protocol/verifier';
 const root=process.argv[2];
-const example=name=>readFileSync(join(root,'examples',name));
+const example=name=>readFileSync(join(root,'priv','examples',name));
 const value=r=>{assert.equal(r.ok,true,JSON.stringify(r));return r.value;};
 const blueprint=value(api.decodeBlueprint(example('echo-blueprint.json')));
 const deployment=value(api.decodeDeployment(example('echo-deployment.json')));

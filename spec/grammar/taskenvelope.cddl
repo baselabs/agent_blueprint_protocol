@@ -1,4 +1,4 @@
-; Agent Blueprint Protocol — Federation TaskEnvelope grammar (normative)
+; Agent Blueprint Protocol: Federation TaskEnvelope grammar (normative)
 ; RFC 8610 CDDL. Bound to the compiled federation table by the derivation
 ; gate (member names cross-read); corpus goldens validate under the derived JSON
 ; Schema. Cross-member hooks (checkpoint_status vs terminal_state

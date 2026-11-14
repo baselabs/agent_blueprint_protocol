@@ -47,7 +47,7 @@ does not invalidate a prior corpus's exact file set.
 A case file has format `agent-blueprint-protocol-conformance-cases` and a
 `cases` array. Each case has string `id`, `surface`, `class`, object `input`,
 and object `expected`. Optional `tamper` describes a byte mutation:
-`base_case` string, `byte_index` nonnegative integer, `xor` integer 1–255,
+`base_case` string, `byte_index` nonnegative integer, `xor` integer 1 to 255,
 and optional `target` string (`input.text`, `input.entry`, or
 `input.base64url`). The derived bytes MUST equal the case's stored bytes.
 
@@ -156,7 +156,7 @@ A results document is JCS with no trailing newline, format
 `registry_digest`, and `results` sorted by case id. Each row has `id`,
 `surface`, and `result` (the implementation's complete projection including
 `verdict`). It has no implementation identity. The certified document is
-[certified-results.json](certified-results.json).
+`spec/conformance/certified-results.json`.
 
 For reconcile, any other `now` value denies `invalid_type` with subject
 `["now"]`. Omission is equivalent to null.

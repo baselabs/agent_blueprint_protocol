@@ -3,7 +3,7 @@
 //   node scripts/build_kit.mjs        (after `tsc -p tsconfig.json`)
 //
 // Stages the installable surface under dist/: the embedded corpus (a
-// byte-identical copy of the certified priv/conformance tree — the
+// byte-identical copy of the certified priv/conformance tree; the
 // agreement gate asserts the digest equality) and the kit bin wrapper.
 // The verifier CLI's own contract stays explicit-only (--corpus
 // required, no default, no vacuous run); the WRAPPER supplies the
@@ -18,6 +18,8 @@ if(process.argv[2]==="--clean"){rmSync(join(root,"dist"),{recursive:true,force:t
 
 rmSync(join(root,"dist/package"),{recursive:true,force:true});
 rmSync(join(root,"dist/corpus"),{recursive:true,force:true});
+rmSync(join(root,"dist/examples"),{recursive:true,force:true});
+cpSync(join(root,"priv/examples"),join(root,"dist/examples"),{recursive:true});
 cpSync(join(root, "priv/conformance"), join(root, "dist/corpus"), { recursive: true });
 
 // The release-identity manifest rides the kit byte-identically (npm
@@ -59,7 +61,7 @@ console.log("kit: staged dist/corpus, dist/release-metadata.json (embedded, byte
 cpSync(join(root,"spec"),join(root,"dist/spec"),{recursive:true});
 const packageRoot=join(root,"dist/package");
 mkdirSync(join(packageRoot,"dist"),{recursive:true});
-for(const name of ["verifier","kit","corpus","spec"])cpSync(join(root,"dist",name),join(packageRoot,"dist",name),{recursive:true});
+for(const name of ["verifier","kit","corpus","spec","examples"])cpSync(join(root,"dist",name),join(packageRoot,"dist",name),{recursive:true});
 for(const name of ["release-metadata.json","release-history.json"])copyFileSync(join(root,"dist",name),join(packageRoot,"dist",name));
 for(const name of ["CHANGELOG.md","LICENSE","NOTICE"])copyFileSync(join(root,name),join(packageRoot,name));
 copyFileSync(join(root,"verifier/README.md"),join(packageRoot,"README.md"));

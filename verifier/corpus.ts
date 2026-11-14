@@ -1,4 +1,4 @@
-// The conformance-corpus loader and integrity verifier — the mirror of
+// The conformance-corpus loader and integrity verifier, the mirror of
 // AgentBlueprintProtocol.Conformance.Corpus. No I/O: load() takes a path→bytes
 // map; the CLI owns the filesystem. Every check is two-directional and fails
 // with the twin's typed, value-free codes (exit 2 at the CLI):
@@ -582,7 +582,7 @@ function verifyCaseValidity(cases: { cases: CaseObj[] }[]): LoadResult | { ok: t
   for (const caseObj of all) {
     if (!(SURFACES as readonly string[]).includes(caseObj.surface)) return caseInvalid();
     if (!(CLASSES as readonly string[]).includes(caseObj.klass)) return caseInvalid();
-    // A verdict-only valid expectation agrees with any ok-map — the vacuous
+    // A verdict-only valid expectation agrees with any ok-map; the vacuous
     // green; a valid case must pin at least one projection field.
     if (caseObj.expected.t === "obj") {
       const verdict = memberString(caseObj.expected, "verdict");

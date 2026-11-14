@@ -1,5 +1,5 @@
 import { isValue } from "./value.ts";
-// The Blueprint artifact — the mirror of AgentBlueprintProtocol.Blueprint:
+// The Blueprint artifact, the mirror of AgentBlueprintProtocol.Blueprint:
 // canonical verify → the 18-member registry table → the portability scan →
 // the content-digest comparison, over the digest-covered members minus the
 // evidence trio. The artifact tables share the signature parser for
@@ -355,7 +355,7 @@ function checkSchemaDocument(value: Value): VResult {
 }
 
 // The purpose is the artifact's fact: the envelope parses AND must be
-// "blueprint" here — a deployment-purpose signature riding a Blueprint is a
+// "blueprint" here; a deployment-purpose signature riding a Blueprint is a
 // wrong-position entry, denied as a table constraint.
 function checkSignatureIds(value: Value): {ok:true} | {ok:false;e:string} {
   if (value.t !== "arr") return {ok: false, e: "invalid_type"};
@@ -601,7 +601,7 @@ export function scan(value: Value, authoredNs: Set<string>): VResult {
   return scanEvidenceKeyIds(members);
 }
 
-// Extension bodies: names + strict values — EXCEPT negotiation-validated
+// Extension bodies: names + strict values, EXCEPT negotiation-validated
 // critical namespaces. Schema documents and predicate operands: names +
 // exempting values.
 function scanOpenRegions(members: [string, Value][], validatedNs: Set<string>): VResult {
@@ -620,7 +620,7 @@ function scanOpenRegions(members: [string, Value][], validatedNs: Set<string>): 
   return { ok: true };
 }
 
-// The arbitrary-JSON operands a deterministic_predicate carries — open
+// The arbitrary-JSON operands a deterministic_predicate carries: open
 // content in a digest-covered core position.
 function predicateOperands(members: [string, Value][]): Value[] {
   const out: Value[] = [];
@@ -756,4 +756,11 @@ export function validZFormDate(stamped: string): boolean {
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const lengths = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   return day <= lengths[month - 1]!;
+}
+
+/** Sorted artifact vocabulary for a supported protocol revision. */
+export function members(revision: unknown) {
+  if (revision === 1) return {ok:true as const,v:table().map(spec=>spec.name!).sort()};
+  if (typeof revision === 'number' && Number.isInteger(revision)) return {ok:false as const,e:'protocol_revision_unsupported',subject:['protocol_revision']};
+  return {ok:false as const,e:'invalid_type'};
 }

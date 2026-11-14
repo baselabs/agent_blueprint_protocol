@@ -1,4 +1,4 @@
-// Bounded JSON Schema 2020-12 dialect + instance validator — the mirror of
+// Bounded JSON Schema 2020-12 dialect + instance validator, the mirror of
 // AgentBlueprintProtocol.Schema: the closed 16-keyword subset, positional
 // keyword recognition, document-local $ref (RFC 6901 pointers), the 512
 // complexity ceiling, application-edge cycle denial, and evaluation in the
@@ -14,7 +14,7 @@ const CEILING = 512;
 
 const TYPE_NAMES = new Set(["null", "boolean", "object", "array", "number", "string", "integer"]);
 
-// Canonical evaluation order — the FIRST failure in this sequence is the
+// Canonical evaluation order: the FIRST failure in this sequence is the
 // reported reason, independent of document member order.
 const KEYWORD_ORDER = [
   "$ref",
@@ -287,7 +287,7 @@ function descend(
   }
 
   if (key === "oneOf" && value.t === "arr") {
-    // the branch array itself is a document node — count it
+    // the branch array itself is a document node; count it
     const bumped: Meter = {
       ...acc,
       branches: acc.branches + value.v.length,
@@ -298,7 +298,7 @@ function descend(
   }
 
   if (NAME_MAP_VALUED.includes(key) && value.t === "obj") {
-    // the name map itself is a document node — count it, then walk its
+    // the name map itself is a document node; count it, then walk its
     // schema-position values
     const bumped: Meter = {
       ...acc,

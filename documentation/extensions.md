@@ -67,8 +67,12 @@ namespace = "com.example.vendor/record"
 {:ok, bytes} = Canonicalization.encode(schema)
 pin = Digest.to_tagged(Digest.hash(:extension_schema, bytes))
 
+{:ok, blueprint_members} = AgentBlueprintProtocol.Blueprint.members(1)
+{:ok, deployment_members} = AgentBlueprintProtocol.Deployment.members(1)
+core_fields = MapSet.new(blueprint_members ++ deployment_members)
 support = %Negotiation.Support{
   revisions: MapSet.new([1]),
+  core_fields: core_fields,
   registry: %{
     namespace => %ExtensionRegistry{
       namespace: namespace,
@@ -87,10 +91,9 @@ support = %Negotiation.Support{
 Now negotiate a preview value carrying this critical body. Continue in the same session. The example comes from the installed Hex package:
 
 ```elixir
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
 
 {:ok, {:object, members}} =
-  File.read!(Path.join(dependency_root, "examples/echo-blueprint.json")) |> Json.decode()
+  File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json")) |> Json.decode()
 
 regions =
   {:object,
@@ -140,10 +143,10 @@ const support: Support = {
 };
 ```
 
-Save the preceding TypeScript block as `registration.mts` and append this block. Use the [sample download and TypeScript run instructions](typescript.md#run-the-typescript-examples), then run `node registration.mts`. It prints the critical namespace followed by `extension_unknown_critical`:
+Save the preceding TypeScript block as `registration.mts` and append this block. Use the [TypeScript run instructions](typescript.md#run-the-typescript-examples), then run `node registration.mts`. It reads the packaged sample and prints the critical namespace followed by `extension_unknown_critical`:
 
 ```ts
-const decoded = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
+const decoded = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-blueprint.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
 if (!decoded.ok) throw new Error(decoded.error.code);
 const preview = {...decoded.value, value: {...decoded.value.value,
   extensions: {critical: {[namespace]: {value: "one"}}, optional: {}}

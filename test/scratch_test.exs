@@ -1,5 +1,5 @@
 defmodule AgentBlueprintProtocol.ScratchTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: true, group: :project_build
 
   alias AgentBlueprintProtocol.Scratch
   alias AgentBlueprintProtocol.Test.CensusFormatter

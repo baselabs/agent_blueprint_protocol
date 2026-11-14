@@ -9,8 +9,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-  bytes = File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+  bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
   match?({:ok, %AgentBlueprintProtocol.Blueprint{}}, AgentBlueprintProtocol.Blueprint.decode(bytes))
   ```
   """
@@ -102,6 +101,36 @@ defmodule AgentBlueprintProtocol.Blueprint do
   A typed error returned by AgentBlueprintProtocol.Blueprint.
   """
   @type reason :: AgentBlueprintProtocol.Error.t()
+
+  @doc """
+    Returns the sorted Blueprint Core member names for a supported protocol revision.
+
+    Hosts that support every core field of a revision declare the union of
+    `AgentBlueprintProtocol.Blueprint.members/1` and
+    `AgentBlueprintProtocol.Deployment.members/1` in
+    `AgentBlueprintProtocol.Negotiation.Support.core_fields`.
+
+    Revision 1 is supported. Other integers return `:protocol_revision_unsupported`
+    with subject `["protocol_revision"]`; non-integers return `:invalid_type`.
+
+    ## Example
+
+        iex> with {:ok, names} <- AgentBlueprintProtocol.Blueprint.members(1), do: length(names)
+        18
+  """
+  @doc since: "1.1.0"
+  @spec members(integer()) :: {:ok, [binary()]} | {:error, AgentBlueprintProtocol.Error.t()}
+  def members(1), do: {:ok, table() |> Enum.map(& &1.name) |> Enum.sort()}
+
+  def members(revision) when is_integer(revision) do
+    {:error,
+     %AgentBlueprintProtocol.Error{
+       code: :protocol_revision_unsupported,
+       subject: ["protocol_revision"]
+     }}
+  end
+
+  def members(_revision), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
 
   # ---- the table --------------------------------------------------------------------
 
@@ -270,21 +299,19 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   match?(
     {:ok, %AgentBlueprintProtocol.Blueprint{}},
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
   )
   ```
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   match?(
     {:ok, %AgentBlueprintProtocol.Blueprint{}},
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json")),
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json")),
       AgentBlueprintProtocol.Bounds.maximum()
     )
   )
@@ -302,7 +329,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
     end
   end
 
-  # The API type boundary — the moduledoc's "total and never-raising" made
+  # The API type boundary: the moduledoc's "total and never-raising" made
   # true at this clause too: a non-binary input denies :invalid_type instead
   # of raising FunctionClauseError (the corpus floor's json surface fix).
   def decode(_binary, _bounds), do: {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
@@ -334,10 +361,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, value} =
     AgentBlueprintProtocol.Json.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   match?(
@@ -347,10 +373,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ```
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, value} =
     AgentBlueprintProtocol.Json.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   match?(
@@ -385,10 +410,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   match?({:object, _}, AgentBlueprintProtocol.Blueprint.to_value(blueprint))
@@ -405,10 +429,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   match?({:object, _}, AgentBlueprintProtocol.Blueprint.digest_input(blueprint))
@@ -446,10 +469,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   match?(
@@ -469,10 +491,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   match?(
@@ -498,10 +519,9 @@ defmodule AgentBlueprintProtocol.Blueprint do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
 
   AgentBlueprintProtocol.Blueprint.verify_content_digest(blueprint)
@@ -580,7 +600,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
   end
 
   # The purpose is the artifact's fact (the symmetric assertion): the
-  # envelope parses (the closed set) AND must be "blueprint" here — a
+  # envelope parses (the closed set) AND must be "blueprint" here; a
   # deployment-purpose signature riding a Blueprint is a wrong-position
   # entry, denied as a table constraint.
   defp check_signature_ids({:array, entries}) do
@@ -919,11 +939,11 @@ defmodule AgentBlueprintProtocol.Blueprint do
   end
 
   # Extension bodies: names + strict values (host content earns no
-  # identifier tolerance) — EXCEPT negotiation-validated critical
+  # identifier tolerance), EXCEPT negotiation-validated critical
   # namespaces (the encoded-content channel: they skip the value-shape
   # heuristics; their controls are the digest-pinned schema validation and
   # the reserved-semantics denylist at negotiation). Schema documents and
-  # predicate value/values operands: names + exempting values — authored
+  # predicate value/values operands: names + exempting values: authored
   # JSON whose values legitimately carry long identifier-shaped strings
   # legitimately.
   defp scan_open_regions(members, validated_ns) do
@@ -950,7 +970,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
     end
   end
 
-  # The arbitrary-JSON operands a deterministic_predicate carries — open
+  # The arbitrary-JSON operands a deterministic_predicate carries: open
   # content in a digest-covered core position.
   defp predicate_operands(members) do
     for {:object, assertion} <- member_array(members, "evaluation_assertions"),
@@ -1020,7 +1040,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
 
   # Element objects: ONLY the named identifier members are scanned here
   # (exempting mode). Every other member is either an enum/number (no
-  # strings), an open region full-scanned above (schemas, predicates —
+  # strings), an open region full-scanned above (schemas, predicates:
   # strict-scanning those here would deny what the authored scan exempts),
   # or format-checked elsewhere.
   defp identifier_positions({:array, items}, names) do

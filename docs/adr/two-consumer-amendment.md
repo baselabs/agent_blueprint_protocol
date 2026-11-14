@@ -5,15 +5,15 @@ Status: accepted (2026-08-20).
 ## Context
 
 The field-registry governance rule required two independently verified
-consumers before a member earns a core seat — the guard against
+consumers before a member earns a core seat, the guard against
 single-product vocabulary soaking into a language-neutral protocol. As
 applied literally to EVERY member, it would have blocked the protocol's
 own machinery.
 
 ## Decision
 
-Protocol-mechanism members — `protocol_revision`, content digests,
-`required_core_fields`, `extensions` — are the protocol's own machinery
+Protocol-mechanism members (`protocol_revision`, content digests,
+`required_core_fields`, `extensions`) are the protocol's own machinery
 and are exempt from the two-consumer rule. Everything else keeps the
 rule: a core field requires at least two independently verified
 consumers, or it rides in a registered product extension instead. The

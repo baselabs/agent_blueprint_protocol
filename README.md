@@ -14,7 +14,7 @@ Every successful verification is non-authorizing: it reports protocol facts and 
 - **Deployment Manifest** binds a Blueprint release to environment-specific descriptors and bounds.
 - **Federation TaskEnvelope** records a task's identity, state, and terminal commitments for carriage in Agent2Agent (A2A) task metadata and Model Context Protocol (MCP) `_meta`.
 
-This is the complete example from [`examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1/examples/echo-blueprint.json), formatted for reading:
+This is the complete example from [`priv/examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/priv/examples/echo-blueprint.json), formatted for reading:
 
 ```json
 {
@@ -45,7 +45,7 @@ Verification decodes bounded JSON, negotiates protocol support, binds related ar
 
 | Language | Package | Install |
 | --- | --- | --- |
-| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.0.1"}` |
+| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.1.0"}` |
 | TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier` |
 
 The Elixir package requires Elixir 1.19 or newer on Erlang/OTP 27, 28, or 29. The npm package requires Node.js 24 or newer. Both implement protocol revision 1; the [stability policy](documentation/stability.md) lists the tested combinations.
@@ -53,20 +53,19 @@ The Elixir package requires Elixir 1.19 or newer on Erlang/OTP 27, 28, or 29. Th
 From a Mix project that depends on the package, read its shipped example:
 
 ```elixir
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-example_path = Path.join(dependency_root, "examples/echo-blueprint.json")
+example_path = Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json")
 bytes = File.read!(example_path)
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
 AgentBlueprintProtocol.canonical_bytes(blueprint) == {:ok, bytes} # => true
 ```
 
-First TypeScript verification: install the npm package above, then [download the two pinned sample files](documentation/typescript.md#install-and-decode). Save this as `verify.mjs` and run `node verify.mjs`; it prints `valid`:
+First TypeScript verification: install the npm package above and read its [packaged samples](documentation/typescript.md#install-and-decode). Save this as `verify.mjs` and run `node verify.mjs`; it prints `valid`:
 
 ```js
 import { readFileSync } from "node:fs";
 import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 
-const result = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
+const result = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-blueprint.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
 console.log(result.ok ? "valid" : result.error.code); // valid
 ```
 
@@ -76,7 +75,7 @@ The conformance corpus contains 626 cases. It is a collection of inputs and expe
 
 ## Documentation
 
-- [HexDocs](https://agent-blueprint-protocol.hexdocs.pm/1.0.1/)
+- [HexDocs](https://hexdocs.pm/agent_blueprint_protocol/1.1.0/)
 - [Quickstart](documentation/quickstart.md)
 - [TypeScript guide](documentation/typescript.md)
 - [Conformance guide](documentation/conformance.md)
@@ -86,7 +85,7 @@ The conformance corpus contains 626 cases. It is a collection of inputs and expe
 
 ## Status
 
-The 1.0 line follows its stability promise: documented APIs remain stable within the major version, and deprecations follow the [stability policy](documentation/stability.md).
+The 1.x line follows its stability promise: documented APIs remain stable within the major version, and deprecations follow the [stability policy](documentation/stability.md).
 
 ## Contributing
 

@@ -96,6 +96,13 @@ jobs:
       - name: TypeScript guide example
         run: mix typescript.guide
 
+      - name: Packaged consumer examples
+        run: |
+          mix livebooks.package
+          mix doctests.package
+          mix snippets.package
+          mix typescript.package
+
       # The full suite includes every test that reads a documentation or
       # specification path. It also writes the suite census the
       # release-candidate check compares.

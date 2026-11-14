@@ -8,7 +8,7 @@ defmodule AgentBlueprintProtocol.Signature do
 
   ## Complete setup
 
-  Run stages 1–3 of the [compose and sign guide](compose-and-sign.md#3-sign-both-artifacts-and-reconcile-them)
+  Run stages 1 to 3 of the [compose and sign guide](compose-and-sign.md#3-sign-both-artifacts-and-reconcile-them)
   to obtain the valid `entry`, `public_key_record`, and `blueprint_digest` used
   below. It constructs and signs both artifacts in memory without a checkout.
   The examples below continue that setup; keys are not printed.
@@ -90,7 +90,7 @@ defmodule AgentBlueprintProtocol.Signature do
     "federation-envelope" => :federation_envelope
   }
 
-  # The attestation kind registry: EMPTY by design — no kinds are
+  # The attestation kind registry: EMPTY by design; no kinds are
   # spec-named. Unknown kinds deny :attestation_malformed (fail-closed);
   # kinds become data when real consumers exist.
   @kinds %{}
@@ -509,7 +509,7 @@ defmodule AgentBlueprintProtocol.Signature do
     y = Bitwise.band(y_raw, Bitwise.bsl(1, 255) - 1)
 
     if y >= @ed_p do
-      # Non-canonical y — not a valid encoding.
+      # Non-canonical y: not a valid encoding.
       false
     else
       yy = Integer.mod(y * y, @ed_p)
@@ -519,7 +519,7 @@ defmodule AgentBlueprintProtocol.Signature do
 
       # p = 2^255 - 19 is 5 mod 8: the square root is z = a^((p+3)/8),
       # corrected by sqrt(-1) when z^2 = -a. (The a^((p+1)/4) shortcut is
-      # INVALID for this p — a mistake this comment records so it never
+      # INVALID for this p; a mistake this comment records so it never
       # returns.)
       z = mod_pow(x2, div(@ed_p + 3, 8))
 
@@ -532,16 +532,16 @@ defmodule AgentBlueprintProtocol.Signature do
 
       case root do
         nil ->
-          # (y^2 - 1)/(d*y^2 + 1) is not a square — not on the curve.
+          # (y^2 - 1)/(d*y^2 + 1) is not a square: not on the curve.
           false
 
         0 ->
-          # root == 0 happens iff y ∈ {1, p-1} — the identity (order 1) and
+          # root == 0 happens iff y ∈ {1, p-1}: the identity (order 1) and
           # the order-2 point. The sign-set encodings are non-canonical
           # (RFC 8032 5.1.2) and the sign-clear ones are canonical but
           # small-order; BOTH reject. (Found by the second-language
           # verifier's torsion battery: the previous `not sign_x` admitted the
-          # sign-clear half — the exact forgery class this guard exists for.)
+          # sign-clear half, the exact forgery class this guard exists for.)
           false
 
         root ->

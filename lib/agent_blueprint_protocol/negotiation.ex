@@ -9,10 +9,9 @@ defmodule AgentBlueprintProtocol.Negotiation do
   ## Example
 
   ```elixir
-  dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
   {:ok, blueprint} =
     AgentBlueprintProtocol.Blueprint.decode(
-      File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))
+      File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
     )
   support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}
   match?(
@@ -79,7 +78,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
   @evidence_members ~w(content_digest signatures attestations)
   @deployment_evidence_members ~w(deployment_digest signatures attestations)
 
-  # The protected families plus the eight ceilings, snake and camel — a
+  # The protected families plus the eight ceilings, snake and camel: a
   # legitimate extension body has no member shaped like a core bound.
   # Kebab/upper/case-collapsed spellings are the same reserved name; homoglyph spellings remain the accepted residual of
   # any name list.
@@ -198,10 +197,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
   Checks an artifact against a consumer support posture.
 
   ## Example
-
-      iex> dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!(); :ok
-      :ok
-      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Path.join(dependency_root, "examples/echo-blueprint.json"))), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support))
+      iex> with {:ok, blueprint} <- AgentBlueprintProtocol.Blueprint.decode(File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))), support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1]), core_fields: MapSet.new([])}, do: match?({:ok, %AgentBlueprintProtocol.Negotiation.Outcome{}}, AgentBlueprintProtocol.Negotiation.negotiate(blueprint, support))
       true
   """
   @doc since: "1.0.0"
@@ -212,7 +208,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
     do: negotiate(Deployment.to_value(deployment), support)
 
   def negotiate(value, %Support{} = support) do
-    # Revision stays FIRST (the pinned order — a max+1 artifact reports
+    # Revision stays FIRST (the pinned order; a max+1 artifact reports
     # its revision reason before any other defect, including an undecidable
     # kind); the vocabulary follows and feeds the fields check.
     with :ok <- support_shape(support),
@@ -377,7 +373,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
     end
   end
 
-  # Both regions present, both objects — anything else is malformed
+  # Both regions present, both objects; anything else is malformed
   # machinery (untrusted bytes reach negotiate BEFORE from_value's shape
   # validation, so the typed deny is load-bearing here).
   defp regions_well_formed(regions) do
@@ -428,7 +424,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
   # The host-pinned view is LIFECYCLE-ONLY over compiled entries: state may
   # be supplied (the pinning posture and the test seam), but criticality
-  # and the schema digest pin are the registry's alone — a host cannot
+  # and the schema digest pin are the registry's alone; a host cannot
   # re-classify or re-pin what the release compiled in. Entries for
   # namespaces the registry does not carry pass through as given (the
   # host-supplied registration surface).
@@ -446,7 +442,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
   end
 
   # A malformed host override (not an entry struct, or out-of-vocabulary
-  # atoms) falls back to the compiled entry — the host's own config error
+  # atoms) falls back to the compiled entry; the host's own config error
   # must never raise the gate.
   defp compiled_or_self(namespace, %ExtensionRegistry{} = override) do
     if override.criticality in [:critical, :optional] and
@@ -528,7 +524,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
   end
 
   # Held and dead labels do not enforce criticality at the optional
-  # position — old artifacts retain regardless of classification.
+  # position; old artifacts retain regardless of classification.
   defp optional_judgment(ns, support) do
     case resolve_entry(ns, support) do
       :error ->
@@ -557,7 +553,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
   # Criticality match governs LIVE states only (active/deprecated): the
   # deprecated x mismatch cell is conflict-deny, not notice. Held and dead
-  # labels do not enforce criticality — denying old artifacts over a
+  # labels do not enforce criticality; denying old artifacts over a
   # retired namespace's classification would freeze the registry.
   defp criticality_check(entry, position) do
     if entry.criticality == position,
@@ -595,7 +591,7 @@ defmodule AgentBlueprintProtocol.Negotiation do
   end
 
   # The pin: JCS of the parsed document (Schema.parse keeps the document
-  # verbatim in `.root`) under the extension-schema domain — the same
+  # verbatim in `.root`) under the extension-schema domain, the same
   # contract the registry author used.
   defp digest_check(entry, schema) do
     with {:ok, parsed} <- Schema.parse(schema, Schema.dialect()),

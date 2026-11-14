@@ -26,7 +26,7 @@ defmodule AgentBlueprintProtocol.Predicate do
   @arg_ops @fold_ops ++ @not_ops
   @path_ops @compare_ops ++ @member_ops ++ @presence_ops
 
-  # operand name lists per operator — plain lists; the MapSet round-trip on
+  # operand name lists per operator: plain lists; the MapSet round-trip on
   # fixed literals trips dialyzer's opaque contract for no gain at this size.
   @operands %{
     "and" => ["args"],
@@ -100,7 +100,7 @@ defmodule AgentBlueprintProtocol.Predicate do
   def evaluate(predicate, ports) when is_map(ports) do
     # Shape-only: the root check belongs to decode-time validation against
     # DECLARED ports. At evaluation, a root the host did not supply is an
-    # unresolvable path — a defined outcome for present/absent, an error
+    # unresolvable path: a defined outcome for present/absent, an error
     # for value operators.
     with :ok <- validate(predicate, :any_root) do
       apply_node(predicate, ports)
@@ -298,7 +298,7 @@ defmodule AgentBlueprintProtocol.Predicate do
     items
   end
 
-  # Error-dominant: the first error wins and booleans never override it —
+  # Error-dominant: the first error wins and booleans never override it;
   # stop on error, never on a boolean.
   defp fold(op, items, ports) do
     items
@@ -408,7 +408,7 @@ defmodule AgentBlueprintProtocol.Predicate do
 
   defp resolve_rest(_segments, _scalar), do: :unresolved
 
-  # Canonical decimal only: "0", "17" — "01", "1x", "-1" do not address.
+  # Canonical decimal only: "0", "17"; "01", "1x", "-1" do not address.
   defp canonical_index(segment) do
     case segment do
       "0" ->

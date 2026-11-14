@@ -3,11 +3,11 @@
 A typed, non-authorizing verifier library and conformance CLI. Node 24 or
 newer; zero runtime dependencies. For Elixir, see
 [agent_blueprint_protocol](https://hex.pm/packages/agent_blueprint_protocol).
-The specification is [published with the project](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1/spec/protocol.md).
+The specification is [published with the project](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/spec/protocol.md).
 
 ```sh
-npm install @agent-blueprint-protocol/verifier@1.0.1
-npx @agent-blueprint-protocol/verifier@1.0.1 --help
+npm install @agent-blueprint-protocol/verifier@1.1.0
+npx @agent-blueprint-protocol/verifier@1.1.0 --help
 ```
 
 Install the published package and run its CLI with `npx @agent-blueprint-protocol/verifier`. `npm view @agent-blueprint-protocol/verifier version` identifies the published package version.
@@ -19,7 +19,7 @@ deprecated federation registrations. Supply other namespaces through
 `Support.registry`, including criticality, lifecycle state, and `schemaDigest`;
 put held schema documents in `Support.schemas`. A host cannot change the
 criticality or schema pin of a compiled entry. See the
-[host registration examples](https://hexdocs.pm/agent_blueprint_protocol/1.0.1/extensions.html#register-a-namespace-with-the-host).
+[host registration examples](https://hexdocs.pm/agent_blueprint_protocol/1.1.0/extensions.html#register-a-namespace-with-the-host).
 
 The package is ESM-only; `require()` is not supported.
 Only the package root and `package.json` are exported. Import has no command
@@ -28,26 +28,20 @@ or filesystem side effects. Every function returns `Result<T>`:
 `Uint8Array` and strings; consumers need no Node global declarations.
 `ErrorCode` is exhaustive, including `ceiling:<key>` denials.
 
-The npm package does not contain sample artifacts. Download the exact release bytes:
-
-```sh
-mkdir -p examples
-curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/echo-blueprint.json --output examples/echo-blueprint.json
-curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/echo-deployment.json --output examples/echo-deployment.json
-```
+The npm package ships canonical sample artifacts under `dist/examples/`. Resolve them from the installed package:
 
 Save the following block as `verify.mjs`, then run `node verify.mjs`. It prints `valid`.
 
 ```js
 import { readFileSync } from "node:fs";
 import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
-const result = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
+const result = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-blueprint.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
 console.log(result.ok ? "valid" : result.error.code); // valid
 ```
 
-Decoding checks canonical bytes, structure, portability, and digest. The example is unsigned; it establishes no cryptographic signature. For a source-checkout alternative, use the `v1.0.1` tag and its `examples/` files.
+Decoding checks canonical bytes, structure, portability, and digest. The example is unsigned; it establishes no cryptographic signature. For a source-checkout alternative, use the `v1.1.0` tag and its `priv/examples/` files.
 
-The [complete TypeScript guide and package-root reference](https://hexdocs.pm/agent_blueprint_protocol/1.0.1/typescript.html#package-root-reference) covers every root export, options, success and denial results, runnable pair reconciliation, signature checks, JSON evidence readers, and corpus workflows. It gives filenames and type-check/run commands for each TypeScript example.
+The [complete TypeScript guide and package-root reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.0/typescript.html#package-root-reference) covers every root export, options, success and denial results, runnable pair reconciliation, signature checks, JSON evidence readers, and corpus workflows. It gives filenames and type-check/run commands for each TypeScript example.
 
 Decoded views expose read-only JSON `value`, `canonicalBytes`, and
 `contentDigest` (null for a federation envelope, whose commitment is a
@@ -56,6 +50,33 @@ caller-supplied facts. `Evidence` includes typed checks, effective bounds,
 clamps, and a nonempty `not_verified` list. Unsigned artifacts succeed with
 signature verification explicitly unestablished; absent descriptor and
 freshness observations remain unverified.
+
+## Member vocabularies
+
+`blueprintMembers(1)`, `deploymentMembers(1)`, and `federationMembers(1)` return
+sorted names from the same tables as their decoders: 18 Blueprint Core members,
+19 Deployment Manifest members, and 23 Federation TaskEnvelope members. Revision
+1 is supported. Other integer revisions return `protocol_revision_unsupported`
+with subject `["protocol_revision"]`; non-integers return `invalid_type` with
+an empty subject. These are additive library APIs introduced in 1.1.0.
+
+A host supporting every core field declares the union of the Blueprint and
+Deployment vocabularies; declare only fields the host actually supports. The
+federation vocabulary is separate:
+
+```ts
+import { blueprintMembers, deploymentMembers, federationMembers, type Support } from "@agent-blueprint-protocol/verifier";
+const blueprint = blueprintMembers(1);
+const deployment = deploymentMembers(1);
+const federation = federationMembers(1);
+if (!blueprint.ok || !deployment.ok || !federation.ok) throw new Error("Unsupported revision");
+const support: Support = {
+  revisions: new Set([1]),
+  coreFields: new Set([...blueprint.value, ...deployment.value]),
+  registry: {}, schemas: {},
+};
+console.log(blueprint.value.length, deployment.value.length, federation.value.length); // 18 19 23
+```
 
 ## CLI
 
@@ -91,7 +112,7 @@ host behavior. The package includes the runner and execution contracts under
 
 ## Migrating from 0.8
 
-Deep imports from `dist/verifier/` no longer resolve; import from the package root. The [TypeScript guide](https://hexdocs.pm/agent_blueprint_protocol/1.0.1/typescript.html#import-migration) maps each previous import to its replacement.
+Deep imports from `dist/verifier/` no longer resolve; import from the package root. The [TypeScript guide](https://hexdocs.pm/agent_blueprint_protocol/1.1.0/typescript.html#import-migration) maps each previous import to its replacement.
 
 ## Compatibility within 1.x
 

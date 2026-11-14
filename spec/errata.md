@@ -1,4 +1,4 @@
-# Errata — specification corrections
+# Errata: specification corrections
 
 Corrections to the specification name the affected section of
 `protocol.md`, the releases affected, and the re-certification: the

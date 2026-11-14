@@ -1,13 +1,17 @@
 defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   @moduledoc """
   Document-citation gate: a shipped document may only cite documents that
-  exist. Two citation forms are checked across every markdown file the
-  package ships:
+  exist. Shipped text also carries no em or en dash. Its surface is derived
+  from the Hex files, ExDoc extras, npm packed files and build inputs,
+  TypeScript source inputs, site, and issue templates. Citation forms are
+  checked across every markdown file the package ships:
 
   - a NAMED section citation (`A2A §7.6.4`, `ECMA-262 §7.1.12.1`) names a
     document immediately before the `§` — that document must be a pinned
     external standard or another document in the SHIPPED set (a citation
     of a repo-only or nonexistent document reds equally);
+  - published HTML links and anchors must resolve inside the generated
+    documentation, including every ExDoc extra and module page;
   - every markdown link target without a scheme must resolve, relative
     to the directory of the document containing it, to a file in this
     repository, as must every GitHub blob/tree URL into this repository
@@ -19,9 +23,234 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   what it permits, as does this moduledoc.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: true, group: :project_build
 
   @external_standards ~w(A2A MCP RFC ECMA-262 FIPS JOSE JCS)
+  @root Path.expand("../..", __DIR__)
+
+  test "shipped documents carry no em or en dash" do
+    documents = shipped_documents()
+    assert documents != []
+    assert "CHANGELOG.md" in documents
+    assert "spec/protocol.md" in documents
+    assert Enum.any?(documents, &String.starts_with?(&1, "lib/"))
+    assert Enum.any?(documents, &String.match?(&1, ~r{^site/.*\.html$}))
+    assert "verifier/README.md" in documents
+
+    offenders =
+      for {file, source, first_line} <-
+            Enum.map(documents, &{&1, File.read!(&1), 1}) ++ kit_generated_text(),
+          String.valid?(source),
+          {line, number} <- source |> String.split("\n") |> Enum.with_index(first_line),
+          String.contains?(line, ["\u2014", "\u2013"]),
+          do: "#{file}:#{number}: #{line}"
+
+    assert offenders == [],
+           "shipped documents carry an em or en dash:\n" <> Enum.join(offenders, "\n")
+  end
+
+  defp shipped_documents do
+    config = Mix.Project.config()
+    build = File.read!("scripts/build_kit.mjs")
+
+    # Source inputs to the kit (including the README renamed in the archive).
+    inputs =
+      for [_, arguments] <- Regex.scan(~r/join\(root,\s*((?:"[^"]+"\s*,?\s*)+)/, build) do
+        ~r/"([^"]+)"/
+        |> Regex.scan(arguments)
+        |> Enum.map(fn [_, part] -> part end)
+        |> Path.join()
+      end
+
+    packed =
+      Jason.decode!(File.read!("package.json"))["files"]
+      |> Enum.reject(&String.starts_with?(&1, "!"))
+      |> Enum.map(&String.replace_prefix(&1, "dist/", ""))
+
+    inputs = Enum.reject(inputs, &(&1 == "dist" or String.starts_with?(&1, "dist/")))
+    sources = Jason.decode!(File.read!("tsconfig.json"))["include"]
+
+    (config[:package][:files] ++
+       config[:docs][:extras] ++ sources ++ inputs ++ packed ++ ["site", ".github/ISSUE_TEMPLATE"])
+    |> Enum.flat_map(&document_files/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  # The builder's template literals become shipped text without a source file
+  # of their own. Report their original script line, including in clean replicas.
+  defp kit_generated_text do
+    file = "scripts/build_kit.mjs"
+    build = File.read!(file)
+    templates = Regex.scan(~r/(?:const|let) \w+ = `([^`]+)`;/s, build, return: :index)
+    assert templates != []
+
+    for [_whole, {offset, size}] <- templates do
+      first_line = build |> binary_part(0, offset) |> String.split("\n") |> length()
+      {file, binary_part(build, offset, size), first_line}
+    end
+  end
+
+  defp document_files(pattern) do
+    pattern
+    |> Path.wildcard(match_dot: true)
+    |> Enum.flat_map(fn path ->
+      if File.dir?(path),
+        do: Path.wildcard(Path.join(path, "**/*"), match_dot: true),
+        else: [path]
+    end)
+    |> Enum.filter(&File.regular?/1)
+  end
+
+  test "versioned repository links pin the release and resolve locally" do
+    expected_ref = "v" <> Mix.Project.config()[:version]
+
+    documents =
+      Enum.map(versioned_documents(), &{&1, link_targets(File.read!(&1))}) ++
+        [
+          {"mix.exs package Specification",
+           [Mix.Project.config()[:package][:links]["Specification"]]}
+        ]
+
+    offenders =
+      for {file, targets} <- documents,
+          target <- targets,
+          reason <- versioned_link_offences(target, expected_ref),
+          uniq: true,
+          do: "#{file}: #{target}; expected ref #{expected_ref}; #{reason}"
+
+    assert offenders == [], Enum.join(offenders, "\n")
+
+    root = "https://github.com/baselabs/agent_blueprint_protocol"
+    valid = root <> "/blob/#{expected_ref}/spec/protocol.md"
+    assert versioned_link_offences(valid, expected_ref) == []
+
+    assert versioned_link_offences(root <> "/tree/#{expected_ref}/spec/conformance", expected_ref) ==
+             []
+
+    for invalid <- [
+          String.replace(valid, expected_ref, "main"),
+          String.replace(valid, expected_ref, "v0.0.0"),
+          String.replace(valid, "spec/protocol.md", "spec/missing-link-probe.md"),
+          root
+        ] do
+      assert versioned_link_offences(invalid, expected_ref) != []
+    end
+  end
+
+  test "HexDocs extras link directly to other rendered extras" do
+    extras = MapSet.new(Mix.Project.config()[:docs][:extras])
+
+    offenders =
+      for file <- extras,
+          target <- link_targets(File.read!(file)),
+          %{kind: "blob", path: path} <- github_repo_path(target),
+          MapSet.member?(extras, path),
+          do: "#{file}: #{target}; use the relative extra #{path}"
+
+    assert offenders == [], Enum.join(offenders, "\n")
+  end
+
+  defp versioned_documents do
+    (["README.md", "verifier/README.md"] ++
+       Enum.flat_map(~w(documentation spec docs/livebooks site), fn directory ->
+         Path.wildcard(Path.join(directory, "**/*"), match_dot: true)
+       end))
+    |> Enum.filter(&File.regular?/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp versioned_link_offences(target, expected_ref) do
+    for link <- github_repo_path(target),
+        link.kind in ["blob", "tree", nil],
+        not live_repository_route?(target),
+        reason <- [
+          link.repo != "agent_blueprint_protocol" && "unexpected repository link",
+          link.ref != expected_ref && "found ref #{inspect(link.ref)}",
+          not repository_path_exists?(link) && "no matching repository file or directory"
+        ],
+        is_binary(reason),
+        do: reason
+  end
+
+  defp live_repository_route?(target) do
+    uri = URI.parse(target)
+
+    Regex.match?(
+      ~r{^/baselabs/agent_blueprint_protocol/(?:actions/|issues|security|releases)},
+      uri.path || ""
+    )
+  end
+
+  defp repository_path_exists?(%{kind: kind, path: path}) when kind in ["blob", "tree"] do
+    absolute = Path.expand(path, @root)
+    within_repo = absolute == @root or String.starts_with?(absolute, @root <> "/")
+    within_repo and if(kind == "blob", do: File.regular?(absolute), else: File.dir?(absolute))
+  end
+
+  defp repository_path_exists?(_link), do: false
+
+  @tag timeout: 120_000
+  test "published documentation links resolve to a published page and anchor" do
+    root = AgentBlueprintProtocol.Scratch.dir!("published-docs")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    {output, status} =
+      System.cmd("mix", ["docs", "--warnings-as-errors", "--output", root],
+        stderr_to_stdout: true
+      )
+
+    assert status == 0, output
+    pages = Path.wildcard(Path.join(root, "*.html"))
+    published = Path.wildcard(Path.join(root, "**/*")) |> Enum.filter(&File.regular?/1)
+    assert pages != []
+    assert published_target?(hd(pages), URI.parse("#content"), published)
+    refute published_target?(hd(pages), URI.parse("#missing-anchor-probe"), published)
+
+    offenders =
+      for page <- pages,
+          [_, target] <- Regex.scan(~r/<a\b[^>]*\bhref="([^"]+)"/, File.read!(page)),
+          uri = URI.parse(target),
+          is_nil(uri.scheme) and is_nil(uri.host) and
+            not published_target?(page, uri, published),
+          uniq: true,
+          do: {Path.basename(page), target}
+
+    assert offenders == [], "unpublished documentation links: #{inspect(offenders)}"
+  end
+
+  @tag timeout: 120_000
+  test "public ExDoc footer links use the package and preview routes for this version" do
+    root = AgentBlueprintProtocol.Scratch.dir!("footer-docs")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    {output, status} =
+      System.cmd("mix", ["docs", "--warnings-as-errors", "--output", root],
+        stderr_to_stdout: true
+      )
+
+    assert status == 0, output
+    html = File.read!(Path.join(root, "readme.html"))
+    version = Mix.Project.config()[:version]
+    assert html =~ ~s(href="https://hex.pm/packages/agent_blueprint_protocol/#{version}")
+    assert html =~ ~s(href="https://preview.hex.pm/preview/agent_blueprint_protocol/#{version}")
+    refute Mix.Project.config()[:docs][:footer] == false
+  end
+
+  defp published_target?(page, uri, pages) do
+    target =
+      if uri.path in [nil, ""],
+        do: page,
+        else: Path.expand(URI.decode(uri.path), Path.dirname(page))
+
+    target in pages and
+      (uri.fragment in [nil, ""] or
+         URI.decode(uri.fragment) in Enum.map(
+           Regex.scan(~r/\bid="([^"]+)"/, File.read!(target)),
+           fn [_, id] -> id end
+         ))
+  end
 
   test "named section citations name a shipped document or a pinned standard" do
     allowed = MapSet.new(@external_standards ++ repo_doc_stems())
@@ -44,7 +273,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
 
   test "shipped markdown links resolve to real files" do
     offenders =
-      for file <- shipped_markdown(),
+      for file <- Enum.uniq(shipped_markdown() ++ versioned_documents()),
           source = File.read!(file),
           target <- link_targets(source),
           path <- repo_path(file, target),
@@ -118,7 +347,19 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
       |> Regex.scan(source)
       |> Enum.map(&angle_or_bare(Enum.at(&1, 1), Enum.at(&1, 2)))
 
-    (inline ++ references) |> Enum.reject(&(&1 in [nil, ""]))
+    html =
+      ~r/\b(?:href|src)=(?:"([^"]+)"|'([^']+)')/
+      |> Regex.scan(source)
+      |> Enum.map(&angle_or_bare(Enum.at(&1, 1), Enum.at(&1, 2)))
+
+    repository_urls =
+      ~r{https?://github\.com/baselabs/agent_blueprint_protocol(?:_private)?(?:/[^\s<>"')\]]*)?}
+      |> Regex.scan(source)
+      |> Enum.map(&hd/1)
+
+    (inline ++ references ++ html ++ repository_urls)
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.uniq()
   end
 
   # Unmatched alternation groups come back absent (nil) or empty — both
@@ -133,21 +374,40 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   # external and not checked.
   defp repo_path(file, target) do
     cond do
-      String.contains?(target, "://") -> github_repo_path(target)
-      String.starts_with?(target, "#") or String.starts_with?(target, "mailto:") -> []
-      true -> [Path.expand(strip_anchor(target), Path.dirname(Path.expand(file)))]
+      is_binary(URI.parse(target).scheme) ->
+        for %{kind: kind, path: path} <- github_repo_path(target),
+            kind in ["blob", "tree"],
+            do: Path.expand(path, @root)
+
+      String.starts_with?(target, "#") or String.starts_with?(target, "mailto:") ->
+        []
+
+      true ->
+        [Path.expand(strip_anchor(target), Path.dirname(Path.expand(file)))]
     end
   end
 
   defp github_repo_path(url) do
-    case Regex.run(
-           ~r{^https://github\.com/baselabs/agent_blueprint_protocol/(?:blob|tree)/[^/]+/(.+)$},
-           url
-         ) do
-      [_, path] -> [strip_anchor(path)]
-      nil -> []
+    case URI.parse(url) do
+      %URI{host: "github.com", path: path} when is_binary(path) ->
+        case String.split(URI.decode(path), "/", parts: 6) do
+          ["", "baselabs", repo | rest]
+          when repo in ["agent_blueprint_protocol", "agent_blueprint_protocol_private"] ->
+            [repository_target(repo, rest)]
+
+          _ ->
+            []
+        end
+
+      _ ->
+        []
     end
   end
 
-  defp strip_anchor(path), do: path |> String.split("#") |> hd()
+  defp repository_target(repo, [kind, ref | path]) when kind in ["blob", "tree"],
+    do: %{repo: repo, kind: kind, ref: ref, path: Enum.join(path, "/")}
+
+  defp repository_target(repo, _rest), do: %{repo: repo, kind: nil, ref: nil, path: ""}
+
+  defp strip_anchor(path), do: URI.parse(path).path || ""
 end

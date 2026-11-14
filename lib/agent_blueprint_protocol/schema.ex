@@ -31,7 +31,7 @@ defmodule AgentBlueprintProtocol.Schema do
 
   @type_names MapSet.new(["null", "boolean", "object", "array", "number", "string", "integer"])
 
-  # Canonical evaluation order — the FIRST failure in this sequence is the
+  # Canonical evaluation order: the FIRST failure in this sequence is the
   # reported reason, independent of document member order. A fixed order is
   # what lets an independent verifier agree on multi-failure instances.
   # `$ref` leads because 2020-12 applies it alongside siblings, not instead.
@@ -244,7 +244,7 @@ defmodule AgentBlueprintProtocol.Schema do
 
   defp members_ok?(_other, _seen), do: false
 
-  ## Positional walk — keyword validation, metering, pointer map, ref edges
+  ## Positional walk: keyword validation, metering, pointer map, ref edges
 
   defp meter0, do: %{nodes: 0, keywords: 0, branches: 0, depth: 0}
 
@@ -297,7 +297,7 @@ defmodule AgentBlueprintProtocol.Schema do
 
   defp allow_key(_key, :meter), do: :ok
 
-  # Keyword-value syntax (design decision 10 — spec prose + meta-schema
+  # Keyword-value syntax (design decision 10: spec prose + meta-schema
   # floors, read first-hand). `:meter` mode accepts any shape and lets
   # `descend/7` fall through to data metering.
   defp validate_value("type", {:string, name}, :validate) do
@@ -398,7 +398,7 @@ defmodule AgentBlueprintProtocol.Schema do
   end
 
   defp descend("oneOf", {:array, branches}, path, acc, pointers, edges, mode) do
-    # the branch array itself is a document node — count it
+    # the branch array itself is a document node; count it
     acc = %{
       acc
       | branches: acc.branches + length(branches),
@@ -411,7 +411,7 @@ defmodule AgentBlueprintProtocol.Schema do
 
   defp descend(key, {:object, subs}, path, acc, pointers, edges, mode)
        when key in @name_map_valued do
-    # the name map itself is a document node — count it, then walk its
+    # the name map itself is a document node; count it, then walk its
     # schema-position values
     acc = %{acc | nodes: acc.nodes + 1, depth: max(acc.depth, length(path) + 2)}
     walk_named(subs, key, path, acc, pointers, edges, mode)
@@ -510,7 +510,7 @@ defmodule AgentBlueprintProtocol.Schema do
     end
   end
 
-  # non-pointer strings — remote URIs, bare relative references — are the
+  # non-pointer strings (remote URIs, bare relative references) are the
   # dialect's not-allowed family
   defp ref_tokens(_non_pointer_string), do: :not_allowed
 
@@ -546,7 +546,7 @@ defmodule AgentBlueprintProtocol.Schema do
   # Application edges are the positions evaluation follows: properties
   # values, items, additionalProperties, oneOf elements, and $ref targets.
   # $defs entries are a reserved location (core §8.2.4) and only become
-  # reachable through a $ref — a dead self-referencing $defs entry parses.
+  # reachable through a $ref; a dead self-referencing $defs entry parses.
   defp cycle_free?(pointers) do
     case dfs([], %{}, %{}, pointers) do
       {:ok, _visited} -> :ok
@@ -615,7 +615,7 @@ defmodule AgentBlueprintProtocol.Schema do
     end)
   end
 
-  ## Evaluation — memoized on (schema pointer, instance location)
+  ## Evaluation: memoized on (schema pointer, instance location)
 
   defp evaluate({:boolean, true}, _instance, _loc, memo, _pointers), do: {:ok, memo}
 
@@ -634,7 +634,7 @@ defmodule AgentBlueprintProtocol.Schema do
           {:ok, memo2} ->
             {:ok, Map.put(memo2, key, :ok)}
 
-          # errors are as deterministic as successes per (schema pointer, instance location) —
+          # errors are as deterministic as successes per (schema pointer, instance location);
           # and the memo gained on the way down MUST survive the unwind:
           # dropping it re-walks shared subtrees once per distinct branch
           # (2^depth without it)
@@ -824,7 +824,7 @@ defmodule AgentBlueprintProtocol.Schema do
   end
 
   # Adjacency (core §10.3.2.3): additionalProperties sees only the sibling
-  # `properties` member of the SAME schema object — never properties matched
+  # `properties` member of the SAME schema object, never properties matched
   # inside oneOf branches or through $ref targets. `false` is the closure
   # itself and reports the closure class (an unexpected member), not the
   # boolean schema's type class; schema values propagate the child reason.
@@ -919,7 +919,7 @@ defmodule AgentBlueprintProtocol.Schema do
     end
   end
 
-  # Branch results are memoized on (schema pointer, loc); counting stops at two —
+  # Branch results are memoized on (schema pointer, loc); counting stops at two;
   # exactly-one needs the full count only below two.
   defp count_passes([], _instance, _loc, memo, _pointers, count), do: {count, memo}
 
@@ -950,12 +950,12 @@ defmodule AgentBlueprintProtocol.Schema do
   defp type_matches?("integer", {:integer, _}), do: true
   defp type_matches?("integer", {:float, f}), do: f == trunc(f)
 
-  # no match: the instance's type is outside the keyword's name set — this
+  # no match: the instance's type is outside the keyword's name set; this
   # arm IS the failing type check
   defp type_matches?(_name, _instance), do: false
 
   # RFC 8259 characters = codepoints (validation §6.3.1/6.3.2). Never
-  # `String.length/1` (graphemes — a combining sequence would undercount)
+  # `String.length/1` (graphemes; a combining sequence would undercount)
   # and never UTF-16 units (an astral character would double-count).
   defp length_string(s), do: count_codepoints(s, 0)
 

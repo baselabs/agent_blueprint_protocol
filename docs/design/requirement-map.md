@@ -3,10 +3,13 @@
 A gate without a red proof is not a gate. This map records, for every
 build-failing gate the package ships, the exact mutation that reddens it,
 the command that observes the red, and a failing-output excerpt. All
-proofs on this page were re-derived live on **2026-08-23** against the
+original proofs on this page were re-derived live on **2026-08-23** against the
 release-candidate tree, with the CI toolchain entry re-derived on
 **2026-08-24** (plant → run → reverse-restore; the restored suite is green:
 883 passed, 59 properties, 824 tests).
+
+The public 1.1.0 entries below record actual failing runs on the build box
+on **2026-11-14**. Source plants were restored after each run.
 
 Structure contract (checked mechanically by `mix release.candidate`):
 
@@ -29,7 +32,8 @@ check re-derives this list, so a step added without a map entry reds):
 `hex.audit → deps.unlock --check-unused → deps.audit → deps.currency →
 format --check-formatted → compile --warnings-as-errors → credo --strict →
 test --cover --seed 42 → conformance.verify → conformance.mutations →
-kit.build → conformance.product → typescript.guide → verifier.agreement →
+kit.build → conformance.product → typescript.guide → livebooks.package →
+doctests.package → snippets.package → typescript.package → verifier.agreement →
 compatibility.replay → dialyzer → docs --warnings-as-errors → spec.extraction →
 grammar.derivation → registry.equality → release.asset → release.promote →
 release.candidate`
@@ -1246,9 +1250,10 @@ Result: 2/3 passed (when the file held three cases)
 
 ### case: "the manual published-version workflow runs every notebook on three platforms"
 
-The post-publish job extracts the complete notebook set and runs each script
-against the selected package version on Linux, macOS, and Windows. Removing
-a platform or the notebook run check reds.
+The postpublish consumer job fetches the released Hex and npm archives and
+runs all four generic gates from the published Hex archive on Linux,
+macOS, and Windows. Its inputs contain no checkout files. Removing a
+platform, a gate, or the registry fetch reds.
 
 ```red
 $ # plant: remove windows-2025 from the Livebook job's OS matrix
@@ -2146,4 +2151,371 @@ modified indexed workflow produced this recorded failure:
 $ node scripts/check_checkout.mjs
 AssertionError [ERR_ASSERTION]: checkout byte drift: .github/workflows/ci.yml
 EXIT=1
+```
+
+
+## Public 1.1.0 API and package-boundary proofs
+
+The initial pre-implementation red invocation batched these files:
+
+```sh
+mix test test/agent_blueprint_protocol/members_test.exs test/architecture/documentation_currency_test.exs test/architecture/document_citation_gate_test.exs test/architecture/project_build_concurrency_test.exs test/architecture/publish_guard_test.exs test/livebook_extractor_test.exs --seed 42
+```
+
+It failed 21 of 34 checks. The entries below give the affected file's
+direct reproduction command and the actual failing output from that
+batch. The TypeScript export failure came from the later member-test run
+and `node test/typescript/members.mjs`, before adding the TypeScript API.
+The explicitly named plants were applied and restored in separate runs.
+
+### case: "Blueprint.members/1 revision 1 returns the 18 Blueprint Core members in sorted order"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Blueprint.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "Blueprint.members/1 unsupported integer revisions return the protocol revision error"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Blueprint.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "Blueprint.members/1 non-integer revisions return a typed invalid type error"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Blueprint.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "Deployment.members/1 revision 1 returns the 19 Deployment Manifest members in sorted order"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Deployment.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "Deployment.members/1 unsupported integer revisions return the protocol revision error"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Deployment.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "Deployment.members/1 non-integer revisions return a typed invalid type error"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Deployment.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "Federation.members/1 revision 1 returns the 23 Federation TaskEnvelope members in sorted order"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Federation.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "Federation.members/1 unsupported integer revisions return the protocol revision error"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Federation.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "Federation.members/1 non-integer revisions return a typed invalid type error"
+
+Before the reference implementation was ported, the new case called the absent public API.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+** (UndefinedFunctionError) function AgentBlueprintProtocol.Federation.members/1 is undefined or private
+EXIT=2
+```
+
+### case: "TypeScript and Elixir expose identical member lists and refusals"
+
+With the Elixir API present and the TypeScript exports still absent, the cross-language test ran the Node assertions and refused the missing API. The same script checks all three sorted lists, refusal codes and subjects, and fresh result arrays.
+
+```red
+$ mix test test/agent_blueprint_protocol/members_test.exs --seed 42
+AssertionError [ERR_ASSERTION]: blueprintMembers
+actual: 'undefined'
+expected: 'function'
+EXIT=2
+```
+
+### case: "extracts notebook cells against an unpacked package path"
+
+The replacement extractor tests ran before the generic extractor was installed.
+
+```red
+$ mix test test/livebook_extractor_test.exs --seed 42
+** (UndefinedFunctionError) function PackageLivebooks.extract/4 is undefined (module PackageLivebooks is not available)
+EXIT=2
+```
+
+### case: "extracts ordered Elixir cells without persisted output or prose"
+
+The replacement extractor tests ran before the generic extractor was installed.
+
+```red
+$ mix test test/livebook_extractor_test.exs --seed 42
+** (UndefinedFunctionError) function PackageLivebooks.extract/4 is undefined (module PackageLivebooks is not available)
+EXIT=2
+```
+
+### case: "a path installation drops all Hex and install options"
+
+The replacement extractor tests ran before the generic extractor was installed.
+
+```red
+$ mix test test/livebook_extractor_test.exs --seed 42
+** (UndefinedFunctionError) function PackageLivebooks.extract/4 is undefined (module PackageLivebooks is not available)
+EXIT=2
+```
+
+### case: "rejects absent, duplicate, nested, or syntactically invalid install cells"
+
+The replacement extractor tests ran before the generic extractor was installed.
+
+```red
+$ mix test test/livebook_extractor_test.exs --seed 42
+** (UndefinedFunctionError) function PackageLivebooks.extract/4 is undefined (module PackageLivebooks is not available)
+EXIT=2
+```
+
+### case: "extracts every checked-in notebook using a single package-independent implementation"
+
+The replacement extractor tests ran before the generic extractor was installed.
+
+```red
+$ mix test test/livebook_extractor_test.exs --seed 42
+** (UndefinedFunctionError) function PackageLivebooks.extract/4 is undefined (module PackageLivebooks is not available)
+EXIT=2
+```
+
+### case: "consumer examples never locate resources relative to the working directory"
+
+The test first ran against the checkout locators and relative example paths, before moving the examples or replacing their readers.
+
+```red
+$ mix test test/architecture/documentation_currency_test.exs --seed 42
+consumer examples depend on checkout-relative resources:
+EXIT=2
+```
+
+### case: "versioned repository links pin the release and resolve locally"
+
+The new gate observed the unpinned Specification link before the release and link changes.
+
+```red
+$ mix test test/architecture/document_citation_gate_test.exs --seed 42
+mix.exs package Specification: https://github.com/baselabs/agent_blueprint_protocol/blob/main/spec/protocol.md; expected ref v1.0.1; found ref "main"
+EXIT=2
+```
+
+### case: "HexDocs extras link directly to other rendered extras"
+
+The new gate observed repository links to extras that ExDoc renders in the same documentation set.
+
+```red
+$ mix test test/architecture/document_citation_gate_test.exs --seed 42
+documentation/typescript.md: https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1/spec/conformance/execution.md; use the relative extra spec/conformance/execution.md
+EXIT=2
+```
+
+### case: "published documentation links resolve to a published page and anchor"
+
+Before the two certified-results links were replaced with path names, the gate built real ExDoc pages and found the unpublished targets.
+
+```red
+$ mix test test/architecture/document_citation_gate_test.exs --seed 42
+unpublished documentation links: [{"protocol.html", "conformance/certified-results.json"}, {"runner.html", "certified-results.json"}]
+EXIT=2
+```
+
+### case: "repository routes are spared and planning directories still red (exemption pin)"
+
+The new pin ran against the original planning-directory regex before the source_url exemption was ported.
+
+```red
+$ mix test test/architecture/publish_guard_test.exs --seed 42
+code: assert Enum.filter(spared, &(hits.(&1) != [])) == []
+left: ["https://github.com/baselabs/agent_blueprint_protocol/issues/new?template=security_report.yml"]
+right: []
+EXIT=2
+```
+
+### case: "every asynchronous test module that spawns mix joins the project build group"
+
+The new architecture gate ran before the shared build group was added.
+
+```red
+$ mix test test/architecture/project_build_concurrency_test.exs --seed 42
+asynchronous test modules spawn mix outside the :project_build group: ["test/scratch_test.exs"]
+EXIT=2
+```
+
+### alias: livebooks.package
+
+Plant: remove `"priv/examples"` from `package.files`; the real built archive then lacks the notebook resources.
+
+```red
+$ mix livebooks.package
+notebook /home/kbuild/Developer/BaseLabs/agent_blueprint_protocol.lanes/0/docs/livebooks/abp-walkthrough.livemd cell 2 (line 24): ** (MatchError) no match of right hand side value:
+** (RuntimeError) /home/kbuild/Developer/BaseLabs/agent_blueprint_protocol.lanes/0/docs/livebooks/abp-walkthrough.livemd: exit 1
+EXIT=1
+```
+
+### alias: doctests.package
+
+Plant: remove `"priv/examples"` from `package.files`; the scratch consumer then compiles and runs the actual archived modules without their resources.
+
+```red
+$ mix doctests.package
+Result: 38/55 passed
+Failed: 17 doctests
+** (RuntimeError) package consumer test doctests_test.exs: exit 2
+EXIT=1
+```
+
+### alias: snippets.package
+
+Plant an unmarked `elixir` block containing `raise "snippet failure probe"` at the end of README. The real archive consumer must execute it.
+
+```red
+$ mix snippets.package
+** (RuntimeError) /home/kbuild/Developer/BaseLabs/agent_blueprint_protocol.lanes/0/README.md block 2 (line 93): ** (RuntimeError) snippet failure probe
+EXIT=1
+```
+
+### alias: typescript.package
+
+Plant `throw new Error("TypeScript failure probe");` in the first documented JavaScript program. The npm tarball is really packed and installed before execution.
+
+```red
+$ mix typescript.package
+throw new Error("TypeScript failure probe");
+Error: TypeScript failure probe
+** (exit) 1
+EXIT=1
+```
+
+### case: "public ExDoc footer links use the package and preview routes for this version"
+
+Plant `footer: false` in the ExDoc configuration. The test builds real documentation and refuses the missing package footer.
+
+```red
+$ mix test test/architecture/document_citation_gate_test.exs
+1) test public ExDoc footer links use the package and preview routes for this version
+Assertion with =~ failed
+right: "https://hex.pm/packages/agent_blueprint_protocol/1.1.0"
+Result: 5/6 passed
+Failed: 1 test
+EXIT=2
+```
+
+### case: "snippet extraction preserves order and source lines and skips only marked fragments"
+
+Plant a `raise "fragment failure probe"` in the fragment branch of the extractor, then restore it after the observed failure.
+
+```red
+$ mix test test/package_examples_test.exs --seed 42
+1) test snippet extraction preserves order and source lines and skips only marked fragments
+** (RuntimeError) fragment failure probe
+code: PackageExamples.cells(source, "guide.md")
+Result: 0/2 passed
+Failed: 2 tests
+EXIT=2
+```
+
+### case: "an unknown snippet marking fails instead of hiding unrunnable code"
+
+Plant an empty list in the unknown-marking branch instead of raising; the same two-case run also contains the fragment-branch plant above. Each case fails on its own branch, and both source changes are restored.
+
+```red
+$ mix test test/package_examples_test.exs --seed 42
+2) test an unknown snippet marking fails instead of hiding unrunnable code
+Expected exception RuntimeError but nothing was raised
+code: assert_raise RuntimeError, ~r/guide.md block 1: unknown Elixir fence marking/, fn ->
+Result: 0/2 passed
+Failed: 2 tests
+EXIT=2
+```
+
+### case: "every consumer gate runs when the quality aliases share one Mix process"
+
+Before separate entry scripts, Mix required the shared wrapper only once.
+The integration test ran all four real archive gates in one Mix process
+and caught the skipped snippet gate. The failing output was recorded
+before splitting the two entry scripts.
+
+```red
+$ mix test test/architecture/package_consumer_gates_test.exs --seed 42
+Assertion with =~ failed
+code: assert output =~ "package snippets:"
+right: "package snippets:"
+Result: 0/1 passed
+Failed: 1 test
+EXIT=2
+```
+
+### case: "shipped documents carry no em or en dash"
+
+The gate derives shipped text from the Hex file configuration, ExDoc extras,
+the npm manifest and kit builder inputs and emitted template, TypeScript
+source configuration, site files, and issue templates. A temporary new site
+file containing both prohibited characters was planted on the build box.
+The following failure was captured there; the file was removed before
+running the restored gate.
+
+```red
+$ mix test test/architecture/document_citation_gate_test.exs:31 --seed 42
+Compiling 18 files (.ex)
+Running ExUnit with seed: 42, max_cases: 64
+Excluding tags: [:test]
+Including tags: [location: {"test/architecture/document_citation_gate_test.exs", 31}]
+
+
+
+  1) test shipped documents carry no em or en dash (AgentBlueprintProtocol.Architecture.DocumentCitationGateTest)
+     test/architecture/document_citation_gate_test.exs:31
+     shipped documents carry an em or en dash:
+     site/dash-gate-probe.txt:1: Dash gate probe: left — right; range 1–2.
+     code: assert offenders == [],
+     stacktrace:
+       test/architecture/document_citation_gate_test.exs:48: (test)
+
+
+Finished in 0.3 seconds (0.3s async, 0.00s sync)
+
+Result: 0/1 passed, 6 excluded
+Failed: 1 test
+DASH_EXIT=2
 ```

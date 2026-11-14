@@ -1,4 +1,4 @@
-# Foundation transition — asset inventory
+# Foundation transition: asset inventory
 
 What a future transfer of this protocol to a foundation or standards
 venue covers, and what the steward can and cannot
@@ -44,7 +44,7 @@ meantime.
 ## The deferred-work registry
 
 Work deliberately not done at this release, each with the trigger that
-reopens it — vision accounting, not silent deferral. This registry is
+reopens it: vision accounting, not silent deferral. This registry is
 the durable, shipped record; nothing on it is dropped.
 
 | Deferred work | Reopens when |
@@ -54,13 +54,13 @@ the durable, shipped record; nothing on it is dropped.
 | Third implementation (Rust or Go) | an external conforming implementation merges |
 | Registry codegen from the canonical json | a third implementation, or an unported registry change surviving a cycle |
 | CDDL validator automation | a maintained RFC 8610 validator passes the derivation gate |
-| npm kit distribution — DELIVERED with the installable-verifier release (`@agent-blueprint-protocol/verifier`; the agreement gate proves the kit against the escript every build) | retired — reopened only if distribution requirements change |
+| npm kit distribution: DELIVERED with the installable-verifier release (`@agent-blueprint-protocol/verifier`; the agreement gate proves the kit against the escript every build) | retired; reopened only if distribution requirements change |
 | Registry public registrants (real product identities) | the portfolio products go public |
 | Benchmark program | the first host-integration performance question |
 | Federation completion (native wire fields revisit) | the MCP tasks extension leaves Beta |
 | Attestation-kind registry activation | a second attestation consumer exists |
-| Subset profiles (decode+verify only) — the card projection and single-artifact verify shipped with the installable-verifier release; the NORMATIVE subset profile remains open | an adopter needs the formal profile |
-| Deterministic fixture signing keypair — DELIVERED; new fixtures use a fixed, explicitly test-only Ed25519 seed and existing signatures remain byte-identical | retired — reopened only if fixture derivation changes |
+| Subset profiles (decode+verify only): the card projection and single-artifact verify shipped with the installable-verifier release; the NORMATIVE subset profile remains open | an adopter needs the formal profile |
+| Deterministic fixture signing keypair: DELIVERED; new fixtures use a fixed, explicitly test-only Ed25519 seed and existing signatures remain byte-identical | retired; reopened only if fixture derivation changes |
 
 Each trigger is checkable; none is a date. When one fires, the work
 re-enters the queue with the same discipline as everything in the

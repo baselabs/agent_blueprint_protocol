@@ -236,7 +236,7 @@ defmodule AgentBlueprintProtocol.Registry do
 
   # Uniqueness over raw values: object elements participate through the named
   # member (an element not yet recursed into still participates; a missing
-  # key does not — its own recursion denies it); scalar elements participate
+  # key does not; its own recursion denies it); scalar elements participate
   # whole (`unique_by: :value`).
   defp duplicate_keys?(nil, _items), do: false
 

@@ -1,5 +1,5 @@
 import { isValue } from "./value.ts";
-// The generic field-registry validate engine — the mirror of
+// The generic field-registry validate engine, the mirror of
 // AgentBlueprintProtocol.Registry: ONE table-driven walk parameterized by the
 // artifact layer's table. The engine knows tables, not domains. Failure
 // precedence is pinned: member well-formedness → unknown_member (document
@@ -27,8 +27,8 @@ export type Check = (value: Value) => { ok: true } | { ok: false; e: string; sub
 export type RootHook = (members: Map<string, Value>) => { ok: true } | { ok: false; e: string; subject?: (string|number)[] };
 
 // name/required apply to table members (validate() reads them); array-element
-// specs ({array: …} kinds) carry only kind/check — the walk reads those via
-// elementOk(), never name/required — so both stay optional.
+// specs ({array: …} kinds) carry only kind/check; the walk reads those via
+// elementOk(), never name/required, so both stay optional.
 export interface Spec {
   name?: string;
   required?: boolean;

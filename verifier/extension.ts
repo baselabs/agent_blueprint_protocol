@@ -1,5 +1,5 @@
 import { isValue } from "./value.ts";
-// The positional extension envelope — the mirror of AgentBlueprintProtocol.Extension:
+// The positional extension envelope, the mirror of AgentBlueprintProtocol.Extension:
 // {"critical": {ns → body}, "optional": {ns → body}}, shared by both artifact
 // tables as a table check and by the scans as the open-region walk.
 
@@ -45,7 +45,7 @@ export function envelopeOk(value: Value): VResult {
 }
 
 // Every {namespace, body} pair in the envelope, both regions, in document
-// order — the scan's walk over the open region. `members` is the ROOT member
+// order; the scan's walk over the open region. `members` is the ROOT member
 // list (the "extensions" member is located by name).
 export function bodies(members: [string, Value][]): [string, Value][] {
   const out: [string, Value][] = [];
@@ -58,7 +58,7 @@ export function bodies(members: [string, Value][]): [string, Value][] {
   return out;
 }
 
-// The critical region's namespace set for THIS value — the authored-channel
+// The critical region's namespace set for THIS value: the authored-channel
 // tie (a validated-critical list must sit inside this set).
 export function criticalNamespaces(members: [string, Value][]): Set<string> {
   const out = new Set<string>();

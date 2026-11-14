@@ -10,8 +10,10 @@ const paths=()=>git(['ls-files','--cached','--others','--exclude-standard','-z']
 // The final release adds its own dated entry directly above the candidate's
 // entry; every earlier entry, the candidate's included, stays byte-identical.
 function changelogPromotes(a,b,rc,final){
+  const headings=[...a.matchAll(/^## \[(?!Unreleased\])[^\n]+/gm),...b.matchAll(/^## \[(?!Unreleased\])[^\n]+/gm)];
+  if(headings.some(([heading])=>!/^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}$/.test(heading)))return false;
   const escape=s=>s.replaceAll('.','\\.');
-  const entry=b.match(new RegExp('^## \\['+escape(final)+'\\] — \\d{4}-\\d{2}-\\d{2}\\n[\\s\\S]*?(?=^## \\[)','m'));
+  const entry=b.match(new RegExp('^## \\['+escape(final)+'\\] - \\d{4}-\\d{2}-\\d{2}\\n[\\s\\S]*?(?=^## \\[)','m'));
   if(!entry)return false;
   const at=b.indexOf(entry[0]);
   return b.slice(0,at)+b.slice(at+entry[0].length)===a&&b.indexOf('## ['+rc+']')===at+entry[0].length;
@@ -19,8 +21,8 @@ function changelogPromotes(a,b,rc,final){
 // This classifier owns both the promotion diff policy and the candidate
 // tree check. A frozen file cannot shed a candidate version at promotion.
 function promotionRule(path){
-  // Namespace pages identify stable registrations rather than releases.
-  if(path.startsWith('site/extensions/'))return 'frozen';
+  // Namespace pages also carry release-pinned documentation links.
+  if(path.startsWith('site/extensions/'))return 'version';
   if(['mix.exs','package.json','package-lock.json','verifier/README.md'].includes(path)||['documentation/','docs/','site/'].some(dir=>path.startsWith(dir)))return 'version';
   if(path==='priv/release-metadata.json')return 'metadata';
   if(path==='priv/release-history.json')return 'history';
@@ -81,18 +83,23 @@ function seeded(){
 }
 function selfTest(){
   const rc='1.0.0-rc.1',final='1.0.0';
+  const metadata={package_version:rc,verifier_kit:{version:rc},corpus_digest:'unchanged'};
+  const promotedMetadata={...metadata,package_version:final,verifier_kit:{version:final}};
+  check([['priv/release-metadata.json',Buffer.from(JSON.stringify(metadata)),Buffer.from(JSON.stringify(promotedMetadata))]],rc,final);
+  assert.throws(()=>check([['priv/release-metadata.json',Buffer.from(JSON.stringify(metadata)),Buffer.from(JSON.stringify({...promotedMetadata,corpus_digest:'changed'}))]],rc,final),/forbidden differences/);
   check([['verifier/README.md',Buffer.from('npm install @agent-blueprint-protocol/verifier@'+rc),Buffer.from('npm install @agent-blueprint-protocol/verifier@'+final)]],rc,final);
   checkTree([['verifier/README.md',Buffer.from(rc)]],rc);
-  assert.equal(promotionRule('site/extensions/example/index.html'),'frozen');
+  assert.equal(promotionRule('site/extensions/example/index.html'),'version');
   check([['mix.exs',Buffer.from('@version "'+rc+'"'),Buffer.from('@version "'+final+'"')]],rc,final);
   const readme=Buffer.from('# Example\n\n{:agent_blueprint_protocol, "~> '+rc+'"}\n\nnpm install @agent-blueprint-protocol/verifier@rc\nnpx @agent-blueprint-protocol/verifier@rc --help\n');
   const security=Buffer.from('# Security policy\n\n| Version | Supported |\n| --- | --- |\n| '+rc+' | yes |\n| 1.0.x | yes |\n| 0.8.x | yes |\n');
   const finalReadme=Buffer.from(readme.toString().replaceAll(rc,final).replaceAll('@agent-blueprint-protocol/verifier@rc','@agent-blueprint-protocol/verifier'));
   const finalSecurity=Buffer.from(security.toString().replace('| '+rc+' | yes |\n',''));
   const rcHeading='## ['+rc+']';
-  const changelog='# Changelog\n\n'+rcHeading+' — 2026-11-11\n\nCandidate package.\n\n## [0.8.4] — 2026-10-01\n\nEarlier package.\n';
-  const finalChangelog=changelog.replace(rcHeading,'## ['+final+'] — 2026-12-01\n\nPromotes '+rc+' unchanged.\n\n'+rcHeading);
+  const changelog='# Changelog\n\n'+rcHeading+' - 2026-11-11\n\nCandidate package.\n\n## [0.8.4] - 2026-10-01\n\nEarlier package.\n';
+  const finalChangelog=changelog.replace(rcHeading,'## ['+final+'] - 2026-12-01\n\nPromotes '+rc+' unchanged.\n\n'+rcHeading);
   check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog)]],rc,final);
+  for(const separator of [' \u2014 ',' \u2013 ',' '])assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog.replaceAll(' - ',separator)),Buffer.from(finalChangelog.replaceAll(' - ',separator))]],rc,final),/forbidden differences/);
   assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(changelog.replace(rcHeading,'## ['+final+']'))]],rc,final),/forbidden differences/);
   assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog+'edited released text\n')]],rc,final),/forbidden differences/);
   assert.notDeepEqual(readme,finalReadme);

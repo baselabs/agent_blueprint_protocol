@@ -6,9 +6,11 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
   name under the shared temp directory.
 
   - Elixir: `AgentBlueprintProtocol.Scratch` (test/support/scratch.exs) is
-    the only reader of `System.tmp_dir`. It creates with an exclusive mkdir
+    the shared reader of `System.tmp_dir`. It creates with an exclusive mkdir
     under a random name and removes in `after`. ExUnit's `:tmp_dir` tag is
     not used: it leaves its directory behind after the test.
+    The independently reusable package notebook gate owns the same lifecycle
+    within its self-contained file; its exclusive allocation and cleanup are checked here.
   - Node and TypeScript: `const dir = mkdtempSync(join(tmpdir(), "abp-..."))`,
     removed by `rmSync(dir, ...)` in a `finally`. Every `tmpdir()` call is
     that argument, and every `mkdtempSync` result is bound and removed.
@@ -23,6 +25,7 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
 
   @self "test/architecture/scratch_allocation_test.exs"
   @scratch "test/support/scratch.exs"
+  @standalone ~w(scripts/extract_livebooks.exs scripts/package_examples.exs)
   @elixir_roots ["lib", "scripts", "test"]
   @node_roots ["scripts", "verifier", "lib"]
   @known_node_allocators [
@@ -45,6 +48,18 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
     assert elixir_offences("x.exs", "@moduletag :tmp_dir") != []
     assert elixir_offences("x.exs", "@tag tmp_dir: true") != []
     assert elixir_offences(@scratch, "System.tmp_dir!()") == []
+
+    for path <- @standalone do
+      standalone = File.read!(path)
+
+      for broken <- [
+            String.replace(standalone, "File.rm_rf!(scratch)", ":ok"),
+            String.replace(standalone, "File.mkdir!(scratch)", "File.mkdir_p!(scratch)"),
+            String.replace(standalone, ":crypto.strong_rand_bytes(12)", "\"fixed\"")
+          ] do
+        assert elixir_offences(path, broken) != []
+      end
+    end
   end
 
   test "every Node and TypeScript scratch directory is mkdtemp, bound and removed in finally" do
@@ -94,11 +109,23 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
 
   defp elixir_offences(path, source) do
     [
-      (path != @scratch and source =~ "System.tmp_dir") && "reads System.tmp_dir outside Scratch",
+      (path != @scratch and not standalone_owner?(path, source) and source =~ "System.tmp_dir") &&
+        "reads System.tmp_dir outside Scratch",
       source =~ ~r/@(?:module|describe)?tag\s+(?::tmp_dir\b|tmp_dir:)/ && "uses ExUnit's :tmp_dir"
     ]
     |> Enum.filter(&is_binary/1)
   end
+
+  defp standalone_owner?(path, source) when path in @standalone do
+    count(source, ~r/System\.tmp_dir/) == 1 and
+      Regex.match?(~r/scratch\s*=\s*Path.join\(\s*System.tmp_dir!\(\)\s*,/s, source) and
+      source =~ ":crypto.strong_rand_bytes(12)" and
+      source =~ "File.mkdir!(scratch)" and
+      Regex.match?(~r/after\s+File.rm_rf!\(scratch\)/, source) and
+      not String.contains?(source, "Code.require_file")
+  end
+
+  defp standalone_owner?(_path, _source), do: false
 
   defp node_offences(source) do
     tmpdirs = count(source, ~r/\btmpdir\(\)/)

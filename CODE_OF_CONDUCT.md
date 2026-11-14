@@ -2,8 +2,8 @@
 
 ## Our pledge
 
-Everyone participating in this project — issues, reviews, code,
-documentation, or any other channel — is expected to keep the
+Everyone participating in this project (issues, reviews, code,
+documentation, or any other channel) is expected to keep the
 discussion technical, honest, and civil. We value correctness that can
 be verified over assertion, and we assume good faith.
 

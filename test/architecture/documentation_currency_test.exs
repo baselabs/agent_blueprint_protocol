@@ -26,6 +26,68 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   @index_path "priv/conformance/index.json"
   @case_count ~r/\b(\d+)(?:-case\b|\s+cases\b)/
 
+  test "consumer examples never locate resources relative to the working directory" do
+    documents =
+      Enum.uniq(
+        shipped_markdown() ++
+          Mix.Project.config()[:docs][:extras] ++
+          Path.wildcard("lib/**/*.ex") ++ ["verifier/README.md"]
+      )
+
+    offenders =
+      for file <- documents,
+          source = File.read!(file),
+          code <- consumer_code(file, source),
+          reference <- relative_resources(code),
+          do: {file, reference}
+
+    assert offenders == [],
+           "consumer examples depend on checkout-relative resources: #{inspect(offenders, limit: :infinity)}"
+  end
+
+  defp consumer_code("lib/" <> _, source) do
+    {_ast, docs} =
+      source
+      |> Code.string_to_quoted!()
+      |> Macro.prewalk([], fn
+        {:@, _, [{name, _, [doc]}]} = node, docs
+        when name in [:moduledoc, :doc, :typedoc] and is_binary(doc) ->
+          {node, [doc | docs]}
+
+        node, docs ->
+          {node, docs}
+      end)
+
+    docs
+  end
+
+  defp consumer_code(_file, source) do
+    ~r/^```(?:elixir|iex|js|javascript|ts|typescript)\r?\n(.*?)^```/ms
+    |> Regex.scan(source, capture: :all_but_first)
+    |> Enum.map(&hd/1)
+  end
+
+  defp relative_resources(code) do
+    code =
+      Regex.replace(
+        ~r/Application\.app_dir\(\s*:agent_blueprint_protocol\s*,\s*"[^"]+"\s*\)/s,
+        code,
+        "installed_resource"
+      )
+
+    paths =
+      ~r/["'](?:\.{1,2}\/)*(?:examples|priv|spec|documentation|docs|lib)(?:\/[^"'\n]*)?["']/
+      |> Regex.scan(code)
+      |> Enum.map(&hd/1)
+
+    locators =
+      ~r/Mix\.Project\.deps_paths\(\)|File\.cwd!\(\)/
+      |> Regex.scan(code)
+      |> Enum.map(&hd/1)
+
+    paths ++ locators
+  end
+
   test "README and SECURITY.md name the current released version" do
     version = current_version()
     line = version |> String.split(".") |> Enum.take(2) |> Enum.join(".")
@@ -100,6 +162,20 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     version = current_version()
     changelog = File.read!(@changelog_path)
     first = first_version_heading(changelog)
+
+    headings = Regex.scan(~r/^## \[[^\n]+/m, changelog) |> Enum.map(&hd/1)
+
+    for heading <- headings do
+      assert heading == "## [Unreleased]" or
+               Regex.match?(~r/^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}$/, heading),
+             "CHANGELOG heading must use ## [x.y.z] - YYYY-MM-DD: #{heading}"
+    end
+
+    for separator <- [" \u2014 ", " \u2013 ", " "] do
+      invalid = "## [#{version}]#{separator}2026-11-14\n\nInvalid heading.\n"
+      assert first_version_heading(invalid) == ""
+      assert current_entry(invalid, version) == ""
+    end
 
     assert first == version,
            "CHANGELOG.md's first entry is #{inspect(first)}. The current " <>
@@ -254,7 +330,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert File.exists?(Path.expand("../../styles.css", "site/extensions/federation"))
   end
 
-  # Package entries include bare directories ("documentation", "examples");
+  # Package entries include bare directories ("documentation", "priv/examples");
   # a flat ends_with?(".md") filter over the entries list silently skipped
   # every file inside them, which is how the guides' install pins drifted.
   # Livebooks (.livemd) are shipped documents too and carry the same claims.
@@ -397,7 +473,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   end
 
   defp current_entry(changelog, version) do
-    case Regex.split(~r/^## \[#{Regex.escape(version)}\].*$/m, changelog, parts: 2) do
+    case Regex.split(~r/^## \[#{Regex.escape(version)}\] - \d{4}-\d{2}-\d{2}$/m, changelog,
+           parts: 2
+         ) do
       [_before, rest] ->
         rest |> String.split(~r/^## \[/m, parts: 2) |> hd()
 
@@ -422,7 +500,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   # `## [Unreleased]` section may sit above it (changes landed on main
   # after the current release); it is not a version heading.
   defp first_version_heading(changelog) do
-    case Regex.run(~r/^## \[(?!Unreleased\])([^\]]+)\]/m, changelog) do
+    case Regex.run(~r/^## \[(?!Unreleased\])([^\]]+)\] - \d{4}-\d{2}-\d{2}$/m, changelog) do
       [_, heading] -> heading
       nil -> ""
     end

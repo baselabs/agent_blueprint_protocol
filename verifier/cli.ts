@@ -1,10 +1,10 @@
-// The verifier CLI — the mirror of AgentBlueprintProtocol.Conformance.Cli:
+// The verifier CLI, the mirror of AgentBlueprintProtocol.Conformance.Cli:
 // `--corpus <dir>` is REQUIRED (no default, so a vacuous run is impossible);
 // exit 0 agreement, 1 disagreement, 2 usage error or corpus integrity
-// failure. Report bytes go to stdout with NO trailing newline — including
+// failure. Report bytes go to stdout with NO trailing newline, including
 // on exit 1 (disagreement still prints the report; the escript's
 // IO.binwrite parity). Exit 3 marks an internal invariant (outside the
-// 0/1/2 contract, exactly as an escript crash is — loud, never laundered
+// 0/1/2 contract, exactly as an escript crash is, loud, never laundered
 // into "disagreement").
 
 import { resultsDocument, canonical } from "./results.ts";
@@ -53,7 +53,7 @@ async function main(argv: string[]): Promise<number> {
   }
 
   // --prior-corpus: the compatibility-replay entry (a RELEASED census under
-  // a newer verifier — the registry/floor couplings suspended by the
+  // a newer verifier; the registry/floor couplings suspended by the
   // loader's prior-census mode). The report and exit contract are identical
   // to --corpus; the compatibility gate byte-compares this output against
   // the Elixir side's in-process report.
@@ -95,7 +95,7 @@ async function main(argv: string[]): Promise<number> {
   return agreed === results.flat().length && agreed > 0 ? 0 : 1;
 }
 
-// Single-artifact mode — a kit-side convenience the escript deliberately
+// Single-artifact mode: a kit-side convenience the escript deliberately
 // does NOT mirror (its CLI contract stays --corpus-only, so a vacuous run
 // stays impossible there). One artifact file, verified against all three
 // artifact kinds; valid iff any kind decodes. A valid report names the

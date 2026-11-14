@@ -48,6 +48,10 @@ defmodule AgentBlueprintProtocol.Architecture.CiTriggerFilterTest do
     "conformance.product" => {:lean, "mix conformance.product"},
     "release.promote" => {:lean, "mix release.promote"},
     "typescript.guide" => {:lean, "mix typescript.guide"},
+    "livebooks.package" => {:lean, "mix livebooks.package"},
+    "doctests.package" => {:lean, "mix doctests.package"},
+    "snippets.package" => {:lean, "mix snippets.package"},
+    "typescript.package" => {:lean, "mix typescript.package"},
     "verifier.agreement" =>
       {:reads,
        ["mix.exs", "package.json", "config/**", "lib/**", "priv/**", "scripts/**", "verifier/**"],

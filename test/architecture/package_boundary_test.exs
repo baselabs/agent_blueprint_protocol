@@ -82,11 +82,15 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     documentation/quickstart.md
     documentation/typescript.md
     documentation/examples.md
-    examples/echo-blueprint.json
-    examples/echo-deployment.json
-    examples/federation-envelope.json
-    examples/signed-blueprint.json
-    examples/extension-blueprint.json
+    scripts/extract_livebooks.exs
+    scripts/package_examples.exs
+    scripts/run_package_typescript_examples.mjs
+    scripts/postpublish_examples.mjs
+    priv/examples/echo-blueprint.json
+    priv/examples/echo-deployment.json
+    priv/examples/federation-envelope.json
+    priv/examples/signed-blueprint.json
+    priv/examples/extension-blueprint.json
     lib/agent_blueprint_protocol.ex
     lib/agent_blueprint_protocol/base64url.ex
     lib/agent_blueprint_protocol/blueprint.ex
@@ -201,7 +205,11 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     CODE_OF_CONDUCT.md
     SUPPORT.md
     documentation
-    examples
+    priv/examples
+    scripts/extract_livebooks.exs
+    scripts/package_examples.exs
+    scripts/run_package_typescript_examples.mjs
+    scripts/postpublish_examples.mjs
     .formatter.exs
     mix.exs
     README.md
@@ -234,6 +242,10 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     "spec.extraction",
     "grammar.derivation",
     "registry.equality",
+    "livebooks.package",
+    "doctests.package",
+    "snippets.package",
+    "typescript.package",
     "release.asset",
     "release.promote",
     "release.candidate"

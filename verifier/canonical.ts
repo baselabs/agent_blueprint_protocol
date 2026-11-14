@@ -1,4 +1,4 @@
-// RFC 8785 JCS encoder — the mirror of AgentBlueprintProtocol.Canonicalization.
+// RFC 8785 JCS encoder, the mirror of AgentBlueprintProtocol.Canonicalization.
 //
 // The ES6 number oracle lives HERE and only here: canonical
 // number emission and the decoder's window admission share one decision, the
@@ -7,12 +7,12 @@
 // §7.1.12.1 IS the native behavior); structure, sorting, and escaping are
 // hand-rolled so the corpus exercises this implementation, not V8's wholesale.
 //
-// Member sort: plain JS string comparison — `<` on strings is UTF-16 code-unit
+// Member sort: plain JS string comparison; `<` on strings is UTF-16 code-unit
 // lexicographic, exactly RFC 8785 §3.2.3 (U+10000 sorts before U+FF3A).
 //
 // The decode ↔ canonical import cycle (verify needs decode; decode's window
 // rule needs the number oracle) is a node-ESM circular import over hoisted
-// function declarations — resolved at call time, never at module init.
+// function declarations, resolved at call time, never at module init.
 
 import type { Bounds } from "./bounds.ts";
 import { coerce, maximum } from "./bounds.ts";

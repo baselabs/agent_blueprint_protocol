@@ -50,13 +50,13 @@ The following code blocks are excerpts.
 
 Before, Elixir callers matched the error atom directly:
 
-```elixir
+```elixir fragment
 {:error, :unknown_member} = AgentBlueprintProtocol.decode_blueprint(bytes)
 ```
 
 After, match the typed error struct:
 
-```elixir
+```elixir fragment
 {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
   AgentBlueprintProtocol.decode_blueprint(bytes)
 ```
@@ -82,13 +82,13 @@ Decoder ceiling codes use `{:ceiling, key}` in Elixir and `ceiling:<key>` in Typ
 
 Before (Elixir excerpt):
 
-```elixir
+```elixir fragment
 {:error, {:ceiling, :depth}} = AgentBlueprintProtocol.Bounds.new(%{depth: 0})
 ```
 
 After (Elixir excerpt):
 
-```elixir
+```elixir fragment
 {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}} =
   AgentBlueprintProtocol.Bounds.new(%{depth: 0})
 ```
@@ -113,14 +113,14 @@ Denial details are `nil`; the schema-derived path is in `subject`. These Elixir 
 
 Before, callers read the denial detail:
 
-```elixir
+```elixir fragment
 {:error, %AgentBlueprintProtocol.Error{code: :protected_bound_clamp_denied, detail: detail}} =
   AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
 ```
 
 After, `detail` is `nil` and the member path is in `subject`:
 
-```elixir
+```elixir fragment
 {:error, %AgentBlueprintProtocol.Error{code: :protected_bound_clamp_denied, detail: nil, subject: subject}} =
   AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
 ```
@@ -135,13 +135,13 @@ The following code blocks are excerpts.
 
 Before, Elixir callers read a summary string:
 
-```elixir
+```elixir fragment
 %{surface: :signatures, detail: "1 signature(s) verified"} = check
 ```
 
 After, signature details have a typed structure and skipped surfaces are explicit:
 
-```elixir
+```elixir fragment
 %{surface: :signatures, detail: %AgentBlueprintProtocol.Evidence.Signatures{key_ids: key_ids}} = check
 evidence.not_verified
 ```
@@ -169,13 +169,13 @@ Denial `detail` values are `nil`, including protected-bound denials. Read the me
 
 Before, Elixir returned a status atom:
 
-```elixir
+```elixir fragment
 {:ok, :verified} = AgentBlueprintProtocol.Signature.verify(entry, keys)
 ```
 
 After:
 
-```elixir
+```elixir fragment
 {:ok, %AgentBlueprintProtocol.Signature.Attributes{} = attributes} =
   AgentBlueprintProtocol.Signature.verify(entry, keys)
 attributes.content_digest
@@ -197,7 +197,7 @@ if (checked.ok) checked.value.contentDigest;
 
 Repeated key identifiers in one artifact now deny with `invalid_constraint` during structure validation. The following excerpt assumes `bytes` contains an artifact with repeated identifiers:
 
-```elixir
+```elixir fragment
 {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
   AgentBlueprintProtocol.decode_blueprint(bytes)
 ```
@@ -229,7 +229,7 @@ import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 const newResult = decodeBlueprint(bytes);
 ```
 
-Use the documented functions in the [Elixir reference](https://agent-blueprint-protocol.hexdocs.pm/1.0.1/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
+Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.0/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
 
 ## 6. Update package and release identity pins
 
@@ -237,23 +237,23 @@ Version 1.0 changes the registry digest and sets `verification_semantics_version
 
 Before, pin the previous Hex release:
 
-```elixir
+```elixir fragment
   {:agent_blueprint_protocol, "~> 0.8.4"}
 ```
 
 After, pin the 1.0 release:
 
-```elixir
-{:agent_blueprint_protocol, "~> 1.0.1"}
+```elixir fragment
+{:agent_blueprint_protocol, "~> 1.1.0"}
 ```
 
-For TypeScript, install the same version with `npm install @agent-blueprint-protocol/verifier@1.0.1`. The Hex and npm packages carry the same version.
+For TypeScript, install the same version with `npm install @agent-blueprint-protocol/verifier@1.1.0`. The Hex and npm packages carry the same version.
 
 Before, install the previous npm release; after, install the 1.0 release:
 
 ```sh
 npm install @agent-blueprint-protocol/verifier@0.8.4
-npm install @agent-blueprint-protocol/verifier@1.0.1
+npm install @agent-blueprint-protocol/verifier@1.1.0
 ```
 
 ## 7. Use the preferred identifiers
@@ -272,7 +272,7 @@ Earlier integrations sometimes relied on example namespaces in the package regis
 
 Before (conceptual 0.8 excerpt), the host supplied revision support and relied on a compiled example entry:
 
-```elixir
+```elixir fragment
 support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
 ```
 
@@ -343,7 +343,7 @@ if (oldResult.ok) useBlueprint(oldResult.v);
 else rejectCode(oldResult.e);
 ```
 
-After, follow the [installed-package setup](typescript.md#install-and-decode) and save this complete replacement as `migrate.mts`. Use the [TypeScript check/run commands](typescript.md#run-the-typescript-examples), then run `node migrate.mts`. It decodes both downloaded files, supplies all host inputs, handles denials, and prints both signature subjects and the unverified surfaces. The sample pair is unsigned, so both signature flags are `false`:
+After, follow the [installed-package setup](typescript.md#install-and-decode) and save this complete replacement as `migrate.mts`. Use the [TypeScript check/run commands](typescript.md#run-the-typescript-examples), then run `node migrate.mts`. It decodes both packaged samples, supplies all host inputs, handles denials, and prints both signature subjects and the unverified surfaces. The sample pair is unsigned, so both signature flags are `false`:
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -356,8 +356,8 @@ import {
   type Support,
 } from "@agent-blueprint-protocol/verifier";
 
-const blueprint = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
-const deployment = decodeDeployment(readFileSync("examples/echo-deployment.json"));
+const blueprint = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-blueprint.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
+const deployment = decodeDeployment(readFileSync(new URL("./dist/examples/echo-deployment.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
 if (!blueprint.ok) throw new Error(blueprint.error.code);
 if (!deployment.ok) throw new Error(deployment.error.code);
 

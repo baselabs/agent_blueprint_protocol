@@ -1,12 +1,12 @@
-// Detached JWS verification — the mirror of AgentBlueprintProtocol.Signature:
+// Detached JWS verification, the mirror of AgentBlueprintProtocol.Signature:
 // RFC 7515 compact + RFC 7797 b64=false unencoded detached payload, Ed25519
 // via node:crypto (one-shot verify arg order on node ≥ 24 is
-// (algorithm, data, key, signature) — probed on v25.9.0), and the
+// (algorithm, data, key, signature); probed on v25.9.0), and the
 // small-order / off-curve public-key rejection the Elixir twin also
 // carries, added after a live finding (:crypto accepts forgeries under small-order keys: under the
 // identity key, R = identity with S = 0 verifies for every message; measured
 // October 14, 2026, node:crypto on Node 22.23.1 accepts the same forgery and
-// Node 24.19.0 rejects it — runtime-dependent, which is why the rule lives
+// Node 24.19.0 rejects it; runtime-dependent, which is why the rule lives
 // here), and the strict
 // signature rule (R canonical and not small-order, S < L) checked before
 // node:crypto, so the verdict never depends on the runtime's backend.
@@ -258,7 +258,7 @@ function keyObject(raw: Uint8Array): KeyObject {
 // The scalar rule: S < L (RFC 8032 5.1.7 step 1). Both run before
 // node:crypto, whose own verdict on a small-order R differs by runtime
 // (node 22.23.1 accepts R = the identity with S = k*a mod L under an
-// honest key; node 24.19.0 rejects it) — mirrors the Elixir twin.
+// honest key; node 24.19.0 rejects it); mirrors the Elixir twin.
 
 const ED_L = 2n ** 252n + 27742317777372353535851937790883648493n;
 
@@ -281,7 +281,7 @@ const ED_SQRT_M1 =
 
 // The literals, exposed so the self-check battery can re-derive each one
 // from the curve definition (d = -121665/121666, sqrt(-1) = 2^((p-1)/4),
-// L = 2^252 + c) and assert equality — a mistyped digit reds there.
+// L = 2^252 + c) and assert equality; a mistyped digit reds there.
 export const ED25519_CONSTANTS = { p: ED_P, d: ED_D, sqrtM1: ED_SQRT_M1, l: ED_L } as const;
 
 function modPow(base: bigint, exponent: bigint): bigint {
@@ -321,7 +321,7 @@ export function usableEd25519Key(input: Uint8Array): boolean {
   else root = null;
 
   if (root === null) return false; // not on the curve
-  // root == 0 happens iff y ∈ {1, p−1} — the identity (order 1) and the
+  // root == 0 happens iff y ∈ {1, p−1}: the identity (order 1) and the
   // order-2 point: non-canonical when sign-set, small-order when sign-clear;
   // both reject (mirrors the Elixir fix found by this mirror's torsion battery).
   if (root === 0n) return false;

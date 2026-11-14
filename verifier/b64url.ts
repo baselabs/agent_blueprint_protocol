@@ -1,6 +1,6 @@
 // Two base64url decoders, mirroring the substrate's split (design note Q3b):
 //
-// - decodeStrict: the package codec's exact matrix (AgentBlueprintProtocol.Base64Url) —
+// - decodeStrict: the package codec's exact matrix (AgentBlueprintProtocol.Base64Url):
 //   `=` anywhere → `base64url_padded`; non-alphabet → `base64url_invalid`;
 //   a spelling that is not the byte-exact encoding of its own decoded bytes
 //   (impossible lengths, non-zero pad bits) → `base64url_invalid`.

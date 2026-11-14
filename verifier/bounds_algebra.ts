@@ -1,4 +1,4 @@
-// The bounds algebra — the mirror of AgentBlueprintProtocol.BoundsAlgebra:
+// The bounds algebra, the mirror of AgentBlueprintProtocol.BoundsAlgebra:
 // the pointwise narrowest intersection of three total bound sets over the
 // closed 13-bound vocabulary. Scope families meet at the written-order
 // minimum with marker-union retention; obligation families at the

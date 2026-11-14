@@ -1,4 +1,4 @@
-// Self-check battery — the corpus-independent anchors:
+// Self-check battery: the corpus-independent anchors:
 // RFC 8785 Appendix B transcribed first-hand from the RFC (2026-08-23), the
 // RFC's §3.2.2→§3.2.4 canonicalization sample, the §3.2.3 sort-order fixture,
 // the integer-window matrix (mis-round lexeme included), the b64url strict/
@@ -6,7 +6,7 @@
 // a list = any failure.
 //
 // These run inside `verifier.agreement` (a divergence in either
-// implementation must surface — RFC table ↔ TS emit ↔ native stringify).
+// implementation must surface; RFC table ↔ TS emit ↔ native stringify).
 
 import { number } from "./canonical.ts";
 import { decode } from "./decode.ts";
@@ -87,8 +87,8 @@ const APPENDIX_B: [string, string | null][] = [
   ["4340000000000000", "9007199254740992"],
   ["c340000000000000", "-9007199254740992"],
   ["4430000000000000", "295147905179352830000"],
-  ["7fffffffffffffff", null], // NaN — must error
-  ["7ff0000000000000", null], // Infinity — must error
+  ["7fffffffffffffff", null], // NaN; must error
+  ["7ff0000000000000", null], // Infinity; must error
   ["44b52d02c7e14af5", "9.999999999999997e+22"],
   ["44b52d02c7e14af6", "1e+23"],
   ["44b52d02c7e14af7", "1.0000000000000001e+23"],
@@ -177,7 +177,7 @@ const expectedOrder = [
 const sortDecoded = decode(sortInput);
 check("§3.2.3 fixture decodes", sortDecoded.ok, true);
 if (sortDecoded.ok) {
-  // Sorting happens at ENCODE (decode preserves member order) — assert the
+  // Sorting happens at ENCODE (decode preserves member order); assert the
   // canonical output's key order: \r < 1 < U+0080 < U+00F6 < U+20AC <
   // U+1F600 < U+FB33 (UTF-16 code units).
   const encoded = encode(sortDecoded.v);
@@ -200,7 +200,7 @@ if (sortDecoded.ok) {
 
 // ---- integer-window matrix -------------------------------------------------------
 
-// [lexeme, expected] — expected is "ok:<tag>:<number-string>" or the deny code.
+// [lexeme, expected]; expected is "ok:<tag>:<number-string>" or the deny code.
 const WINDOW: [string, string][] = [
   ["9007199254740992", "ok:float:9007199254740992"],
   ["-9007199254740992", "ok:float:-9007199254740992"],
@@ -257,7 +257,7 @@ check("b64 lenient bad char", lenient("!!!"), "lenient_invalid");
 
 // ---- Ed25519 key acceptance ---------------------------------------------------------
 
-// Small-order / non-canonical / off-curve encodings — the libsodium
+// Small-order / non-canonical / off-curve encodings: the libsodium
 // ge25519_has_small_order list (provider constants) plus the y ∈ {1, p−1}
 // pair an independent review found slipping through the twin's root==0 branch.
 const UNUSABLE_HEX = [
@@ -278,7 +278,7 @@ for (const hex of UNUSABLE_HEX) {
   check(`ed25519 unusable ${hex.slice(0, 8)}…`, usableEd25519Key(Buffer.from(hex, "hex")), false);
 }
 
-// The RFC 8032 §7.1 TEST 1 public key — a legitimate main-subgroup point.
+// The RFC 8032 §7.1 TEST 1 public key, a legitimate main-subgroup point.
 check(
   "ed25519 RFC8032 TEST1 pubkey usable",
   usableEd25519Key(Buffer.from("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a", "hex")),
@@ -821,8 +821,8 @@ function flipSignatureByte(entry: Value): Value {
 
 // ---- prior-census loader mode (the compatibility-replay anchors) -----------------
 //
-// A synthetic prior-shaped census — corpus-independent, exactly as this
-// battery requires — proving the TS prior-census mode's red arms: the
+// A synthetic prior-shaped census; corpus-independent, exactly as this
+// battery requires; proving the TS prior-census mode's red arms: the
 // ordinary loader still binds the registry digest; the prior mode
 // suspends exactly that binding (and the compiled-floor totality) while
 // keeping the census's OWN integrity chain. Mirrors the Elixir

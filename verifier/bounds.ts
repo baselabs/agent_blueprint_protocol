@@ -1,4 +1,4 @@
-// Parse ceilings — the mirror of AgentBlueprintProtocol.Bounds: the immutable
+// Parse ceilings, the mirror of AgentBlueprintProtocol.Bounds: the immutable
 // profile maxima and the tighten-only override rule (unknown key denies
 // `unknown_bound`; a non-positive, non-integer, or super-maximum value denies
 // `ceiling:<field>`).

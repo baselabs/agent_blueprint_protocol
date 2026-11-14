@@ -8,14 +8,11 @@ Use Node.js 24 or newer. The package is ESM-only and has no runtime dependencies
 
 ## Install and decode
 
-In a new working directory, install the exact release and download both canonical samples. The npm archive does not contain `examples/`:
+In a new working directory, install the exact release. The package ships the canonical samples under `dist/examples/`:
 
 ```sh
 npm init -y
-npm install @agent-blueprint-protocol/verifier@1.0.1
-mkdir -p examples
-curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/echo-blueprint.json --output examples/echo-blueprint.json
-curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/echo-deployment.json --output examples/echo-deployment.json
+npm install @agent-blueprint-protocol/verifier@1.1.0
 ```
 
 Save the following block as `verify.mjs`, then run `node verify.mjs`. It prints `valid`.
@@ -24,7 +21,7 @@ Save the following block as `verify.mjs`, then run `node verify.mjs`. It prints 
 import { readFileSync } from "node:fs";
 import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 
-const result = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
+const result = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-blueprint.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
 console.log(result.ok ? "valid" : result.error.code); // valid
 ```
 
@@ -148,7 +145,7 @@ console.log(describeError(denied.error.code)); // "unknown_member"
 
 ## Reconcile the shipped examples
 
-Save this as `reconcile.mts`, then type-check it and run `node reconcile.mts`. It reads the two downloaded samples and prints `true`. These explicit bounds are example host configuration; real hosts supply their own limits. See [host inputs](host-integration.md) for their sources and observation types.
+Save this as `reconcile.mts`, then type-check it and run `node reconcile.mts`. It reads the two packaged samples and prints `true`. These explicit bounds are example host configuration; real hosts supply their own limits. See [host inputs](host-integration.md) for their sources and observation types.
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -161,8 +158,8 @@ import {
   type Support,
 } from "@agent-blueprint-protocol/verifier";
 
-const blueprint = decodeBlueprint(readFileSync("examples/echo-blueprint.json"));
-const deployment = decodeDeployment(readFileSync("examples/echo-deployment.json"));
+const blueprint = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-blueprint.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
+const deployment = decodeDeployment(readFileSync(new URL("./dist/examples/echo-deployment.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
 if (!blueprint.ok) throw new Error(blueprint.error.code);
 if (!deployment.ok) throw new Error(deployment.error.code);
 
@@ -238,7 +235,34 @@ Standalone signature verification returns attributes. Compare `purpose` and `con
 
 ### Checkout alternative
 
-For contributors, clone the `v1.0.1` tag, run the [contributor bootstrap](../CONTRIBUTING.md#clean-checkout-setup), and run the same scripts from the checkout root. Its `examples/` directory already supplies the files. Installation does not require a checkout.
+Contributors can run the same scripts after the [contributor bootstrap](../CONTRIBUTING.md#clean-checkout-setup). They resolve the samples from the installed npm package in either environment.
+
+## Member vocabularies
+
+`blueprintMembers(1)`, `deploymentMembers(1)`, and `federationMembers(1)` return
+sorted names from the same tables as their decoders: 18 Blueprint Core members,
+19 Deployment Manifest members, and 23 Federation TaskEnvelope members. Revision
+1 is supported. Other integer revisions return `protocol_revision_unsupported`
+with subject `["protocol_revision"]`; non-integers return `invalid_type` with
+an empty subject. These are additive library APIs introduced in 1.1.0.
+
+A host supporting every core field declares the union of the Blueprint and
+Deployment vocabularies; declare only fields the host actually supports. The
+federation vocabulary is separate:
+
+```ts
+import { blueprintMembers, deploymentMembers, federationMembers, type Support } from "@agent-blueprint-protocol/verifier";
+const blueprint = blueprintMembers(1);
+const deployment = deploymentMembers(1);
+const federation = federationMembers(1);
+if (!blueprint.ok || !deployment.ok || !federation.ok) throw new Error("Unsupported revision");
+const support: Support = {
+  revisions: new Set([1]),
+  coreFields: new Set([...blueprint.value, ...deployment.value]),
+  registry: {}, schemas: {},
+};
+console.log(blueprint.value.length, deployment.value.length, federation.value.length); // 18 19 23
+```
 
 ## CLI
 
@@ -256,17 +280,20 @@ The package installs the `agent-blueprint-protocol` and `verifier` commands. Bot
 | `--serve --corpus <dir>` | Run as an adapter for the external execution protocol. | `0` clean completion, `2` invalid input or handshake, `3` internal error. |
 | `conformance run ... -- <command>` | Run the external harness against an adapter. | `0` agreement, `2` usage, corpus, or claim input failure, `3` internal error, `10` handshake mismatch, `11` duplicate response, `12` missing response, `13` extra response, `14` reordered response, `15` malformed line, `16` oversized line, `17` response timeout, `18` early exit, `19` disagreement. |
 
-For `conformance run`, the harness writes a results document only after receiving all expected responses and a clean adapter exit. See the [execution protocol](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1/spec/conformance/execution.md) for the line format and outcomes.
+For `conformance run`, the harness writes a results document only after receiving all expected responses and a clean adapter exit. See the [execution protocol](../spec/conformance/execution.md) for the line format and outcomes.
 
 ## Package-root reference
 
-All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.0.1/verifier/index.ts).
+All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/verifier/index.ts).
 
 | Export and signature (outer return is `Result<…>`) | Inputs, defaults, and success value |
 |---|---|
 | `decodeBlueprint(input: Uint8Array \| string, options: DecodeOptions = {})` → `Blueprint` | Canonical UTF-8 bytes; validates structure, portability, and digest. `options.bounds` tightens decoder ceilings; omitted ceilings use protocol maxima. |
 | `decodeDeployment(input: Uint8Array \| string, options: DecodeOptions = {})` → `Deployment` | Same boundary for a Manifest. Does not compare it with a Blueprint or independently check signatures. |
 | `decodeFederationEnvelope(input: Uint8Array \| string, options: DecodeOptions = {})` → `FederationEnvelope` | Canonical envelope; checks structure and portability. `contentDigest` is `null`. |
+| `blueprintMembers(revision: unknown)` → `readonly string[]` | Sorted Blueprint Core member names for a supported revision. |
+| `deploymentMembers(revision: unknown)` → `readonly string[]` | Sorted Deployment Manifest member names for a supported revision. |
+| `federationMembers(revision: unknown)` → `readonly string[]` | Sorted Federation TaskEnvelope member names for a supported revision. |
 | `canonicalBytes(value: Artifact)` → `Uint8Array` | Encodes the view's JSON `value`. Does not insert a digest or sign edited content. |
 | `negotiate(value: Blueprint \| Deployment, options: Support)` → `Negotiated` | Required revision/core-field support, registry, and held schemas. Returns revision, critical and quarantined names, retained optional names, and notices. |
 | `intersect(options: Sources)` → `Intersection` | Three total bound sets. `protectedClamp` defaults to `"deny"`; `"acknowledge"` records permitted protected narrowing. Returns `effective` and `clamps`. |
@@ -302,7 +329,7 @@ This is the complete root type surface, including the `ErrorCode` re-export:
 
 ### Decode, negotiate, compare, and intersect
 
-Save as `inspect.mts`. Type-check it, then run `node inspect.mts` after the sample downloads. The inventory below is a fixture copied from the example for this demonstration; use independent inventory in an integration.
+Save as `inspect.mts`. Type-check it, then run `node inspect.mts` with the installed package. The inventory below is a fixture copied from the example for this demonstration; use independent inventory in an integration.
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -311,8 +338,8 @@ import {
   verifyCompatibility, federationMapping, type BoundSet, type Observed,
 } from "@agent-blueprint-protocol/verifier";
 
-const bp = decodeBlueprint(readFileSync("examples/echo-blueprint.json"), {bounds: {depth: 32}});
-const dep = decodeDeployment(readFileSync("examples/echo-deployment.json"));
+const bp = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-blueprint.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))), {bounds: {depth: 32}});
+const dep = decodeDeployment(readFileSync(new URL("./dist/examples/echo-deployment.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
 if (!bp.ok) throw new Error(bp.error.code);
 if (!dep.ok) throw new Error(dep.error.code);
 const bytes = canonicalBytes(bp.value);
@@ -330,7 +357,7 @@ const host: BoundSet = {
 };
 const narrowed = intersect({blueprint: {...host, max_attempts: 3}, deployment: host, host});
 if (!narrowed.ok) throw new Error(narrowed.error.code);
-const manifest = JSON.parse(readFileSync("examples/echo-deployment.json", "utf8"));
+const manifest = JSON.parse(readFileSync(new URL("./dist/examples/echo-deployment.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json")), "utf8"));
 const observed: Observed = {identities: manifest.build_identities};
 const compatible = verifyCompatibility(dep.value, observed);
 if (!compatible.ok) throw new Error(compatible.error.code);
@@ -340,16 +367,12 @@ console.log(negotiated.value.protocolRevision, narrowed.value.effective.max_atte
 // 1 2 23
 ```
 
-For an envelope, download the exact sample, then save the following as `envelope.mts`, type-check it, and run `node envelope.mts`:
-
-```sh
-curl --fail --location https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.0.1/examples/federation-envelope.json --output examples/federation-envelope.json
-```
+For an envelope, use the packaged sample and save the following as `envelope.mts`, type-check it, and run `node envelope.mts`:
 
 ```ts
 import { readFileSync } from "node:fs";
 import { decodeFederationEnvelope } from "@agent-blueprint-protocol/verifier";
-const result = decodeFederationEnvelope(readFileSync("examples/federation-envelope.json"));
+const result = decodeFederationEnvelope(readFileSync(new URL("./dist/examples/federation-envelope.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
 if (!result.ok) throw new Error(result.error.code);
 console.log(result.value.kind, result.value.contentDigest); // federation null
 ```
@@ -423,8 +446,9 @@ Save as `corpus.mts`, type-check it, and run `node corpus.mts`. It reads the ins
 ```ts
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadCorpus, runCorpus, buildReport, buildResultsDocument } from "@agent-blueprint-protocol/verifier";
-const root = "node_modules/@agent-blueprint-protocol/verifier/dist/corpus";
+const root = fileURLToPath(new URL("./dist/corpus", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json")));
 const files = new Map<string, Uint8Array>();
 function walk(dir: string): void {
   for (const entry of readdirSync(dir, {withFileTypes: true})) {
@@ -446,7 +470,7 @@ if (!document.ok) throw new Error(document.error.code);
 console.log(report.value.agreement, document.value.results.length === run.value.flat().length);
 ```
 
-To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.0.1 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
+To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.1.0 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
 
 ## Import migration
 

@@ -1,5 +1,5 @@
 import { isValue } from "./value.ts";
-// The compatibility surface — the mirror of AgentBlueprintProtocol.Compatibility:
+// The compatibility surface, the mirror of AgentBlueprintProtocol.Compatibility:
 // identity-exact or error. A manifest identity (one build_identities entry)
 // is matched only by an observed identity carrying the EXACT
 // (kind, name, version, digest) tuple; ranges deny
@@ -13,7 +13,7 @@ import { keyfind } from "./registry_engine.ts";
 import type { Value } from "./value.ts";
 
 // Observed identities are UNTRUSTED input (the runner builds them straight
-// from corpus values — a non-string field carries the raw Value).
+// from corpus values; a non-string field carries the raw Value).
 // validatedObserved re-checks every field through unknown, so these field
 // types document the intended shape, not a pre-validated one.
 export interface ObservedIdentity {
@@ -48,7 +48,7 @@ export function verify(deployment: Deployment, observed: Observed): VResult {
   return matchManifest(manifest.v, validated.v);
 }
 
-// The exactness predicate (public on the twin): total over junk input — any
+// The exactness predicate (public on the twin): total over junk input; any
 // non-conforming shape answers false.
 export function exact(identity: { version: string | null }): boolean {
   if (!identity || typeof identity !== "object") return false;
@@ -114,7 +114,7 @@ function validatedObserved(identities: ObservedIdentity[]): { ok: true; v: Ident
   return { ok: true, v: out };
 }
 
-// Match, manifest member order: per identity — its own exactness, the
+// Match, manifest member order: per identity, its own exactness, the
 // unique-by name re-assertion, then the observed candidates with the exact
 // tuple. None denies missing; many deny duplicate; one emits the check with
 // the parsed observed digest.

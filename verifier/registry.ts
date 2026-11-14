@@ -20,7 +20,7 @@ export interface RegistryEntry {
   promoted_at_revision: number | null;
 }
 
-// The federation envelope's minimal schema — owned by this package, inside
+// The federation envelope's minimal schema, owned by this package, inside
 // the bounded dialect (closed object, no reserved-semantics names).
 export function federationSchema(): Value {
   return obj([

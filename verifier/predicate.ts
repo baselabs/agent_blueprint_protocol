@@ -1,5 +1,5 @@
 import { isValue } from "./value.ts";
-// The closed, portable boolean predicate algebra — the mirror of
+// The closed, portable boolean predicate algebra, the mirror of
 // AgentBlueprintProtocol.Predicate's validate/2 (the shape walk the Blueprint
 // root hook consumes): closed operator world, per-operator operand members,
 // the 256-node ceiling, and the pinned per-node check order

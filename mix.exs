@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "1.0.1"
+  @version "1.1.0"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -117,7 +117,11 @@ defmodule AgentBlueprintProtocol.MixProject do
         "CODE_OF_CONDUCT.md",
         "SUPPORT.md",
         "documentation",
-        "examples",
+        "priv/examples",
+        "scripts/extract_livebooks.exs",
+        "scripts/package_examples.exs",
+        "scripts/run_package_typescript_examples.mjs",
+        "scripts/postpublish_examples.mjs",
         ".formatter.exs",
         "mix.exs",
         "README.md",
@@ -133,7 +137,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md",
         "Security policy" => "#{@source_url}/blob/main/SECURITY.md",
         "Documentation" => "https://hexdocs.pm/agent_blueprint_protocol",
-        "Specification" => "#{@source_url}/blob/main/spec/protocol.md",
+        "Specification" => "#{@source_url}/blob/v#{@version}/spec/protocol.md",
         "npm" => "https://www.npmjs.com/package/@agent-blueprint-protocol/verifier"
       }
     ]
@@ -404,6 +408,10 @@ defmodule AgentBlueprintProtocol.MixProject do
       "typescript.guide": [
         "run --no-start scripts/check_typescript_guide.exs"
       ],
+      "livebooks.package": ["run --no-start scripts/check_packaged_livebooks.exs"],
+      "doctests.package": ["run --no-start scripts/check_packaged_doctests.exs"],
+      "snippets.package": ["run --no-start scripts/check_packaged_examples.exs"],
+      "typescript.package": ["cmd node scripts/check_packaged_typescript.mjs"],
       quality: [
         "hex.audit",
         "deps.unlock --check-unused",
@@ -418,6 +426,10 @@ defmodule AgentBlueprintProtocol.MixProject do
         "kit.build",
         "conformance.product",
         "typescript.guide",
+        "livebooks.package",
+        "doctests.package",
+        "snippets.package",
+        "typescript.package",
         "verifier.agreement",
         "compatibility.replay",
         "dialyzer",

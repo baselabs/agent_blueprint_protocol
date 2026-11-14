@@ -14,7 +14,7 @@ internal systems already occupy that ground.
 ## Decision
 
 The protocol validates structure, canonical bytes, bounds, compatibility,
-and evidence — nothing else. Protocol validity never grants authority.
+and evidence, nothing else. Protocol validity never grants authority.
 Concretely:
 
 - `reconcile/3`'s result is an `%Evidence{}` record, never a decision;
@@ -22,7 +22,7 @@ Concretely:
   the seven host-owned surfaces (tenancy, live policy, authority,
   effect ownership, execution, billing, evaluation truth).
 - No authorization-decision vocabulary exists in any shipped
-  identifier — no `authorize`/`authorized`, no `:unauthorized` in
+  identifier: no `authorize`/`authorized`, no `:unauthorized` in
   either polarity (source-scan gate).
 - Signatures and attestations are evidence; verification never
   authorizes execution.
@@ -31,7 +31,7 @@ Concretely:
 
 ## Consequences
 
-Hosts cannot delegate their authority checks to this package — by
+Hosts cannot delegate their authority checks to this package; by
 design. The boundary costs a little boilerplate (the stance sentence per
 moduledoc) and buys a claim that survives adversarial review: the
 package's public surface cannot express permission. Red proofs: the

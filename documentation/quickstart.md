@@ -17,9 +17,9 @@ cd verify_blueprint
 
 Replace the generated `deps/0` function with:
 
-```elixir
+```elixir fragment
 defp deps do
-  [{:agent_blueprint_protocol, "~> 1.0.1"}]
+  [{:agent_blueprint_protocol, "~> 1.1.0"}]
 end
 ```
 
@@ -32,11 +32,10 @@ iex -S mix
 
 ## Decode the shipped Blueprint
 
-A [Blueprint](glossary.md#blueprint) is a JSON artifact that describes an agent's capabilities and bounds. The Hex package includes the example under `examples/`.
+A [Blueprint](glossary.md#blueprint) is a JSON artifact that describes an agent's capabilities and bounds. The Hex package includes the example under `priv/examples/`.
 
 ```elixir
-dependency_root = Mix.Project.deps_paths()[:agent_blueprint_protocol] || File.cwd!()
-example_path = Path.join(dependency_root, "examples/echo-blueprint.json")
+example_path = Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json")
 bytes = File.read!(example_path)
 {:ok, blueprint} = AgentBlueprintProtocol.decode_blueprint(bytes)
 AgentBlueprintProtocol.canonical_bytes(blueprint) == {:ok, bytes} # => true
@@ -44,7 +43,7 @@ AgentBlueprintProtocol.canonical_bytes(blueprint) == {:ok, bytes} # => true
 
 The last expression returns:
 
-```elixir
+```text
 true
 ```
 

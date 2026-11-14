@@ -1,9 +1,9 @@
-// The closed tagged value algebra — the mirror of AgentBlueprintProtocol.Json's
+// The closed tagged value algebra, the mirror of AgentBlueprintProtocol.Json's
 // value() union. Objects are pair-arrays so member order, "__proto__" keys, and
 // integer-like keys keep byte-level semantics (no JS object coercion anywhere).
 //
 // Errors are value-free strings in the runner's projected form ("duplicate_member",
-// "ceiling:depth", …) — the same vocabulary the Elixir side projects for comparison.
+// "ceiling:depth", …); the same vocabulary the Elixir side projects for comparison.
 
 export type Value =
   | { t: "null" }
@@ -31,7 +31,7 @@ export const obj = (v: [string, Value][]): Value => ({ t: "obj", v });
 export const IJSON_MAX = 9_007_199_254_740_991;
 
 // Deep equality over the tagged algebra. Numbers compare numerically
-// (int 2 equals float 2.0 — Elixir's `==` semantics, which the runner's
+// (int 2 equals float 2.0; Elixir's `==` semantics, which the runner's
 // expectation comparison relies on); ±0 are equal.
 // Host-built tagged values are bounded before recursive projections or comparisons.
 export function isValue(value: unknown): value is Value {
