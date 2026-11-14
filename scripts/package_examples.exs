@@ -37,24 +37,13 @@ defmodule PackageExamples do
 
     try do
       package = Path.join(scratch, "package")
-      consumer = Path.join(scratch, "consumer")
       File.mkdir!(package)
-      File.mkdir!(consumer)
       {app, version} = unpack!(Path.expand(archive), package, scratch)
-
-      File.write!(Path.join(consumer, "mix.exs"), """
-      defmodule PackageExamplesConsumer.MixProject do
-        use Mix.Project
-        def project, do: [app: :package_examples_consumer, version: "0.0.0", deps: [{#{inspect(app)}, path: #{inspect(package)}, env: :prod}]]
-        def application, do: [extra_applications: [:crypto]]
-      end
-      """)
-
-      env = [{"MIX_ENV", "test"}, {"MIX_BUILD_PATH", nil}, {"MIX_DEPS_PATH", nil}]
-      command!(consumer, env, ["deps.get"])
 
       case mode do
         :doctests ->
+          consumer = consumer!(scratch, "doctests", app, package)
+
           File.write!(Path.join(consumer, "doctests_test.exs"), """
           ExUnit.start()
           Application.load(#{inspect(app)})
@@ -68,32 +57,44 @@ defmodule PackageExamples do
           end
           """)
 
-          command!(consumer, env, ["test", "doctests_test.exs"])
+          command!(consumer, ["test", "doctests_test.exs"])
           IO.puts("package doctests: #{app} #{version} passed outside the checkout")
 
         :snippets ->
-          if files == [], do: raise("no snippet documents")
-
-          total =
-            for {file, index} <- Enum.with_index(files, 1) do
-              file = Path.expand(file)
-              cells = cells(File.read!(file), file)
-              script = Path.join(consumer, "snippets-#{index}.exs")
-              File.write!(script, runner(cells, file))
-              command!(consumer, env, ["run", script])
-              IO.puts("package snippets #{Path.basename(file)}: #{length(cells)} blocks passed")
-              length(cells)
-            end
-
-          if Enum.sum(total) == 0, do: raise("no runnable Elixir snippets")
-
-          IO.puts(
-            "package snippets: #{Enum.sum(total)} blocks in #{length(files)} documents passed outside the checkout"
-          )
+          run_snippets(scratch, app, package, files)
       end
     after
       File.rm_rf!(scratch)
     end
+  end
+
+  defp run_snippets(_scratch, _app, _package, []), do: raise("no snippet documents")
+
+  defp run_snippets(scratch, app, package, files) do
+    total =
+      for {file, index} <- Enum.with_index(files, 1) do
+        file = Path.expand(file)
+        cells = cells(File.read!(file), file)
+
+        # Each document is an independent consumer: a shared project would
+        # recompile the path dependency over the previous run's build, which
+        # Windows refuses for the priv junction.
+        if cells != [] do
+          consumer = consumer!(scratch, "snippets-#{index}", app, package)
+          script = Path.join(consumer, "snippets.exs")
+          File.write!(script, runner(cells, file))
+          command!(consumer, ["run", script])
+        end
+
+        IO.puts("package snippets #{Path.basename(file)}: #{length(cells)} blocks passed")
+        length(cells)
+      end
+
+    if Enum.sum(total) == 0, do: raise("no runnable Elixir snippets")
+
+    IO.puts(
+      "package snippets: #{Enum.sum(total)} blocks in #{length(files)} documents passed outside the checkout"
+    )
   end
 
   defp runner(cells, file) do
@@ -129,7 +130,24 @@ defmodule PackageExamples do
     {String.to_atom(app), version}
   end
 
-  defp command!(consumer, env, args) do
+  defp consumer!(scratch, name, app, package) do
+    consumer = Path.join(scratch, name)
+    File.mkdir!(consumer)
+
+    File.write!(Path.join(consumer, "mix.exs"), """
+    defmodule PackageExamplesConsumer.MixProject do
+      use Mix.Project
+      def project, do: [app: :package_examples_consumer, version: "0.0.0", deps: [{#{inspect(app)}, path: #{inspect(package)}, env: :prod}]]
+      def application, do: [extra_applications: [:crypto]]
+    end
+    """)
+
+    command!(consumer, ["deps.get"])
+    consumer
+  end
+
+  defp command!(consumer, args) do
+    env = [{"MIX_ENV", "test"}, {"MIX_BUILD_PATH", nil}, {"MIX_DEPS_PATH", nil}]
     {output, status} = System.cmd("mix", args, cd: consumer, env: env, stderr_to_stdout: true)
     IO.write(output)
     if status != 0, do: raise("package consumer #{Enum.join(args, " ")}: exit #{status}")

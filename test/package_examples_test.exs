@@ -1,7 +1,53 @@
 Code.require_file("../scripts/package_examples.exs", __DIR__)
 
 defmodule AgentBlueprintProtocol.PackageExamplesTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: true, group: :project_build
+
+  import ExUnit.CaptureIO
+  alias AgentBlueprintProtocol.Scratch
+
+  @tag timeout: 180_000
+  test "each snippet document runs in its own consumer project" do
+    Scratch.with_dir("snippet-isolation", fn root ->
+      archive = Path.join(root, "package.tar")
+
+      {build, status} =
+        System.cmd("mix", ["hex.build", "--output", archive], stderr_to_stdout: true)
+
+      assert status == 0, build
+
+      probe = """
+      ```elixir
+      if File.exists?(".consumer-probe"), do: raise("document reused another consumer project")
+      File.write!(".consumer-probe", "executed")
+      ```
+      """
+
+      documents =
+        for index <- 1..2 do
+          path = Path.join(root, "guide-#{index}.md")
+          File.write!(path, probe)
+          path
+        end
+
+      output =
+        capture_io(fn ->
+          result =
+            try do
+              PackageExamples.run(archive, :snippets, documents)
+            rescue
+              error -> {:failed, Exception.message(error)}
+            end
+
+          send(self(), {:snippet_run, result})
+        end)
+
+      assert_received {:snippet_run, result}
+      refute output =~ "document reused another consumer project", output
+      assert result == :ok, "#{inspect(result)}\n" <> output
+      assert output =~ "package snippets: 2 blocks in 2 documents passed outside the checkout"
+    end)
+  end
 
   test "snippet extraction preserves order and source lines and skips only marked fragments" do
     source =

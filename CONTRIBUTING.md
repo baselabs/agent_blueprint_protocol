@@ -54,7 +54,7 @@ The complete pre-push gate is `mix quality`; focused checks help during editing 
 
 The publication privacy guard runs separately in the pre-push hook and CI with the same build-free command: `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
 
-The suite currently defines 1022 tests (64 properties). The coverage threshold is 100% coverage.
+The suite currently defines 1023 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
 
