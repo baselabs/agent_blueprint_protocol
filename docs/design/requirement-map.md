@@ -605,34 +605,58 @@ Result: 0/1 passed
 
 ### case: "a test module that spawns a project build has no fixed test time limit"
 
-Captured on the build box, test first: the gate ran against the tree in
-which build-spawning modules still carried fixed `@tag timeout:` limits.
+Captured on the build box, each plant applied alone to the fixed tree and restored.
 
 ```red
-$ # plant: the build-spawning modules keep their fixed test limits
-$ mix test test/architecture/time_limit_test.exs --seed 42
+$ # plant: remove the unlimited module tag from test/scratch_test.exs
+$ mix test test/architecture/time_limit_test.exs:41 --seed 42
   1) test a test module that spawns a project build has no fixed test time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
-     test/architecture/time_limit_test.exs:38
-     test modules spawn a project build without @moduletag timeout: :infinity: ["test/architecture/document_citation_gate_test.exs", "test/architecture/package_boundary_test.exs", "test/architecture/package_consumer_gates_test.exs", "test/conformance/runner_report_cli_test.exs", "test/livebook_extractor_test.exs", "test/package_examples_test.exs", "test/scratch_test.exs"]
+     test/architecture/time_limit_test.exs:41
+     test modules spawn a project build without @moduletag timeout: :infinity: ["test/scratch_test.exs"]
      code: assert unlimited == [],
-Result: 0/2 passed
-EXIT=2
+Result: 0/1 passed, 1 excluded
+$ # plant: replace the unlimited module tag in test/livebook_extractor_test.exs with a fixed 120_000 limit
+$ mix test test/architecture/time_limit_test.exs:41 --seed 42
+  1) test a test module that spawns a project build has no fixed test time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:41
+     test modules spawn a project build without @moduletag timeout: :infinity: ["test/livebook_extractor_test.exs"]
+     code: assert unlimited == [],
+Result: 0/1 passed, 1 excluded
+$ # plant: give test/agent_blueprint_protocol/digest_test.exs a fixed 5_000 module limit
+$ mix test test/architecture/time_limit_test.exs:41 --seed 42
+  1) test a test module that spawns a project build has no fixed test time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:41
+     fixed test time limits must equal the declared performance tripwires; found [{"test/agent_blueprint_protocol/digest_test.exs", "5_000"}, {"test/agent_blueprint_protocol/schema_test.exs", "2_000"}, {"test/agent_blueprint_protocol/schema_test.exs", "2_000"}]
+     code: assert Enum.sort(limits) == Enum.sort(@tripwires),
+Result: 0/1 passed, 1 excluded
+$ # plant: remove the first memoization tripwire limit from test/agent_blueprint_protocol/schema_test.exs
+$ mix test test/architecture/time_limit_test.exs:41 --seed 42
+  1) test a test module that spawns a project build has no fixed test time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:41
+     fixed test time limits must equal the declared performance tripwires; found [{"test/agent_blueprint_protocol/schema_test.exs", "2_000"}]
+     code: assert Enum.sort(limits) == Enum.sort(@tripwires),
+Result: 0/1 passed, 1 excluded
 ```
 
 ### case: "every workflow job declares a job time limit"
 
-Captured in the same test-first run, against workflows whose jobs declared
-no `timeout-minutes`.
+Captured in the same run, each plant applied alone and restored.
 
 ```red
-$ # plant: every workflow job without timeout-minutes
-$ mix test test/architecture/time_limit_test.exs --seed 42
-  2) test every workflow job declares a job time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
-     test/architecture/time_limit_test.exs:73
-     workflow jobs without timeout-minutes: [{".github/workflows/ci.yml", "workflow-syntax"}, {".github/workflows/ci.yml", "secret-scan"}, {".github/workflows/ci.yml", "spec-extraction"}, {".github/workflows/ci.yml", "compatibility"}, {".github/workflows/ci.yml", "quality"}, {".github/workflows/ci.yml", "platforms"}, {".github/workflows/ci.yml", "typescript-consumers"}, {".github/workflows/docs-gates.yml", "secret-scan"}, {".github/workflows/docs-gates.yml", "doc-gates"}, {".github/workflows/pages.yml", "build"}, {".github/workflows/pages.yml", "deploy"}, {".github/workflows/postpublish.yml", "smoke"}, {".github/workflows/postpublish.yml", "livebooks"}, {".github/workflows/publish.yml", "verify"}, {".github/workflows/publish.yml", "npm-publish"}, {".github/workflows/publish.yml", "publish"}]
+$ # plant: remove timeout-minutes from the ci.yml quality job
+$ mix test test/architecture/time_limit_test.exs:79 --seed 42
+  1) test every workflow job declares a job time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:79
+     workflow jobs without timeout-minutes: [{".github/workflows/ci.yml", "quality"}]
      code: assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
-Result: 0/2 passed
-EXIT=2
+Result: 0/1 passed, 1 excluded
+$ # plant: set the docs-gates doc-gates job limit to 0
+$ mix test test/architecture/time_limit_test.exs:79 --seed 42
+  1) test every workflow job declares a job time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:79
+     workflow jobs without timeout-minutes: [{".github/workflows/docs-gates.yml", "doc-gates"}]
+     code: assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
+Result: 0/1 passed, 1 excluded
 ```
 
 ### case: "the quality job selects an immutable supported Node runtime"

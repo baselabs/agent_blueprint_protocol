@@ -33,7 +33,10 @@ defmodule AgentBlueprintProtocol.Architecture.TimeLimitTest do
     {"test/agent_blueprint_protocol/schema_test.exs", "2_000"}
   ]
   @known_spawners ["test/scratch_test.exs", "test/architecture/package_consumer_gates_test.exs"]
-  @known_jobs [{".github/workflows/ci.yml", "quality"}, {".github/workflows/docs-gates.yml", "doc-gates"}]
+  @known_jobs [
+    {".github/workflows/ci.yml", "quality"},
+    {".github/workflows/docs-gates.yml", "doc-gates"}
+  ]
 
   test "a test module that spawns a project build has no fixed test time limit" do
     sources =
@@ -67,7 +70,10 @@ defmodule AgentBlueprintProtocol.Architecture.TimeLimitTest do
 
     assert Regex.match?(@spawns_build, ~s|System.cmd(\n  "npm", ["pack"])|)
     refute Regex.match?(@spawns_build, ~s|System.cmd("node", ["cli.mjs"])|)
-    assert Regex.scan(@time_limit, "  @tag timeout: 120_000\n") == [["  @tag timeout: 120_000", "120_000"]]
+
+    assert Regex.scan(@time_limit, "  @tag timeout: 120_000\n") == [
+             ["  @tag timeout: 120_000", "120_000"]
+           ]
   end
 
   test "every workflow job declares a job time limit" do
@@ -78,7 +84,9 @@ defmodule AgentBlueprintProtocol.Architecture.TimeLimitTest do
           do: {relative, name, job}
 
     seen = for {path, name, _job} <- jobs, do: {path, name}
-    assert @known_jobs -- seen == [], "the job scan no longer sees #{inspect(@known_jobs -- seen)}"
+
+    assert @known_jobs -- seen == [],
+           "the job scan no longer sees #{inspect(@known_jobs -- seen)}"
 
     offenders =
       for {path, name, job} <- jobs, time_limit(job) == nil, do: {path, name}
