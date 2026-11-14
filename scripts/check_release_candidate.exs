@@ -102,8 +102,8 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
     %{
       name: "published-link-to-unpublished-file",
       path: "CONTRIBUTING.md",
-      from: "The CI workflow at `.github/workflows/ci.yml` defines these jobs:",
-      to: "The [CI workflow](.github/workflows/ci.yml) defines these jobs:",
+      from: "The repository's CI workflow defines these jobs:",
+      to: "The repository's [CI workflow](.github/workflows/ci.yml) defines these jobs:",
       command: ~w(mix test test/architecture/document_citation_gate_test.exs)
     },
     %{
