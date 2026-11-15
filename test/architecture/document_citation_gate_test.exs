@@ -3,7 +3,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   Document-citation gate: a shipped document may only cite documents that
   exist. Shipped text also carries no em or en dash. Its surface is derived
   from the Hex files, ExDoc extras, npm packed files and build inputs,
-  TypeScript source inputs, site, and issue templates. Citation forms are
+  TypeScript source inputs, site, issue templates, and the release title
+  and notes the publish workflow writes. Citation forms are
   checked across every markdown file the package ships:
 
   - a NAMED section citation (`A2A §7.6.4`, `ECMA-262 §7.1.12.1`) names a
@@ -41,7 +42,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
 
     offenders =
       for {file, source, first_line} <-
-            Enum.map(documents, &{&1, File.read!(&1), 1}) ++ kit_generated_text(),
+            Enum.map(documents, &{&1, File.read!(&1), 1}) ++
+              kit_generated_text() ++ release_text(),
           String.valid?(source),
           {line, number} <- source |> String.split("\n") |> Enum.with_index(first_line),
           String.contains?(line, ["\u2014", "\u2013"]),
@@ -91,6 +93,19 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
       first_line = build |> binary_part(0, offset) |> String.split("\n") |> length()
       {file, binary_part(build, offset, size), first_line}
     end
+  end
+
+  # The published release's own text: every title and notes argument a
+  # workflow passes to `gh release`.
+  defp release_text do
+    lines =
+      for file <- Path.wildcard(".github/workflows/*.yml"),
+          {line, number} <- file |> File.read!() |> String.split("\n") |> Enum.with_index(1),
+          String.match?(line, ~r/--(?:title|notes)\b/),
+          do: {file, line, number}
+
+    assert Enum.any?(lines, fn {_file, line, _number} -> line =~ "--title" end)
+    lines
   end
 
   defp document_files(pattern) do

@@ -1,6 +1,7 @@
 # ADR: producer surface policy
 
-Status: accepted (2026-08-25); records the disposition a consumer asked for at
+Status: accepted (2026-08-25), amended for member introspection (2026-11-15);
+records the disposition a consumer asked for at
 the product-extension registration.
 
 ## Context
@@ -27,3 +28,17 @@ guidance belongs in the protocol document's shipped-surface section, which
 already names the constructors; if a producer helper ever proves load-bearing
 for two independently verified hosts, it earns a facade seat through the same
 two-consumer rule that governs core members.
+
+## Amendment: member introspection (2026-11-15)
+
+`Blueprint.members/1`, `Deployment.members/1` and `Federation.members/1`
+return the sorted core member names of a protocol revision, read from the
+same tables the decoders use, so a host can build negotiation support
+without copying the member lists. Revision 1 is supported; another integer
+returns `protocol_revision_unsupported` and a non-integer returns
+`invalid_type`. The TypeScript verifier exports the same lists as
+`blueprintMembers`, `deploymentMembers` and `federationMembers`.
+
+Introspection is read only. It adds no facade constructor, and it does not
+make a revision's member set extensible: the closed world of each revision
+is unchanged.

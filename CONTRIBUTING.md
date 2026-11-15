@@ -53,9 +53,11 @@ The complete pre-push gate is `mix quality`; focused checks help during editing 
 
 The build-free publication privacy guard runs separately in the repository's pre-push hook and CI. Both execute the same guard with the same repository-fingerprint configuration. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
 
-The suite currently defines 1033 tests (64 properties). The coverage threshold is 100% coverage.
+The suite currently defines 1026 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
+
+CI runs every gate for pushes to `main` or `kci/**`, including documentation-only changes, and for every pull request.
 
 The repository's CI workflow defines these jobs:
 
@@ -95,7 +97,7 @@ Package support details are in the [stability policy](documentation/stability.md
 - **Behavior changes:** include a focused example or corpus case that shows the expected result.
 - **Specification changes:** update `spec/` and the documents that explain the affected public behavior. Keep the specification normative.
 - **Extension registrations:** follow [registry operations](spec/registry/OPERATIONS.md).
-- **Documentation:** keep examples runnable or label excerpts. The documentation mirror checks Elixir result examples, the Livebook tests its cells, and the TypeScript guide check uses the packed kit.
+- **Documentation:** keep examples runnable or label excerpts. The documentation mirror checks Elixir result examples, the Livebook tests its cells, and the TypeScript guide check uses the packed kit. Shipped text uses no em or en dash; use a colon, a comma, parentheses or a new sentence. The gate covers every file the packages ship and the release title.
 
 When specification text, the corpus, or the registry changes, regenerate the release metadata with the source checkout's metadata generator. It derives the current specification, registry, corpus, and package identities and synchronizes the current release-history row.
 
@@ -105,7 +107,7 @@ A release is one act. Text that names a version's install commands, documentatio
 
 The tag starts the publish workflow. It runs the complete quality battery on the tagged tree, then uses npm trusted publishing to stage the package. A maintainer reviews and approves the staged version through npm's Staged Packages interface. The version becomes installable after approval. Local `npm publish` is not part of this release process.
 
-After approval, check the published version with `npm view @agent-blueprint-protocol/verifier version`, then rerun the workflow on the same tag. It verifies the installed kit against the tagged artifact, publishes Hex, and creates the GitHub release. The same run then calls the postpublish workflow, which installs the published packages and runs every consumer example and notebook on Linux, macOS, and Windows. A failure there turns the release run red.
+After approval, check the published version with `npm view @agent-blueprint-protocol/verifier version`, then rerun the workflow on the same tag. It verifies the installed kit against the tagged artifact and publishes Hex. If Hex holds the version for approval, approve it on hex.pm and rerun the workflow on the same tag again; the GitHub release is created only once the live Hex package matches the verified archive. The [release publication](docs/adr/release-publication.md) record states the whole sequence. The same run then calls the postpublish workflow, which installs the published packages and runs every consumer example and notebook on Linux, macOS, and Windows. A failure there turns the release run red.
 
 ## Glossary
 

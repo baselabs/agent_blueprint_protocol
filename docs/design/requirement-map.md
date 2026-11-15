@@ -220,7 +220,7 @@ into a scratch project beside the echo example, run on the tree's pinned
 Node executable. Its output must equal the value its trailing comment claims,
 and the same program over an edited example must print something else
 (the vacuous-sample guard). A missing kit build raises, never skips. It
-reads a documentation path, so the doc-gates workflow runs it too.
+runs in CI on every push and pull request.
 
 ```red
 $ # plant: the example's claimed output changed to digest_mismatch
@@ -638,10 +638,21 @@ for the census gates — a private dead function cannot smuggle a call).
 ### case: "every job that runs Go selects the pinned Go toolchain first"
 
 ```red
-$ # plant: remove the setup-go step from the docs-gates secret-scan job
-$ mix test test/architecture/ci_go_toolchain_test.exs
-Go jobs without the pinned toolchain: [{".github/workflows/docs-gates.yml", "secret-scan", "selects Go 0 times, not once"}, {".github/workflows/docs-gates.yml", "secret-scan", "does not pin setup-go v7.0.0 with Go 1.27.4"}]
+$ # plant: remove the setup-go step from the ci.yml secret-scan job
+$ mix test test/architecture/ci_go_toolchain_test.exs --seed 42
+  1) test every job that runs Go selects the pinned Go toolchain first (AgentBlueprintProtocol.CiGoToolchainTest)
+     test/architecture/ci_go_toolchain_test.exs:30
+     Go jobs without the pinned toolchain: [{".github/workflows/ci.yml", "secret-scan", "selects Go 0 times, not once"}, {".github/workflows/ci.yml", "secret-scan", "does not pin setup-go v7.0.0 with Go 1.27.4"}]
+     code: assert offenders == [], "Go jobs without the pinned toolchain: #{inspect(offenders)}"
+     stacktrace:
+       test/architecture/ci_go_toolchain_test.exs:45: (test)
+
+
+Finished in 0.1 seconds (0.1s async, 0.00s sync)
+
 Result: 0/1 passed
+Failed: 1 test
+EXIT=2
 $ # plant: pin Go 1.27.1 in ci.yml
 $ mix test test/architecture/ci_go_toolchain_test.exs
 Go jobs without the pinned toolchain: [{".github/workflows/ci.yml", "workflow-syntax", "does not pin setup-go v7.0.0 with Go 1.27.4"}, {".github/workflows/ci.yml", "secret-scan", "does not pin setup-go v7.0.0 with Go 1.27.4"}]
@@ -692,9 +703,9 @@ Result: 0/1 passed, 1 excluded
 
 A job that calls a reusable workflow of this repository cannot declare a
 limit; it passes only because the called workflow's jobs are scanned and
-each carries its own. The first two receipts were captured at 9da37dc,
-where this test began at line 79; the last two after the release run
-gained its postpublish call. Each plant applied alone and restored.
+each carries its own. The zero-limit proof was recaptured on the build
+box against the workflows that remain. Each plant was applied alone
+and restored.
 
 ```red
 $ # plant: remove timeout-minutes from the ci.yml quality job
@@ -704,13 +715,21 @@ $ mix test test/architecture/time_limit_test.exs:79 --seed 42
      workflow jobs without timeout-minutes: [{".github/workflows/ci.yml", "quality"}]
      code: assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
 Result: 0/1 passed, 1 excluded
-$ # plant: set the docs-gates doc-gates job limit to 0
-$ mix test test/architecture/time_limit_test.exs:79 --seed 42
+$ # plant: set timeout-minutes to 0 in the ci.yml quality job
+$ mix test test/architecture/time_limit_test.exs --seed 42
   1) test every workflow job declares a job time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
      test/architecture/time_limit_test.exs:79
-     workflow jobs without timeout-minutes: [{".github/workflows/docs-gates.yml", "doc-gates"}]
+     workflow jobs without timeout-minutes: [{".github/workflows/ci.yml", "quality"}]
      code: assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
-Result: 0/1 passed, 1 excluded
+     stacktrace:
+       test/architecture/time_limit_test.exs:99: (test)
+
+
+Finished in 0.08 seconds (0.08s async, 0.00s sync)
+
+Result: 1/2 passed
+Failed: 1 test
+EXIT=2
 $ # plant: remove timeout-minutes from the smoke job of the called postpublish.yml
 $ mix test test/architecture/time_limit_test.exs:82 --seed 42
   1) test every workflow job declares a job time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
@@ -1279,115 +1298,6 @@ site/index.html names stale versions ["0.7.1"] — only 0.8.1 may appear
 Result: 3/5 passed
 ```
 
-### case: "the privacy scan and the secret scan read every tracked path"
-
-The CI trigger-filter gate derives its gate-read set from two scans:
-the privacy scan walks `git ls-files`, and the CI secret scan runs
-gitleaks over the git history. If either narrows, the derivation no
-longer holds and this case reds instead of the filter gate silently
-widening.
-
-```red
-$ # plant: the secret scan switched from git history to a directory scan
-$ mix test test/architecture/ci_trigger_filter_test.exs
-1) test the privacy scan and the secret scan read every tracked path
-the CI secret scan no longer runs gitleaks over the git history
-Result: 2/3 passed (when the file held three cases)
-```
-
-### case: "every quality step and heavy CI job is classified for the docs-only split"
-
-The heavy CI workflow skips docs-only pushes; the lean doc-gates
-workflow triggers on exactly those paths. The guard's model classifies
-every `mix quality` step and every heavy CI job as lean (the lean
-workflow runs it) or heavy-only with the paths it reads; a new step or
-job without a classification reds.
-
-```red
-$ # plant: an extra job added to ci.yml
-$ mix test test/architecture/ci_trigger_filter_test.exs
-1) test every quality step and heavy CI job is classified for the docs-only split
-unclassified or stale entries: {["ci:extra-lint"], []}
-Result: 6/7 passed
-```
-
-### case: "the lean workflow runs every lean gate"
-
-Every gate the model calls lean must appear as a command in
-`docs-gates.yml`; dropping one from the lean workflow reds.
-
-```red
-$ # plant: the documentation build removed from docs-gates.yml
-$ mix test test/architecture/ci_trigger_filter_test.exs
-1) test the lean workflow runs every lean gate
-lean gates the doc-gates workflow does not run: ["docs --warnings-as-errors"]
-Result: 6/7 passed
-```
-
-### case: "no heavy-only gate reads a path the heavy workflow ignores"
-
-Every tracked path matching the heavy workflow's `paths-ignore` must be
-read only by lean gates: a heavy-only gate reading an ignored path would
-not run on a docs-only push.
-
-```red
-$ # plant: lib/** added to both trigger lists
-$ mix test test/architecture/ci_trigger_filter_test.exs
-1) test no heavy-only gate reads a path the heavy workflow ignores
-heavy-only gates read paths a docs-only push skips (216), e.g. [{"compile --warnings-as-errors", "lib/agent_blueprint_protocol.ex"}, ...]
-Result: 6/7 passed
-```
-
-```red
-$ # plant: the earlier **/*.md list (it also skipped the verifier's README and runner contract)
-$ mix test test/architecture/ci_trigger_filter_test.exs
-1) test no heavy-only gate reads a path the heavy workflow ignores
-heavy-only gates read paths a docs-only push skips (6), e.g. [{"kit.build", "verifier/README.md"}, ...]
-Result: 6/7 passed
-```
-
-### case: "heavy-only scripts reference no documentation path"
-
-The model's read lists for script-backed heavy-only steps are
-cross-checked against the scripts: a documentation-path reference in
-such a script reds the model as stale (the marker is proven live
-against the release-candidate script, which reads documents).
-
-```red
-$ # plant: a README.md reference appended to the deps-currency script
-$ mix test test/architecture/ci_trigger_filter_test.exs
-1) test heavy-only scripts reference no documentation path
-heavy-only scripts read documentation paths: [{"deps.currency", "scripts/check_deps_currency.exs"}]
-Result: 6/7 passed
-```
-
-### case: "the lean workflow triggers on exactly the paths the heavy workflow ignores"
-
-The two trigger lists must be identical, so every push the heavy
-workflow skips runs the lean one.
-
-```red
-$ # plant: docs/** dropped from the lean trigger list
-$ mix test test/architecture/ci_trigger_filter_test.exs
-1) test the lean workflow triggers on exactly the paths the heavy workflow ignores
-trigger lists differ: heavy ["*.md", "docs/**", "documentation/**", "spec/**/*.md", ".github/ISSUE_TEMPLATE/**"], lean ["*.md", "documentation/**", "spec/**/*.md", ".github/ISSUE_TEMPLATE/**"]
-Result: 6/7 passed
-```
-
-### case: "the landing page deploys only from a release tag or a manual dispatch"
-
-The landing names the package version, so `pages.yml` must deploy only
-on a `v*` tag or a manual dispatch, never on a branch push that may
-name a version the registry does not have yet.
-
-```red
-$ # organic red: pages.yml deployed on every main push touching site/**
-$ mix test test/architecture/ci_trigger_filter_test.exs
-1) test the landing page deploys only from a release tag or a manual dispatch
-pages.yml deploys on a branch push; it must deploy only on a release tag
-Result: 2/3 passed (when the file held three cases)
-```
-
 ### case: "the published-version workflow runs every notebook on three platforms"
 
 The postpublish consumer job fetches the released Hex and npm archives and
@@ -1456,7 +1366,7 @@ Failed: 1 test
 
 Toolchain lockstep: `.tool-versions` owns the Elixir, Erlang/OTP, and
 Node versions; every literal `elixir-version`, `otp-version`, and
-`node-version` in every workflow (CI, doc gates, publish) must equal
+`node-version` in every workflow (including CI and publish) must equal
 it. Matrix lanes are exempt.
 
 ```red
@@ -2206,7 +2116,7 @@ The design spec's package-boundary line once read "package.files GAINS
 registry half is superseded: the extension registry is compiled-in data
 (`extension_registry.ex`), no `priv/registry` directory exists, and none
 ships — see `docs/adr/compiled-registry.md`. The archive gains
-`docs/protocol.md` (the normative protocol doc) and nothing else beyond
+`spec/protocol.md` (the normative protocol doc) and nothing else beyond
 the previously frozen set.
 
 ### case: "publishing stops after any failed preceding step and preserves registry skip guards"
@@ -2711,8 +2621,9 @@ EXIT=2
 
 The gate derives shipped text from the Hex file configuration, ExDoc extras,
 the npm manifest and kit builder inputs and emitted template, TypeScript
-source configuration, site files, and issue templates. A temporary new site
-file containing both prohibited characters was planted on the build box.
+source configuration, site files, issue templates, and every release title
+and notes argument in the workflows. A temporary new site file containing
+both prohibited characters was planted on the build box.
 The following failure was captured there; the file was removed before
 running the restored gate.
 
@@ -2739,4 +2650,23 @@ Finished in 0.3 seconds (0.3s async, 0.00s sync)
 Result: 0/1 passed, 6 excluded
 Failed: 1 test
 DASH_EXIT=2
+```
+
+Release titles and notes in the workflows are shipped text. An em dash was
+planted in the publish workflow's release title on the build box, and the
+file was restored after the capture.
+
+```red
+$ # plant: --title "${VERSION} — installable verifier" in .github/workflows/publish.yml
+$ mix test test/architecture/document_citation_gate_test.exs
+  1) test shipped documents carry no em or en dash (AgentBlueprintProtocol.Architecture.DocumentCitationGateTest)
+     test/architecture/document_citation_gate_test.exs:34
+     shipped documents carry an em or en dash:
+     .github/workflows/publish.yml:315:               --title "${VERSION} — installable verifier" \
+     code: assert offenders == [],
+     stacktrace:
+       test/architecture/document_citation_gate_test.exs:52: (test)
+
+Result: 6/7 passed
+Failed: 1 test
 ```

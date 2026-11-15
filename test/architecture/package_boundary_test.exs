@@ -41,6 +41,12 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/product-extension-registration.md
     docs/adr/supported-otp-set.md
     docs/adr/two-consumer-amendment.md
+    docs/adr/release-publication.md
+    docs/adr/shipped-documentation.md
+    docs/adr/runtime-boundary.md
+    docs/adr/continuous-integration.md
+    docs/adr/artifact-portability.md
+    docs/adr/normative-extraction.md
     priv/release-metadata.json
     priv/release-history.json
     spec/protocol.md
@@ -192,6 +198,12 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/verification-results.md
     docs/adr/public-surface-privacy.md
     docs/adr/two-consumer-amendment.md
+    docs/adr/release-publication.md
+    docs/adr/shipped-documentation.md
+    docs/adr/runtime-boundary.md
+    docs/adr/continuous-integration.md
+    docs/adr/artifact-portability.md
+    docs/adr/normative-extraction.md
     spec/protocol.md
     spec/README.md
     spec/LICENSE

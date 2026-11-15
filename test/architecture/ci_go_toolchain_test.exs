@@ -24,8 +24,7 @@ defmodule AgentBlueprintProtocol.CiGoToolchainTest do
               "          cache: false"
   @known_go_jobs [
     {".github/workflows/ci.yml", "workflow-syntax"},
-    {".github/workflows/ci.yml", "secret-scan"},
-    {".github/workflows/docs-gates.yml", "secret-scan"}
+    {".github/workflows/ci.yml", "secret-scan"}
   ]
 
   test "every job that runs Go selects the pinned Go toolchain first" do

@@ -18,7 +18,13 @@ published registry packages. Documentation links pin this release, HexDocs extra
 to rendered pages, and the public ExDoc footer remains enabled.
 
 A shipped-text gate rejects em dashes and en dashes in packaged documents,
-source inputs, generated kit text, site files, and issue templates.
+source inputs, generated kit text, site files, issue templates, and the
+release title and notes.
+
+New design records cover release publication, documentation executed from
+the package, the runtime boundary, the single continuous integration
+workflow, artifact portability, and extraction of the normative tree. The
+producer surface record gains the member introspection amendment.
 
 ### Changed
 

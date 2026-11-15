@@ -26,8 +26,9 @@ Concretely:
   either polarity (source-scan gate).
 - Signatures and attestations are evidence; verification never
   authorizes execution.
-- Every shipped module's moduledoc states the boundary (spec-coverage
-  gate); usage rules repeat it.
+- Every documented public module states the boundary in its moduledoc;
+  internal modules may use `@moduledoc false`. The spec-coverage gate
+  enforces this documented-module rule, and usage rules repeat it.
 
 ## Consequences
 

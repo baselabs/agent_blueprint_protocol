@@ -312,7 +312,7 @@ jobs:
             if [[ "${VERSION%%+*}" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi
             gh release create "$GITHUB_REF_NAME" "verified-release/verifier-${VERSION}.tar.gz" "verified-release/certified-results.json" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "${VERSION} — installable verifier" \
+              --title "${VERSION}: installable verifier" \
               --generate-notes "${PRERELEASE_ARGS[@]}"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"

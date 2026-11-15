@@ -36,10 +36,7 @@ defmodule AgentBlueprintProtocol.Architecture.TimeLimitTest do
     {"test/agent_blueprint_protocol/schema_test.exs", "2_000"}
   ]
   @known_spawners ["test/scratch_test.exs", "test/architecture/package_consumer_gates_test.exs"]
-  @known_jobs [
-    {".github/workflows/ci.yml", "quality"},
-    {".github/workflows/docs-gates.yml", "doc-gates"}
-  ]
+  @known_jobs [{".github/workflows/ci.yml", "quality"}]
 
   test "a test module that spawns a project build has no fixed test time limit" do
     sources =

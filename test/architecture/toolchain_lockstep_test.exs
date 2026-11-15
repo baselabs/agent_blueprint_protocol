@@ -4,9 +4,9 @@ defmodule AgentBlueprintProtocol.Architecture.ToolchainLockstepTest do
   owner of the Elixir, Erlang/OTP, and Node versions every non-matrix
   workflow step builds with. Each literal `elixir-version`,
   `otp-version`, and `node-version` in every workflow under
-  `.github/workflows/` (the CI quality and extraction jobs, the doc gates,
-  and the publish job) must equal it; `mix.exs`'s Elixir requirement must
-  admit it; and its OTP major must be in `config/config.exs`'s supported
+  `.github/workflows/` (including CI and publish) must equal it;
+  `mix.exs`'s Elixir requirement must admit it; and its OTP major must be
+  in `config/config.exs`'s supported
   set. Matrix lanes (`${{ matrix.* }}`) are deliberate other toolchains
   and are exempt here.
 

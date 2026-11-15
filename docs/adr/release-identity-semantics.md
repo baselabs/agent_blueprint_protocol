@@ -116,11 +116,14 @@ final version; an absent candidate refuses publication. A source correction
 requires another candidate. Its calibration accepts
 a version-only edit and rejects a seeded library edit in a scratch value.
 
-The candidate also accepts periods in detached signature key identifiers
-under RFC 7797 §5.1, within semantics version 2. Released censuses retain
-`equivalent` claims because none changes a projected verdict. In the current
-candidate corpus, `reconcile-signature-blueprint-key-id` and
-`reconcile-signature-deployment-key-id` still deny `signature_malformed`:
-their unchanged mismatched identifiers now reach the equality check, whose
-subject is the signature entry rather than `signed_attributes`. Their inputs
-and signature bytes remain unchanged.
+The first 1.0 candidate admitted periods in detached signature key
+identifiers under RFC 7797 §5.1, within verification semantics version 2.
+The registry migration in the next candidate moved to semantics version 3
+and declares the affected prior censuses `diverged_by_registry_census`. The
+current corpus covers dotted key identifiers and mismatched header and
+signed-attribute identifiers separately:
+`reconcile-signature-blueprint-dotted-key-id`,
+`reconcile-signature-deployment-dotted-key-id`,
+`reconcile-signature-blueprint-kid-key-id-mismatch` and
+`reconcile-signature-deployment-kid-key-id-mismatch`. The mismatch cases
+deny `signature_malformed` on the signature entry.

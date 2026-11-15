@@ -184,7 +184,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     for path <- [
           ".github/workflows/ci.yml",
-          ".github/workflows/docs-gates.yml",
           ".github/workflows/publish.yml",
           "mix.exs"
         ] do
