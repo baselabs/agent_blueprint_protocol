@@ -2,7 +2,7 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
-## [1.1.0] - 2026-11-14
+## [1.1.0-rc.1] - 2026-11-15
 
 ### Added
 

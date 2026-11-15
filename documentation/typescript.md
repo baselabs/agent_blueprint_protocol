@@ -12,7 +12,7 @@ In a new working directory, install the exact release. The package ships the can
 
 ```sh
 npm init -y
-npm install @agent-blueprint-protocol/verifier@1.1.0
+npm install @agent-blueprint-protocol/verifier@1.1.0-rc.1
 ```
 
 Save the following block as `verify.mjs`, then run `node verify.mjs`. It prints `valid`.
@@ -244,7 +244,7 @@ sorted names from the same tables as their decoders: 18 Blueprint Core members,
 19 Deployment Manifest members, and 23 Federation TaskEnvelope members. Revision
 1 is supported. Other integer revisions return `protocol_revision_unsupported`
 with subject `["protocol_revision"]`; non-integers return `invalid_type` with
-an empty subject. These are additive library APIs introduced in 1.1.0.
+an empty subject. These are additive library APIs introduced in 1.1.0-rc.1.
 
 A host supporting every core field declares the union of the Blueprint and
 Deployment vocabularies; declare only fields the host actually supports. The
@@ -284,7 +284,7 @@ For `conformance run`, the harness writes a results document only after receivin
 
 ## Package-root reference
 
-All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/verifier/index.ts).
+All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0-rc.1/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0-rc.1/verifier/index.ts).
 
 | Export and signature (outer return is `Result<…>`) | Inputs, defaults, and success value |
 |---|---|
@@ -470,7 +470,7 @@ if (!document.ok) throw new Error(document.error.code);
 console.log(report.value.agreement, document.value.results.length === run.value.flat().length);
 ```
 
-To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.1.0 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
+To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.1.0-rc.1 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
 
 ## Import migration
 
