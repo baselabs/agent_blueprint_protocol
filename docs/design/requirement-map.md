@@ -1347,6 +1347,18 @@ $ mix test test/architecture/postpublish_livebooks_workflow_test.exs:39 --seed 4
 EXIT=2
 ```
 
+The postpublish job carries no guard of its own: it runs whenever the
+release job succeeds. Captured on the build box.
+
+```red
+$ # plant: restore a released guard on the postpublish job
+$ mix test test/architecture/postpublish_livebooks_workflow_test.exs --seed 42
+  1) test every release run verifies its published packages (AgentBlueprintProtocol.Architecture.PostpublishLivebooksWorkflowTest)
+     test/architecture/postpublish_livebooks_workflow_test.exs:39
+     postpublish runs whenever the release job succeeds
+     code: refute call =~ ~r/^\s+if:/m, "postpublish runs whenever the release job succeeds"
+```
+
 ### case: "the existing published kit check still uses the requested version"
 
 The existing smoke job must receive the version selected by the manual
@@ -2129,6 +2141,32 @@ $ mix test test/agent_blueprint_protocol/json_test.exs test/agent_blueprint_prot
 1) test publishing stops after any failed preceding step and preserves registry skip guards
 publish step overrides the default success condition: Publish the Hex package and docs
 Failed: 3 tests
+```
+
+A pending registry approval fails the run, naming what is pending, and no
+later job is skipped under a green run: the npm live check exits nonzero on
+an unapproved version, the Hex live check sets a failing exit code on an
+unlisted version, and no publish step carries a skip guard. Captured on the
+build box, each plant applied alone and restored.
+
+```red
+$ # plant: remove exit 1 from the npm pending branch
+$ mix test test/architecture/publish_workflow_test.exs --seed 42
+  1) test publishing stops after any failed preceding step and preserves registry skip guards (AgentBlueprintProtocol.Architecture.PublishWorkflowTest)
+     test/architecture/publish_workflow_test.exs:9
+     Assertion with =~ failed
+     code:  assert pending =~ ~r/^\s+exit 1$/m
+$ # plant: remove the failing exit code from the Hex pending branch
+$ mix test test/architecture/publish_workflow_test.exs --seed 42
+  1) test publishing stops after any failed preceding step and preserves registry skip guards (AgentBlueprintProtocol.Architecture.PublishWorkflowTest)
+     test/architecture/publish_workflow_test.exs:9
+     Assertion with =~ failed
+     code:  assert unlisted =~ "process.exitCode=1"
+$ # plant: restore a skip guard on the release step
+$ mix test test/architecture/publish_workflow_test.exs --seed 42
+  1) test publishing stops after any failed preceding step and preserves registry skip guards (AgentBlueprintProtocol.Architecture.PublishWorkflowTest)
+     test/architecture/publish_workflow_test.exs:9
+     code: for name <- [
 ```
 
 ### case: "the documented public modules and functions equal the declared API"

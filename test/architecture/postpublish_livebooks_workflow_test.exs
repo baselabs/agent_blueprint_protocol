@@ -68,12 +68,13 @@ defmodule AgentBlueprintProtocol.Architecture.PostpublishLivebooksWorkflowTest d
 
     for line <- [
           "needs: publish",
-          "if: needs.publish.outputs.released != ''",
           "uses: ./.github/workflows/postpublish.yml",
           "version: ${{ needs.publish.outputs.released }}"
         ] do
       assert call =~ line, "the release run must call postpublish: missing #{line}"
     end
+
+    refute call =~ ~r/^\s+if:/m, "postpublish runs whenever the release job succeeds"
   end
 
   test "the existing published kit check still uses the requested version" do

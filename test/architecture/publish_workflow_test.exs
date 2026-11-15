@@ -18,8 +18,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
       step = Enum.find(steps, &String.starts_with?(&1, name <> "\n"))
       assert step, "missing publish step: #{name}"
 
-      refute Regex.match?(~r/^\s+if:/m, step) and
-               name != "Attach the verifier kit to the GitHub release",
+      refute Regex.match?(~r/^\s+if:/m, step),
              "publish step overrides the default success condition: #{name}"
 
       assert step =~ "if "
@@ -37,9 +36,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     staged_hex_message(workflow)
     live_hex_release(workflow)
     prerelease_versions(workflow)
-    assert workflow =~ "if: needs.npm-publish.outputs.live == 'true'"
-    assert workflow =~ "live=false"
-    assert workflow =~ "Hex and the GitHub release did not run"
+    pending_fails(workflow)
 
     {live_check, _} =
       :binary.match(workflow, "name: Verify the live npm version before further publication")
@@ -95,12 +92,36 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     end)
   end
 
+  # A pending approval fails the run, naming what is pending; it never
+  # passes as a skipped later job under a green run.
+  defp pending_fails(workflow) do
+    [npm] =
+      Regex.run(
+        ~r/- name: Require the npm version to be live\n.*?(?=\n\n|\n      - name: )/s,
+        workflow
+      )
+
+    [_live, pending] = String.split(npm, "else\n", parts: 2)
+    assert pending =~ "::error::npm version is staged, not yet approved"
+    assert pending =~ "Hex and the GitHub release did not run"
+    assert pending =~ ~r/^\s+exit 1$/m
+
+    check = File.read!("scripts/check_hex_release.mjs")
+    [_, unlisted] = Regex.run(~r/if\(!listed\)\{\n(.*?)\n\}else\{/s, check)
+    assert unlisted =~ "::error::Hex version is not live"
+    assert unlisted =~ "process.exitCode=1"
+
+    refute workflow =~ "live=false"
+    refute workflow =~ "outputs.live"
+    refute check =~ "GITHUB_OUTPUT"
+  end
+
   defp live_hex_release(workflow) do
-    {check, _} = :binary.match(workflow, "name: Report live or pending Hex state")
+    {check, _} =
+      :binary.match(workflow, "name: Require the Hex version to be live with the verified bytes")
+
     {release, _} = :binary.match(workflow, "name: Attach the verifier kit to the GitHub release")
     assert check < release
-    assert workflow =~ "id: hex-live"
-    assert workflow =~ "if: steps.hex-live.outputs.live == 'true'"
     assert workflow =~ "node scripts/check_hex_release.mjs"
     assert workflow =~ "hex: already staged"
     refute workflow =~ "stage publish ships with npm 11.19"

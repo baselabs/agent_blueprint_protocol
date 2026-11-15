@@ -138,8 +138,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    outputs:
-      live: ${{ steps.live.outputs.live }}
     environment: GH TP for ABP
     env:
       NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
@@ -183,22 +181,22 @@ jobs:
             fi
           fi
 
-      - name: Report live or pending npm state
-        id: live
+      # A pending approval is not success: the run fails here, naming what
+      # is pending, and a rerun on the same tag after approval resumes.
+      - name: Require the npm version to be live
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           if npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
-            echo "live=true" >> "$GITHUB_OUTPUT"
+            echo "npm: ${NPM_PACKAGE}@${VERSION} is live"
           else
-            echo "live=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::npm version is staged, not yet approved. Hex and the GitHub release did not run."
+            echo "::error::npm version is staged, not yet approved. Hex and the GitHub release did not run."
             echo "Approve the reviewed staged package on npmjs.com, then rerun this workflow on the same tag."
+            exit 1
           fi
 
   publish:
     name: Publish Hex and the release
     needs: npm-publish
-    if: needs.npm-publish.outputs.live == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -292,15 +290,13 @@ jobs:
             fi
           fi
 
-      - name: Report live or pending Hex state
-        id: hex-live
+      - name: Require the Hex version to be live with the verified bytes
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           node scripts/check_hex_release.mjs "$VERSION" "verified-release/agent_blueprint_protocol-${VERSION}.tar"
 
       - name: Attach the verifier kit to the GitHub release
         id: release
-        if: steps.hex-live.outputs.live == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -323,7 +319,6 @@ jobs:
   postpublish:
     name: Verify the published release
     needs: publish
-    if: needs.publish.outputs.released != ''
     permissions:
       contents: read
     uses: ./.github/workflows/postpublish.yml

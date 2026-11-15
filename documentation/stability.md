@@ -34,7 +34,7 @@ before final publication.
 | Elixir library and contributor platform jobs | Elixir 1.20 / OTP 29 / Node 24 | Linux, macOS, Windows |
 | TypeScript library, CLI, and harness | Node 24 and 26; TypeScript 5.0.2 or newer | Linux, macOS, Windows |
 
-Exact toolchain patch pins are in [CI](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0-rc.1/.github/workflows/ci.yml).
+Exact toolchain patch pins are in [CI](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0-rc.2/.github/workflows/ci.yml).
 
 The 1.1 line and the 0.8 transition line receive security fixes. The 1.0 line and older unsupported lines must upgrade. Reports are handled on a
 best-effort basis; there is no guaranteed response time. Added runtime

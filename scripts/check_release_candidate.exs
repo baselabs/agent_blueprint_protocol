@@ -793,9 +793,27 @@ defmodule AgentBlueprintProtocol.ReleaseCandidateCheck do
   # in a clean scratch (baseline non-vacuity, cached per command).
 
   defp reprove do
+    anchors_exact!()
     Enum.each(@reprove_plants, &reprove_plant/1)
     Enum.each(@reprove_plants, &IO.puts("reprove caught: #{&1.name}"))
   end
+
+  # Every plant's anchor is checked against the tree before any plant runs,
+  # so a document edit that moves an anchor fails at once and names every
+  # stale plant, not one plant after minutes of earlier replants.
+  defp anchors_exact! do
+    stale =
+      for plant <- @reprove_plants, not anchor_exact?(plant.path, plant), do: plant.name
+
+    if stale != [] do
+      raise "reprove anchor is not exact: #{Enum.join(stale, ", ")}"
+    end
+  end
+
+  defp anchor_exact?(path, %{from: from} = plant),
+    do: File.exists?(path) and count(File.read!(path), from) == Map.get(plant, :occurrences, 1)
+
+  defp anchor_exact?(path, _create_or_symlink), do: not File.exists?(path)
 
   defp reprove_plant(plant) do
     baseline_green!(plant.command)

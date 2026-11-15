@@ -2,6 +2,27 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.1.0-rc.2] - 2026-11-15
+
+### Fixed
+
+A release run now fails while a registry approval is pending. The npm live
+check and the Hex live check each end the run with an error naming the
+pending version, so Hex, the source release and the post-publication checks
+never appear as skipped jobs under a green run. A rerun on the same tag after
+approval resumes as before. The 1.1.0-rc.1 tag was never published; this
+candidate supersedes it.
+
+The release-candidate check confirms every replanted mutation's anchor before
+it replants any, and names every stale anchor at once.
+
+Library and verifier behavior, the protocol revision, the verification-semantics
+version (3), the corpus, the registry and the specification are unchanged from
+1.1.0-rc.1. The corpus contains 626 cases, digest
+`sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`; the registry digest is
+`sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest
+is `sha-256:GgsMn83Cm0ZjYecBGwiwUy4bqwcKW3zfDzkRQ87yHsw`.
+
 ## [1.1.0-rc.1] - 2026-11-15
 
 ### Added

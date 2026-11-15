@@ -29,15 +29,15 @@ Publication is one ordered, resumable transaction on a release tag:
 2. **Stage npm.** The kit is staged through trusted publishing with
    provenance, on the `rc` distribution tag for a prerelease and `latest`
    for a final. Until a maintainer approves the staged version, the run
-   reports it as pending and stops: Hex and the source release do not run.
+   fails on a named pending error: Hex and the source release do not run.
 3. **Verify live npm.** The live npm integrity must equal the verified
    archive's digest. The live package is installed in an empty directory and
    its conformance report must equal the tagged escript's report.
 4. **Publish Hex.** A rebuilt Hex archive must equal the verified archive
    byte for byte. Publication may leave the version staged for approval.
    The version is live only when the registry API lists it with the
-   verified archive's checksum; until then the run reports it as pending and
-   stops before the source release.
+   verified archive's checksum; until then the run fails on a named pending
+   error before the source release.
 5. **Create the source release.** It is created only after live, verified
    Hex, carrying the standalone verifier and certified results, and marked
    as a prerelease for a candidate.
@@ -47,11 +47,12 @@ Publication is one ordered, resumable transaction on a release tag:
    published Hex archive and runs every shipped consumer example from it,
    with no checkout of the source tree. A failure turns the release run red.
 
-A pending approval or a conflict never reports success. After an approval,
-the same workflow is rerun on the same tag: every step recognizes a version
-that is already live or already staged and resumes, and every live check
-still compares against the verified bytes. A release tag never moves; a
-source correction needs a new candidate.
+A pending approval or a conflict never reports success: the run fails and
+its error names what is pending, so no later job is skipped under a green
+run. After an approval, the same workflow is rerun on the same tag: every
+step recognizes a version that is already live or already staged and
+resumes, and every live check still compares against the verified bytes. A
+release tag never moves; a source correction needs a new candidate.
 
 ## Consequences
 
