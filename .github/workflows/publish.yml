@@ -203,6 +203,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write
+    outputs:
+      released: ${{ steps.release.outputs.version }}
     env:
       NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
     steps:
@@ -297,18 +299,33 @@ jobs:
           node scripts/check_hex_release.mjs "$VERSION" "verified-release/agent_blueprint_protocol-${VERSION}.tar"
 
       - name: Attach the verifier kit to the GitHub release
+        id: release
         if: steps.hex-live.outputs.live == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "release $GITHUB_REF_NAME already exists — leaving it as-is (idempotent)"
-            exit 0
+          else
+            PRERELEASE_ARGS=()
+            if [[ "${VERSION%%+*}" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi
+            gh release create "$GITHUB_REF_NAME" "verified-release/verifier-${VERSION}.tar.gz" "verified-release/certified-results.json" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "${VERSION} — installable verifier" \
+              --generate-notes "${PRERELEASE_ARGS[@]}"
           fi
-          VERSION="${GITHUB_REF_NAME#v}"
-          PRERELEASE_ARGS=()
-          if [[ "${VERSION%%+*}" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi
-          gh release create "$GITHUB_REF_NAME" "verified-release/verifier-${VERSION}.tar.gz" "verified-release/certified-results.json" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "${VERSION} — installable verifier" \
-            --generate-notes "${PRERELEASE_ARGS[@]}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  # A release created with the workflow token starts no other workflow, so
+  # the release run itself calls the published-package checks. Its jobs carry
+  # their own time limits; a failure turns this run red.
+  postpublish:
+    name: Verify the published release
+    needs: publish
+    if: needs.publish.outputs.released != ''
+    permissions:
+      contents: read
+    uses: ./.github/workflows/postpublish.yml
+    with:
+      version: ${{ needs.publish.outputs.released }}

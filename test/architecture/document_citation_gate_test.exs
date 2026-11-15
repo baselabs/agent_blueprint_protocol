@@ -278,10 +278,12 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
       |> Enum.map(&Path.expand/1)
       |> MapSet.new()
 
-    assert Enum.all?(
-             Mix.Project.config()[:docs][:extras],
-             &MapSet.member?(packaged, Path.expand(&1))
-           )
+    unpackaged_extras =
+      Mix.Project.config()[:docs][:extras]
+      |> Enum.reject(&MapSet.member?(packaged, Path.expand(&1)))
+
+    assert unpackaged_extras == [],
+           "HexDocs extras outside the package: #{inspect(unpackaged_extras)}"
 
     offenders =
       for file <- shipped_markdown(),

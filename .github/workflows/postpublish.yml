@@ -1,5 +1,15 @@
 name: Published package smoke
+# The release run calls this workflow once Hex is live and the GitHub release
+# exists, so every release verifies its published packages and a failure here
+# turns the release run red. A maintainer can also run it for any released
+# version.
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: Published package version
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:

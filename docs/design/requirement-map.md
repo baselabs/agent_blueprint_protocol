@@ -518,6 +518,55 @@ grammar loosened required members: ["release_number"]
 EXIT=1
 ```
 
+### case: "map choices derive oneOf with literal and null members"
+
+A choice between map arms derives a oneOf whose arms close their
+properties, with literal members as const and a null member as the null
+type. The derivation module is required on its own, so the test runs
+without the whole gate running on load and a plant fails this assertion,
+not the gate. Captured on the build box, each grammar plant applied alone
+and restored.
+
+```red
+$ # plant: render the null member as %{} in scripts/grammar_derivation.exs
+$ mix test test/grammar_derivation_test.exs:10 --seed 42
+  1) test map choices derive oneOf with literal and null members (AgentBlueprintProtocol.GrammarDerivationTest)
+     test/grammar_derivation_test.exs:10
+     Assertion with == failed
+     code:  assert none["properties"]["max_age_ms"] == %{"type" => "null"}
+EXIT=2
+```
+
+### case: "unsupported choices and malformed maps fail closed"
+
+A choice that mixes a map with a primitive, a dangling or doubled choice
+operator, trailing text, and an unclosed map each derive an error.
+
+```red
+$ # plant: return {:ok, %{kind: :null}} for an unsupported type choice in scripts/grammar_derivation.exs
+$ mix test test/grammar_derivation_test.exs:27 --seed 42
+  1) test unsupported choices and malformed maps fail closed (AgentBlueprintProtocol.GrammarDerivationTest)
+     test/grammar_derivation_test.exs:27
+     match (=) failed
+     code:  assert {:error, _} = GrammarDerivation.derive("policy = " <> expression, "policy")
+EXIT=2
+```
+
+### case: "deployment grammar accepts exactly the supported as_of policies within the schema ceiling"
+
+The schema derived from spec/grammar/deployment.cddl stays within the
+schema complexity ceiling and accepts exactly the two as_of policies: mode
+none with a null max_age_ms, and mode required with a positive max_age_ms.
+
+```red
+$ # plant: type the required arm's max_age_ms as integer in spec/grammar/deployment.cddl
+$ mix test test/grammar_derivation_test.exs:39 --seed 42
+  1) test deployment grammar accepts exactly the supported as_of policies within the schema ceiling (AgentBlueprintProtocol.GrammarDerivationTest)
+     test/grammar_derivation_test.exs:39
+     as_of grammar disagrees for %{"max_age_ms" => 0, "mode" => "required"}
+EXIT=2
+```
+
 ### alias: registry.equality
 
 The registry equality gate: spec/registry/registry.json is the
@@ -605,7 +654,8 @@ Result: 0/1 passed
 
 ### case: "a test module that spawns a project build has no fixed test time limit"
 
-Captured on the build box, each plant applied alone to the fixed tree and restored.
+Captured on the build box at 9da37dc, where this test began at line 41, each
+plant applied alone to the fixed tree and restored.
 
 ```red
 $ # plant: remove the unlimited module tag from test/scratch_test.exs
@@ -640,7 +690,11 @@ Result: 0/1 passed, 1 excluded
 
 ### case: "every workflow job declares a job time limit"
 
-Captured in the same run, each plant applied alone and restored.
+A job that calls a reusable workflow of this repository cannot declare a
+limit; it passes only because the called workflow's jobs are scanned and
+each carries its own. The first two receipts were captured at 9da37dc,
+where this test began at line 79; the last two after the release run
+gained its postpublish call. Each plant applied alone and restored.
 
 ```red
 $ # plant: remove timeout-minutes from the ci.yml quality job
@@ -657,6 +711,20 @@ $ mix test test/architecture/time_limit_test.exs:79 --seed 42
      workflow jobs without timeout-minutes: [{".github/workflows/docs-gates.yml", "doc-gates"}]
      code: assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
 Result: 0/1 passed, 1 excluded
+$ # plant: remove timeout-minutes from the smoke job of the called postpublish.yml
+$ mix test test/architecture/time_limit_test.exs:82 --seed 42
+  1) test every workflow job declares a job time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:82
+     workflow jobs without timeout-minutes: [{".github/workflows/postpublish.yml", "smoke"}]
+     code: assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
+EXIT=2
+$ # plant: point the publish.yml postpublish call at other/repo/.github/workflows/postpublish.yml@v1
+$ mix test test/architecture/time_limit_test.exs:82 --seed 42
+  1) test every workflow job declares a job time limit (AgentBlueprintProtocol.Architecture.TimeLimitTest)
+     test/architecture/time_limit_test.exs:82
+     workflow jobs without timeout-minutes: [{".github/workflows/publish.yml", "postpublish"}]
+     code: assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
+EXIT=2
 ```
 
 ### case: "the quality job selects an immutable supported Node runtime"
@@ -1136,9 +1204,11 @@ Result: 1/2 passed
 
 ### case: "README and SECURITY.md name the current released version"
 
-Documentation-currency gate: every README Hex requirement and npm kit
-command pins the exact current version, candidate or final, read from
-`mix.exs`. SECURITY.md's supported-version table opens with the current
+Documentation-currency gate: the documentation-currency gate requires the
+README Hex requirement to be ~> followed by the current package version,
+and npm install/npx commands to select the exact current package version,
+read from mix.exs. The Hex requirement permits compatible patch releases;
+the npm commands select exactly one version. SECURITY.md's supported-version table opens with the current
 `major.minor` line marked supported. A stale first row, the right line
 marked unsupported, an unpinned npm command, or a stale pin reds.
 
@@ -1318,7 +1388,7 @@ pages.yml deploys on a branch push; it must deploy only on a release tag
 Result: 2/3 passed (when the file held three cases)
 ```
 
-### case: "the manual published-version workflow runs every notebook on three platforms"
+### case: "the published-version workflow runs every notebook on three platforms"
 
 The postpublish consumer job fetches the released Hex and npm archives and
 runs all four generic gates from the published Hex archive on Linux,
@@ -1328,11 +1398,43 @@ platform, a gate, or the registry fetch reds.
 ```red
 $ # plant: remove windows-2025 from the Livebook job's OS matrix
 $ mix test test/architecture/postpublish_livebooks_workflow_test.exs
-1) test the manual published-version workflow runs every notebook on three platforms
+1) test the published-version workflow runs every notebook on three platforms
 Assertion with =~ failed
 code: assert job =~ "os: [ubuntu-24.04, macos-15, windows-2025]"
 Result: 1/2 passed
 Failed: 1 test
+```
+
+### case: "every release run verifies its published packages"
+
+A GitHub release created with the workflow token starts no other workflow,
+so a release-event trigger on postpublish.yml would never fire. The release
+job records the released version as an output after both the create and
+the already-exists branches, and the same run calls postpublish.yml as a
+reusable workflow with that version. A failure in any postpublish job turns
+the release run red. Both the call trigger and the manual trigger require
+the version. Captured on the build box, each plant applied alone and
+restored.
+
+```red
+$ # plant: remove the workflow_call trigger from .github/workflows/postpublish.yml
+$ mix test test/architecture/postpublish_livebooks_workflow_test.exs:39 --seed 42
+  1) test every release run verifies its published packages (AgentBlueprintProtocol.Architecture.PostpublishLivebooksWorkflowTest)
+     test/architecture/postpublish_livebooks_workflow_test.exs:39
+     the workflow_call trigger must require the published version
+EXIT=2
+$ # plant: remove the version output line from the publish.yml release step
+$ mix test test/architecture/postpublish_livebooks_workflow_test.exs:39 --seed 42
+  1) test every release run verifies its published packages (AgentBlueprintProtocol.Architecture.PostpublishLivebooksWorkflowTest)
+     test/architecture/postpublish_livebooks_workflow_test.exs:39
+     the released version must be recorded after both release branches
+EXIT=2
+$ # plant: remove the postpublish job from .github/workflows/publish.yml
+$ mix test test/architecture/postpublish_livebooks_workflow_test.exs:39 --seed 42
+  1) test every release run verifies its published packages (AgentBlueprintProtocol.Architecture.PostpublishLivebooksWorkflowTest)
+     test/architecture/postpublish_livebooks_workflow_test.exs:39
+     the release run must call the postpublish workflow as a job
+EXIT=2
 ```
 
 ### case: "the existing published kit check still uses the requested version"
@@ -1440,6 +1542,12 @@ $ mix test test/architecture/document_citation_gate_test.exs:284 --seed 42
 a shipped document links outside the package: [{"README.md", "docs/consumer-evidence.md"}]
 code: assert offenders == [],
 Result: 0/1 passed
+$ # plant: add docs/consumer-evidence.md, which is not packaged, to the HexDocs extras in mix.exs
+$ mix test test/architecture/document_citation_gate_test.exs:274 --seed 42
+  1) test shipped markdown links resolve to packaged files (AgentBlueprintProtocol.Architecture.DocumentCitationGateTest)
+     HexDocs extras outside the package: ["docs/consumer-evidence.md"]
+     code: assert unpackaged_extras == [],
+EXIT=2
 ```
 
 ### case: "the specification carries the conformance-language boilerplate and uses its keywords"
@@ -2511,6 +2619,74 @@ Expected exception RuntimeError but nothing was raised
 code: assert_raise RuntimeError, ~r/guide.md block 1: unknown Elixir fence marking/, fn ->
 Result: 0/2 passed
 Failed: 2 tests
+EXIT=2
+```
+
+### case: "interactive key examples disclose neither generated key and retain later block bindings"
+
+The guide and every packaged notebook that generates a key run in real IEx,
+each guide block as pasted and each notebook cell as one evaluation, with
+the bindings of earlier blocks in place. After each block the session
+records the 32-byte values in its bindings; a recorded private key whose
+derived public key is also recorded is a generated pair. The gate fails
+when the session output contains either key of a pair, alone or inside a
+tuple, as raw bytes, integer byte lists in any base and line width,
+lowercase hex in any separator, or standard or URL-safe base64 at any
+alignment. The comparison is against the generated key bytes, not against
+a rendering pattern. Neither the failure message nor the receipt contains
+session output or key material. Captured on the build box, each plant
+applied alone and restored.
+
+```red
+$ # plant: print the private key on its own line after generation in docs/livebooks/producing-artifacts.livemd
+$ mix test test/package_examples_test.exs:82 --seed 42
+  1) test interactive key examples disclose neither generated key and retain later block bindings (AgentBlueprintProtocol.PackageExamplesTest)
+     test/package_examples_test.exs:82
+     docs/livebooks/producing-artifacts.livemd: interactive session disclosed generated key material
+     code: Scratch.with_dir("interactive-signing", fn root ->
+EXIT=2
+$ # plant: print {public_key, private_key} at width 24 after generation in docs/livebooks/conformance-and-attacks.livemd
+$ mix test test/package_examples_test.exs:82 --seed 42
+  1) test interactive key examples disclose neither generated key and retain later block bindings (AgentBlueprintProtocol.PackageExamplesTest)
+     test/package_examples_test.exs:82
+     docs/livebooks/conformance-and-attacks.livemd: interactive session disclosed generated key material
+     code: Scratch.with_dir("interactive-signing", fn root ->
+EXIT=2
+```
+
+### case: "the interactive key gate rejects a printed private key and a printed key tuple"
+
+The permanent negative controls. Each plants a print inside the guide's key
+block, which stays one parenthesized expression, and runs the whole guide
+in IEx. The session must complete with its bindings, and the gate must
+report exactly the private key for the first control and both keys for
+the multiline tuple. A detector that stops seeing integer byte lists reds
+the controls.
+
+```red
+$ # plant: integer_bytes: false in disclosures/2 of test/package_examples_test.exs
+$ mix test test/package_examples_test.exs:115 --seed 42
+  1) test the interactive key gate rejects a printed private key and a printed key tuple (AgentBlueprintProtocol.PackageExamplesTest)
+     test/package_examples_test.exs:115
+     printed-private-key: the gate must report exactly [:private] as disclosed, got []
+     code: Scratch.with_dir("interactive-signing-controls", fn root ->
+EXIT=2
+```
+
+### case: "the key disclosure detector finds each key in every known rendering"
+
+Synthetic keys rendered every known way, including a multiline tuple, a
+wrapped byte list, hex, binary and octal integer bases, separated hex, and
+base64 behind a prefix at each alignment, must each be found. Another
+pair's keys in the same renderings must not be.
+
+```red
+$ # plant: integer_bytes: false in disclosures/2 of test/package_examples_test.exs
+$ mix test test/package_examples_test.exs:158 --seed 42
+  1) test the key disclosure detector finds each key in every known rendering (AgentBlueprintProtocol.PackageExamplesTest)
+     test/package_examples_test.exs:158
+     the detector missed a integer_bytes rendering
+     code: for {rendering, text} <- renderings do
 EXIT=2
 ```
 

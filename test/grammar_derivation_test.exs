@@ -1,4 +1,4 @@
-Code.require_file("../scripts/check_grammar_derivation.exs", __DIR__)
+Code.require_file("../scripts/grammar_derivation.exs", __DIR__)
 
 defmodule AgentBlueprintProtocol.GrammarDerivationTest do
   use ExUnit.Case, async: true

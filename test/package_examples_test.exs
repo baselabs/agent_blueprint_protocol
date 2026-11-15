@@ -50,11 +50,42 @@ defmodule AgentBlueprintProtocol.PackageExamplesTest do
     end)
   end
 
-  test "interactive signing examples group key bindings and retain later block bindings" do
-    files = ["documentation/compose-and-sign.md" | Path.wildcard("docs/livebooks/*.livemd")]
+  # Every packaged document whose runnable Elixir cells generate a key runs in
+  # real IEx, cell by cell with its prior bindings, against the local build.
+  # After each cell the session records every 32-byte binary in its bindings
+  # to a private scratch file; a generated Ed25519 pair is a recorded private
+  # key whose derived public key is also recorded. The whole session output
+  # must disclose neither key of any pair, alone or together, in any
+  # rendering the detector knows. Key bytes and session output never enter a
+  # failure message.
+  @key_window 16
+  @key_capture """
+  Application.ensure_all_started(:crypto)
 
-    for file <- files,
-        cell <- PackageExamples.cells(File.read!(file), file),
+  defmodule KeyExampleCapture do
+    def record(binding, path) do
+      File.write!(path, binding |> Keyword.values() |> binaries([]) |> Enum.join(), [:append])
+    end
+
+    defp binaries(<<_::binary-size(32)>> = value, acc), do: [value | acc]
+    defp binaries(value, acc) when is_tuple(value), do: binaries(Tuple.to_list(value), acc)
+    defp binaries(%_{} = value, acc), do: binaries(Map.from_struct(value), acc)
+
+    defp binaries(value, acc) when is_map(value),
+      do: Enum.reduce(value, acc, fn {key, item}, acc -> binaries(item, binaries(key, acc)) end)
+
+    defp binaries([head | tail], acc), do: binaries(tail, binaries(head, acc))
+    defp binaries(_value, acc), do: acc
+  end
+  """
+
+  test "interactive key examples disclose neither generated key and retain later block bindings" do
+    documents = key_documents()
+    assert "documentation/compose-and-sign.md" in documents
+    assert Enum.any?(documents, &String.ends_with?(&1, ".livemd"))
+
+    for file <- documents,
+        cell <- interactive_cells(file),
         file == "documentation/compose-and-sign.md" or String.contains?(cell.code, "private_key") do
       code = String.trim(cell.code)
 
@@ -63,31 +94,262 @@ defmodule AgentBlueprintProtocol.PackageExamplesTest do
     end
 
     Scratch.with_dir("interactive-signing", fn root ->
-      input = Path.join(root, "input.exs")
-      source = File.read!("documentation/compose-and-sign.md")
+      for file <- documents do
+        session =
+          interactive_session(Path.join(root, Path.basename(file)), file, interactive_cells(file))
 
-      code =
-        PackageExamples.cells(source, "compose-and-sign.md") |> Enum.map_join("\n", & &1.code)
+        assert session.status == 0, "#{file}: interactive session failed (exit #{session.status})"
+        assert session.raised == false, "#{file}: interactive session raised an exception"
+        assert session.pairs != [], "#{file}: no generated key pair reached a session binding"
 
-      File.write!(
-        input,
-        "Application.ensure_all_started(:crypto)\n" <> code <> "\nSystem.halt(0)\n"
+        assert session.disclosures == [],
+               "#{file}: interactive session disclosed generated key material"
+
+        if file == "documentation/compose-and-sign.md" do
+          assert session.summary, "#{file}: interactive blocks lost their bindings"
+        end
+      end
+    end)
+  end
+
+  test "the interactive key gate rejects a printed private key and a printed key tuple" do
+    file = "documentation/compose-and-sign.md"
+    generation = "  {public_key, private_key} = :crypto.generate_key(:eddsa, :ed25519)\n"
+
+    controls = [
+      {"printed-private-key", "  IO.inspect(private_key, limit: :infinity)\n", [:private]},
+      {"printed-key-tuple",
+       "  IO.inspect({public_key, private_key}, limit: :infinity, width: 24)\n",
+       [:private, :public]}
+    ]
+
+    Scratch.with_dir("interactive-signing-controls", fn root ->
+      for {name, plant, disclosed} <- controls do
+        cells =
+          for cell <- interactive_cells(file) do
+            if String.contains?(cell.code, generation),
+              do: %{cell | code: String.replace(cell.code, generation, generation <> plant)},
+              else: cell
+          end
+
+        planted = Enum.filter(cells, &String.contains?(&1.code, plant))
+        assert length(planted) == 1, "#{name}: the plant must land in exactly one key block"
+
+        for cell <- planted do
+          code = String.trim(cell.code)
+
+          assert String.starts_with?(code, "(\n") and String.ends_with?(code, "\n)"),
+                 "#{name}: the planted key block must stay one parenthesized expression"
+        end
+
+        session = interactive_session(Path.join(root, name), file, cells)
+        assert session.status == 0, "#{name}: planted session failed (exit #{session.status})"
+        assert session.raised == false, "#{name}: planted session raised an exception"
+        assert session.summary, "#{name}: planted session lost its bindings"
+
+        labels = session.disclosures |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
+
+        assert labels == disclosed,
+               "#{name}: the gate must report exactly #{inspect(disclosed)} as disclosed, got #{inspect(labels)}"
+      end
+    end)
+  end
+
+  test "the key disclosure detector finds each key in every known rendering" do
+    {public, private} = :crypto.generate_key(:eddsa, :ed25519)
+    {other_public, other_private} = :crypto.generate_key(:eddsa, :ed25519)
+    pairs = [{public, private}]
+
+    renderings = [
+      integer_bytes: inspect(private, limit: :infinity),
+      integer_bytes: inspect({public, private}, limit: :infinity, width: 24),
+      integer_bytes: inspect(:binary.bin_to_list(private), limit: :infinity, width: 12),
+      integer_bytes: inspect(private, base: :hex, limit: :infinity),
+      integer_bytes: inspect(private, base: :binary, limit: :infinity),
+      integer_bytes: inspect(private, base: :octal, limit: :infinity),
+      hex: Base.encode16(private),
+      hex: Base.encode16(private, case: :lower),
+      hex:
+        private |> Base.encode16() |> String.graphemes() |> Enum.chunk_every(2) |> Enum.join(":"),
+      base64: Base.encode64(private),
+      base64: Base.url_encode64(private, padding: false),
+      base64: Base.encode64(<<48, 46, 2, 1, 0>> <> private),
+      base64: Base.url_encode64(<<1, 2>> <> private <> <<3>>),
+      raw_bytes: "prefix " <> private <> " suffix"
+    ]
+
+    for {rendering, text} <- renderings do
+      found = disclosures(text, pairs)
+      assert {:private, rendering} in found, "the detector missed a #{rendering} rendering"
+    end
+
+    assert {:public, :integer_bytes} in disclosures(inspect(public), pairs)
+
+    clean =
+      Enum.join(
+        [
+          inspect({other_public, other_private}, limit: :infinity),
+          Base.encode16(other_private),
+          Base.url_encode64(other_private),
+          other_private,
+          inspect(Enum.to_list(1..64))
+        ],
+        "\n"
       )
 
-      {output, status} =
-        System.cmd("sh", ["-c", ~s(iex --dot-iex "" < "$1"), "iex", input],
-          cd: root,
-          env: [{"ERL_LIBS", Path.join(Mix.Project.build_path(), "lib")}],
-          stderr_to_stdout: true
-        )
+    assert disclosures(clean, pairs) == [], "the detector reported a key that was not printed"
+  end
 
-      assert status == 0, "interactive signing failed (exit #{status})"
-      assert output =~ "reloaded_pair: true", "interactive blocks lost their bindings"
-      refute output =~ "** (", "interactive signing raised an exception"
-
-      refute Regex.match?(~r/\{<<[0-9, .\n]+>>, <<[0-9, .\n]+>>\}/, output),
-             "interactive signing displayed key material"
+  defp key_documents do
+    Mix.Project.config()[:package][:files]
+    |> Enum.flat_map(fn entry ->
+      cond do
+        String.ends_with?(entry, [".md", ".livemd", ".cheatmd"]) -> [entry]
+        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd,cheatmd}"))
+        true -> []
+      end
     end)
+    |> Enum.filter(fn file ->
+      file
+      |> File.read!()
+      |> PackageExamples.cells(file)
+      |> Enum.any?(&(&1.code =~ "generate_key("))
+    end)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  # A notebook's install cell is the published-package step; the session uses
+  # the local build on ERL_LIBS in its place. Every other cell runs as written.
+  defp interactive_cells(file) do
+    file
+    |> File.read!()
+    |> PackageExamples.cells(file)
+    |> Enum.reject(&String.starts_with?(String.trim(&1.code), "Mix.install("))
+  end
+
+  # A guide block is pasted into IEx as written. A Livebook cell is evaluated
+  # whole, with its final value shown, so the session feeds each notebook cell
+  # to IEx as one parenthesized evaluation.
+  defp interactive_session(root, file, cells) do
+    File.mkdir_p!(root)
+    capture = Path.join(root, "key-capture.bin")
+    File.write!(capture, "")
+    File.chmod!(capture, 0o600)
+    prelude = Path.join(root, "prelude.exs")
+    File.write!(prelude, @key_capture)
+    input = Path.join(root, "input.exs")
+
+    code =
+      Enum.map_join(cells, "\n", fn cell ->
+        evaluation =
+          if Path.extname(file) == ".livemd", do: "(\n" <> cell.code <> "\n)", else: cell.code
+
+        evaluation <> "\nKeyExampleCapture.record(binding(), #{inspect(capture)})\n"
+      end)
+
+    File.write!(input, code <> "\nSystem.halt(0)\n")
+
+    {output, status} =
+      System.cmd("sh", ["-c", ~s(iex --dot-iex "$1" < "$2"), "iex", prelude, input],
+        cd: root,
+        env: [{"ERL_LIBS", Path.join(Mix.Project.build_path(), "lib")}],
+        stderr_to_stdout: true
+      )
+
+    recorded = for <<value::binary-size(32) <- File.read!(capture)>>, uniq: true, do: value
+    File.rm!(capture)
+    pairs = key_pairs(recorded)
+
+    %{
+      status: status,
+      raised: String.contains?(output, "** ("),
+      summary: String.contains?(output, "reloaded_pair: true"),
+      pairs: pairs,
+      disclosures: disclosures(output, pairs)
+    }
+  end
+
+  defp key_pairs(recorded) do
+    known = MapSet.new(recorded)
+
+    for private <- recorded,
+        {public, ^private} <- [:crypto.generate_key(:eddsa, :ed25519, private)],
+        MapSet.member?(known, public),
+        do: {public, private}
+  end
+
+  # Disclosure is any 16-byte (@key_window) run of a key: as raw bytes; as
+  # integers in decimal, hex, octal or binary notation, in one line or wrapped
+  # (binary and list inspection); as hex text in either case with or without
+  # separators; or inside base64 or base64url text at any byte alignment,
+  # padded or not, across line breaks.
+  defp disclosures(output, pairs) do
+    integers = integer_stream(output)
+    compact = String.replace(output, ~r/\s+/, "")
+    hex_text = output |> String.downcase() |> String.replace(~r/[\s:,"'_-]+/, "")
+
+    for {public, private} <- pairs,
+        {label, key} <- [private: private, public: public],
+        rendering <- renderings(key, output, integers, compact, hex_text),
+        uniq: true,
+        do: {label, rendering}
+  end
+
+  defp renderings(key, output, integers, compact, hex_text) do
+    windows =
+      for offset <- 0..(byte_size(key) - @key_window), do: binary_part(key, offset, @key_window)
+
+    checks = [
+      raw_bytes: Enum.any?(windows, &(:binary.match(output, &1) != :nomatch)),
+      integer_bytes: Enum.any?(windows, &integer_run?(integers, &1)),
+      hex: Enum.any?(windows, &String.contains?(hex_text, Base.encode16(&1, case: :lower))),
+      base64: Enum.any?(base64_windows(key), &String.contains?(compact, &1))
+    ]
+
+    for {rendering, true} <- checks, do: rendering
+  end
+
+  # Each integer in the output becomes two bytes: a byte value as <<0, value>>,
+  # anything else as a separator <<1, 0>>. A key run then matches only at an
+  # even offset.
+  defp integer_stream(output) do
+    ~r/0x[0-9A-Fa-f]+|0b[01]+|0o[0-7]+|\d+/
+    |> Regex.scan(output)
+    |> Enum.map(fn [token] ->
+      case token do
+        "0x" <> digits -> String.to_integer(digits, 16)
+        "0b" <> digits -> String.to_integer(digits, 2)
+        "0o" <> digits -> String.to_integer(digits, 8)
+        digits -> String.to_integer(digits)
+      end
+    end)
+    |> Enum.map_join(fn
+      value when value in 0..255 -> <<0, value>>
+      _value -> <<1, 0>>
+    end)
+  end
+
+  defp integer_run?(stream, window) do
+    pattern = for <<byte <- window>>, into: <<>>, do: <<0, byte>>
+    stream |> :binary.matches(pattern) |> Enum.any?(fn {at, _} -> rem(at, 2) == 0 end)
+  end
+
+  # A base64 character depends on the key alone when all six of its bits fall
+  # inside the key. For each of the three byte alignments, the run of such
+  # characters is cut into windows that each encode at least 15 key bytes.
+  defp base64_windows(key) do
+    size = div((@key_window - 1) * 8 + 5, 6)
+
+    for shift <- 0..2,
+        encode <- [&Base.encode64(&1, padding: false), &Base.url_encode64(&1, padding: false)],
+        text = encode.(<<0::size(shift * 8)>> <> key <> <<0, 0>>),
+        first = div(shift * 8 + 5, 6),
+        last = div((shift + byte_size(key)) * 8, 6) - 1,
+        interior = binary_part(text, first, last - first + 1),
+        offset <- 0..(byte_size(interior) - size),
+        uniq: true,
+        do: binary_part(interior, offset, size)
   end
 
   test "snippet extraction preserves order and source lines and skips only marked fragments" do

@@ -33,7 +33,7 @@ mix typescript.guide
 
 Consumer examples run outside the checkout against real archives. `mix livebooks.package` runs every notebook against a built Hex archive. `mix doctests.package` runs every shipped module's doctests in a scratch consumer Mix project. `mix snippets.package` runs Elixir blocks from README, the guides, and the cheatsheet in that consumer; blocks share bindings within each document. `mix typescript.package` packs and installs the npm tarball and runs every JavaScript and TypeScript example in the npm README and TypeScript guide. All four gates are part of `mix quality` and remove their scratch directories on success and failure.
 
-An `elixir` fence is runnable. Mark a partial example or configuration excerpt with `elixir fragment`; use `text` for output and `sh` for shell commands. The same `fragment` suffix applies to `js` and `ts` excerpts. All unmarked runtime blocks must run; a failing block fails the gate. TypeScript examples are independent programs. The postpublish workflow fetches both packages from the registries for the requested version and runs these same generic gates from the published archive, without a source checkout.
+An `elixir` fence is runnable. Mark a partial example or configuration excerpt with `elixir fragment`; use `text` for output and `sh` for shell commands. The same `fragment` suffix applies to `js` and `ts` excerpts. All unmarked runtime blocks must run; a failing block fails the gate. TypeScript examples are independent programs. The postpublish workflow fetches both packages from the registries for the released version and runs these same generic gates from the published archive, without a source checkout. Every release run calls it, and a maintainer can run it for any released version.
 
 To run the corpus from the repository checkout:
 
@@ -53,7 +53,7 @@ The complete pre-push gate is `mix quality`; focused checks help during editing 
 
 The build-free publication privacy guard runs separately in the repository's pre-push hook and CI. Both execute the same guard with the same repository-fingerprint configuration. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
 
-The suite currently defines 1030 tests (64 properties). The coverage threshold is 100% coverage.
+The suite currently defines 1033 tests (64 properties). The coverage threshold is 100% coverage.
 
 ## CI jobs
 
@@ -99,11 +99,13 @@ Package support details are in the [stability policy](documentation/stability.md
 
 When specification text, the corpus, or the registry changes, regenerate the release metadata with the source checkout's metadata generator. It derives the current specification, registry, corpus, and package identities and synchronizes the current release-history row.
 
-## npm package releases
+## Releases
 
-The tagged GitHub Actions workflow uses npm trusted publishing to stage the package. A maintainer reviews and approves the staged version through npm's Staged Packages interface. The version becomes installable after approval. Local `npm publish` is not part of this release process.
+A release is one act. Text that names a version's install commands, documentation links, tag, or notebook install targets lands as part of that version's release act, not ahead of it. The release commit carries the version bump, the release metadata, and all of that text together; it is tagged and published in one sequence. Until then, `main` names only versions that are already published, because a version's install, documentation, tag, and notebook targets do not exist before its release.
 
-After approval, check the published version with `npm view @agent-blueprint-protocol/verifier version`. The release workflow verifies the installed kit against the tagged artifact before announcing completion.
+The tag starts the publish workflow. It runs the complete quality battery on the tagged tree, then uses npm trusted publishing to stage the package. A maintainer reviews and approves the staged version through npm's Staged Packages interface. The version becomes installable after approval. Local `npm publish` is not part of this release process.
+
+After approval, check the published version with `npm view @agent-blueprint-protocol/verifier version`, then rerun the workflow on the same tag. It verifies the installed kit against the tagged artifact, publishes Hex, and creates the GitHub release. The same run then calls the postpublish workflow, which installs the published packages and runs every consumer example and notebook on Linux, macOS, and Windows. A failure there turns the release run red.
 
 ## Glossary
 

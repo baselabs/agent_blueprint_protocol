@@ -7,7 +7,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   project config, and the test totals from a census of the live test
   tree, never a frozen copy that could drift:
 
-  - the README install requirement pins the exact current version;
+  - the README Hex requirement names the current patch range, while npm
+    commands select the exact current version;
   - SECURITY.md's supported table opens with the current `major.minor`
     line marked supported;
   - CHANGELOG.md opens with the entry for the current version (below an

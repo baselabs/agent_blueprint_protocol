@@ -11,11 +11,14 @@ defmodule AgentBlueprintProtocol.Architecture.TimeLimitTest do
   requirement under test.
 
   The bound against a hang is the workflow job's own limit: every job in
-  every workflow declares `timeout-minutes`.
+  every workflow declares `timeout-minutes`. A job that calls a reusable
+  workflow in this repository cannot declare one; the jobs of the called
+  workflow carry the limits, and they are scanned like every other job.
 
   Goes RED on: a build-spawning module without the unlimited module tag, a
   fixed test limit outside the declared tripwires, a tripwire that is no
-  longer present, a workflow job without `timeout-minutes`, and a scan that
+  longer present, a workflow job without `timeout-minutes` that calls no
+  scanned workflow of this repository, and a scan that
   no longer sees the known spawners or jobs, which would make either gate
   vacuous.
   """
@@ -88,10 +91,23 @@ defmodule AgentBlueprintProtocol.Architecture.TimeLimitTest do
     assert @known_jobs -- seen == [],
            "the job scan no longer sees #{inspect(@known_jobs -- seen)}"
 
+    scanned = jobs |> Enum.map(&elem(&1, 0)) |> MapSet.new()
+
     offenders =
-      for {path, name, job} <- jobs, time_limit(job) == nil, do: {path, name}
+      for {path, name, job} <- jobs,
+          time_limit(job) == nil,
+          not MapSet.member?(scanned, called_workflow(job)),
+          do: {path, name}
 
     assert offenders == [], "workflow jobs without timeout-minutes: #{inspect(offenders)}"
+
+    assert called_workflow("  check:\n    uses: ./.github/workflows/postpublish.yml\n") ==
+             ".github/workflows/postpublish.yml"
+
+    assert called_workflow("  check:\n    uses: other/repo/.github/workflows/x.yml@v1\n") == nil
+
+    assert called_workflow("  check:\n    steps:\n      - uses: ./.github/workflows/x.yml\n") ==
+             nil
 
     assert time_limit("  lint:\n    runs-on: x\n    timeout-minutes: 15\n    steps:\n") == 15
     assert time_limit("  lint:\n    runs-on: x\n    steps:\n      - timeout-minutes: 15\n") == nil
@@ -111,6 +127,16 @@ defmodule AgentBlueprintProtocol.Architecture.TimeLimitTest do
         nil -> []
       end
     end)
+  end
+
+  # The repository workflow a job calls with a job-level `uses:`, if any.
+  defp called_workflow(job) do
+    case Regex.run(~r/^    uses: \.\/(\.github\/workflows\/[A-Za-z0-9_.-]+\.ya?ml)[ \t]*$/m, job,
+           capture: :all_but_first
+         ) do
+      [path] -> path
+      nil -> nil
+    end
   end
 
   # The job-level limit in minutes: a positive integer on a key directly

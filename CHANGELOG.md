@@ -13,8 +13,8 @@ return the same typed refusals in both implementations.
 
 Examples ship as installed application resources. Notebooks, module doctests,
 README and guide snippets, and npm examples run against real package archives
-outside the checkout; the postpublish workflow repeats those gates against the
-registry releases. Documentation links pin this release, HexDocs extras resolve
+outside the checkout; every release run repeats those gates against the
+published registry packages. Documentation links pin this release, HexDocs extras resolve
 to rendered pages, and the public ExDoc footer remains enabled.
 
 A shipped-text gate rejects em dashes and en dashes in packaged documents,
