@@ -94,6 +94,25 @@ node --input-type=module -e '
 
 The command prints the matching digest and exits `0`; a missing asset, failed download, or mismatch exits nonzero. The archive contains `release-metadata.json` and `conformance/index.json` for the same corpus comparison. Run these recipes in a fresh working directory; keep verified archives deliberately or remove the downloaded archives and extracted example directories when finished.
 
+## Consumer example verification
+
+The release workflow runs the published packages' notebook, doctest, Elixir
+snippet, and TypeScript example gates on Linux, macOS, and Windows. CI also
+builds both packages and runs the same gates on those platforms before a tag.
+From a tagged checkout with Elixir and Node installed, run:
+
+```sh
+elixir scripts/consumer_examples.exs --registry 1.1.0-rc.2
+```
+
+The checkout's driver verifies the Hex archive against the Hex API release
+checksum and the npm archive against `dist.integrity`, then extracts both
+in-process. It loads the gates and example documents from the packages.
+`--local HEX.tar NPM.tgz` accepts archives built by `mix hex.build` and
+`npm pack ./dist/package --ignore-scripts` and runs those same package gates.
+Local mode verifies candidate bytes without requiring them to be published.
+See [Contributing](../CONTRIBUTING.md) for the build commands.
+
 ## Next steps
 
 - [Read the conformance guide](conformance.md)

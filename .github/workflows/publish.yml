@@ -249,7 +249,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null
           LIVE_INTEGRITY=$(npm view "${NPM_PACKAGE}@${VERSION}" dist.integrity)
-          VERIFIED_INTEGRITY=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; import {createHash} from "node:crypto"; process.stdout.write("sha512-" + createHash("sha512").update(readFileSync(process.argv[1])).digest("base64"));' "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
+          VERIFIED_INTEGRITY=$(node scripts/release_artifact_info.mjs npm-integrity "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
           if [ "$LIVE_INTEGRITY" != "$VERIFIED_INTEGRITY" ]; then
             echo "::error::Live npm bytes differ from the verified archive"
             exit 1
@@ -273,7 +273,7 @@ jobs:
           fi
           VERSION="${GITHUB_REF_NAME#v}"
           curl --fail --silent --show-error "https://hex.pm/api/packages/agent_blueprint_protocol" > "$RUNNER_TEMP/hex-package.json"
-          HEX_LIVE=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const pkg=JSON.parse(readFileSync(process.argv[1])); if(!Array.isArray(pkg.releases))throw Error("Invalid Hex release list"); process.stdout.write(pkg.releases.some(release=>release.version===process.argv[2])?"true":"false");' "$RUNNER_TEMP/hex-package.json" "$VERSION")
+          HEX_LIVE=$(node scripts/release_artifact_info.mjs hex-listed "$RUNNER_TEMP/hex-package.json" "$VERSION")
           if [ "$HEX_LIVE" = true ]; then
             echo "hex: already live; verifying its bytes before the GitHub release"
           else

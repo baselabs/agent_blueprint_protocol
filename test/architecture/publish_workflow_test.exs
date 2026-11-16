@@ -193,7 +193,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     assert publish =~ ~s("verified-release/verifier-${VERSION}.tar.gz")
     assert publish =~ ~s(npm view "${NPM_PACKAGE}@${VERSION}" dist.integrity)
-    assert publish =~ ~s|createHash("sha512")|
+    assert publish =~ "node scripts/release_artifact_info.mjs npm-integrity"
+    assert publish =~ "node scripts/release_artifact_info.mjs hex-listed"
     assert publish =~ ~s(if [ "$LIVE_INTEGRITY" != "$VERIFIED_INTEGRITY" ]; then)
   end
 

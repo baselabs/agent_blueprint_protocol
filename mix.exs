@@ -116,7 +116,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "scripts/extract_livebooks.exs",
         "scripts/package_examples.exs",
         "scripts/run_package_typescript_examples.mjs",
-        "scripts/postpublish_examples.mjs",
+        "scripts/consumer_examples.exs",
         ".formatter.exs",
         "mix.exs",
         "README.md",

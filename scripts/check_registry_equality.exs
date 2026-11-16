@@ -201,11 +201,7 @@ defmodule AgentBlueprintProtocol.RegistryEqualityGate do
   # The twin is hand-written TypeScript; the digest is read by running
   # the verifier's own registry module under Node (local, offline).
   defp typescript_digest do
-    script =
-      "import { registryDigest } from './verifier/registry.ts'; " <>
-        "console.log(registryDigest());"
-
-    case System.cmd("node", ["--input-type=module", "-e", script],
+    case System.cmd("node", ["scripts/registry_digest.mjs"],
            stderr_to_stdout: true,
            env: [{"NODE_NO_WARNINGS", "1"}]
          ) do

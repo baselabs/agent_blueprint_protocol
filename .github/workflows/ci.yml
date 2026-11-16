@@ -257,6 +257,25 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm run build
           node dist/kit/cli.mjs
+      - name: Build and verify both consumer packages before publication
+        shell: pwsh
+        run: |
+          $scratch = Join-Path $env:RUNNER_TEMP ([System.IO.Path]::GetRandomFileName())
+          New-Item -ItemType Directory -Path $scratch | Out-Null
+          try {
+            $hex = Join-Path $scratch "package.tar"
+            mix hex.build --output $hex
+            if ($LASTEXITCODE -ne 0) { throw "Hex build failed" }
+            npm pack ./dist/package --ignore-scripts --pack-destination $scratch
+            if ($LASTEXITCODE -ne 0) { throw "npm pack failed" }
+            $npm = @(Get-ChildItem -Path $scratch -Filter "*.tgz")
+            if ($npm.Count -ne 1) { throw "Expected one npm package" }
+            $tarball = $npm[0].FullName
+            elixir scripts/consumer_examples.exs --local $hex $tarball
+            if ($LASTEXITCODE -ne 0) { throw "Consumer examples failed" }
+          } finally {
+            Remove-Item -Recurse -Force $scratch
+          }
       - name: Run contributor tests and both conformance adapters
         run: |
           mix test --seed 42

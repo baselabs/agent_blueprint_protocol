@@ -30,6 +30,25 @@ mix docs --warnings-as-errors
 mix typescript.guide
 ```
 
+CI builds both consumer packages and runs their own notebook, doctest, Elixir
+snippet, and TypeScript example gates on Linux, macOS, and Windows before a tag.
+Run that same gate locally after `npm run build`:
+
+```sh
+VERSION=1.1.0-rc.2
+mix hex.build --output package.tar
+npm pack ./dist/package --ignore-scripts --pack-destination .
+elixir scripts/consumer_examples.exs --local package.tar "agent-blueprint-protocol-verifier-$VERSION.tgz"
+```
+
+Remove the two archives after verification. Local mode consumes those exact
+builds without contacting either package registry. For a published version,
+use `elixir scripts/consumer_examples.exs --registry 1.1.0-rc.2`. Registry mode
+checks the Hex API release checksum and npm `dist.integrity` before extraction.
+The tagged checkout supplies the driver; the extracted Hex package supplies all
+four gates, and both packages supply their own example documents. Both modes
+extract archives in-process and run the same gates over the extracted bytes.
+
 To run the corpus from the repository checkout:
 
 ```sh

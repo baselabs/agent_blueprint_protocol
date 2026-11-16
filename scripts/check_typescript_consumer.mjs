@@ -13,7 +13,8 @@ try {
   writeFileSync(join(scratch,'package.json'),'{"private":true,"type":"module"}');
   command('npm',['install','--ignore-scripts','--no-audit','--no-fund',join(scratch,file)]);
   assert.equal(existsSync(join(scratch,'node_modules/@types/node')),false);
-  const imported=command(process.execPath,['--input-type=module','-e',"await import('@agent-blueprint-protocol/verifier')"]);assert.equal(imported.stdout,'');assert.equal(imported.stderr,'');
+  writeFileSync(join(scratch,'import.mjs'),"await import('@agent-blueprint-protocol/verifier');\n");
+  const imported=command(process.execPath,['import.mjs']);assert.equal(imported.stdout,'');assert.equal(imported.stderr,'');
   const mappingIndex=process.argv.indexOf('--mapping');
   if(mappingIndex>=0)writeFileSync(join(scratch,'expected-mapping.json'),process.argv[mappingIndex+1]);
   cpSync('test/typescript/consumer.mjs',join(scratch,'consumer.mjs'));

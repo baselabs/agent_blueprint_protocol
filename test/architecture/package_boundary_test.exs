@@ -91,7 +91,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     scripts/extract_livebooks.exs
     scripts/package_examples.exs
     scripts/run_package_typescript_examples.mjs
-    scripts/postpublish_examples.mjs
+    scripts/consumer_examples.exs
     priv/examples/echo-blueprint.json
     priv/examples/echo-deployment.json
     priv/examples/federation-envelope.json
@@ -219,7 +219,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     scripts/extract_livebooks.exs
     scripts/package_examples.exs
     scripts/run_package_typescript_examples.mjs
-    scripts/postpublish_examples.mjs
+    scripts/consumer_examples.exs
     .formatter.exs
     mix.exs
     README.md
@@ -237,6 +237,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
   end
 
   test "the built Hex archive ships exactly the allowlist, both directions" do
+    on_exit(fn -> File.rm_rf!(@build_dir) end)
     {unpack_dir, shipped} = build_and_list_archive()
 
     {corpus_files, code_files} =
