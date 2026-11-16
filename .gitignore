@@ -1,20 +1,13 @@
-# The directory Mix will write compiled artifacts to.
 /_build/
 
-# If you run "mix test --cover", coverage assets end up here.
 /cover/
 
-# Where Mix downloads dependency sources: a directory, or a symlink to one
-# (scratch replicas link the checkout's dependencies).
 /deps
 
-# Where third-party dependencies like ExDoc output generated docs.
 /doc/
 
-# Temporary files, for example, from tests.
 /tmp/
 
-# Local build and editor state.
 /artifacts/
 /.elixir_ls/
 /.lexical/
@@ -27,23 +20,15 @@
 .env.*
 .DS_Store
 
-# If the VM crashes, it generates a dump, let's ignore it too.
 erl_crash.dump
 
-# Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 
-# Ignore package tarball (built via "mix hex.build").
 agent_blueprint_protocol-*.tar
 agent_blueprint_protocol_conformance
 
-# Per-release verifier kit assets are attached to git release tags,
-# not committed to the tree (built by `mix release.asset --write`).
 verifier-*.tar.gz
 
-# npm kit build state (the installable verifier is built by `npm run
-# build` from verifier/ + priv/conformance; nothing generated ships in
-# git — the Hex package ships neither)
 node_modules/
 dist/
 /.forge/

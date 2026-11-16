@@ -39,11 +39,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   - Corpus `.json` files carry the text-pattern-exempt class: they are
     digest-bound by `conformance.verify` (any edit reds the corpus hash),
     and byte patterns still apply to them.
-  - The requirement map stays repository-side BY DESIGN and ships in no
-    archive: its fenced `red` receipts are verbatim gate output quoting
-    the very tokens this guard bans (the catch is the evidence), so
-    archiving the map reds this guard outright. The recorded red lives
-    in the map's own publish-guard entry.
 
   Goes RED on: a `.kimosabe` path or reference planted in any archived file
   (README, a lib module, a corpus member); a tracker numeral or slug added

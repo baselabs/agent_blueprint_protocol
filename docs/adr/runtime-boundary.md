@@ -1,7 +1,5 @@
 # ADR: runtime boundary
 
-Status: accepted (2026-11-15).
-
 ## Context
 
 Hosts embed this package inside their own trust, scheduling and storage
@@ -37,5 +35,3 @@ rules over the compiled code, so an aliased or indirect call cannot hide.
   package or granting it file or network access.
 - Producing and signing artifacts is host work, described in the
   [producer surface](producer-surface.md) record.
-- Adding a runtime dependency, an OTP application, a process or a file read
-  outside the command line needs a new record that supersedes this one.

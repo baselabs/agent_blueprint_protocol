@@ -1,18 +1,5 @@
 # ADR: producer surface policy
 
-Status: accepted (2026-08-25), amended for member introspection (2026-11-15);
-records the disposition a consumer asked for at
-the product-extension registration.
-
-## Context
-
-A consumer adopting this package as a verification boundary asked whether the
-documented per-artifact constructors (`Blueprint.from_value/2`,
-`Blueprint.content_digest/1`, `Deployment.from_value/2`, and the digest
-helpers) are the intended PRODUCER surface for hosts that render artifacts, or
-whether facade-level artifact-construction functions should grow. The consumer's reading was yes; the
-constructors are the producer surface.
-
 ## Decision
 
 The constructors ARE the intended producer surface. The facade stays a
@@ -21,15 +8,7 @@ producer functions grow. Compose the tagged JSON value with a well-formed provis
 property (`decode → to_value → encode` is a fixed point) is the byte-exactness
 guarantee a producer relies on.
 
-## Consequences
-
-No API change; this record closes the question for future hosts. Producer
-guidance belongs in the protocol document's shipped-surface section, which
-already names the constructors; if a producer helper ever proves load-bearing
-for two independently verified hosts, it earns a facade seat through the same
-two-consumer rule that governs core members.
-
-## Amendment: member introspection (2026-11-15)
+## Member introspection
 
 `Blueprint.members/1`, `Deployment.members/1` and `Federation.members/1`
 return the sorted core member names of a protocol revision, read from the

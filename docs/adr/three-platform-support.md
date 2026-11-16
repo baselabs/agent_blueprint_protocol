@@ -1,7 +1,5 @@
 # ADR: Three-platform support
 
-Status: accepted (2026-11-10).
-
 ## Context
 
 Consumers and contributors clone and execute the same bytes on Linux, macOS and Windows.

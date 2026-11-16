@@ -1,7 +1,5 @@
 # ADR: artifacts carry requirements, hosts resolve them
 
-Status: accepted (2026-11-15).
-
 ## Context
 
 An agent blueprint moves between hosts. Every host has its own endpoints,

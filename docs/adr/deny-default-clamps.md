@@ -1,7 +1,5 @@
 # ADR: deny-default protected-bound clamps
 
-Status: accepted (2026-08-20, approved default).
-
 ## Context
 
 The bounds algebra meets three sources (Blueprint declared, Deployment

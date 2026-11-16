@@ -9,12 +9,6 @@
 # runs first per unique command (a deleted/drifted target scoring a red as
 # "caught" is the false-green BAP recorded). The calibration entry proves
 # the raise path live.
-#
-# Calibration self-proof (2026-08-23, this session): with the
-# `duplicate-member-check-removal` entry's command inverted in a throwaway
-# scratch (expecting exit 0), the mutated corpus verified GREEN and the
-# battery raised `mutation survived: duplicate-member-check-removal` — the
-# raise path is not decorative. Restored; the shipped entry is caught.
 
 Code.require_file("../test/support/scratch.exs", __DIR__)
 

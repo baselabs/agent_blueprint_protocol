@@ -1,7 +1,5 @@
 # ADR: compiled-in extension registry
 
-Status: accepted.
-
 ## Decision
 
 The release ships only the protocol's federation registrations:

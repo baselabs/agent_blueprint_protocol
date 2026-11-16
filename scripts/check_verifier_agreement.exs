@@ -12,11 +12,6 @@
 # divergence — a seed that fails to diverge raises (the vacuous-seed guard;
 # member-ORDER mutations are byte-inert under JCS and are banned as seeds
 # by design). The calibration entry proves the divergence detector fires.
-#
-# Calibration self-proof (2026-08-23, this session): with the report-format
-# mutation's expected divergence INVERTED in a throwaway edit (expecting
-# byte equality), the harness raised `seeded red did not diverge` — the
-# raise path is live. Restored; the shipped entry fires.
 
 Code.require_file("../test/support/scratch.exs", __DIR__)
 

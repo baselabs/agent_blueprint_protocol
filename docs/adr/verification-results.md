@@ -1,7 +1,5 @@
 # ADR: Failure records and evidence
 
-Status: accepted (2026-11-10).
-
 ## Context
 
 A denial must be typed and value-free, and a skipped check cannot establish verification.

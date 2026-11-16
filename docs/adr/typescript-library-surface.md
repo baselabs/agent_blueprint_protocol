@@ -1,7 +1,5 @@
 # ADR: TypeScript library surface
 
-Status: accepted (2026-11-10).
-
 ## Context
 
 Internal deep imports exposed implementation layout and required consumers to know internal result records.

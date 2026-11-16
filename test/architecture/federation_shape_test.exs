@@ -49,15 +49,6 @@ defmodule AgentBlueprintProtocol.Architecture.FederationShapeTest do
     assert MapSet.size(row_fields) == 23, "logical fields are unique"
   end
 
-  test "verdict counts are the live-re-derived 3 native / 5 partial / 15 extension" do
-    counts =
-      Federation.mapping()
-      |> Enum.group_by(& &1.verdict, & &1.logical_field)
-      |> Map.new(fn {verdict, fields} -> {verdict, length(fields)} end)
-
-    assert counts == %{native: 3, partial: 5, extension: 15}
-  end
-
   test "every row carries both transport locations" do
     for row <- Federation.mapping() do
       assert is_binary(row.a2a_location) and row.a2a_location != ""

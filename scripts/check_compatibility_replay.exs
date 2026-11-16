@@ -56,7 +56,7 @@
 # REFUSES with a named reason — never a silent skip.
 # ABP_COMPATIBILITY_REPLAY=off is the named operator override for
 # tag-less environments; it prints loudly and is NEVER a green claim
-# (ABP_RC_REPROVE=off's rule).
+# for tag-less environments.
 
 Code.require_file("../test/support/scratch.exs", __DIR__)
 

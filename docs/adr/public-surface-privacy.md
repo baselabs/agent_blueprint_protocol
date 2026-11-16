@@ -1,7 +1,5 @@
 # ADR: Public surface privacy
 
-Status: accepted (2026-11-10).
-
 ## Context
 
 A public source tree and its distributable artifacts must not disclose private identities or operational topology.

@@ -1,8 +1,5 @@
 # ADR: detached JWS signature envelope
 
-Status: accepted (2026-08-20; hardening follow-ups landed with the
-second-language verifier).
-
 ## Context
 
 Artifacts need producer authentication that standard tooling can verify,

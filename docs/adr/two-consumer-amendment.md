@@ -1,7 +1,5 @@
 # ADR: two-consumer rule amendment
 
-Status: accepted (2026-08-20).
-
 ## Context
 
 The field-registry governance rule required two independently verified

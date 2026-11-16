@@ -5,7 +5,7 @@ search. AI Catalog defines a typed container and independently contributed
 Trust Manifests. ABP supplies a portable capability and deployment contract;
 a discovery entry can reference that artifact without adopting its semantics.
 
-## Source pins (re-verified 2026-11-10)
+## Source pins
 
 Plain SHA-1 values identify these exact upstream bytes:
 
@@ -24,7 +24,7 @@ payload and subject coverage, and the distinction between a manifest signature
 and a catalog snapshot signature. These changes invalidate a claim that its
 signature envelope is interchangeable with ABP's.
 
-## Re-verified boundaries
+## Boundaries
 
 | ABP surface | Discovery-side fact | Relationship |
 |---|---|---|
@@ -38,4 +38,3 @@ ARD's normative path is `/.well-known/ard.json`; its predecessor path is an
 optional compatibility source. ARD defers cryptography to a declared trust
 framework. Neither that framework nor a catalog signature substitutes for
 ABP verification, and an ABP pass grants no discovery or execution authority.
-Changes to the pinned models require re-verifying these relationships.

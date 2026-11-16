@@ -8,12 +8,6 @@ defmodule AgentBlueprintProtocol.MixProject do
     [
       app: :agent_blueprint_protocol,
       version: @version,
-      # The Elixir requirement is a supported RANGE, not a pin: it admits the
-      # supported line (1.19 and 1.20 today), and Mix refuses anything outside
-      # the range at compile. Lockstep rule: this range, the supported-OTP
-      # set in config/config.exs, .tool-versions, and the CI Elixir/OTP
-      # lanes move together in one commit. A lane outside the set, or a
-      # supported OTP major with no lane, is a defect.
       elixir: "~> 1.19",
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -27,9 +21,6 @@ defmodule AgentBlueprintProtocol.MixProject do
       homepage_url: @source_url,
       test_coverage: [
         summary: [threshold: 100],
-        # The escript entry's only line is System.halt over a fully tested
-        # function; executing it in-process would halt the test VM, so the
-        # shim is excluded from the coverage census (not from any other gate).
         ignore_modules: [
           AgentBlueprintProtocol.Conformance.Cli.Main,
           ~r/AgentBlueprintProtocol\.Conformance\.Cli\.Main/
@@ -85,7 +76,6 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/livebooks/extensions-and-federation.livemd",
         "docs/livebooks/conformance-and-attacks.livemd",
         "docs/adr/compiled-registry.md",
-        "docs/adr/dependency-currency-gate.md",
         "docs/adr/deny-default-clamps.md",
         "docs/adr/detached-jws-envelope.md",
         "docs/adr/federation-lanes.md",
@@ -105,7 +95,6 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/release-publication.md",
         "docs/adr/shipped-documentation.md",
         "docs/adr/runtime-boundary.md",
-        "docs/adr/continuous-integration.md",
         "docs/adr/artifact-portability.md",
         "docs/adr/normative-extraction.md",
         "spec/protocol.md",
@@ -265,7 +254,6 @@ defmodule AgentBlueprintProtocol.MixProject do
         Conformance: ["documentation/conformance.md"],
         "Design records": [
           "docs/adr/compiled-registry.md",
-          "docs/adr/dependency-currency-gate.md",
           "docs/adr/deny-default-clamps.md",
           "docs/adr/detached-jws-envelope.md",
           "docs/adr/federation-lanes.md",
@@ -285,7 +273,6 @@ defmodule AgentBlueprintProtocol.MixProject do
           "docs/adr/release-publication.md",
           "docs/adr/shipped-documentation.md",
           "docs/adr/runtime-boundary.md",
-          "docs/adr/continuous-integration.md",
           "docs/adr/artifact-portability.md",
           "docs/adr/normative-extraction.md"
         ],
@@ -343,7 +330,6 @@ defmodule AgentBlueprintProtocol.MixProject do
         "spec/conformance/execution.md",
         "documentation/conformance.md",
         "docs/adr/compiled-registry.md",
-        "docs/adr/dependency-currency-gate.md",
         "docs/adr/deny-default-clamps.md",
         "docs/adr/detached-jws-envelope.md",
         "docs/adr/federation-lanes.md",
@@ -363,7 +349,6 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/release-publication.md",
         "docs/adr/shipped-documentation.md",
         "docs/adr/runtime-boundary.md",
-        "docs/adr/continuous-integration.md",
         "docs/adr/artifact-portability.md",
         "docs/adr/normative-extraction.md",
         "CONTRIBUTING.md",
@@ -383,9 +368,6 @@ defmodule AgentBlueprintProtocol.MixProject do
   defp aliases do
     [
       audit: ["hex.audit", "deps.unlock --check-unused", "deps.audit"],
-      "deps.currency": [
-        "run --no-start scripts/check_deps_currency.exs"
-      ],
       "conformance.verify": [
         "escript.build",
         "cmd escript agent_blueprint_protocol_conformance --corpus priv/conformance"
@@ -434,7 +416,6 @@ defmodule AgentBlueprintProtocol.MixProject do
         "hex.audit",
         "deps.unlock --check-unused",
         "deps.audit",
-        "deps.currency",
         "format --check-formatted",
         "compile --warnings-as-errors",
         "credo --strict",

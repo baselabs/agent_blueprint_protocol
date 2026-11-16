@@ -1,8 +1,5 @@
 # ADR: the non-authorizing boundary
 
-Status: accepted (2026-08-20, design approval; mechanically enforced since
-the architecture lane landed).
-
 ## Context
 
 Agent-run blueprints describe capabilities and bindings. The obvious

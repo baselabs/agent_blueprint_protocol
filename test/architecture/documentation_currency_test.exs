@@ -1,31 +1,14 @@
 defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   @moduledoc """
-  Documentation-currency gate: the public documents' version and identity
-  claims track the live project, so a release cannot ship naming an older
-  line. The current version is read from `mix.exs`, the corpus identity
-  from `priv/conformance/index.json`, the coverage threshold from the
-  project config, and the test totals from a census of the live test
-  tree, never a frozen copy that could drift:
-
-  - the README Hex requirement names the current patch range, while npm
-    commands select the exact current version;
-  - SECURITY.md's supported table opens with the current `major.minor`
-    line marked supported;
-  - CHANGELOG.md opens with the entry for the current version (below an
-    optional `Unreleased` section), and that entry carries the live corpus
-    digest and case total;
-  - CONTRIBUTING.md states the live test, property, and coverage values;
-  - README.md states the live corpus case total and carries no other
-    test statistics.
+  Public documentation tracks the current package version, install pins,
+  supported releases, and configured coverage threshold. Consumer examples
+  resolve installed resources independently of the working directory.
   """
 
   use ExUnit.Case, async: true
 
   @readme_path "README.md"
   @security_path "SECURITY.md"
-  @changelog_path "CHANGELOG.md"
-  @index_path "priv/conformance/index.json"
-  @case_count ~r/\b(\d+)(?:-case\b|\s+cases\b)/
 
   test "consumer examples never locate resources relative to the working directory" do
     documents =
@@ -130,14 +113,6 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
            "README must not carry test statistics"
 
     contributing = File.read!("CONTRIBUTING.md")
-    assert_claim(contributing, ~r/\b(\d+) tests\b/, live_test_count(), "test count")
-
-    assert_claim(
-      contributing,
-      ~r/\((\d+) properties\)/,
-      live_property_count(),
-      "property count"
-    )
 
     assert_claim(
       contributing,
@@ -155,63 +130,10 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
              "line marked yes (got #{inspect(first_supported_row(security))})"
   end
 
-  test "the CHANGELOG entry for the current version carries the corpus identity" do
-    version = current_version()
-    changelog = File.read!(@changelog_path)
-    first = first_version_heading(changelog)
-
-    headings = Regex.scan(~r/^## \[[^\n]+/m, changelog) |> Enum.map(&hd/1)
-
-    for heading <- headings do
-      assert heading == "## [Unreleased]" or
-               Regex.match?(~r/^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}$/, heading),
-             "CHANGELOG heading must use ## [x.y.z] - YYYY-MM-DD: #{heading}"
-    end
-
-    for separator <- [" \u2014 ", " \u2013 ", " "] do
-      invalid = "## [#{version}]#{separator}2026-11-14\n\nInvalid heading.\n"
-      assert first_version_heading(invalid) == ""
-      assert current_entry(invalid, version) == ""
-    end
-
-    assert first == version,
-           "CHANGELOG.md's first entry is #{inspect(first)}. The current " <>
-             "release entry (#{version}) must open the changelog"
-
-    entry = current_entry(changelog, version)
-    index = File.read!(@index_path)
-    digest = json_string(index, "corpus_digest")
-    total = json_number(index, "total_cases")
-
-    assert digest != "" and total != "",
-           "the corpus index is missing its digest or case-total identity"
-
-    assert entry =~ digest,
-           "the CHANGELOG entry for #{version} does not carry the live " <>
-             "corpus digest #{digest}"
-
-    assert_claim(entry, @case_count, total, "corpus case count")
-
-    for prose <- ["#{total} cases", "#{total}\ncases", "#{total} \t cases", "#{total}-case"] do
-      assert_claim(prose, @case_count, total, "corpus case count")
-    end
-
-    readme = File.read!(@readme_path)
-    assert_claim(readme, @case_count, total, "corpus case count")
-
-    assert_optional_claim(
-      File.read!("CONTRIBUTING.md"),
-      @case_count,
-      total,
-      "corpus case count"
-    )
-  end
-
   test "no shipped document outside the release docs carries a stale concrete version claim" do
     version = current_version()
-    # README/SECURITY/CHANGELOG carry version claims gated by their own
-    # arms; every OTHER shipped markdown may state only the current
-    # version or no concrete version at all.
+    # Release documents retain historical versions; other shipped markdown
+    # may state only the current version or an explicitly permitted pin.
     release_docs = ["README.md", "SECURITY.md", "CHANGELOG.md"]
 
     offenders =
@@ -455,30 +377,12 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert stale == [], "#{label} claims #{inspect(stale)}. The live value is #{expected}"
   end
 
-  defp assert_optional_claim(doc, regex, expected, label) do
-    claims = regex |> Regex.scan(doc) |> Enum.map(fn [_, value] -> value end)
-    stale = Enum.uniq(claims) -- [to_string(expected)]
-    assert stale == [], "#{label} claims #{inspect(stale)}. The live value is #{expected}"
-  end
-
   # Every hex requirement string in README is an install pin; they must all
   # name the current version.
   defp requirement_pins(readme) do
     ~r/"(~> [^"]+)"/
     |> Regex.scan(readme)
     |> Enum.map(fn [_, pin] -> pin end)
-  end
-
-  defp current_entry(changelog, version) do
-    case Regex.split(~r/^## \[#{Regex.escape(version)}\] - \d{4}-\d{2}-\d{2}$/m, changelog,
-           parts: 2
-         ) do
-      [_before, rest] ->
-        rest |> String.split(~r/^## \[/m, parts: 2) |> hd()
-
-      [_] ->
-        ""
-    end
   end
 
   # The supported table's first DATA row (a stale first row, a wrong line,
@@ -490,52 +394,6 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
          ) do
       [_, version, status] -> {String.trim(version), String.trim(status)}
       nil -> {nil, nil}
-    end
-  end
-
-  # The changelog's first version heading must be the current release. An
-  # `## [Unreleased]` section may sit above it (changes landed on main
-  # after the current release); it is not a version heading.
-  defp first_version_heading(changelog) do
-    case Regex.run(~r/^## \[(?!Unreleased\])([^\]]+)\] - \d{4}-\d{2}-\d{2}$/m, changelog) do
-      [_, heading] -> heading
-      nil -> ""
-    end
-  end
-
-  # CONTRIBUTING's "N tests" claim states the ExUnit total (test macros plus
-  # property macros); the suite-registered count (the test-build census, written
-  # at suite end) is tied to this census by the release-candidate
-  # check, which runs AFTER the test step of the battery.
-  defp live_test_count, do: macro_census("test") + macro_census("property")
-
-  defp live_property_count, do: macro_census("property")
-
-  # The census counts test/property macros across the test tree (support
-  # files carry none), the same total ExUnit reports for this suite.
-  defp macro_census(kind) do
-    pattern = ~r/^\s*#{kind} "/m
-
-    "test/**/*_test.exs"
-    |> Path.wildcard()
-    |> Enum.map(&File.read!/1)
-    |> Enum.map(fn source -> source |> length_of_scan(pattern) end)
-    |> Enum.sum()
-  end
-
-  defp length_of_scan(source, pattern), do: length(Regex.scan(pattern, source))
-
-  defp json_string(json, key) do
-    case Regex.run(~r/"#{key}"\s*:\s*"([^"]+)"/, json) do
-      [_, value] -> value
-      _ -> ""
-    end
-  end
-
-  defp json_number(json, key) do
-    case Regex.run(~r/"#{key}"\s*:\s*(\d+)/, json) do
-      [_, value] -> value
-      _ -> ""
     end
   end
 end

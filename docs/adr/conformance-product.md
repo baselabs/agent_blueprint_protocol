@@ -1,7 +1,5 @@
 # ADR: Conformance product
 
-Status: accepted (2026-11-10).
-
 ## Context
 
 An aggregate count cannot establish case-by-case agreement for an external implementation.

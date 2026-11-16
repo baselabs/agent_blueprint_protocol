@@ -33,27 +33,3 @@ transfer. This document is an inventory, not an offer.
   namespaces are RFC 2606 example-class by design; real product
   registrations happen when those products are public, under their own
   ownership.
-
-## Triggers
-
-A transfer conversation begins when a standards venue or foundation starts a terms discussion. The extraction job keeps submission mechanical in the
-meantime.
-
-## Capabilities not included
-
-The following capabilities are not included in this release. Each row states the condition for reconsidering it.
-
-| Capability | Reconsidered when |
-|---|---|
-| Repository extraction to its own repo | a standards-body submission opens (the extraction job keeps it a filter away) |
-| Foundation donation execution | a terms discussion begins (this document is the inventory) |
-| Third implementation (Rust or Go) | an external conforming implementation merges |
-| Registry codegen from the canonical json | a third implementation, or an unported registry change surviving a cycle |
-| CDDL validator automation | a maintained RFC 8610 validator passes the derivation gate |
-| Registry public registrants (real product identities) | the portfolio products go public |
-| Benchmark program | the first host-integration performance question |
-| Federation completion (native wire fields revisit) | the MCP tasks extension leaves Beta |
-| Attestation-kind registry activation | a second attestation consumer exists |
-| Normative subset profiles (decode and verify only) | an adopter needs the formal profile |
-
-The maintainers reassess an item when its stated condition is met.

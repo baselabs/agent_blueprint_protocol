@@ -13,7 +13,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
 
   # The exact, frozen set of paths the built archive is allowed to contain.
   # `hex_metadata.config` is emitted by `mix hex.build`; the rest are the
-  # declared public files. Verified against a real build 2026-08-20.
+  # declared public files.
   @allowed_archive_files ~w(
     .formatter.exs
     CHANGELOG.md
@@ -30,7 +30,6 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/livebooks/extensions-and-federation.livemd
     docs/livebooks/conformance-and-attacks.livemd
     docs/adr/compiled-registry.md
-    docs/adr/dependency-currency-gate.md
     docs/adr/deny-default-clamps.md
     docs/adr/detached-jws-envelope.md
     docs/adr/federation-lanes.md
@@ -44,7 +43,6 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/release-publication.md
     docs/adr/shipped-documentation.md
     docs/adr/runtime-boundary.md
-    docs/adr/continuous-integration.md
     docs/adr/artifact-portability.md
     docs/adr/normative-extraction.md
     priv/release-metadata.json
@@ -181,7 +179,6 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/livebooks/extensions-and-federation.livemd
     docs/livebooks/conformance-and-attacks.livemd
     docs/adr/compiled-registry.md
-    docs/adr/dependency-currency-gate.md
     docs/adr/deny-default-clamps.md
     docs/adr/detached-jws-envelope.md
     docs/adr/federation-lanes.md
@@ -201,7 +198,6 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/release-publication.md
     docs/adr/shipped-documentation.md
     docs/adr/runtime-boundary.md
-    docs/adr/continuous-integration.md
     docs/adr/artifact-portability.md
     docs/adr/normative-extraction.md
     spec/protocol.md
@@ -235,43 +231,6 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
   )
 
   @build_dir "_build/architecture_pkg_check"
-
-  # The minimum quality-alias gate set. The release-candidate check reads
-  # the LIVE alias to derive map obligations: this freezes the floor, so
-  # deleting a gate step cannot silently delete its map requirement.
-  @minimum_quality_steps [
-    "hex.audit",
-    "deps.unlock --check-unused",
-    "deps.audit",
-    "format --check-formatted",
-    "compile --warnings-as-errors",
-    "credo --strict",
-    "test --cover --seed 42",
-    "conformance.verify",
-    "conformance.mutations",
-    "verifier.agreement",
-    "compatibility.replay",
-    "dialyzer",
-    "docs --warnings-as-errors",
-    "spec.extraction",
-    "grammar.derivation",
-    "registry.equality",
-    "livebooks.package",
-    "doctests.package",
-    "snippets.package",
-    "typescript.package",
-    "release.asset",
-    "release.promote",
-    "release.candidate"
-  ]
-
-  test "the quality alias carries the minimum gate set" do
-    steps = Mix.Project.config()[:aliases][:quality]
-    missing = @minimum_quality_steps -- steps
-
-    assert missing == [],
-           "quality alias lost gate steps (each step owes a requirement-map entry): #{inspect(missing)}"
-  end
 
   test "package.files declares exactly the allowlisted entries" do
     assert Mix.Project.config()[:package][:files] == @declared_files

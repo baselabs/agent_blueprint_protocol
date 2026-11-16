@@ -4,18 +4,6 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ## [1.1.0-rc.2] - 2026-11-15
 
-### Fixed
-
-A release run now fails while a registry approval is pending. The npm live
-check and the Hex live check each end the run with an error naming the
-pending version, so Hex, the source release and the post-publication checks
-never appear as skipped jobs under a green run. A rerun on the same tag after
-approval resumes as before. The 1.1.0-rc.1 tag was never published; this
-candidate supersedes it.
-
-The release-candidate check confirms every replanted mutation's anchor before
-it replants any, and names every stale anchor at once.
-
 Library and verifier behavior, the protocol revision, the verification-semantics
 version (3), the corpus, the registry and the specification are unchanged from
 1.1.0-rc.1. The corpus contains 626 cases, digest
@@ -32,24 +20,11 @@ Manifest (19), and Federation TaskEnvelope (23) in Elixir and TypeScript, read
 from their decoder tables. Unsupported integer revisions and invalid types
 return the same typed refusals in both implementations.
 
-Examples ship as installed application resources. Notebooks, module doctests,
-README and guide snippets, and npm examples run against real package archives
-outside the checkout; every release run repeats those gates against the
-published registry packages. Documentation links pin this release, HexDocs extras resolve
-to rendered pages, and the public ExDoc footer remains enabled.
-
-A shipped-text gate rejects em dashes and en dashes in packaged documents,
-source inputs, generated kit text, site files, issue templates, and the
-release title and notes.
-
-New design records cover release publication, documentation executed from
-the package, the runtime boundary, the single continuous integration
-workflow, artifact portability, and extraction of the normative tree. The
-producer surface record gains the member introspection amendment.
+Examples ship as installed application resources. Documentation links pin this
+release, HexDocs extras resolve to rendered pages, and the public ExDoc footer
+remains enabled.
 
 ### Changed
-
-All dated changelog headings use `## [x.y.z] - YYYY-MM-DD`.
 
 Security maintenance moves from 1.0.x to 1.1.x. Consumers on 1.0.x should upgrade to 1.1.x; the 0.8 transition line remains supported.
 
@@ -91,20 +66,17 @@ specification digest is `sha-256:jh2uy3FU7ApQmFtPHHK3YY041sDgWrICmS8Hz-LaAGE`.
 
 ## [1.0.0-rc.3] - 2026-11-11
 
-The specification no longer names a candidate version in its text, so
-the 1.0 specification is final as written. A documentation test now
-keeps any version of the current release line out of every file a final
-release must leave unchanged. Library and verifier behavior, the
-protocol revision, the verification-semantics version (3), the corpus
-and the registry are unchanged from 1.0.0-rc.2. The corpus contains
+The specification no longer names a candidate version in its text. Library and
+verifier behavior, the protocol revision, the verification-semantics version
+(3), the corpus and the registry are unchanged from 1.0.0-rc.2. The corpus contains
 626 cases, digest `sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`; the registry digest is `sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest
 is `sha-256:jh2uy3FU7ApQmFtPHHK3YY041sDgWrICmS8Hz-LaAGE`.
 
 ## [1.0.0-rc.2] - 2026-11-11
 
-Documentation corrections cover the README, npm package README, guides, Livebooks, and site. The npm package description states the verifier's checks.
-The unused TypeScript `Context` type is no longer exported; no exported function
-accepted it. Release tooling works for any candidate or final version.
+Documentation corrections cover the README, npm package README, guides, Livebooks,
+and site. The npm package description states the verifier checks. The unused
+TypeScript `Context` type is no longer exported; no exported function accepted it.
 
 The shipped registry contains only the protocol's federation registrations:
 `io.github.baselabs/federation` (active) and `com.example/federation`
@@ -176,8 +148,6 @@ the standalone archive. The runner contract is `spec/conformance/runner.md`.
 - TypeScript output identifiers are open with known-value constants;
   packed declarations support TypeScript 5.0.2 and newer. Node 26 joins
   the platform matrix while Node 24 remains the runtime floor.
-- GitHub release publication waits for a live Hex version whose checksum
-  matches the verified archive, including after staged approval.
 
 - The specification separates protocol requirements from implementation notes
   and states the byte, grammar, lattice, predicate and schema profiles with
@@ -203,18 +173,13 @@ the standalone archive. The runner contract is `spec/conformance/runner.md`.
   execution harness and adapters, and unsigned implementation claims.
 - A package-root TypeScript library with typed import evidence, exhaustive
   errors, isolated consumer declarations, and its own package README.
-- A stability and deprecation policy for both packages and three-platform
-  contributor and published-package lanes on Linux, macOS, and Windows.
-- Candidate promotion checks preserve certified bytes; further publication
-  waits for the staged npm version to be live and byte-verified.
+- A stability and deprecation policy for both packages on Linux, macOS, and Windows.
 
 - Mixed-order Ed25519 vectors distinguish the required cofactorless equation
   from cofactored verification, without rejecting mixed-order points.
-- Deterministic test-only signing for new fixtures, preserving every existing
-  fixture signature. Corpus cases pin algorithm spellings, duplicate signers,
-  both federation namespaces, and effect impact as an obligation.
-- A public module and function declaration prevents silent API expansion.
-  Error descriptions distinguish overlapping conditions; evidence explicitly
+- Corpus cases cover algorithm spellings, duplicate signers, both federation
+  namespaces, and effect impact as an obligation.
+- Error descriptions distinguish overlapping conditions; evidence explicitly
   names timestamp and lifecycle facts it does not establish.
 
 ### Documentation
@@ -260,12 +225,8 @@ Prior released verdicts remain equivalent. The
 - The installed CLI accepts relative and absolute corpus paths with trailing
   separators, reports help and version with exit 0, and keeps unknown arguments
   at exit 2. Importing the optional corpus entry performs no filesystem access.
-- Dependency installations use the lockfile with lifecycle scripts disabled.
-  Only the npm staging job can request an identity token.
 - Malformed host arguments and hand-built values deny with the code of the
   first violated rule; no verdict for decoded bytes changes.
-- Publishing jobs consume the npm tarball and standalone kit produced by the
-  verification job.
 
 The corpus contains 199 cases, digest
 `sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8`; registry
@@ -290,9 +251,6 @@ The corpus contains 199 cases, digest
   prototype-chain lookups. Input-keyed tables and dictionaries now use only
   their own properties, including predicate operators, transport states,
   bounds, recovery operations, extension support, and result comparisons.
-- The release workflow could publish after a failed check or npm staging
-  failure. Each publishing step now requires all preceding steps to succeed;
-  already-published versions still skip safely on reruns.
 
 The corpus contains 190 cases, digest
 `sha-256:SvJLvMwXdYQZBjOrklsQSHQRX8PhxPHOv23C2rmFazQ`; registry
@@ -308,57 +266,26 @@ The corpus contains 190 cases, digest
   `npx verifier` work only where `@agent-blueprint-protocol/verifier` is
   installed. Elsewhere, npx looks the bare name up on the public registry,
   where it is not this project's. Use `npx @agent-blueprint-protocol/verifier`.
-- The post-publish check runs `npx --no-install verifier`, so it can never
-  fetch the unrelated npm package named `verifier`.
 
 ### Added: documentation
 
-- A Livebook walkthrough, `docs/livebooks/abp-walkthrough.livemd`,
-  shipped in the package and on HexDocs. It installs the package from
-  Hex, composes and signs a Blueprint, negotiates extensions, binds a
-  Deployment Manifest, reconciles the pair, runs the shipped corpus, and
-  shows each denial: a tampered signature, the wrong key, an unknown
-  `key_id`, a small-order key, an edited member, non-canonical bytes,
-  and the strict R and S rule. The test suite runs every cell in order
-  and compares each result with the output printed in the notebook.
-- The README opens with a first-verification example, and the
-  TypeScript guide with an import example; the README example runs in
-  the guide mirror test, and the TypeScript one runs against the kit
-  as npm packs it (installed from the `npm pack` tarball) in a new
-  quality step, `mix typescript.guide`, which the doc-gates workflow also
-  runs.
+- A Livebook walkthrough, `docs/livebooks/abp-walkthrough.livemd`, ships in the
+  package and on HexDocs. It composes and signs a Blueprint, negotiates
+  extensions, binds a Deployment Manifest, reconciles the pair, runs the corpus,
+  and demonstrates signature, digest, key, and canonical-byte denials.
+- The README opens with a first-verification example, and the TypeScript guide
+  with an import example.
 
 ### Changed: documentation
 
-- The CI workflows' GitHub Action pins move with their dependabot bumps
-  (`actions/setup-node` v7.1.0, `actions/upload-pages-artifact` v5.0.0,
-  `actions/deploy-pages` v5.0.1); the toolchain lockstep test's pinned
-  setup-node identity moves with them. No workflow inputs changed.
-- npm kit commands in the README, the TypeScript guide, and the landing
-  page stay unpinned, with a line saying npx runs the latest published
-  kit and how to check its version (a kit release goes live after a
-  maintainer approves its staged publish). The documentation-currency
-  gate requires the README's npm commands to stay unpinned.
-- The document-citation gate now checks the guides under
-  `documentation/` and the Livebook (it skipped directory entries
-  before), and the version gate scans the Livebook.
-- Corrected guide statements: the Deployment binding check has six
-  ordered stages, not three; the echo example has 16 members (the table
-  has 18); the kit has four modes and two bin names; the error guide
-  lists the `{:ceiling, key}` decoder-limit family; SECURITY.md names
-  the Security tab's **Report a vulnerability** form; the battery lists
-  in the README, CONTRIBUTING.md, and the operations guide name every
-  step; the evidence-commitments guide cites the AI Act articles it
-  relies on (12, 25(4), and 26) and points to Regulation (EU) 2026/1744,
-  which moved the high-risk application dates.
-- The release-candidate reprove turns off git's automatic maintenance in
-  its scratch repositories, as does the privacy gate's throwaway
-  repository. From git 2.54, `git commit` starts a detached repack that
-  keeps writing into `.git` after the command returns; on hosted CI
-  (git 2.55) it raced the scratch cleanup and failed the check with
-  `could not remove files and directories recursively ... file already
-  exists`. A new architecture test requires every script or test that
-  commits in a scratch repository to set `maintenance.auto` false.
+- npm kit commands in the README, TypeScript guide, and landing page explain
+  how to inspect the published kit version.
+- Corrected guides: the Deployment binding check has six ordered stages; the
+  echo example has 16 members; the kit has four modes and two bin names; the
+  error guide lists the `{:ceiling, key}` decoder-limit family; SECURITY.md
+  names the vulnerability-report form. The evidence-commitments guide cites
+  AI Act articles 12, 25(4), and 26 and Regulation (EU) 2026/1744, which moved
+  the high-risk application dates.
 - Removed duplicated sentences from eighteen module docs. The comments
   on small-order keys in `Signature` and the TypeScript verifier now say
   exactly what the backends accept: under the identity key, R = identity
@@ -367,7 +294,7 @@ The corpus contains 190 cases, digest
 - The errata table's release boundaries now name the recording date
   instead of a concrete version ("every release published before
   2026-10-13 that ships this specification"), so each row stays true and
-  gate-clean at every later release without rewording. The corrections'
+  accurate at later releases without rewording. The corrections'
   substance is unchanged; the specification digest moves with the
   rewording (the digest covers the whole extracted specification,
   errata included), which is recorded in the release history;
@@ -375,8 +302,7 @@ The corpus contains 190 cases, digest
 
 This is a documentation-only release; the public API, the registry, and
 the corpus are unchanged from 0.8.1, and `spec/protocol.md` is
-byte-identical. The test suite is 957 tests (63 properties) at 100%
-coverage. Corpus: 129 cases, digest
+byte-identical. Corpus: 129 cases, digest
 `sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:aBgeih79woOR7YmJ_OBhyFgKU0j2euO-eieJKxLVDeA`.
@@ -441,86 +367,34 @@ digest `sha-256:aBgeih79woOR7YmJ_OBhyFgKU0j2euO-eieJKxLVDeA`.
   only for a `key_id` with no supplied key). Both corrections are
   recorded in `spec/errata.md`, as is the `spec/protocol.md` §5 separator table, which
   now lists the extension-schema and extension-registry separators. The conformance
-  mutation gate breaks the implementation at seventeen named points.
+  specification describes these verification rules.
 
-The public API and the registry are unchanged. The test suite is 951
-tests (63 properties) at 100% coverage. Corpus: 129 cases, digest
+The public API and the registry are unchanged. Corpus: 129 cases, digest
 `sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:CsVC7jVvA2ZP0NA6D5_h94A_ryb6F795h7ZpSo66CBA`.
 
 ## [0.8.0] - 2026-09-24
 
-### Added: the release-identity consumer contract
+### Added
 
-- `priv/release-metadata.json` is now a versioned public contract
-  (`manifest_version: 2`; additive-only within a version). New fields:
-  the manifest version, `verification_semantics_version` (the
-  semantics/census split, unchanged at 1), the `digest_identity` label
-  (RFC 8785 JCS + SHA-256 + domain separation + unpadded base64url,
-  unchanged across every release), `protocol_revisions_supported`, the
-  certified compatibility matrix `prior_census_verdicts` (the prior
-  census `sha-256:sg6Fo7…` is certified `equivalent` by replay), and
-  the verifier-kit identity derived from the npm package metadata. The npm kit
-  embeds the manifest byte-identically (agreement-gated).
-- `priv/release-history.json`: the append-only retroactive mapping:
-  one row per manifest-era release, every PRIOR release's row verified
-  against derived state (the corpus digest recomputed from the loaded
-  census bytes, the registry digest from the census index, the
-  specification digest recomputed over the tag's tree); the current
-  release's row is asserted against the live manifest and gains its
-  tag verification at the next release. Semantics version 1 spans the
-  whole manifest era through this release: the prior census replays
-  case-perfect (observed under the preceding package on 2026-09-23;
-  this release's gate re-establishes it mechanically on every run), so
-  exact-pinned consumers upgrading between any of these releases keep
-  historical replays green when they bind the semantics identity. The record also shows the specification
-  digest moved at 0.4.0 and 0.4.1: movement the changelog prose of
-  those releases never stated.
-- `mix compatibility.replay` (quality battery): certifies the
-  compatibility claims and the history from live repository state,
-  every manifest-era census loads through the new prior-census loader
-  mode and replays under the current Runner (each PRIOR census also
-  through the TS verifier, byte-compared; the current census's TS
-  agreement is the verifier.agreement gate's duty); an
-  `equivalent` claim with any disagreement reds, a registry-explained
-  divergence class is gated by the registry diff, an unclaimed census,
-  stale claim, or tampered history row reds, and a tag-less checkout
-  refuses (a named override exists and is never a green claim).
-  Self-proving seeded reds fire every run: four claim flips (including
-  a self-contradictory `not_equivalent` claim), a tampered census file,
-  a tampered history row, and both tag-absent refusal arms. The prior-census loader mode
-  (`Corpus.load_prior_census/1`, mirrored in the TS verifier's
-  `--prior-corpus`) suspends exactly the two current-state couplings
-  (the compiled registry digest and the compiled applicability floor)
-  because a released census was certified against the registry and
-  floor of its release; the ordinary loader's couplings are unchanged
-  and correct for conformance runs.
-- The Evolution clause gains the normative semantics/census law and the
-  immutability policy (released identities are never edited in place;
-  corrections are new releases); the upgrading guide gains the
-  exact-pinned consumer partition (replay identity versus provenance
-  metadata) and the fail-closed enumeration guidance; the decision
-  record `docs/adr/release-identity-semantics.md` ships with the
-  `no-versioning-rule` axis amendment (precedence: the wire revision,
-  the semantics version, and the release identity are independent
-  axes). Answering an inbound consumer request for input
-  (an exact-pinned consumer, 2026-09-23) in full.
-- Consumer-rehearsal evidence remains separate from implementation conformance; no independent consumer-rehearsal evidence is included in this release.
+- The release manifest is a versioned public contract (`manifest_version: 2`),
+  with verification semantics, digest identity, supported revisions, prior
+  census verdicts, and the npm kit identity. The kit embeds the same manifest.
+- `priv/release-history.json` maps each manifest-era release to its corpus,
+  registry, specification, and verification-semantics identities. Semantics
+  version 1 spans the manifest era through this release.
+- `Corpus.load_prior_census/1` and TypeScript `--prior-corpus` load each released
+  census using its own integrity rules, independently of the current registry
+  and applicability floor. Ordinary conformance loading retains those bindings.
+- The specification states the semantics/census law and released-identity
+  immutability. The upgrading guide separates replay identity from provenance
+  metadata. Wire revision, verification semantics, and release identity remain
+  independent axes.
+- The 0.6.0 corpus change also rotated the golden fixture signature over
+  unchanged covered bytes. Its verdicts remain equivalent.
 
-The correction the record now states plainly: the 0.6.0 corpus change
-was not purely additive at the byte level; the golden vectors' fixture
-signature rotated on unchanged covered bytes (`content_digest`
-identical), verdict-neutral and replay-proven, but the 0.6.0 entry's
-"grows 94 → 96" prose under-recorded it.
-
-The public-history privacy scan's budget grows with the repository
-(the scan is O(tracked files × commits)); its ceiling moves 960s →
-1920s on the same evidence as every prior raise, a borderline clip on
-this release's tree, a timeout there being a flake, never a privacy
-finding.
-
-The test suite is 924 tests (59 properties) at 100% coverage. Corpus:
+Corpus:
 96 cases, digest
 `sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
@@ -528,187 +402,77 @@ digest `sha-256:yC0gV-zIn8J8bXI5gV0dQyPmgEQgVsH6k7YOlkis37Q`.
 
 ## [0.7.1] - 2026-09-16
 
-### Changed: the toolchain enforces itself (hygiene release)
+### Changed
 
-- The declared Elixir requirement is a supported range (`~> 1.19`: the
-  1.19 and 1.20 lines are admitted, and Mix refuses anything outside
-  the range at compile), and the checkout configuration refuses any Erlang/OTP
-  major outside the supported set (27/28/29) before anything compiles.
-  The set was probed from the official precompiled build lists, not
-  assumed; the decision record ships as
-  `docs/adr/supported-otp-set.md`. The assert governs development and
-  CI only; the Hex archive does not ship `config/`, so package
-  consumers see no new requirement.
-- CI exercises every lane of the supported matrix: Elixir 1.19 on
-  OTP 28, and Elixir 1.20 on OTP 27, 28, and 29 (the dev pin, mirrored
-  in the checkout's toolchain declaration). The four toolchain declarations (the
-  Elixir range, the supported-OTP set, the dev pin, and the CI lanes)
-  move together in one commit.
-- A dependency-currency gate (`mix deps.currency`; decision record at
-  `docs/adr/dependency-currency-gate.md`) reds the battery on any
-  resolvable drift and never passes an unverified registry state.
-  dialyxir rides at its latest resolvable release.
-- Clones are byte-identical on every platform: the repository's checkout attributes
-  disable line-ending conversion regardless of a machine's autocrlf
-  settings (Git for Windows defaults to rewriting LF to CRLF, which
-  would shift the byte-frozen digests). The repository tree was probed
-  for Windows checkout obstacles (reserved device names, forbidden
-  characters, case collisions, symlinks, path length): none found.
-- Development documentation re-trued to the enforced-range story
-  (README, CONTRIBUTING, quickstart). No Livebooks ship in this
-  repository (probed; no notebook files and no `Mix.install`
-  anywhere), so no notebook cells were in scope. The npm kit version
-  moves with the Hex line under the version-sync gate; no kit behavior
-  changed.
+- The Elixir requirement widens from 1.20 to 1.19. The supported OTP set is
+  27/28/29. The Hex package does not ship checkout configuration.
 
-For consumers nothing reachable changed: the library surface, the
-conformance corpus, the registry, and the specification are
-byte-identical to 0.7.0, and the Elixir floor widened (1.20 to 1.19),
-never narrowed. The test suite is 917 tests (59 properties) at 100%
-coverage. Corpus: 96 cases, digest
+The library surface, conformance corpus, registry, and specification are
+byte-identical to 0.7.0.
+
+Corpus: 96 cases, digest
 `sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
 
 ## [0.7.0] - 2026-09-14
 
-### Changed: the npm kit moves to `@agent-blueprint-protocol/verifier`
+### Changed
 
-- Portfolio naming consistency with the bounded-authority kit: the
-  verifier publishes under a project-named npm organization with a
-  role-named package. The 0.6.0 package
-  (`@rjpalermo/agent-blueprint-protocol`) is deprecated with a forward
-  pointer. Version numbering continues the protocol's single release
-  line (the version-sync gate binds npm semver == the Hex line).
-- The bin gains a `verifier` alias alongside `agent-blueprint-protocol`:
-  `npx @agent-blueprint-protocol/verifier` and
-  `npx agent-blueprint-protocol` both work after install.
-- The publish workflow is fully idempotent: registry-published
-  versions skip loudly instead of erroring (re-runs, and releases
-  bootstrapped by a local first publish, required for a brand-new
-  package, since a trusted publisher cannot be configured before the
-  package exists), and the GitHub release step creates only when
-  absent.
-- The no-versioning-rule npm-axis amendment records the rename and its
-  history; every shipped mention of the old name is updated (the
-  changelog's historical entries keep it, as records).
+- The verifier publishes as `@agent-blueprint-protocol/verifier`. The 0.6.0
+  package (`@rjpalermo/agent-blueprint-protocol`) is deprecated with a forward
+  pointer. npm and Hex retain the same version.
+- The bin gains a `verifier` alias alongside `agent-blueprint-protocol`.
 
-The conformance corpus, registry, and test-suite counts are unchanged
-from 0.6.0; the specification digest moves with the capability-inventory
-row naming the kit. The test suite is 917 tests (59
-properties) at 100% coverage. Corpus: 96 cases, digest
+The corpus and registry are unchanged from 0.6.0; the specification digest
+changes with the kit identity.
+
+Corpus: 96 cases, digest
 `sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
 
 ## [0.6.0] - 2026-09-14
 
-### Added: the installable verifier (npm kit)
+### Added
 
-- `@rjpalermo/agent-blueprint-protocol` on npm: the verifier compiled
-  to `.js` + `.d.ts` (strict, declarations, zero runtime dependencies,
-  Node >= 24), the conformance corpus embedded byte-identically to the
-  release-certified copy, and a single bin: `npx` verifies out of the
-  box. The verifier itself typechecks clean for the first time (66
-  type-level fixes, byte-frozen against the strip-types baseline).
-- `--artifact <file>` single-artifact mode (kit-only by design; the
-  escript stays corpus-only): verifies one JSON file against all three
-  artifact kinds; a valid report names the kind, a denial names each
-  kind's typed code.
-- The agreement gate proves the KIT, not just the tree: npm
-  version-sync with a one-side-bump seed, kit-vs-escript byte equality
-  over the embedded corpus, and a single-artifact sweep replaying
-  every text-only decode-surface corpus case with an
-  inverted-expectation seed. `kit.build` is a quality-alias step; CI
-  builds the kit before the battery.
-- The TypeScript quickstart (`documentation/typescript.md`); the ARD
-  mapping (`docs/ard-mapping.md`; sources pinned at exact commits,
-  trust-manifest DNA shared, the capability layer instrument-verified
-  absent); the EU AI Act evidence anchor
-  (`documentation/evidence-commitments.md`); the blueprint-card
-  section in the specification (derived, non-normative, never
-  conforming on its own) with a mirror-tested derivation in the
-  concept guide; the no-versioning-rule npm-axis amendment (the npm
-  semver is the fifth permitted version axis, bound equal to the Hex
-  line).
-- Two new examples, both byte-exact corpus cases:
-  `examples/signed-blueprint.json` (a producer-signed envelope over
-  the golden digest; signing never changes the digest it covers) and
-  `examples/extension-blueprint.json` (a registered optional
-  namespace retained by a supporting host, quarantined byte-exactly
-  by one without it).
+- The npm verifier includes JavaScript, TypeScript declarations, an embedded
+  corpus, and a CLI, with zero runtime dependencies and Node.js 24 or newer.
+- `--artifact <file>` verifies one JSON file against all three artifact kinds,
+  naming the valid kind or each kind's typed denial.
+- Consumer guides cover TypeScript, ARD discovery mapping, EU AI Act evidence,
+  and derived Blueprint cards. The npm version matches the Hex release.
+- Signed and extension-bearing Blueprint examples are byte-exact corpus cases.
 
 ### Changed
 
-- The conformance corpus grows 94 → 96 cases (the two valid signed
-  and extension-bearing decode cases); every shipped count and digest
-  claim re-tied.
-- The privacy history-scan budget grows with the repository (480s →
-  960s; the scan is O(tracked files × commits) and clipped its old
-  ceiling under full-suite load; a timeout there is a flake, never a
-  privacy finding).
+- The corpus grows from 94 to 96 cases with signed and extension-bearing inputs.
 
-The test suite is 917 tests (59 properties) at 100% coverage. The
-conformance corpus is 96 cases, digest
+The conformance corpus is 96 cases, digest
 `sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8`; registry digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:iBllJ-J8aoWUaYKI7VAqjIfXx9bqwNqWXFO4nxBTCfM`.
 
 ## [0.5.0] - 2026-09-12
 
-### Fixed: the credibility floor
+### Fixed
 
-- Dependency pull requests can go green again. The public-surface
-  privacy history scan hard-requires the maintainer HMAC key, which
-  GitHub never delivers to dependabot or fork runs; every dependency
-  PR was structurally red. The gate now has exactly one relaxation:
-  CI marks true fork pull requests `ABP_PRIVACY_SCAN=fork-skip`, where
-  the scan skips LOUDLY (a greppable `[privacy-scan] SKIPPED` banner
-  naming what did not run); every other mode value (including typos)
-  fails closed exactly as before, and a fork run whose secret IS
-  present still enforces. All three arms have regression tests; the dependency-update run passes.
-- The documentation-currency gate's shipped-file enumeration now globs
-  DIRECTORY package entries: the original filter silently skipped
-  every guide inside `"documentation"`, and the onboarding install
-  pins had drifted into a line SECURITY.md marks unsupported.
-- macOS Finder artifacts (`.DS_Store`, `._*`) are excluded from the
-  four digest/file-set walks (specification identity, both release
-  asset walks, the corpus directory walk): a stray `.DS_Store` inside
-  `spec/` shifted the specification digest and red the
-  release-candidate check on any Mac that had previewed the folder.
+- Corrected onboarding install pins that named an unsupported release line.
+- macOS Finder artifacts are excluded from specification and corpus identity
+  walks, preserving identities across platforms.
 
-### Added: the adoption surface
+### Added
 
-- Community intake: bug-report and registry-request issue templates
-  (the registry template follows `spec/registry/OPERATIONS.md`),
-  GitHub Discussions, SUPPORT.md, and a how-to-propose-changes path in
-  CONTRIBUTING, with the capability inventory explaining what is not included.
-- Onboarding reaches a green verification: the quickstart and getting-
-  started guides now decode the shipped echo example to `{:ok, _}` and
-  round-trip its canonical bytes byte-exactly (mirror-tested), state
-  the minimum Elixir version, and keep the typed-denial teaching
-  moment after the green path.
-- The worked host integration: a full `reconcile/3` over the shipped
-  echo pair under the default `:deny` clamp posture (the typed
-  protected-clamp denial) and under `:acknowledge` (a green Evidence
-  record whose `not_verified` names the seven host-owned surfaces),
-  mirror-tested line by line.
-- The producer signing recipe: the detached-JWS Ed25519 envelope built
-  with `:crypto` over the RFC 7797 preimage and verified end-to-end
-  against the shipped verifier, mirror-tested. The package itself
-  remains verify-only.
-- `examples/federation-envelope.json`: the 23-member federation
-  TaskEnvelope as a byte-exact conformance corpus case, documented in
-  the examples guide.
-- The hexdocs sidebar groups the guides (getting started, concepts,
-  guides by role, reference, specification, design records,
-  governance).
-- A CI compatibility job: the previous supported Elixir/OTP pair
-  (1.20.1 / 29.0.2) runs the test suite and the conformance corpus on
-  every push and pull request, checking the README's support claim.
+- Community support includes issue templates, GitHub Discussions, SUPPORT.md,
+  and contribution guidance.
+- Quickstart examples decode the shipped echo artifact and round-trip its
+  canonical bytes before demonstrating typed denials.
+- Host integration examples show protected-clamp denial and acknowledged
+  evidence from `reconcile/3`.
+- A host-side detached-JWS Ed25519 signing recipe; the package remains verify-only.
+- The federation-envelope example and grouped documentation sidebar.
 
-The test suite is 917 tests (59 properties) at 100% coverage. The
-conformance corpus is unchanged at 94 cases, digest
+The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
 `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`; specification
 digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
@@ -717,18 +481,7 @@ digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
 
 ### Fixed: verification posture hardening
 
-- CI green on the public repository (GitHub Actions is free for
-  public repos; the prior 'billing-blocked' posture was wrong and is
-  retired). The standing CI failures are fixed: a stale reprove copy
-  path (a pre-promotion directory that never exists in a fresh
-  checkout) crashed the release-candidate check.
-- The README test-count claim is tied to the suite-REGISTERED count,
-  not just the source macro census: the release-candidate check
-  asserts macro census == registered count == README claim (both
-  divergence arms tested against deliberately introduced faults).
-- The capability inventory ships inside the specification tree's
-  FOUNDATION-TRANSITION document, with a condition for reconsidering
-  each capability not included in that release.
+- The specification includes a foundation-transition asset inventory.
 
 The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
@@ -739,21 +492,10 @@ digest `sha-256:LSSVPdBlOwb844Eg0NQ71ju-sCiBv2_wgRp9RV5Vf0U`.
 
 ### Added: examples gallery + minutes-long quickstart
 
-- `examples/`: complete, corpus-verified artifact pairs, byte-exact
-  conformance corpus cases (the gallery gate proves it against the
-  corpus on every build; a drifted example reds). The echo pair
-  (blueprint + deployment) is annotated member-by-member in the
-  examples guide.
-- The quickstart (`documentation/quickstart.md`): from `mix deps.get`
-  to a green verification in `iex`; no heavyweight gates; its
-  result-claiming lines are mirror-tested like every guide example.
-- The documentation corpus: 13 adopter guides (getting started, the
-  artifacts, extension authoring, host integration, producing,
-  portability, the full 74-code error guide, federation, registry,
-  upgrading, FAQ, operations), every file an ex_doc extra, every
-  result-claiming example executed against the real package by the
-  mirror gate; README as a decision document (when to use, when NOT
-  to use).
+- Complete, byte-exact example artifact pairs with member-by-member annotations.
+- A quickstart from dependency setup to verification in `iex`.
+- Thirteen adopter guides cover artifacts, extensions, host integration,
+  producing, portability, errors, federation, upgrading, and common questions.
 
 The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
@@ -779,27 +521,13 @@ The normative specification is a specification in the standards sense:
   considerations as the data-minimization profile with honest limits;
   the positioning boundary (AI Catalog owns discovery + identity +
   attestation; this protocol owns the portable contract layer).
-- Machine-readable grammar: CDDL (RFC 8610) normative under
-  spec/grammar/ with JSON Schema derived (never hand-edited); bound
-  to the compiled tables and the corpus goldens by the
-  grammar-derivation gate.
-- Registry data governance: spec/registry/registry.json as the
-  governance-canonical source, bound to both compiled twins and the
-  corpus index by the registry-equality gate (all four carriers
-  verified at sha-256:FG2f38K0…).
-- Governance pack: spec-scoped IPR (Apache-2.0 + DCO, no CLA,
-  donation-ready), FOUNDATION-TRANSITION inventory, registry
-  operations process, errata policy; root CONTRIBUTING (the
-  verification battery published) and CODE_OF_CONDUCT. Steward: the
-  unincorporated BaseLabs org, Russ Palermo as named maintainer.
-- The release identity chain: priv/release-metadata.json pins the
-  specification digest, package version, corpus and registry digests,
-  and the corpus index hash, asserted from live state on every run.
-- Specification extraction is a tested proof (spec/ + the conformance
-  corpus extract self-contained; the CI job runs the literal
-  repository-filter extraction).
-
-Every new gate is tested against a deliberately introduced fault by the release-candidate check (74 faults).
+- Normative RFC 8610 CDDL grammars with derived JSON Schemas.
+- `spec/registry/registry.json` is the canonical registry source.
+- Governance documents cover Apache-2.0 licensing, DCO sign-off, foundation
+  transition, registry operations, and errata.
+- `priv/release-metadata.json` identifies the specification, package, corpus,
+  registry, and corpus index.
+- The specification and corpus form a self-contained normative tree.
 
 The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
@@ -814,10 +542,7 @@ The conformance corpus is unchanged at 94 cases, digest
   requirement semantics).
 - SECURITY.md's supported-version table names the 0.2.x line (0.1.x is
   no longer supported; upgrade to the current line).
-- Two changelog entries cited an internal working document by section
-  number (a document that ships nowhere); both are reworded to
-  self-contained prose, and a new document-citation gate (below) keeps
-  the class dead.
+- Changelog citations now use self-contained prose.
 - `spec/protocol.md` states the producer surface explicitly in its
   shipped-surface section (`Blueprint.from_value/2`,
   `Deployment.from_value/2`, the per-artifact `content_digest/1` and
@@ -827,21 +552,7 @@ The conformance corpus is unchanged at 94 cases, digest
   repository URLs, each pinned by plain SHA-1 of the served bytes
   (A2A `lf.a2a.v1` line at commit `cfc9d34b`; the MCP Tasks extension
   draft at commit `0d0a6bd4`).
-- README rewritten for external readers: CI, Hex version, and license
-  badges; an outsider-readable status section; current test and corpus
-  counts.
-
-### Added: documentation gates
-
-- Documentation-currency gate: README,
-  SECURITY.md, and CHANGELOG version claims, install pins, count
-  claims, and the current release's corpus identity (digest and case
-  total) are checked against the live project on every run.
-- Document-citation gate: shipped
-  markdown documents may cite only documents that exist; a named
-  section citation must name a shipped document or a pinned external
-  standard, and every repository-relative link must resolve to a real
-  file.
+- README install and status guidance is written for external readers.
 
 The conformance corpus is unchanged at 94 cases, digest
 `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
@@ -864,11 +575,8 @@ The conformance corpus is unchanged at 94 cases, digest
   hand-tiered as uniform-depth strict tiers because the bounded dialect denies
   `$ref` cycles; portable condition depth is three composite tiers
   (metered complexity 417/512; the single free-form string (`definition.name`) is bounded to 128 bytes by the schema itself, the bound on the authored channel's unscanned surface). See `docs/adr/product-extension-registration.md`.
-- The schema document ships as corpus data
-  for that release; the library records only
-  the digest pin, and a test binds the pin to the SHIPPED document (the corpus
-  index hashes raw file bytes, the pin hashes JCS of the parsed document; the
-  test is the bridge between the two domains).
+- The schema document ships as corpus data; the library records its canonical
+  schema digest pin.
 - The conformance corpus grows 88 → 94 cases: the validated-channel cells
   (valid attach with matching schema, schema absent, digest mismatch,
   criticality conflict, the tier-bound deny) and the deprecated-optional
@@ -891,37 +599,13 @@ The conformance corpus is unchanged at 94 cases, digest
 
 ### Fixed
 
-- Cross-vendor review fix pass: the schema document bounds
-  `definition.name` with `maxLength: 128` (the free-form string in a body
-  that skips the portability value-shape heuristics; the schema is the
-  bound on that surface); the registry's closed-schema lens test now fails
-  loudly for any future pinned namespace without its own document binding;
-  stale 0.1.x release-line claims and the generator's section counts were
-  reconciled to 0.2.0.
-- The second-language verifier's schema `items` evaluation had its schema and
-  instance arguments swapped, so no cross-language case had ever actually
-  validated array items (object-shaped items passed vacuously; scalar items
-  crashed the verifier). The estate-contract tier schemas are the first
-  corpus-bearing `items` user; the byte-identical agreement gate now proves
-  both languages validate items identically.
+- The schema bounds `definition.name` to 128 bytes, including bodies validated
+  through the authored-extension channel.
+- The TypeScript schema validator now evaluates array `items` with the correct
+  schema and instance arguments, matching the Elixir implementation.
 
 ### Changed
 
-- The gitleaks secret-scan configuration was invalid TOML (a string
-  concatenation TOML does not support) and, independently, nothing executed
-  it; no CI job or alias ran gitleaks, so a committed credential would have
-  passed the complete quality gate. The config now parses (the corpus key
-  fragment is matched via a single-character class instead of concatenation),
-  the generated conformance corpus is allowlisted by path (per-value fragments
-  had rotted: the federation corpus keys were uncovered), and CI runs a
-  full-history gitleaks v8.30.1 scan as its own job, pinned to the release
-  commit. Red-proven against a staged canary secret; every finding the
-  allowlists suppress was adjudicated as deterministic public-by-construction
-  fixture material.
-- GitHub CI now selects Node 24.19.0 through the immutable `setup-node` v7.0.0
-  commit before running the complete quality gate. This removes dependence on
-  the runner image's ambient Node release while preserving the verifier's
-  Node 24 minimum.
 - The normative protocol header and README introduction were reconciled to the
   live public 0.1.x package state (obsolete pre-publication/release-candidate
   framing removed).
@@ -934,7 +618,6 @@ The conformance corpus is unchanged at 94 cases, digest
   records (`docs/adr/`), and `docs/federation-mapping.md` joins the
   hexdocs extras, matching the house packaging convention of the
   published `bounded_authority_protocol` package.
-- Build-verification records remain in the repository and are excluded from the archive. The publication guard rejects those records if they are included, because their intentionally failing examples contain prohibited text.
 - README restructured to the house convention: Installation directly
   after the introduction, a function-level "What it provides" section,
   and the documentation packaging boundary stated.
@@ -945,7 +628,7 @@ Initial public release: the Agent Blueprint Protocol, its Elixir
 reference implementation, the conformance corpus, and the
 second-language verifier.
 
-### Normative docs + release-candidate gates
+### Normative documentation
 
 - `spec/protocol.md`: the normative protocol document (ships in the Hex
   archive): artifacts and the closed member registries, bounded bytes
@@ -954,68 +637,35 @@ second-language verifier.
   compiled registry's first-release entries, the bounds algebra laws,
   the 74-code error vocabulary, the evidence contract, and the
   conformance corpus identity (88 cases at the recorded digest).
-- Build-verification records stay in the repository. Every quality step, architecture test, and conformance check is tested against a deliberately introduced fault.
 - `docs/adr/` (repository-side, slug-only filenames): the seven
   decisions of record:
   the non-authorizing boundary, the detached JWS envelope, the
   two-consumer amendment, deny-default protected-bound clamps, the
   compiled-in registry (closing the package-boundary contradiction of
   record), the federation lanes, and the no-versioning rule.
-- New architecture gates, both red-proven at birth:
-  - **publish guard**: no internal-planning reference, private-tool
-    path, or home-directory path in any archived file (byte patterns
-    plus word-bounded text patterns that cannot false-positive inside
-    base64url tokens; registry owner/namespace/URI data is published by
-    design and exempted on record);
-  - **spec coverage**: every public function carries a matching
-    `@spec` (default-arity rule recorded) and every shipped module's
-    moduledoc states the non-authorizing boundary (39 modules gained
-    an honest stance sentence; `ExtensionRegistry.federation_schema/0`
-    gained its missing `@spec`).
-- `mix release.candidate` (also in `mix quality`): re-derives the
-  verification-record completeness from live project state (every architecture test case and quality-alias step), checks recorded failures, and couples `spec/protocol.md` to the
-  shipped implementation (facade functions, registry namespaces, corpus
-  digest and case total, the stance sentence).
-- Internal-reference scrub of the shipped surface: tracker numerals,
-  internal design-shorthand citations, and a portfolio-terminology
-  section removed from `docs/federation-mapping.md`, README, CHANGELOG,
-  and `lib/` comments/`@doc`s (comments and docs only; zero behavior
-  change).
 - README Status and Installation rewritten to the published 0.1.0
   state.
 
-### Second-language verifier + agreement gate
+### Second-language verifier
 
 - `conformance/verifier/`: the repo-side TypeScript verifier (Node ≥ 24,
   `node:` builtins only, zero npm runtime deps; never in the Hex archive):
   an independent recomputation of every corpus surface and integrity check,
   with a CLI byte-compatible with the Elixir escript (`--corpus` required;
   exit 0/1/2; report bytes on stdout, no trailing newline).
-- `mix verifier.agreement` (in `mix quality`): byte-agrees the TS report
-  with the escript's over the repo corpus AND the built Hex archive's,
-  runs the self-check battery (RFC 8785 Appendix B three-way, the integer-window
-  matrix incl. the mis-round lexeme, Ed25519 key acceptance, stored
-  JOSE vectors), and proves three seeded reds fire (verdict inversion,
-  report member drift, window-check deletion), with a calibration
-  self-proof of the raise path.
 - The stored detached-JWS vectors are KAT-
   anchored to RFC 8032 §7.1 TEST 1, verified Elixir-signed → node-verified
   in both detached and compact forms.
 - `Signature`: small-order key rejection hardened: the identity (order 1)
-  and order-2 encodings no longer pass `usable_ed25519_key?` (found by the
-  mirror's torsion battery; latent on this OTP).
+  and order-2 encodings no longer pass `usable_ed25519_key?`.
 - `Federation.decode`: an empty claim value or compatibility identity now
   denies `:invalid_constraint` instead of raising `FunctionClauseError`
-  (never-raising posture restored; found by the mirror's parity battery).
+  (typed denial replaces the exception).
 - `Conformance.Runner`: a malformed observed identity element denies typed
-  `:invalid_type` instead of raising (the prior-receipts pattern).
+  `:invalid_type` instead of raising.
 - Corpus regenerated to 88 cases (digest
-  `sha-256:QsRbWGreygTJ0m47csgfpwYtoNId3FbjNP49sK-X-MY`): two
-  obligation-varying intersect cases pin the protected-bound meet direction
-  inside corpus agreement (previously corpus-invisible; carried by the
-  verifier's vectors); the mutation gate gains an `obligation-meet-min`
-  entry (7 total). The real-escript end-to-end test covers the halt shim's
-  exit contract in-suite (the coverage-exclusion ack's substance).
+  `sha-256:QsRbWGreygTJ0m47csgfpwYtoNId3FbjNP49sK-X-MY`), including two
+  obligation-varying intersection cases.
 
 ### Conformance corpus subsystem
 
@@ -1027,9 +677,6 @@ second-language verifier.
   identity, and an escript CLI (`--corpus` required; exit 0/1/2).
 - `priv/conformance/`: 86 shipped cases, full-registry goldens (evidence
   members included), RFC 8785 vectors, deterministic key fixtures.
-- `mix conformance.verify` + `mix conformance.mutations` wired into
-  `mix quality`, five named implementation mutations each proven to redden
-  the corpus, plus a corpus-expectation-flip calibration entry.
 - `ExtensionRegistry.digest/0` (+ the `:extension_registry` digest domain):
   the corpus-registry binding.
 - Facade: `canonical_bytes/1` (the named canonicalize gap) and typed
@@ -1037,7 +684,6 @@ second-language verifier.
   input (was a `FunctionClauseError` raise).
 - Eight new error codes: the seven corpus integrity codes + the recorded
   `:corpus_case_invalid` addition.
-
 
 ### Added
 
@@ -1060,12 +706,12 @@ second-language verifier.
   `:federation_terminal_conflict` on any divergence between receipts for
   one task identity. Facade rows `decode_federation_envelope/2` and
   `federation_mapping/0` (the 23-row mapping as data, bijective with the
-  envelope's members by an architecture gate). Published mapping doc
+  envelope's members). Published mapping doc
   `docs/federation-mapping.md` with the pinned live sources, the A2A
   primary / MCP draft-tracking flag and revisit trigger, and the
   ttlMs-is-not-an-execution-bound, AUTH_REQUIRED-is-not-authorization,
   and AgentCard protobuf pre-normalization notes.
-- Federation hardening (independent review): a
+- Federation hardening: a
   signature whose signed `purpose` is not `federation-envelope` never
   verifies a federation receipt (the symmetric cross-surface purpose gap, closed
   on this surface; cross-surface signature lifting denied
@@ -1099,19 +745,17 @@ second-language verifier.
   boundary is shape-checked, never echoed, and never survives
   verification without the key.
 - Error vocabulary: `:forbidden_portable_value` is now declared and
-  emitted through per-site literals (the per-site vocabulary walk could
-  not see the module-attribute-carried emission: a live closedness hole,
-  closed with a staged red); the federation codes
+  emitted through per-site literals; the federation codes
   `:federation_state_unmappable`, `:federation_mapping_conflict`,
   `:nonportable_content`, `:audience_mismatch`, and
   `:federation_terminal_conflict` declared exactly as emitted.
 
-- Reconcile hardening (independent review): the
+- Reconcile hardening: the
   composed pass gates non-object artifact roots at the canonical stage
   (typed denial, never a raise); `Reconcile.Inputs` drops the unused
   observed-identities field (the eight-stage pass performs no
   compatibility verification; hosts call `verify_compatibility/2`;
-  recorded contract delta); the portability stage mirrors each
+  explicit contract change); the portability stage mirrors each
   artifact's own per-position scan modes (authored schema documents and
   predicate operands, the blueprint's five identifier member tables,
   strict elsewhere) instead of strict-scanning everything; `Evidence
@@ -1120,9 +764,7 @@ second-language verifier.
   and closed four-member entries, and case-folds range tags (LATEST
   denies like latest); signatures checks carry the entry count as
   detail; the two facade delegates deny typed on malformed
-  arguments; the vocabulary gate treats sigil-built code positions as
-  dynamic build failures, sees piped call sites, and fixes the
-  case/cond branch tag.
+  arguments.
 - Reconcile, compatibility, and the evidence record:
   `AgentBlueprintProtocol.Reconcile.reconcile/3`, the one call per
   import, running the pinned stage order canonical → digest →
@@ -1153,17 +795,14 @@ second-language verifier.
   authority, effect_ownership, execution, billing, evaluation_truth),
   never replacing them; callers may only add. The facade gains
   `verify_compatibility/2` and `reconcile/3`, and `Error.code` widens
-  to carry the `{:ceiling, key}` family. All eight reconcile stage
-  guards and the Evidence constructor are mutation-redded (each guard's
-  removal fails its committed tamper or order test).
+  to carry the `{:ceiling, key}` family.
 
 - Bounds-algebra hardening pass: classification comparison
   moves to the PRODUCT order the meet computes in (ordinal ≤ AND markers
   ⊇); a marker dropped at ANY ordinal is a widening (obligations are not
   tradeable against scope), `widens?` becomes `¬(a ⪯ b)` and so
-  fail-closed on every incomparable pair (an independent review's
-  blocking finding: `{pci}` vs `{phi}` previously compared non-widening
-  in both directions), and `narrower` requires both components. The rim is now
+  fail-closed on every incomparable pair (`{pci}` vs `{phi}` previously
+  compared non-widening in both directions), and `narrower` requires both components. The rim is now
   deny-typed everywhere it previously raised on struct-bypass inputs:
   hostile map keys and unknown/extra names deny `:bound_unknown` with the
   CONTAINING surface as subject (never the attacker key; the echo
@@ -1177,8 +816,7 @@ second-language verifier.
   (decode already enforced both), bound values above the parse profile's
   declared integer magnitude deny, `widens?`/`narrower` never raise on
   forged values (total predicates, fail-closed in the widening
-  direction), and `Result.t`'s clamps type resolves its module. Every
-  fix re-probed live against the finding's original probe input.
+  direction), and `Result.t`'s clamps type resolves its module.
 - Bounds algebra: `AgentBlueprintProtocol.BoundsAlgebra`:
   the pointwise narrowest intersection of the Blueprint's declared
   bounds, the Deployment's `host_bounds`, and the host's live policy over
@@ -1186,8 +824,7 @@ second-language verifier.
   (scope families narrow at the low end; authority/approval/effect
   narrow at the STRICT end; classification markers are
   retained regulatory obligations whose effective set is the UNION of
-  the sources' sets; dropping one is the widening the mutation gate
-  names). Protected narrowings never happen silently: under the default
+  the sources' sets; dropping one is a widening). Protected narrowings never happen silently: under the default
   `:deny` posture they deny `:protected_bound_clamp_denied` carrying
   the field/requested/effective triple; under `:acknowledge` they clamp
   with `acknowledged: true` evidence ALWAYS. Operational narrowings
@@ -1212,46 +849,7 @@ second-language verifier.
   The new `AgentBlueprintProtocol.Error{code, subject, detail}` record
   (typed shape, string subject paths, `detail` only for the
   protected deny) lands with the algebra surface; the facade gains
-  `intersect/1`. Property lane: idempotent/commutative/associative
-  (pinned fold encoding), `not widens?(effective, host)` universal,
-  clamp iff `effective ≠ requested`, marker-union law, with the
-  min→max, marker-intersection, direction-flip, struct-default, and
-  silent-path mutations each proven RED against them.
-
-### Fixed
-
-- The bounds-algebra rim's coverage claim was corrected to a true
-  100% (measured 2026-08-22: the then-committed suite reached only
-  97.7%; the deny-typed rim's catch-all clauses had no tests). The rim probes now ship as tests: struct-bypass forged
-  values through `widens?/2` and `Bound.narrower/2` for every family,
-  wrong-shape cost at construction, non-map `new/1`, absent-name
-  `fetch/2`, non-`Sources`/junk-posture/non-set-source `intersect/1`,
-  and the `host_bounds` lifter shape matrix (absent, malformed member,
-  malformed value, off-lattice ordinal, non-string on a protected
-  name), each asserting the typed denial or fail-closed verdict.
-  Eleven representative rim mutations each redded their test before
-  restore. Two provably unreachable arms were removed (the only
-  production change): `widens_value/3`'s unknown-name arm (its only
-  caller iterates `names/0`, always `@table` keys) and `member_of/2`'s
-  `{:object, _}` clause (no call site passes an object tuple).
-  An independent re-review of the follow-up range then found the rim's
-  one remaining hole: `widens?/2` matched any `%BoundSet{}` regardless
-  of `bounds`' type, so a struct-forged `%BoundSet{bounds: nil}` raised
-  `BadMapError` from either argument position instead of failing
-  closed (the head now guards `is_map` on both, dropping the forgery
-  to the fail-closed catch-all), plus its guard-family sibling
-  `BoundSet.to_map/1` (same forged shape raised; now deny-typed
-  `:invalid_type` with subject `["bound_set"]`). Both probed red
-  before the fix, green after.
-  `mix quality` has reported a true 100.00% since.
-- A one-off suite flake, root-caused: the
-  "mutating the signatures member" test replaced the first `A` in the
-  base64url signature, which lands on the FINAL character ~7% of random
-  signatures (the one position whose value is canonicality-constrained)
-  producing a correctly-rejected non-canonical string
-  (`:signature_malformed`). The tamper now targets the first character
-  (a significant 6-bit position at every base64url length), making the
-  test deterministic for every key.
+  `intersect/1`.
 
 ### Core surfaces
 
@@ -1288,16 +886,12 @@ second-language verifier.
   both tables carry one definition, and `Negotiation` resolves the
   artifact kind from the digest member so each
   artifact's `required_core_fields` check against its own vocabulary. The
-  facade gains `decode_deployment/2`, and a new architecture gate proves
-  the no-second-pipeline invariant (delegation to `Registry.validate` plus
-  no local stage definitions; planted-red proven, after the exports-only
-  form was found vacuous by the same mutation).
+  facade gains `decode_deployment/2`.
 - Deployment hardening pass: `verify_binding/3` gains a
   stage-0 shape totality: a non-object root, DUPLICATE root members, or a
   malformed `tool_bindings` entry (shape, operands, digest) denies before
   any cross-artifact judgment, and validated entries thread every later
-  stage (the blocking finding of an independent review: malformed
-  bindings were silently discarded, failing OPEN); negotiation restores revision-first
+  stage (malformed bindings were silently discarded); negotiation restores revision-first
   order ahead of the new artifact-kind resolution, which now requires a
   well-formed string digest member (a malformed tag is machinery
   `:invalid_type`); the exact-version detector becomes one total charset
@@ -1322,8 +916,7 @@ second-language verifier.
   / `:extension_schema_digest_mismatch`); and a reserved-semantics
   denylist (bound-shaped member names, camelCase twins included) over ALL
   extension bodies. The registry (`ExtensionRegistry`) is compiled-in
-  data (drift unrepresentable, backed by a new beam-census gate that
-  asserts no shipped module touches the filesystem (planted-red proven)),
+  data that requires no filesystem access,
   carrying the five first-release entries with `com.example/federation`'s schema
   authored in-repo under the new `:extension_schema` digest domain.
   `Blueprint.from_value/2`'s `:authored_extensions` option opens the
@@ -1386,9 +979,8 @@ second-language verifier.
   RFC 7515 compact serialization with the RFC 7797 `b64=false` unencoded
   detached payload: the signing input is
   `BASE64URL(JCS(protected_header)) || "." || JCS(signed_attributes)`,
-  Ed25519 verified through `:crypto`, verify-only (an architecture gate
-  enforces no `:crypto.sign` call, no private-key parameters, and no
-  key-material shape anywhere in the shipped source). Host-supplied trusted
+  Ed25519 verified through `:crypto`, with no signing or private-key inputs.
+  Host-supplied trusted
   keys match by `key_id` (`:signature_key_unsupported` when absent,
   `:signature_not_verified` on divergence; facts, never authorization).
   The exact four-member protected header (`alg/crit/b64/kid`) and the five

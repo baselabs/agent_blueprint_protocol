@@ -1,7 +1,5 @@
 # ADR: federation lanes: A2A primary, MCP draft-tracking
 
-Status: superseded by [stability policy](stability-policy.md) (2026-11-14) for the MCP stability exception; other decisions remain accepted (2026-08-20).
-
 ## Context
 
 Task-federation interop has two candidate wire lanes (an A2A task

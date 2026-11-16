@@ -1,7 +1,5 @@
 # ADR: Stability policy
 
-Status: accepted (2026-11-10).
-
 ## Context
 
 Two distributions share artifact identities and need an explicit compatibility contract.

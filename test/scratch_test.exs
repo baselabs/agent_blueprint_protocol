@@ -4,7 +4,6 @@ defmodule AgentBlueprintProtocol.ScratchTest do
   @moduletag timeout: :infinity
 
   alias AgentBlueprintProtocol.Scratch
-  alias AgentBlueprintProtocol.Test.CensusFormatter
 
   @posix_symlinks if(match?({:win32, _}, :os.type()),
                     do:
@@ -150,23 +149,6 @@ defmodule AgentBlueprintProtocol.ScratchTest do
 
       assert Path.wildcard(pattern) == before
     end)
-  end
-
-  test "the census writer owns a path in the test build directory" do
-    expected = Path.join([File.cwd!(), "_build", "test", ".test_census"])
-    assert CensusFormatter.path() == expected
-
-    script =
-      "Code.require_file(\"test/support/census_formatter.exs\"); " <>
-        "IO.write(AgentBlueprintProtocol.Test.CensusFormatter.path())"
-
-    assert {^expected, 0} =
-             System.cmd(
-               "mix",
-               ["run", "--no-start", "--no-compile", "--no-deps-check", "--eval", script],
-               env: [{"MIX_ENV", "dev"}],
-               stderr_to_stdout: true
-             )
   end
 
   defp files!(root) do

@@ -1,7 +1,5 @@
 # ADR: release publication
 
-Status: accepted (2026-11-15).
-
 ## Context
 
 A release ships the same version to two registries (the Hex package and the

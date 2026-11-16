@@ -11,13 +11,9 @@ regexes = [
   '''QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGk''',
 ]
 
-# The conformance corpus's deterministic Ed25519 PUBLIC keys — derived at
-# authoring from SHA-256 of fixed seed strings (generator:
-# scripts/generate_conformance_corpus.exs); public by construction, and the
-# corpus's signature-negative cases NEED byte-plausible keys to be honest
-# fixtures. The single-character class keeps this config file free of the
-# contiguous key fragment while matching it (TOML has no string
-# concatenation, so the fragment cannot be assembled from parts here).
+# Corpus keys are deterministic public fixtures, never credentials.
+# Their public bytes are generated with the conformance corpus.
+# The fragment exceptions below identify that fixture material.
 [[allowlists]]
 description = "Corpus deterministic public keys (SHA-256-seeded Ed25519, public material)"
 regexTarget = "line"
@@ -27,15 +23,9 @@ regexes = [
   '''corpus-receipt''',
 ]
 
-# The generated corpus tree is deliberately key-shaped inert fixture material
-# end to end: every key derives at authoring from SHA-256 of a fixed public
-# seed string (scripts/generate_conformance_corpus.exs — :crypto.generate_key
-# over :crypto.hash(:sha256, seed)), and signature-negative cases NEED
-# byte-plausible keys to be honest fixtures. Path-scoped because the corpus
-# regenerates and per-value fragments rot (the federation corpus shipped with
-# keys no fragment above covers). Stated tradeoff: a real secret pasted under
-# priv/conformance/ would be invisible to this scan — that tree is only ever
-# machine-generated, never hand-edited.
+# Corpus-wide fixture exclusion can also hide an accidentally pasted secret.
+# The publication privacy scan separately checks the tracked source and history.
+# Preserve this limitation when changing fixture handling.
 [[allowlists]]
 description = "Generated conformance corpus (deterministic public-by-construction fixtures)"
 paths = ['''priv/conformance/.*''']

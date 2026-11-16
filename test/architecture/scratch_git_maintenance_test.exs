@@ -8,9 +8,7 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchGitMaintenanceTest do
   From git 2.54 the default maintenance strategy is "geometric", and those
   commands start `git maintenance run --auto --detach`: a repack that keeps
   writing into `.git` after the command returns. A throwaway repository
-  removed with `File.rm_rf!/1` then races that process; the release-candidate
-  reprove failed on hosted CI that way (`could not remove files and
-  directories recursively ... file already exists`).
+  removed with `File.rm_rf!/1` can race that process.
 
   Goes RED on: a file that drives such a git command without disabling
   automatic maintenance; a scan that no longer sees the known drivers

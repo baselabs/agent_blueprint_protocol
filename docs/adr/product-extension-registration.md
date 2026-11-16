@@ -1,7 +1,5 @@
 # ADR: host-supplied extension registrations
 
-Status: accepted; supersedes compiled product registrations in the 1.0 line.
-
 ## Decision
 
 Product schemas and namespace registrations belong to their hosts. The public
