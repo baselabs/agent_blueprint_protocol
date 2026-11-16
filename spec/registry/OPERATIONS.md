@@ -22,6 +22,17 @@ criticality, and, for critical namespaces, a schema document whose JCS
 digest is pinned. A request SHOULD state the A2A declaration URI.
 Examples use generic reserved-domain identities.
 
+## Registration steps
+
+1. For a protocol-owned namespace, the owner submits the entry (and, for critical entries, the schema
+   document) as a change to `registry.json` and implements it in both
+   language packages.
+2. The registry-equality check, corpus checks, and CI checks must pass.
+   Corpus verification fails when cases were generated for a different
+   registry state.
+3. The change lands with a CHANGELOG entry and an ADR record when it
+   sets a precedent.
+
 ## Lifecycle
 
 `reserved` → `active` → `deprecated` → `retired`. Promotion to a
