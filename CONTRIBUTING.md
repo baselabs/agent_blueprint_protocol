@@ -55,6 +55,10 @@ checkout's Git tags; keep those tags available in either mode. The Hex package
 also ships `scripts/consumer_examples.exs`, which runs the four package gates
 alone and loads nothing outside the package.
 
+Code fences use only the language as their info string. Mark a non-runnable excerpt with `<!-- fragment -->` on the line directly before its opening fence. The comment stays invisible in rendered documentation; the package example gates skip that block. Any other fence info suffix is an error, even on a marked fragment.
+
+The example gallery and README compare every displayed JSON member with the `priv/examples` file linked in the same section, including signatures. A reading excerpt can select complete top-level members with an `<!-- example-fields: member_name other_member -->` comment directly before its JSON fence; every selected member is compared in full.
+
 To run the corpus from the repository checkout:
 
 ```sh

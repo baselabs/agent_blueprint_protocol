@@ -8,6 +8,7 @@ import {hash,toTagged} from '../verifier/digest.ts';
 import {validateInstance,dialect} from '../verifier/schema.ts';
 import {tagged} from '../verifier/plain.ts';
 import {documentDigest} from '../verifier/harness.ts';
+import '../test/typescript/harness_startup.mjs';
 const scratch=mkdtempSync(join(tmpdir(),'abp-conformance-'));
 const certified=readFileSync('spec/conformance/certified-results.json');
 function run(args,expected=0){const r=spawnSync(process.execPath,args,{encoding:'utf8',maxBuffer:10_000_000,timeout:15000});assert.equal(r.status,expected,r.stderr);return r;}

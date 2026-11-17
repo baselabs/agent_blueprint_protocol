@@ -1,6 +1,6 @@
 # Examples
 
-This guide is for readers who want to inspect valid protocol artifacts. You will see complete examples and a Federation excerpt and learn how to verify each one.
+This guide is for readers who want to inspect valid protocol artifacts. You will see complete examples, including a Federation TaskEnvelope and learn how to verify each one.
 
 The examples are stored under `priv/examples/`. Their files are the source for the JSON shown here.
 Timestamp values shown in these examples are fixed artifact data, not readings from the current clock.
@@ -11,7 +11,7 @@ Formatted JSON is for reading, not wire-ready bytes. Download the exact canonica
 
 ## Echo Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.3/priv/examples/echo-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.4/priv/examples/echo-blueprint.json).
 
 This Blueprint declares one read capability, one input port, one output port, and operational ceilings. Its cost amount is expressed in millionths of USD.
 
@@ -117,7 +117,7 @@ bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples
 
 ## Echo Deployment Manifest
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.3/priv/examples/echo-deployment.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.4/priv/examples/echo-deployment.json).
 
 This manifest records environment-specific bindings and bounds for the echo Blueprint.
 
@@ -253,7 +253,7 @@ bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples
 
 ## Signed Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.3/priv/examples/signed-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.4/priv/examples/signed-blueprint.json).
 
 This example adds a signature entry to the echo Blueprint. Decoding checks the artifact structure and content digest. The signature verification operation also needs the public key supplied by the caller.
 
@@ -353,7 +353,7 @@ This example adds a signature entry to the echo Blueprint. Decoding checks the a
         ],
         "kid": "example-demo-signing-key"
       },
-      "signature": "V3-RJiWxEcb6lKa66VHs8nFEzP91ikrkMM68aCrhuDBdUdHs1mfs5-m5vAyX0lFjfNALxjId292rwq1tiab7Cw",
+      "signature": "RtupJk1q7QGE3p6ZSXdKGL1WTOcwS4gxVZLxjAPEmBdldOOMzOB-A1PgmujoupqyQWrNHZ_MqKNf-n4KwpliCg",
       "signed_attributes": {
         "algorithm": "Ed25519",
         "content_digest": "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8",
@@ -381,7 +381,7 @@ This shipped signature uses the accepted `EdDSA` header spelling. The [compose g
 
 ## Extension Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.3/priv/examples/extension-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.4/priv/examples/extension-blueprint.json).
 
 This example carries an optional classification-labels namespace in the extension member.
 
@@ -493,16 +493,75 @@ bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples
 
 ## Federation TaskEnvelope
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.3/priv/examples/federation-envelope.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.4/priv/examples/federation-envelope.json).
 
-This JSON excerpt comes from the shipped Federation TaskEnvelope. It is not a complete envelope. Its namespace and carrier fields are described in the [federation guide](federation.md).
+This complete Federation TaskEnvelope carries task identity, state, and receipt commitments. Its namespace and carrier fields are described in the [federation guide](federation.md).
 
 ```json
 {
+  "audience": "audience-gamma",
+  "authority_proof_references": [
+    "sha-256:z6LiRffa-LUotScQYk44zSuR3vt9ATMBum0aZTlHffs"
+  ],
+  "blueprint_digest": "sha-256:UqU_xO8mUo_SEKFyllPQx5viwqjUU0jymkOUDjoSJVY",
+  "compatibility_reference": [
+    {
+      "identity": "0.1.0-dev.abc",
+      "name": "abp"
+    }
+  ],
+  "deployment_digest": "sha-256:TYZzBKU6fPfMSOS8baiol9713E1x8oPzO-Mkuc1YLhE",
+  "evidence_receipt": {
+    "checkpoint_history_commitment": "sha-256:3cwpt1lQKYPAHLc_wv2p7lFh87JNs1L_E1sFChFvTvU",
+    "result_digest": "sha-256:KtL0SPnMTlbOZe4E-n3gl5BqdaQ5HbHZFwVUHjXmA_w",
+    "signature": {
+      "protected": {
+        "alg": "EdDSA",
+        "b64": false,
+        "crit": [
+          "b64"
+        ],
+        "kid": "remote-key"
+      },
+      "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "signed_attributes": {
+        "algorithm": "Ed25519",
+        "content_digest": "sha-256:d3SekhO2NaIJVzB0fGcsV5xgCA93UOrVZ8eRiQDdEjs",
+        "created_at": "2026-08-22T00:00:00Z",
+        "key_id": "remote-key",
+        "purpose": "federation-envelope"
+      }
+    },
+    "terminal_commitment": "sha-256:BshcxIagBOfO1pAFNXbJY5qIFIHhl2lMyq6lIhH8Pfo"
+  },
+  "idempotency_identity": "idem-9c2d41",
+  "identity_mapping_evidence": {
+    "claims": [
+      {
+        "kind": "correlation",
+        "value": "local-subject-42"
+      }
+    ]
+  },
+  "input_commitment": "sha-256:8Y14oMoIRWfn2QpbNC53tl0Tj1Cwly6fE-lyVdNvUFw",
+  "issuer": "issuer-alpha",
+  "recovery_handle": "task-7f3a2c",
+  "resource_policy": {
+    "attempts": 3,
+    "concurrency": 2,
+    "cost": 500,
+    "tokens": 1000
+  },
+  "result_classification_ceiling": {
+    "level": "internal",
+    "markers": []
+  },
+  "result_schema": "sha-256:uVovxlNrTlxeNx_xEbpmFAYhei42RfJPTtRTmFcz944",
+  "subject": "subject-beta",
   "task_identity": "task-7f3a2c",
   "terminal_state": "completed",
-  "evidence_receipt": {
-    "terminal_commitment": "sha-256:BshcxIagBOfO1pAFNXbJY5qIFIHhl2lMyq6lIhH8Pfo"
+  "time_policy": {
+    "elapsed_ms": 60000
   }
 }
 ```

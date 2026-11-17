@@ -14,20 +14,24 @@ The protocol uses separate version values for separate contracts:
 The Hex and npm packages carry the same complete version, including prerelease identifiers. To select this exact release in both registries, use this Hex requirement and npm command:
 
 ```elixir
-{:agent_blueprint_protocol, "== 1.1.0-rc.3"}
+{:agent_blueprint_protocol, "== 1.1.0-rc.4"}
 ```
 
 Install the exact release from npm:
 
 ```sh
-npm install @agent-blueprint-protocol/verifier@1.1.0-rc.3
+npm install @agent-blueprint-protocol/verifier@1.1.0-rc.4
 ```
 
-Use `~> 1.1.0-rc.3` when later compatible 1.1 patches are acceptable, and use the resolved lockfile version for identity comparisons.
+Use `~> 1.1.0-rc.4` when later compatible 1.1 patches are acceptable, and use the resolved lockfile version for identity comparisons.
 
 ## Release identity
 
 `priv/release-metadata.json` records the package version, verification-semantics version, and current specification, corpus, and registry identities. `priv/release-history.json` carries an append-only row for each manifest-era release. Published identities are immutable; corrections appear in a later release.
+
+## Changes in 1.1
+
+Verification semantics moves from `3` at 1.0 to `4` from 1.1. Reconcile always reports `signature_time_validity` in `Evidence.not_verified`, after `signature_created_at` and `lifecycle_state`. Signing-key and signature validity periods are host-owned facts. The protocol revision remains `1`; compare the release metadata and deliberate compatibility claims when updating pins.
 
 ## Replay identity
 
@@ -48,7 +52,8 @@ returned signature algorithm and purpose identifiers are open. Find the
 names you know, retain a default branch, and never count an unknown entry
 as proof. Select only the Elixir struct fields you use:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 case result do
   {:ok, %AgentBlueprintProtocol.Evidence{checks: checks}} ->
     Enum.filter(checks, fn

@@ -20,7 +20,10 @@ Deep imports no longer resolve. Replace internal imports and names with the pack
 | `dist/verifier/signature.js`: `verify` | `verifySignature` |
 | `dist/verifier/corpus.js`: `load` | `loadCorpus` |
 | `dist/verifier/runner.js`: `run` | `runCorpus` |
-| `dist/verifier/report.js`: `build`, `toBytes` | `buildReport`, `buildResultsDocument` |
+| `dist/verifier/report.js`: `build` | `buildReport` with `(corpus, results)` returns the aggregate report as a `Result<Report>`. |
+| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder. Use `npx @agent-blueprint-protocol/verifier@1.1.0-rc.4 --corpus <dir> > report.json` for canonical aggregate-report bytes. |
+
+`buildResultsDocument(corpus)` builds the separate per-case results document, not the aggregate report. `JSON.stringify(report.value)` is JSON but does not guarantee canonical report bytes.
 
 The TypeScript blocks below are excerpts. Elixir's public decode call is unchanged.
 
@@ -50,13 +53,15 @@ The following code blocks are excerpts.
 
 Before, Elixir callers matched the error atom directly:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:error, :unknown_member} = AgentBlueprintProtocol.decode_blueprint(bytes)
 ```
 
 After, match the typed error struct:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:error, %AgentBlueprintProtocol.Error{code: :unknown_member}} =
   AgentBlueprintProtocol.decode_blueprint(bytes)
 ```
@@ -82,13 +87,15 @@ Decoder ceiling codes use `{:ceiling, key}` in Elixir and `ceiling:<key>` in Typ
 
 Before (Elixir excerpt):
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:error, {:ceiling, :depth}} = AgentBlueprintProtocol.Bounds.new(%{depth: 0})
 ```
 
 After (Elixir excerpt):
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:error, %AgentBlueprintProtocol.Error{code: {:ceiling, :depth}}} =
   AgentBlueprintProtocol.Bounds.new(%{depth: 0})
 ```
@@ -113,14 +120,16 @@ Denial details are `nil`; the schema-derived path is in `subject`. These Elixir 
 
 Before, callers read the denial detail:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:error, %AgentBlueprintProtocol.Error{code: :protected_bound_clamp_denied, detail: detail}} =
   AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
 ```
 
 After, `detail` is `nil` and the member path is in `subject`:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:error, %AgentBlueprintProtocol.Error{code: :protected_bound_clamp_denied, detail: nil, subject: subject}} =
   AgentBlueprintProtocol.reconcile(blueprint, deployment, inputs)
 ```
@@ -135,13 +144,15 @@ The following code blocks are excerpts.
 
 Before, Elixir callers read a summary string:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 %{surface: :signatures, detail: "1 signature(s) verified"} = check
 ```
 
 After, signature details have a typed structure and skipped surfaces are explicit:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 %{surface: :signatures, detail: %AgentBlueprintProtocol.Evidence.Signatures{key_ids: key_ids}} = check
 evidence.not_verified
 ```
@@ -169,13 +180,15 @@ Denial `detail` values are `nil`, including protected-bound denials. Read the me
 
 Before, Elixir returned a status atom:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:ok, :verified} = AgentBlueprintProtocol.Signature.verify(entry, keys)
 ```
 
 After:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:ok, %AgentBlueprintProtocol.Signature.Attributes{} = attributes} =
   AgentBlueprintProtocol.Signature.verify(entry, keys)
 attributes.content_digest
@@ -197,7 +210,8 @@ if (checked.ok) checked.value.contentDigest;
 
 Repeated key identifiers in one artifact now deny with `invalid_constraint` during structure validation. The following excerpt assumes `bytes` contains an artifact with repeated identifiers:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 {:error, %AgentBlueprintProtocol.Error{code: :invalid_constraint}} =
   AgentBlueprintProtocol.decode_blueprint(bytes)
 ```
@@ -229,31 +243,33 @@ import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 const newResult = decodeBlueprint(bytes);
 ```
 
-Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.0-rc.3/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
+Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.0-rc.4/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
 
 ## 6. Update package and release identity pins
 
-Version 1.0 changes the registry digest and sets `verification_semantics_version` to `3`. The protocol revision remains `1`.
+Version 1.0 changes the registry digest and sets `verification_semantics_version` to `3`. From 1.1, verification semantics is `4`; see the [1.1 changes](upgrading.md). The protocol revision remains `1`.
 
 Before, pin the previous Hex release:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
   {:agent_blueprint_protocol, "~> 0.8.4"}
 ```
 
 After, select the current 1.x release:
 
-```elixir fragment
-{:agent_blueprint_protocol, "~> 1.1.0-rc.3"}
+<!-- fragment -->
+```elixir
+{:agent_blueprint_protocol, "~> 1.1.0-rc.4"}
 ```
 
-For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.1.0-rc.3`. The Hex and npm packages carry the same version.
+For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.1.0-rc.4`. The Hex and npm packages carry the same version.
 
 Before, install the previous npm release; after, install the current 1.x release:
 
 ```sh
 npm install @agent-blueprint-protocol/verifier@0.8.4
-npm install @agent-blueprint-protocol/verifier@1.1.0-rc.3
+npm install @agent-blueprint-protocol/verifier@1.1.0-rc.4
 ```
 
 ## 7. Use the preferred identifiers
@@ -272,7 +288,8 @@ Earlier integrations sometimes relied on example namespaces in the package regis
 
 Before (conceptual 0.8 excerpt), the host supplied revision support and relied on a compiled example entry:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 support = %AgentBlueprintProtocol.Negotiation.Support{revisions: MapSet.new([1])}
 ```
 
@@ -332,7 +349,7 @@ Old input remains accepted throughout 1.x; new carrier output uses the active sp
 - Read signature checks for both artifact subjects and retain skipped binding checks and unknown detail branches.
 - Supply host registrations, held schemas, all thirteen host bounds, trusted public keys, and independent observations.
 - Emit active carrier keys; rebuild intentionally edited artifacts and their affected signatures.
-- Update package pins and release identities together; protocol revision stays `1`, verification semantics becomes `3`.
+- Update package pins and release identities together; protocol revision stays `1`, verification semantics is `3` at 1.0 and `4` from 1.1. See the [1.1 changes](upgrading.md).
 
 Before (0.8 TypeScript integration excerpt):
 

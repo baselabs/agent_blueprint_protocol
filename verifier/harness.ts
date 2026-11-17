@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn,type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { readFileSync,writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
@@ -8,6 +8,12 @@ import { lines,handshake,ExecutionFailure } from './execution.ts';
 import { plain } from './plain.ts';
 
 export const OUTCOMES={handshake_mismatch:10,duplicate_id:11,missing_response:12,extra_response:13,reordered_response:14,malformed_line:15,oversized_line:16,response_timeout:17,early_exit:18,disagreement:19} as const;
+function adapterStartFailure(error:unknown):number {
+  // Never print command paths, arguments, or error messages: they can carry secrets.
+  const code=(error as NodeJS.ErrnoException)?.code;
+  process.stderr.write('harness: early_exit: adapter could not be started ('+(['ENOENT','EACCES','EPERM','EINVAL','ENOEXEC','ENOTDIR','EMFILE','ENFILE','E2BIG'].includes(code??'')?code:'UNKNOWN')+')\n');
+  return OUTCOMES.early_exit;
+}
 export function documentDigest(bytes:string):string{return 'sha-256:'+createHash('sha256').update(bytes).digest('base64url');}
 export async function runHarness(args:string[],readCorpus:(path:string)=>Map<string,Buffer>,metadata:{corpus_digest:string}):Promise<number> {
   const separator=args.indexOf('--');if(separator<0||separator===args.length-1)return 2;
@@ -43,10 +49,14 @@ export async function runHarness(args:string[],readCorpus:(path:string)=>Map<str
     certifiedRows=new Map(document.results.map((row:any)=>[row.id,row]));
     if(certifiedRows.size!==corpus.caseIds.size)return 2;
   }
-  const child=spawn(args[separator+1]!,args.slice(separator+2),{stdio:['pipe','pipe','pipe'],windowsHide:true,detached:process.platform!=='win32'});
+  let child:ChildProcessWithoutNullStreams;
+  try {child=spawn(args[separator+1]!,args.slice(separator+2),{stdio:['pipe','pipe','pipe'],windowsHide:true,detached:process.platform!=='win32'});}
+  catch(error){return adapterStartFailure(error);}
   child.stderr.pipe(process.stderr);child.stdin.on('error',()=>{});
   let exitCode:number|null|undefined;
-  const exited=new Promise<void>(resolve=>{child.once('error',()=>{exitCode=-1;resolve();});child.once('exit',code=>{exitCode=code;resolve();});});
+  let startError:Error|null=null,spawned=false;
+  child.once('spawn',()=>{spawned=true;});
+  const exited=new Promise<void>(resolve=>{child.once('error',error=>{exitCode=-1;if(!spawned)startError=error;reader.end();resolve();});child.once('exit',code=>{exitCode=code;resolve();});});
   const finish=async()=>{
     let timer:ReturnType<typeof setTimeout>|undefined;
     try{await Promise.race([exited,new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new ExecutionFailure('response_timeout')),timeout);})]);}
@@ -90,6 +100,7 @@ export async function runHarness(args:string[],readCorpus:(path:string)=>Map<str
     }
     process.stderr.write('harness: agreement\n');return 0;
   } catch(error) {
+    if(startError)return adapterStartFailure(startError);
     const outcome=error instanceof ExecutionFailure?error.outcome:'early_exit';
     process.stderr.write('harness: '+outcome+'\n');return OUTCOMES[outcome as keyof typeof OUTCOMES]??18;
   } finally {

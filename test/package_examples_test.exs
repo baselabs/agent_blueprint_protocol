@@ -392,10 +392,90 @@ defmodule AgentBlueprintProtocol.PackageExamplesTest do
 
   test "snippet extraction preserves order and source lines and skips only marked fragments" do
     source =
-      "```elixir\nx = 1\n```\n```elixir fragment\nmissing()\n```\n```sh\nfalse\n```\n```elixir\nx + 1\n```\n"
+      "```elixir\nx = 1\n```\n<!-- fragment -->\n```elixir\nmissing()\n```\n```sh\nfalse\n```\n```elixir\nx + 1\n```\n"
 
-    assert [%{code: "x = 1\n", index: 1, line: 2}, %{code: "x + 1\n", index: 3, line: 11}] =
+    assert [%{code: "x = 1\n", index: 1, line: 2}, %{code: "x + 1\n", index: 3, line: 12}] =
              PackageExamples.cells(source, "guide.md")
+  end
+
+  test "fragment marking is adjacent, supports CRLF, and never hides an unknown info string" do
+    for newline <- ["\n", "\r\n"] do
+      marked = Enum.join(["<!-- fragment -->", "```elixir", "missing()", "```", ""], newline)
+      assert PackageExamples.cells(marked, "guide.md") == []
+      separated = String.replace(marked, "-->" <> newline, "-->" <> newline <> newline)
+      assert length(PackageExamples.cells(separated, "guide.md")) == 1
+    end
+
+    for marking <- ["fragment", "ignored"] do
+      assert_raise RuntimeError, ~r/unknown Elixir fence marking/, fn ->
+        PackageExamples.cells(
+          "<!-- fragment -->\n```elixir #{marking}\nmissing()\n```\n",
+          "guide.md"
+        )
+      end
+    end
+  end
+
+  test "the TypeScript package gate skips comment fragments and rejects all info suffixes" do
+    Scratch.with_dir("typescript-fragments", fn root ->
+      {packed, 0} =
+        System.cmd("npm", [
+          "pack",
+          "./dist/package",
+          "--ignore-scripts",
+          "--json",
+          "--pack-destination",
+          root
+        ])
+
+      [%{"filename" => filename}] = Jason.decode!(packed)
+      archive = Path.join(root, filename)
+      file = Path.join(root, "guide.md")
+
+      for newline <- ["\n", "\r\n"] do
+        source =
+          for language <- ~w(js javascript ts typescript), into: "" do
+            Enum.join(
+              [
+                "<!-- fragment -->",
+                "```#{language}",
+                "throw new Error('fragment was executed')",
+                "```",
+                "```#{language}",
+                "console.log('runnable block')",
+                "```",
+                ""
+              ],
+              newline
+            )
+          end
+
+        File.write!(file, source)
+
+        {output, status} =
+          System.cmd("node", ["scripts/run_package_typescript_examples.mjs", archive, file],
+            stderr_to_stdout: true
+          )
+
+        assert status == 0, "TypeScript comment fragments must be skipped: " <> output
+        assert output =~ "package TypeScript: 4 examples passed"
+      end
+
+      for marking <- ["fragment", "ignored"] do
+        File.write!(
+          file,
+          "<!-- fragment -->\n```ts #{marking}\nthrow new Error('must not run')\n```\n"
+        )
+
+        {output, status} =
+          System.cmd("node", ["scripts/run_package_typescript_examples.mjs", archive, file],
+            stderr_to_stdout: true
+          )
+
+        assert status != 0
+        assert output =~ "unknown fence marking"
+      end
+    end)
   end
 
   test "an unknown snippet marking fails instead of hiding unrunnable code" do

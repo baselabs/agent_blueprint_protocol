@@ -39,7 +39,7 @@ The active namespace is `io.github.baselabs/federation`. Producers use the A2A m
 
 ## State codecs
 
-The Elixir `AgentBlueprintProtocol.Federation` module exposes conversions to and from A2A and MCP task states and carriers. Unmappable states return typed errors. The TypeScript package root exposes envelope decoding, canonical encoding, and mapping rows; state and carrier codecs are not exported in 1.1.0-rc.3.
+The Elixir `AgentBlueprintProtocol.Federation` module exposes conversions to and from A2A and MCP task states and carriers. Unmappable states return typed errors. The TypeScript package root exposes envelope decoding, canonical encoding, and mapping rows; state and carrier codecs are not exported in 1.1.0-rc.4.
 
 The shipped conformance corpus covers state conversion and carrier decoding. Its commitment fixtures cover terminal commitment verification and receipt conflict detection.
 

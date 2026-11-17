@@ -2,6 +2,20 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.1.0-rc.4] - 2026-11-17
+
+### Fixed
+
+- Non-runnable Elixir and TypeScript excerpts render as code blocks on HexDocs and GitHub. Their fragment marking is now an invisible comment before a bare-language fence; both package example gates honor it and reject fence suffixes.
+- The migration checklist distinguishes verification semantics `3` at 1.0 from `4` in 1.1 and links the upgrade guidance.
+- Both TypeScript migration tables distinguish aggregate reports from per-case results and show the CLI command for canonical aggregate-report bytes.
+- The signed Blueprint displayed in the example gallery matches its shipped source, including its signature. The gallery now shows the complete Federation TaskEnvelope, and documented example JSON is checked against its named source files.
+- The npm README runs the locally installed CLI through a version-pinned `npx` command.
+- The external-exchange walkthrough starts its adapter with `node`, copies the corpus with Node, and uses quoting that works on Linux, macOS, and Windows. It explains direct execution without a shell and how to launch Windows batch files. Missing or unstartable adapters now receive a named startup diagnostic while retaining exit `18` (`early_exit`).
+- The published TypeScript declarations no longer carry an orphan receiving-context comment.
+
+Protocol revision 1, verification semantics 4, and the specification, corpus, and registry digests are unchanged from 1.1.0-rc.3.
+
 ## [1.1.0-rc.3] - 2026-11-16
 
 ### Changed

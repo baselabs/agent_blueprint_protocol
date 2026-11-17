@@ -17,9 +17,10 @@ cd verify_blueprint
 
 Replace the generated `deps/0` function with:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 defp deps do
-  [{:agent_blueprint_protocol, "~> 1.1.0-rc.3"}]
+  [{:agent_blueprint_protocol, "~> 1.1.0-rc.4"}]
 end
 ```
 

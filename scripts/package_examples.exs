@@ -4,21 +4,24 @@ defmodule PackageExamples do
   # Package-independent consumer gate. Only the archive and document paths are inputs.
   def cells(source, file) do
     ~r/^```elixir([^\r\n]*)\r?\n(.*?)^```[ \t]*$/ms
-    |> Regex.scan(source, return: :index, capture: :all_but_first)
+    |> Regex.scan(source, return: :index)
     |> Enum.with_index(1)
-    |> Enum.flat_map(fn {[{info_at, info_size}, {offset, size}], index} ->
+    |> Enum.flat_map(fn {[{fence_at, _}, {info_at, info_size}, {offset, size}], index} ->
       case source |> binary_part(info_at, info_size) |> String.trim() do
-        "fragment" ->
-          []
-
         "" ->
-          [
-            %{
-              code: binary_part(source, offset, size),
-              index: index,
-              line: length(String.split(binary_part(source, 0, offset), "\n"))
-            }
-          ]
+          preceding = binary_part(source, 0, fence_at)
+
+          if Regex.match?(~r/(?:\A|\n)<!-- fragment -->\r?\n\z/, preceding) do
+            []
+          else
+            [
+              %{
+                code: binary_part(source, offset, size),
+                index: index,
+                line: length(String.split(binary_part(source, 0, offset), "\n"))
+              }
+            ]
+          end
 
         info ->
           raise "#{file} block #{index}: unknown Elixir fence marking #{inspect(info)}"

@@ -12,6 +12,48 @@ defmodule AgentBlueprintProtocol.Architecture.ExamplesGalleryTest do
 
   @examples_dir "priv/examples"
 
+  test "displayed example JSON equals its named source, including signatures" do
+    blocks =
+      for file <- AgentBlueprintProtocol.ShippedDocuments.paths(),
+          source = File.read!(file),
+          [{at, _}, {body_at, body_size}] <-
+            Regex.scan(~r/^```json\r?\n(.*?)^```/ms, source, return: :index),
+          context = source |> binary_part(0, at) |> String.split(~r/^## /m) |> List.last(),
+          [_, name] <- Enum.take(Regex.scan(~r/priv\/examples\/([a-z-]+\.json)/, context), -1) do
+        fields =
+          case Regex.run(~r/<!-- example-fields: ([a-z_ ]+) -->\s*\z/, context) do
+            [_, fields] -> String.split(fields)
+            nil -> nil
+          end
+
+        {file, name, fields, binary_part(source, body_at, body_size)}
+      end
+
+    gallery_count = length(Regex.scan(~r/^```json$/m, File.read!("documentation/examples.md")))
+    assert gallery_count > 0
+
+    assert Enum.count(blocks, &(elem(&1, 0) == "documentation/examples.md")) == gallery_count,
+           "every gallery JSON block must name its priv/examples source"
+
+    assert Enum.any?(blocks, &(elem(&1, 0) == "README.md"))
+
+    assert Enum.all?(blocks, fn {file, _name, fields, _body} ->
+             file != "documentation/examples.md" or is_nil(fields)
+           end),
+           "the complete gallery must compare every source member"
+
+    offenders =
+      for {file, name, fields, body} <- blocks,
+          expected = File.read!(Path.join(@examples_dir, name)) |> Jason.decode!(),
+          expected = if(fields, do: Map.take(expected, fields), else: expected),
+          Jason.decode!(body) != expected,
+          do: "#{file}: JSON differs from priv/examples/#{name}"
+
+    assert offenders == [],
+           "displayed JSON drifted from its source (all members are compared):\n" <>
+             Enum.join(offenders, "\n")
+  end
+
   test "every example artifact is a byte-exact corpus case" do
     examples =
       for(

@@ -23,8 +23,8 @@ export function run(archive, files) {
       let index=0;
       for(const match of source.matchAll(/^```(?:js|javascript|ts|typescript)([^\r\n]*)\r?\n([\s\S]*?)^```[ \t]*$/gm)) {
         index++;
-        if(match[1].trim()==='fragment')continue;
         if(match[1].trim()!=='')throw new Error(`${file} block ${index}: unknown fence marking`);
+        if(/(?:^|\n)<!-- fragment -->\r?\n$/.test(source.slice(0,match.index)))continue;
         const script=join(scratch,`example-${total++}.mts`);
         writeFileSync(script,match[2]);
         try { process.stdout.write(command(process.execPath,[script])); }

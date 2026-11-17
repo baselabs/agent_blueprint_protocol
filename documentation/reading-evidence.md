@@ -8,7 +8,8 @@ Reconciliation returns an `Evidence` struct. Its checks record a surface, subjec
 
 The following excerpt assumes `evidence` is the result of `AgentBlueprintProtocol.reconcile/3`. It looks up known check names and keeps a default branch for future details.
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 alias AgentBlueprintProtocol.Evidence
 
 signature_summaries =
@@ -62,7 +63,8 @@ Evidence detail variants may grow. This code handles the known Signatures and Bi
 
 The `not_verified` names may also grow. Look up names you understand and retain a default branch:
 
-```elixir fragment
+<!-- fragment -->
+```elixir
 not_verified_summary =
   Enum.map(evidence.not_verified, fn
     :tenancy -> {:known_unverified, :tenancy}

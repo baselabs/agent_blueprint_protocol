@@ -12,7 +12,7 @@ In a new working directory, install the exact release. The package ships the can
 
 ```sh
 npm init -y
-npm install @agent-blueprint-protocol/verifier@1.1.0-rc.3
+npm install @agent-blueprint-protocol/verifier@1.1.0-rc.4
 ```
 
 Save the following block as `verify.mjs`, then run `node verify.mjs`. It prints `valid`.
@@ -284,7 +284,7 @@ For `conformance run`, the harness writes a results document only after receivin
 
 ## Package-root reference
 
-All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0-rc.3/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0-rc.3/verifier/index.ts).
+All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0-rc.4/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0-rc.4/verifier/index.ts).
 
 | Export and signature (outer return is `Result<…>`) | Inputs, defaults, and success value |
 |---|---|
@@ -470,7 +470,7 @@ if (!document.ok) throw new Error(document.error.code);
 console.log(report.value.agreement, document.value.results.length === run.value.flat().length);
 ```
 
-To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.1.0-rc.3 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
+To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.1.0-rc.4 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
 
 ## Import migration
 
@@ -488,7 +488,10 @@ Import from `@agent-blueprint-protocol/verifier`. Deep imports are not part of t
 | `dist/verifier/signature.js`: `verify` | `verifySignature` |
 | `dist/verifier/corpus.js`: `load` | `loadCorpus` |
 | `dist/verifier/runner.js`: `run` | `runCorpus` |
-| `dist/verifier/report.js`: `build`, `toBytes` | `buildReport`, `buildResultsDocument` |
+| `dist/verifier/report.js`: `build` | `buildReport` with `(corpus, results)` returns the aggregate report as a `Result<Report>`. |
+| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder. Use `npx @agent-blueprint-protocol/verifier@1.1.0-rc.4 --corpus <dir> > report.json` for canonical aggregate-report bytes. |
+
+`buildResultsDocument(corpus)` builds the separate per-case results document, not the aggregate report. `JSON.stringify(report.value)` is JSON but does not guarantee canonical report bytes.
 
 The public `Result<T>` shape uses `value` on success and a typed `error` on denial. Internal `{ok, v, e}` records and deep imports no longer resolve. The [migration guide](migrating-to-1.0.md) covers the Elixir changes.
 

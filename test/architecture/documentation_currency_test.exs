@@ -10,6 +10,125 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   @readme_path "README.md"
   @security_path "SECURITY.md"
 
+  test "shipped document fences have at most a bare language info string" do
+    offenders =
+      for file <- shipped_markdown(),
+          {line, number} <- file |> File.read!() |> String.split("\n") |> Enum.with_index(1),
+          [_, info] <- Regex.scan(~r/^ {0,3}(?:`{3,}|~{3,})([^`~]*)$/, line),
+          length(String.split(info)) > 1,
+          do: "#{file}:#{number}: #{String.trim(info)}"
+
+    assert offenders == [],
+           "fence info strings must contain only a language; use a preceding <!-- fragment --> comment:\n" <>
+             Enum.join(offenders, "\n")
+  end
+
+  test "the migration checklist distinguishes historical and current verification semantics" do
+    metadata = Jason.decode!(File.read!("priv/release-metadata.json"))
+    history = Jason.decode!(File.read!("priv/release-history.json"))
+    historic = Enum.find(history["rows"], &(&1["package_version"] == "1.0.0"))
+
+    checklist =
+      File.read!("documentation/migrating-to-1.0.md")
+      |> String.split("## Migration checklist")
+      |> List.last()
+
+    line = current_version() |> String.split(".") |> Enum.take(2) |> Enum.join(".")
+
+    assert checklist =~
+             "verification semantics is `#{historic["verification_semantics_version"]}` at 1.0 and `#{metadata["verification_semantics_version"]}` from #{line}",
+           "migration checklist must distinguish 1.0 semantics from current release semantics #{metadata["verification_semantics_version"]}"
+
+    assert checklist =~ "[1.1 changes](upgrading.md)",
+           "migration checklist must link the current upgrade instructions"
+  end
+
+  test "TypeScript import tables map aggregate reports separately from per-case results" do
+    facade = File.read!("verifier/facade.ts")
+
+    exports =
+      Regex.scan(~r/export function (\w+)\(/, facade, capture: :all_but_first) |> List.flatten()
+
+    mappings = [
+      {"blueprint", "decode", "decodeBlueprint"},
+      {"deployment", "decode", "decodeDeployment"},
+      {"federation", "decode", "decodeFederationEnvelope"},
+      {"negotiation", "negotiate", "negotiate"},
+      {"bounds_algebra", "intersect", "intersect"},
+      {"compatibility", "verify", "verifyCompatibility"},
+      {"signature", "verify", "verifySignature"},
+      {"corpus", "load", "loadCorpus"},
+      {"runner", "run", "runCorpus"},
+      {"report", "build", "buildReport"}
+    ]
+
+    for file <- ~w(documentation/typescript.md documentation/migrating-to-1.0.md) do
+      source = File.read!(file)
+
+      for {mod, previous, replacement} <- mappings do
+        assert replacement in exports
+
+        assert source =~ "| `dist/verifier/#{mod}.js`: `#{previous}` | `#{replacement}`",
+               "#{file}: #{mod}.#{previous} must map to #{replacement} in its own row"
+      end
+
+      assert source =~ "| Artifact modules: `canonicalBytes` | `canonicalBytes` |"
+      assert "canonicalBytes" in exports
+
+      assert source =~ "| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder.",
+             "#{file}: report.toBytes must name the missing aggregate byte API, not buildResultsDocument"
+
+      assert source =~
+               "npx @agent-blueprint-protocol/verifier@#{current_version()} --corpus <dir> > report.json",
+             "#{file}: report.toBytes migration must show the canonical aggregate-report CLI command"
+    end
+  end
+
+  test "locally installed npm commands use pinned npx" do
+    readme = File.read!("verifier/README.md")
+
+    refute Regex.match?(~r/^agent-blueprint-protocol\s/m, readme),
+           "npm README must use pinned npx for its locally installed CLI"
+  end
+
+  test "directly spawned walkthrough adapters use a portable executable" do
+    for file <- ~w(documentation/conformance.md docs/livebooks/conformance-and-attacks.livemd) do
+      source = File.read!(file)
+
+      adapters =
+        Regex.scan(~r/^.*conformance run .* -- (.+)$/m, source, capture: :all_but_first)
+        |> List.flatten()
+
+      assert length(adapters) == 2
+
+      for adapter <- adapters do
+        assert String.starts_with?(
+                 adapter,
+                 "node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs "
+               ),
+               "#{file}: walkthrough adapters must run the installed CLI with node, not a Windows batch launcher"
+      end
+
+      assert source =~ "started directly without a shell"
+      assert source =~ "`.cmd` or `.bat` launcher must be run through its interpreter"
+    end
+  end
+
+  test "every TypeScript doc comment directly precedes a declaration" do
+    offenders =
+      for file <- Path.wildcard("verifier/*.ts"),
+          source = File.read!(file),
+          [{at, size}] <- Regex.scan(~r{/\*\*.*?\*/}s, source, return: :index),
+          following = binary_part(source, at + size, byte_size(source) - at - size),
+          not Regex.match?(
+            ~r/\A\s*(?:(?:export|declare)\s+)*(?:async\s+)?(?:function|const|let|var|class|interface|type|enum|namespace)\b|\A\s*export\s*[\{*]/,
+            following
+          ),
+          do: "#{file}:#{length(String.split(binary_part(source, 0, at), "\n"))}"
+
+    assert offenders == [], "orphan TypeScript doc comments: " <> Enum.join(offenders, ", ")
+  end
+
   test "consumer examples never locate resources relative to the working directory" do
     documents =
       Enum.uniq(
@@ -249,32 +368,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert File.exists?(Path.expand("../../styles.css", "site/extensions/federation"))
   end
 
-  # Package entries include bare directories ("documentation", "priv/examples");
-  # a flat ends_with?(".md") filter over the entries list silently skipped
-  # every file inside them, which is how the guides' install pins drifted.
-  # Livebooks (.livemd) are shipped documents too and carry the same claims.
-  defp shipped_markdown do
-    Mix.Project.config()[:package][:files]
-    |> Enum.flat_map(&markdown_entry/1)
-    |> Enum.uniq()
-    |> Enum.sort()
-  end
-
-  defp markdown_entry(entry) do
-    cond do
-      String.ends_with?(entry, [".md", ".livemd", ".cheatmd"]) ->
-        [entry]
-
-      File.dir?(entry) ->
-        for relative <-
-              :filelib.wildcard(~c"**/*.{md,livemd,cheatmd}", String.to_charlist(entry)),
-            not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
-            do: Path.join(entry, List.to_string(relative))
-
-      true ->
-        []
-    end
-  end
+  defp shipped_markdown, do: AgentBlueprintProtocol.ShippedDocuments.paths()
 
   # A version claim is a three-part number standing ALONE (not a
   # §-prefixed section reference, not part of a longer dotted
@@ -340,10 +434,10 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     do: claim in [version, "0.8.4", hd(String.split(version, "-"))]
 
   # These guides reproduce the shipped echo Deployment Manifest, whose
-  # build identity intentionally names the fixture's original package version.
+  # build identities intentionally name the fixtures' original package versions.
   defp allowed_document_version?(file, claim, version)
        when file in ["documentation/examples.md", "documentation/what-a-deployment-is.md"],
-       do: claim in [version, "0.1.0"]
+       do: claim in [version, "0.1.0", "0.1.0-dev.abc"]
 
   defp allowed_document_version?("CONTRIBUTING.md", claim, version) do
     claim == version or claim in ci_toolchain_versions()
