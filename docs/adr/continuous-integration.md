@@ -7,8 +7,8 @@ Code, documentation, packaging, and workflow changes share executable checks. A 
 ## Decision
 
 `.github/workflows/ci.yml` starts only on pushes to `kci/**`, without path
-filters. `kimosabe-land` pushes a candidate to `kci/<sha>` and moves `main`
-only after `qualified` succeeds. That final job always runs, needs every other
+filters. Landing pushes a candidate to `kci/<sha>` and moves `main` only
+after `qualified` succeeds. That final job always runs, needs every other
 job, and refuses failed, cancelled, skipped, or missing results. Pull requests,
 default-branch pushes, tags, and dispatches start no qualification run.
 

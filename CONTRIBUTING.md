@@ -21,8 +21,8 @@ A standalone `mix typescript.guide` check also requires the npm dependencies and
 
 ## CI and checks
 
-Qualification starts only on a push to `kci/**`. `kimosabe-land` moves the
-default branch only after `qualified` has required every other job to succeed.
+Qualification starts only on a push to `kci/**`. Landing moves the default
+branch only after `qualified` has required every other job to succeed.
 Pull requests, default-branch pushes, tags, and dispatches do not start CI.
 This public repository uses pinned GitHub-hosted runners; builds and tests
 run only in CI, never on the owner's Mac or the build box. Workstation checks

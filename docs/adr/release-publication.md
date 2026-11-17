@@ -24,7 +24,7 @@ defaults and compatibility lanes from `.tool-versions`; setup uses those
 exact versions, with strict BEAM selection, installed-version checks, and
 caching disabled. Qualification is separate: only `kci/**` pushes start CI,
 and its final `qualified` job requires every other job to succeed before
-`kimosabe-land` moves the default branch.
+landing moves the default branch.
 
 Publishing jobs use environment `publish`. Both the actor and triggering
 actor must be `corepay` or `palermo-git`. Within Publish, only npm receives

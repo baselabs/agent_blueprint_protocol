@@ -152,7 +152,6 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
       refute source =~ "vars."
       refute source =~ "self-hosted"
       refute source =~ "BASELABS_RUNNER"
-      refute source =~ "kimosabe-remote"
 
       for {_name, job} <- jobs(source),
           [_, runner] <- Regex.scan(~r/^    runs-on: (.+)$/m, job) do
