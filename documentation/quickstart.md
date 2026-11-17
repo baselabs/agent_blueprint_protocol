@@ -72,9 +72,13 @@ error.code # => :unknown_member
 The package includes a [conformance corpus](glossary.md#conformance-corpus) under `priv/conformance/`. Load its files through the public corpus, runner, and report functions:
 
 ```elixir
-root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
-files = Path.wildcard(Path.join(root, "**/*")) |> Enum.filter(&File.regular?/1)
-files = Map.new(files, fn path -> {Path.relative_to(path, root), File.read!(path)} end)
+corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
+files =
+  for relative <- :filelib.wildcard(~c"**/*", String.to_charlist(corpus_root)),
+      path = Path.join(corpus_root, relative),
+      File.regular?(path),
+      into: %{},
+      do: {List.to_string(relative), File.read!(path)}
 {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
 results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
 report = AgentBlueprintProtocol.Conformance.Report.build(corpus, results)

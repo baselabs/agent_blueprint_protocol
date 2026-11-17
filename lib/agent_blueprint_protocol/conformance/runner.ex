@@ -11,11 +11,11 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   ```elixir
   corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
   files =
-    Path.wildcard(Path.join(corpus_root, "**/*"))
-    |> Enum.filter(&File.regular?/1)
-    |> Map.new(fn path ->
-      {Path.relative_to(path, corpus_root), File.read!(path)}
-    end)
+    for relative <- :filelib.wildcard(~c"**/*", String.to_charlist(corpus_root)),
+        path = Path.join(corpus_root, relative),
+        File.regular?(path),
+        into: %{},
+        do: {List.to_string(relative), File.read!(path)}
   {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
   match?(results when is_list(results), AgentBlueprintProtocol.Conformance.Runner.run(corpus))
   ```
@@ -96,11 +96,11 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
   ```elixir
   corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
   files =
-    Path.wildcard(Path.join(corpus_root, "**/*"))
-    |> Enum.filter(&File.regular?/1)
-    |> Map.new(fn path ->
-      {Path.relative_to(path, corpus_root), File.read!(path)}
-    end)
+    for relative <- :filelib.wildcard(~c"**/*", String.to_charlist(corpus_root)),
+        path = Path.join(corpus_root, relative),
+        File.regular?(path),
+        into: %{},
+        do: {List.to_string(relative), File.read!(path)}
 
   {:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
   match?(results when is_list(results), AgentBlueprintProtocol.Conformance.Runner.run(corpus))

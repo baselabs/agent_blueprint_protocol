@@ -255,15 +255,25 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   # Livebooks (.livemd) are shipped documents too and carry the same claims.
   defp shipped_markdown do
     Mix.Project.config()[:package][:files]
-    |> Enum.flat_map(fn entry ->
-      cond do
-        String.ends_with?(entry, [".md", ".livemd", ".cheatmd"]) -> [entry]
-        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd,cheatmd}"))
-        true -> []
-      end
-    end)
+    |> Enum.flat_map(&markdown_entry/1)
     |> Enum.uniq()
     |> Enum.sort()
+  end
+
+  defp markdown_entry(entry) do
+    cond do
+      String.ends_with?(entry, [".md", ".livemd", ".cheatmd"]) ->
+        [entry]
+
+      File.dir?(entry) ->
+        for relative <-
+              :filelib.wildcard(~c"**/*.{md,livemd,cheatmd}", String.to_charlist(entry)),
+            not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+            do: Path.join(entry, List.to_string(relative))
+
+      true ->
+        []
+    end
   end
 
   # A version claim is a three-part number standing ALONE (not a

@@ -12,7 +12,11 @@ defmodule AgentBlueprintProtocol.ArchitectureScan do
   @doc "Source files (*.ex/*.exs) under the shipped-surface roots that exist."
   def source_files(roots \\ @shipped_roots) do
     roots
-    |> Enum.flat_map(fn root -> Path.wildcard(Path.join(root, "**/*.{ex,exs}")) end)
+    |> Enum.flat_map(fn root ->
+      for relative <- :filelib.wildcard(~c"**/*.{ex,exs}", String.to_charlist(root)),
+          not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+          do: Path.join(root, List.to_string(relative))
+    end)
     |> Enum.sort()
   end
 
@@ -23,7 +27,11 @@ defmodule AgentBlueprintProtocol.ArchitectureScan do
   """
   def path_segments(roots \\ @shipped_roots) do
     roots
-    |> Enum.flat_map(fn root -> Path.wildcard(Path.join(root, "**/*")) end)
+    |> Enum.flat_map(fn root ->
+      for relative <- :filelib.wildcard(~c"**/*", String.to_charlist(root)),
+          not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+          do: Path.join(root, List.to_string(relative))
+    end)
     |> Enum.flat_map(&Path.split/1)
     |> Enum.map(&Path.rootname/1)
     |> Enum.uniq()

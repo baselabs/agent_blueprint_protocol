@@ -267,7 +267,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
   defp expand_match(path) do
     if File.dir?(path) do
-      Path.wildcard(Path.join(path, "**/*"), match_dot: true)
+      for relative <- :filelib.wildcard(~c"**/*", String.to_charlist(path)),
+          do: Path.join(path, List.to_string(relative))
     else
       [path]
     end

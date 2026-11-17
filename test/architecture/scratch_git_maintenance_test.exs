@@ -35,7 +35,12 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchGitMaintenanceTest do
   test "every scratch git repository that commits disables automatic maintenance" do
     drivers =
       for root <- @roots,
-          path <- Path.wildcard(Path.join(root, "**/*.{ex,exs}")),
+          path <-
+            for(
+              relative <- :filelib.wildcard(~c"**/*.{ex,exs}", String.to_charlist(root)),
+              not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+              do: Path.join(root, List.to_string(relative))
+            ),
           path != @self,
           File.read!(path) =~ @maintenance_subcommand,
           do: path
@@ -45,7 +50,12 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchGitMaintenanceTest do
 
     initializers =
       for root <- @roots,
-          path <- Path.wildcard(Path.join(root, "**/*.{ex,exs}")),
+          path <-
+            for(
+              relative <- :filelib.wildcard(~c"**/*.{ex,exs}", String.to_charlist(root)),
+              not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+              do: Path.join(root, List.to_string(relative))
+            ),
           path != @self,
           File.read!(path) =~ ~r/\[\s*"init"/,
           do: path

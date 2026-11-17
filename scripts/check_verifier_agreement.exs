@@ -398,7 +398,11 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
   defp sweep_partition do
     cases =
-      for path <- Path.wildcard(Path.join(@root, "priv/conformance/cases/*.json")) |> Enum.sort(),
+      for relative <-
+            :filelib.wildcard(~c"priv/conformance/cases/*.json", String.to_charlist(@root))
+            |> Enum.sort(),
+          not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+          path = Path.join(@root, List.to_string(relative)),
           %{"cases" => entries} = path |> File.read!() |> Jason.decode!(),
           entry <- entries,
           @artifact_surfaces[entry["surface"]] != nil,
@@ -436,7 +440,11 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
   defp artifact_sweep_failures(node, dir, override) do
     cases =
-      for path <- Path.wildcard(Path.join(@root, "priv/conformance/cases/*.json")) |> Enum.sort(),
+      for relative <-
+            :filelib.wildcard(~c"priv/conformance/cases/*.json", String.to_charlist(@root))
+            |> Enum.sort(),
+          not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+          path = Path.join(@root, List.to_string(relative)),
           %{"cases" => entries} = path |> File.read!() |> Jason.decode!(),
           entry <- entries,
           kind = @artifact_surfaces[entry["surface"]],

@@ -24,14 +24,14 @@ Locate the package files and load the shipped conformance corpus.
 true = File.regular?(Application.app_dir(:agent_blueprint_protocol, "priv/examples/echo-blueprint.json"))
 corpus_root = Application.app_dir(:agent_blueprint_protocol, "priv/conformance")
 
-corpus_files =
-  corpus_root
-  |> Path.join("**/*")
-  |> Path.wildcard(match_dot: true)
-  |> Enum.reject(&File.dir?/1)
-  |> Map.new(fn path -> {Path.relative_to(path, corpus_root), File.read!(path)} end)
+files =
+  for relative <- :filelib.wildcard(~c"**/*", String.to_charlist(corpus_root)),
+      path = Path.join(corpus_root, relative),
+      File.regular?(path),
+      into: %{},
+      do: {List.to_string(relative), File.read!(path)}
 
-{:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(corpus_files)
+{:ok, corpus} = AgentBlueprintProtocol.Conformance.Corpus.load(files)
 %{corpus_loaded: true}
 ```
 

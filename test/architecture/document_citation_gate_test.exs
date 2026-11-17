@@ -111,12 +111,17 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   defp document_files(pattern) do
     pattern
     |> Path.wildcard(match_dot: true)
-    |> Enum.flat_map(fn path ->
-      if File.dir?(path),
-        do: Path.wildcard(Path.join(path, "**/*"), match_dot: true),
-        else: [path]
-    end)
+    |> Enum.flat_map(&document_match/1)
     |> Enum.filter(&File.regular?/1)
+  end
+
+  defp document_match(path) do
+    if File.dir?(path) do
+      for relative <- :filelib.wildcard(~c"**/*", String.to_charlist(path)),
+          do: Path.join(path, List.to_string(relative))
+    else
+      [path]
+    end
   end
 
   test "versioned repository links pin the release and resolve locally" do
@@ -171,7 +176,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   defp versioned_documents do
     (["README.md", "verifier/README.md"] ++
        Enum.flat_map(~w(documentation spec docs/livebooks site), fn directory ->
-         Path.wildcard(Path.join(directory, "**/*"), match_dot: true)
+         for relative <- :filelib.wildcard(~c"**/*", String.to_charlist(directory)),
+             do: Path.join(directory, List.to_string(relative))
        end))
     |> Enum.filter(&File.regular?/1)
     |> Enum.uniq()
@@ -218,8 +224,20 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
       )
 
     assert status == 0, output
-    pages = Path.wildcard(Path.join(root, "*.html"))
-    published = Path.wildcard(Path.join(root, "**/*")) |> Enum.filter(&File.regular?/1)
+
+    pages =
+      for relative <- :filelib.wildcard(~c"*.html", String.to_charlist(root)),
+          not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+          do: Path.join(root, List.to_string(relative))
+
+    published =
+      for(
+        relative <- :filelib.wildcard(~c"**/*", String.to_charlist(root)),
+        not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+        do: Path.join(root, List.to_string(relative))
+      )
+      |> Enum.filter(&File.regular?/1)
+
     assert pages != []
     assert published_target?(hd(pages), URI.parse("#content"), published)
     refute published_target?(hd(pages), URI.parse("#missing-anchor-probe"), published)
@@ -340,15 +358,25 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
   # are shipped documents with the same link semantics.
   defp shipped_markdown do
     Mix.Project.config()[:package][:files]
-    |> Enum.flat_map(fn entry ->
-      cond do
-        String.ends_with?(entry, [".md", ".livemd", ".cheatmd"]) -> [entry]
-        File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd,cheatmd}"))
-        true -> []
-      end
-    end)
+    |> Enum.flat_map(&markdown_entry/1)
     |> Enum.uniq()
     |> Enum.sort()
+  end
+
+  defp markdown_entry(entry) do
+    cond do
+      String.ends_with?(entry, [".md", ".livemd", ".cheatmd"]) ->
+        [entry]
+
+      File.dir?(entry) ->
+        for relative <-
+              :filelib.wildcard(~c"**/*.{md,livemd,cheatmd}", String.to_charlist(entry)),
+            not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+            do: Path.join(entry, List.to_string(relative))
+
+      true ->
+        []
+    end
   end
 
   # The citation allowlist stems from the SHIPPED set only: a shipped

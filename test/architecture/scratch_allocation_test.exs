@@ -123,7 +123,11 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
 
   defp files(roots, glob) do
     roots
-    |> Enum.flat_map(&Path.wildcard(Path.join(&1, glob)))
+    |> Enum.flat_map(fn root ->
+      for relative <- :filelib.wildcard(String.to_charlist(glob), String.to_charlist(root)),
+          not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+          do: Path.join(root, List.to_string(relative))
+    end)
     |> Enum.sort()
   end
 

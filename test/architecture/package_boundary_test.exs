@@ -307,8 +307,10 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
       )
 
     files =
-      Path.join(unpack_dir, "**/*")
-      |> Path.wildcard(match_dot: true)
+      for(
+        relative <- :filelib.wildcard(~c"**/*", String.to_charlist(unpack_dir)),
+        do: Path.join(unpack_dir, List.to_string(relative))
+      )
       |> Enum.reject(&File.dir?/1)
       |> Enum.map(&Path.relative_to(&1, unpack_dir))
       |> Enum.sort()

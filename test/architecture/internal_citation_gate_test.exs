@@ -69,8 +69,17 @@ defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
   defp scan_files do
     files =
       (@scan_roots
-       |> Enum.flat_map(&Path.wildcard(Path.join(&1, "**/*.{ex,exs}")))) ++
-        (@ts_roots |> Enum.flat_map(&Path.wildcard(Path.join(&1, "**/*.ts"))))
+       |> Enum.flat_map(fn root ->
+         for relative <- :filelib.wildcard(~c"**/*.{ex,exs}", String.to_charlist(root)),
+             not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+             do: Path.join(root, List.to_string(relative))
+       end)) ++
+        (@ts_roots
+         |> Enum.flat_map(fn root ->
+           for relative <- :filelib.wildcard(~c"**/*.ts", String.to_charlist(root)),
+               not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+               do: Path.join(root, List.to_string(relative))
+         end))
 
     files
     |> Enum.reject(&(&1 in @exempt))

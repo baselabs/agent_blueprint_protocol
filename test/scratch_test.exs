@@ -33,7 +33,7 @@ defmodule AgentBlueprintProtocol.ScratchTest do
     end)
   end
 
-  test "allocated paths are absolute and normalized for wildcard consumers" do
+  test "allocated paths are absolute, normalized, and usable as lookup working directories" do
     Scratch.with_dir("normalized", fn root ->
       relative = Path.relative_to(root, File.cwd!(), force: true)
 
@@ -43,8 +43,7 @@ defmodule AgentBlueprintProtocol.ScratchTest do
         normalized = path == Path.expand(path)
         assert normalized, "Scratch must normalize paths before returning them"
         File.write!(Path.join(path, "page.html"), "page")
-        found = Path.wildcard(Path.join(path, "*.html")) != []
-        assert found, "Scratch paths must work directly with Path.wildcard on every OS"
+        assert :filelib.wildcard(~c"*.html", String.to_charlist(path)) == [~c"page.html"]
       end
     end)
   end
@@ -140,14 +139,15 @@ defmodule AgentBlueprintProtocol.ScratchTest do
 
   test "replica setup failures remove the allocated directory" do
     Scratch.with_dir("not-a-repository", fn root ->
-      pattern = Path.join(Path.dirname(root), "abp-failed-replica-*")
-      before = Path.wildcard(pattern)
+      parent = String.to_charlist(Path.dirname(root))
+      pattern = ~c"abp-failed-replica-*"
+      before = :filelib.wildcard(pattern, parent)
 
       assert_raise MatchError, fn ->
         Scratch.with_replica("failed-replica", [root: root], fn _ -> flunk("must not run") end)
       end
 
-      assert Path.wildcard(pattern) == before
+      assert :filelib.wildcard(pattern, parent) == before
     end)
   end
 

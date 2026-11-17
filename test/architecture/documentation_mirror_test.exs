@@ -29,7 +29,12 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
 
   # The README's first-verification example is a guide example too.
   defp guide_examples do
-    for file <- ["README.md" | Path.wildcard(Path.join(@guides_dir, "*.md")) |> Enum.sort()],
+    guides =
+      for relative <- :filelib.wildcard(~c"*.md", String.to_charlist(@guides_dir)),
+          not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+          do: Path.join(@guides_dir, List.to_string(relative))
+
+    for file <- ["README.md" | Enum.sort(guides)],
         {index, body} <- extract_blocks(File.read!(file)) do
       {file, index, body}
     end
@@ -46,16 +51,39 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
     |> Enum.filter(fn {_i, body} -> body =~ ~r/#\s*=>/ end)
   end
 
-  # Each line is either setup (no claim) or `expression # => claimed`.
-  # Setup lines evaluate in a shared binding; claimed lines evaluate
-  # and compare against the claimed value's own evaluation.
+  test "multiline setup is evaluated before checking each claim" do
+    example = """
+    values =
+      for value <- [1, 2],
+          do: value * 2
+    values # => [2, 4]
+    """
+
+    assert mirror_offences(example) == []
+    assert mirror_offences(String.replace(example, "# => [2, 4]", "# => [2, 5]")) != []
+    assert mirror_offences("values =\n") != []
+    assert mirror_offences("raise \"setup failed\"\ntrue # => true") != []
+  end
+
+  # Setup can span multiple lines; claims retain their line-by-line comparison.
   defp mirror_offences(body) do
     lines = String.split(body, "\n")
 
-    {offences, _binding} =
-      Enum.reduce(lines, {[], []}, fn line, {offs, binding} ->
-        mirror_line(line, {offs, binding})
+    {offences, binding, setup} =
+      Enum.reduce(lines, {[], [], []}, fn line, {offs, binding, setup} ->
+        if Regex.match?(~r/\s+#\s*=>\s*\S/, line) do
+          {offs, binding} =
+            setup_line(setup |> Enum.reverse() |> Enum.join("\n"), {offs, binding})
+
+          {offs, binding} = mirror_line(line, {offs, binding})
+          {offs, binding, []}
+        else
+          {offs, binding, [line | setup]}
+        end
       end)
+
+    {offences, _binding} =
+      setup_line(setup |> Enum.reverse() |> Enum.join("\n"), {offences, binding})
 
     offences
   end
@@ -89,7 +117,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
           eval_setup(expr, binding, line, offs)
 
         {:error, _} ->
-          {offs ++ ["a setup line does not parse: #{inspect(line)}"], binding}
+          {offs ++ ["a setup block does not parse: #{inspect(line)}"], binding}
       end
     end
   end
@@ -103,7 +131,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationMirrorTest do
         {offs, binding}
 
       {:error, reason} ->
-        {offs ++ ["setup line raised #{inspect(reason)}: #{inspect(line)}"], binding}
+        {offs ++ ["setup block raised #{inspect(reason)}: #{inspect(line)}"], binding}
     end
   end
 

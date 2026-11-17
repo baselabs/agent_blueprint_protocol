@@ -78,11 +78,7 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
       """
     end
 
-    count =
-      tree
-      |> Path.join("spec/**/*.md")
-      |> Path.wildcard()
-      |> length()
+    count = length(markdown_files(tree))
 
     IO.puts("spec extraction: ok (#{count} markdown files render self-contained)")
   end
@@ -136,10 +132,12 @@ defmodule AgentBlueprintProtocol.SpecExtractionCheck do
   defp strip_external_urls(content), do: String.replace(content, ~r/[a-z]+:\/\/\S+/, "")
 
   defp markdown_files(tree) do
-    tree
-    |> Path.join("spec/**/*.md")
-    |> Path.wildcard()
-    |> Enum.map(&Path.relative_to(&1, tree))
+    ~c"spec/**/*.md"
+    |> :filelib.wildcard(String.to_charlist(tree))
+    |> Enum.map(&List.to_string/1)
+    |> Enum.reject(fn relative ->
+      Enum.any?(Path.split(relative), &String.starts_with?(&1, "."))
+    end)
     |> Enum.sort()
   end
 

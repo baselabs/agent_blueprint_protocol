@@ -13,7 +13,13 @@ defmodule AgentBlueprintProtocol.Architecture.ExamplesGalleryTest do
   @examples_dir "priv/examples"
 
   test "every example artifact is a byte-exact corpus case" do
-    examples = Path.wildcard(Path.join(@examples_dir, "*.json")) |> Enum.sort()
+    examples =
+      for(
+        relative <- :filelib.wildcard(~c"*.json", String.to_charlist(@examples_dir)),
+        not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+        do: Path.join(@examples_dir, List.to_string(relative))
+      )
+      |> Enum.sort()
 
     assert examples != [],
            "no example artifacts found — the gallery would be vacuous"
@@ -33,7 +39,12 @@ defmodule AgentBlueprintProtocol.Architecture.ExamplesGalleryTest do
 
   test "the gallery documents at least one blueprint + deployment pair" do
     names =
-      Path.wildcard(Path.join(@examples_dir, "*.json")) |> Enum.map(&Path.basename(&1, ".json"))
+      for(
+        relative <- :filelib.wildcard(~c"*.json", String.to_charlist(@examples_dir)),
+        not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+        do: Path.join(@examples_dir, List.to_string(relative))
+      )
+      |> Enum.map(&Path.basename(&1, ".json"))
 
     assert Enum.any?(names, &String.contains?(&1, "blueprint")),
            "no blueprint example in the gallery"

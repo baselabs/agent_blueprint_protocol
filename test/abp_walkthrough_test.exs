@@ -11,9 +11,11 @@ defmodule AgentBlueprintProtocol.WalkthroughTest do
   @notebook_dir Path.expand("../docs/livebooks", __DIR__)
   setup_all do
     notebooks =
-      @notebook_dir
-      |> Path.join("*.livemd")
-      |> Path.wildcard()
+      for(
+        relative <- :filelib.wildcard(~c"*.livemd", String.to_charlist(@notebook_dir)),
+        not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
+        do: Path.join(@notebook_dir, List.to_string(relative))
+      )
       |> Enum.sort()
 
     assert notebooks != [], "docs/livebooks must contain at least one notebook"
