@@ -389,7 +389,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
       |> Enum.map(&angle_or_bare(Enum.at(&1, 1), Enum.at(&1, 2)))
 
     repository_urls =
-      ~r{https?://github\.com/baselabs/agent_blueprint_protocol(?:_private)?(?:/[^\s<>"')\]]*)?}
+      ~r{https?://github\.com/baselabs/agent_blueprint_protocol(?:/[^\s<>"')\]]*)?}
       |> Regex.scan(source)
       |> Enum.map(&hd/1)
 
@@ -427,8 +427,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
     case URI.parse(url) do
       %URI{host: "github.com", path: path} when is_binary(path) ->
         case String.split(URI.decode(path), "/", parts: 6) do
-          ["", "baselabs", repo | rest]
-          when repo in ["agent_blueprint_protocol", "agent_blueprint_protocol_private"] ->
+          ["", "baselabs", "agent_blueprint_protocol" = repo | rest] ->
             [repository_target(repo, rest)]
 
           _ ->

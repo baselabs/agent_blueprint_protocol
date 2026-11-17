@@ -6,9 +6,8 @@
 # source mutation at a one-match anchor, run `mix conformance.verify`, and
 # raise `mutation survived` when the corpus STAYS GREEN — a vacuous case set
 # is precisely the quiet failure this gate exists to kill. Baseline-green
-# runs first per unique command (a deleted/drifted target scoring a red as
-# "caught" is the false-green BAP recorded). The calibration entry proves
-# the raise path live.
+# runs first per unique command: a missing or drifted target must not count
+# as a caught mutation. The calibration entry proves the raise path live.
 
 Code.require_file("../test/support/scratch.exs", __DIR__)
 

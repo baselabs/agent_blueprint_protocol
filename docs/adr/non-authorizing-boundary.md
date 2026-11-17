@@ -5,8 +5,7 @@
 Agent-run blueprints describe capabilities and bindings. The obvious
 failure mode of such a protocol is scope creep into authorization: a
 "verified" artifact being treated as permission to act. Hosts own
-identity, tenancy, policy, and effect authority; several adjacent
-internal systems already occupy that ground.
+identity, tenancy, policy, and effect authority.
 
 ## Decision
 

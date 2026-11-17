@@ -3,9 +3,7 @@
 ## npm distribution axis
 
 The npm kit (the verifier's compiled distribution; published as
-`@agent-blueprint-protocol/verifier`, portfolio-naming consistency;
-born under the maintainer's personal scope and deprecated forward with
-the rename) carries its own package semver. That is a FIFTH
+`@agent-blueprint-protocol/verifier`) carries its own package semver. That is a FIFTH
 permitted version axis under one binding: the kit version MUST equal
 the Hex package version at every release (a single release line, two
 registries). Enforced mechanically by the version-sync gate in the

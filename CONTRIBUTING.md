@@ -66,7 +66,7 @@ mix quality
 
 The coverage threshold is 100% coverage.
 
-The build-free publication privacy guard runs separately in the repository's pre-push hook and CI. Both execute the same guard with the same repository-fingerprint configuration. The hook obtains its key from the credential store and CI supplies its own secret only to that step. Builds and tests need no publication key.
+The build-free publication privacy guard runs separately in the repository's pre-push hook and CI. Both run `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`. The command requires `ABP_PUBLIC_PRIVACY_HMAC_KEY` in its environment. CI supplies it from a repository secret only to that step. Builds and tests need no publication key.
 
 Regenerate release metadata after specification, corpus, or registry changes with `mix run scripts/generate_release_metadata.exs`.
 

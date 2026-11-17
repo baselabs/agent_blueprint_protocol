@@ -45,6 +45,14 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/runtime-boundary.md
     docs/adr/artifact-portability.md
     docs/adr/normative-extraction.md
+    docs/adr/continuous-integration.md
+    docs/adr/action-pinning.md
+    docs/adr/dependency-currency.md
+    docs/adr/coverage.md
+    docs/adr/kit-cli.md
+    docs/adr/release-site.md
+    docs/adr/scratch-git.md
+    docs/adr/conformance-mutations.md
     priv/release-metadata.json
     priv/release-history.json
     spec/protocol.md
@@ -200,6 +208,14 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/runtime-boundary.md
     docs/adr/artifact-portability.md
     docs/adr/normative-extraction.md
+    docs/adr/continuous-integration.md
+    docs/adr/action-pinning.md
+    docs/adr/dependency-currency.md
+    docs/adr/coverage.md
+    docs/adr/kit-cli.md
+    docs/adr/release-site.md
+    docs/adr/scratch-git.md
+    docs/adr/conformance-mutations.md
     spec/protocol.md
     spec/README.md
     spec/LICENSE

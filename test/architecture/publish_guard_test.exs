@@ -19,8 +19,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     `kimosabe/`, `.claude/`, `.serena`, `.mcp.json`, `/Users/`, `/home/`,
     `baselabs.com`, and `com.baselabs`. These contain `.` or `/`, which the
     base64url alphabet excludes, so none can false-positive inside a digest,
-    key, or signature token. Consumer-specific names and topology are enforced
-    repository-wide by `PublicSurfacePrivacyTest` using opaque fingerprints.
+    key, or signature token. The publication privacy command checks tracked
+    paths and history with keyed fingerprints; `PublicSurfacePrivacyTest`
+    exercises that command with a test key and canary.
   - Reference patterns (text files only: `.md`, `.cheatmd`, `.ex`, `.exs`): tracker
     numerals `00NN` (word-bounded; quoted base64url digests are intact word
     tokens and the only shipped digest form is `sha-256:`-prefixed, so the
@@ -34,8 +35,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
   - Registry data is RFC 2606 example-class content (`com.example.*`
     namespaces, `Example*` owners, `example.com` URIs). The public
-    package reveals no internal names; consumer-specific names are denied
-    everywhere in the tracked repository by the privacy gate.
+    package reveals no internal names; the publication privacy command
+    independently checks tracked paths and history.
   - Corpus `.json` files carry the text-pattern-exempt class: they are
     digest-bound by `conformance.verify` (any edit reds the corpus hash),
     and byte patterns still apply to them.
@@ -44,7 +45,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   (README, a lib module, a corpus member); a tracker numeral or slug added
   to a shipped text file; an internal design citation left in shipped
   docs; or any archive member absent from the tracked source tree. The
-  repository-wide privacy gate separately denies consumer-specific names.
+  publication privacy command separately checks tracked paths and history.
   """
 
   use ExUnit.Case, async: true

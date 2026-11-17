@@ -80,6 +80,79 @@ The number that identifies an artifact vocabulary and its wire rules.
 
 The Semantic Versioning identity of the published Hex or npm package.
 
+## Terms in JSON
+
+These excerpts connect the terms to the installed examples. `protocol_revision` selects the Blueprint vocabulary, `release_number` identifies its release, and `content_digest` commits to its digest-covered content. The Manifest's `blueprint_release` names that exact Blueprint release. The separate Federation example records a completed task and digest commitments; its Blueprint and Deployment digests refer to that example's own artifacts.
+
+These are reading excerpts, not complete artifacts or canonical wire bytes. A terminal state or a matching digest grants no host authority. See the [gallery](examples.md) for full artifacts and [federation guide](federation.md) for commitment verification.
+
+```json
+{
+  "echo-blueprint.json": {
+    "blueprint_id": "example.demo/echo",
+    "protocol_revision": 1,
+    "release_number": 1,
+    "content_digest": "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8"
+  },
+  "echo-deployment.json": {
+    "blueprint_release": {
+      "blueprint_id": "example.demo/echo",
+      "content_digest": "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8",
+      "release_number": 1
+    }
+  },
+  "federation-envelope.json": {
+    "task_identity": "task-7f3a2c",
+    "terminal_state": "completed",
+    "input_commitment": "sha-256:8Y14oMoIRWfn2QpbNC53tl0Tj1Cwly6fE-lyVdNvUFw",
+    "blueprint_digest": "sha-256:UqU_xO8mUo_SEKFyllPQx5viwqjUU0jymkOUDjoSJVY",
+    "deployment_digest": "sha-256:TYZzBKU6fPfMSOS8baiol9713E1x8oPzO-Mkuc1YLhE"
+  }
+}
+```
+
+Run this in a project with the [Hex dependency installed](quickstart.md). It decodes the complete installed artifacts, then checks every member shown above against those bytes.
+
+```elixir
+json = ~S"""
+{
+  "echo-blueprint.json": {
+    "blueprint_id": "example.demo/echo",
+    "protocol_revision": 1,
+    "release_number": 1,
+    "content_digest": "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8"
+  },
+  "echo-deployment.json": {
+    "blueprint_release": {
+      "blueprint_id": "example.demo/echo",
+      "content_digest": "sha-256:b1Aw4cU5AbV9k8bdbZkRCsySDHGpTAwB-aQm57Wh7B8",
+      "release_number": 1
+    }
+  },
+  "federation-envelope.json": {
+    "task_identity": "task-7f3a2c",
+    "terminal_state": "completed",
+    "input_commitment": "sha-256:8Y14oMoIRWfn2QpbNC53tl0Tj1Cwly6fE-lyVdNvUFw",
+    "blueprint_digest": "sha-256:UqU_xO8mUo_SEKFyllPQx5viwqjUU0jymkOUDjoSJVY",
+    "deployment_digest": "sha-256:TYZzBKU6fPfMSOS8baiol9713E1x8oPzO-Mkuc1YLhE"
+  }
+}
+"""
+
+decoders = %{
+  "echo-blueprint.json" => &AgentBlueprintProtocol.decode_blueprint/1,
+  "echo-deployment.json" => &AgentBlueprintProtocol.decode_deployment/1,
+  "federation-envelope.json" => &AgentBlueprintProtocol.decode_federation_envelope/1
+}
+
+for {name, excerpt} <- :json.decode(json) do
+  directory = Application.app_dir(:agent_blueprint_protocol, "priv/examples")
+  bytes = File.read!(Path.join(directory, name))
+  {:ok, _artifact} = Map.fetch!(decoders, name).(bytes)
+  true = Map.take(:json.decode(bytes), Map.keys(excerpt)) == excerpt
+end
+```
+
 ## Next steps
 
 - [Read the protocol](../spec/protocol.md)

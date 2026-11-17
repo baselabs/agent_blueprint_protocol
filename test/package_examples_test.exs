@@ -8,6 +8,34 @@ defmodule AgentBlueprintProtocol.PackageExamplesTest do
   import ExUnit.CaptureIO
   alias AgentBlueprintProtocol.Scratch
 
+  test "producer and glossary JSON excerpts execute in their packaged snippets" do
+    documents = ["documentation/producer.md", "documentation/glossary.md"]
+
+    for file <- documents do
+      source = File.read!(file)
+      snippets = PackageExamples.cells(source, file)
+      json = Regex.scan(~r/^```json\r?\n(.*?)^```/ms, source, capture: :all_but_first)
+
+      assert json != [], "#{file} must show JSON"
+      assert snippets != [], "#{file} must check its JSON with runnable package snippets"
+
+      for [example] <- json do
+        assert Enum.any?(snippets, &String.contains?(&1.code, String.trim(example))),
+               "#{file} has JSON that its package snippets do not exercise"
+      end
+    end
+
+    Scratch.with_dir("guide-json", fn root ->
+      archive = Path.join(root, "package.tar")
+
+      {output, status} =
+        System.cmd("mix", ["hex.build", "--output", archive], stderr_to_stdout: true)
+
+      assert status == 0, output
+      PackageExamples.run(archive, :snippets, documents)
+    end)
+  end
+
   test "each snippet document runs in its own consumer project" do
     Scratch.with_dir("snippet-isolation", fn root ->
       archive = Path.join(root, "package.tar")

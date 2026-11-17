@@ -244,7 +244,7 @@ sorted names from the same tables as their decoders: 18 Blueprint Core members,
 19 Deployment Manifest members, and 23 Federation TaskEnvelope members. Revision
 1 is supported. Other integer revisions return `protocol_revision_unsupported`
 with subject `["protocol_revision"]`; non-integers return `invalid_type` with
-an empty subject. These are additive library APIs introduced in 1.1.0-rc.2.
+an empty subject.
 
 A host supporting every core field declares the union of the Blueprint and
 Deployment vocabularies; declare only fields the host actually supports. The
