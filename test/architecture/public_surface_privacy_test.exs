@@ -8,6 +8,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
       scan_repo: 3,
       historical_content_forbidden?: 3,
       forbidden?: 3,
+      candidates: 1,
       fingerprint: 2,
       privacy_scan_decision: 1
     ]
@@ -85,6 +86,62 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     refute forbidden?(<<255, 254, 0, 1>>, test_hmacs(), @test_key)
     assert forbidden?("PUBLIC" <> <<255>> <> " PRIVACY CANARY", test_hmacs(), @test_key)
     assert forbidden?("publicpri" <> <<255>> <> "vacycanary", test_hmacs(), @test_key)
+  end
+
+  test "candidates are every run of one to three tokens or components, in each joining" do
+    samples = [
+      "",
+      "solo",
+      "two words",
+      "Mixed-case_tokens and-hyphen_runs: 42 x_y-z\nnext line",
+      Enum.map_join(1..40, " ", &"t#{&1}-c#{rem(&1, 7)}_d#{rem(&1, 3)}")
+    ]
+
+    for sample <- samples do
+      assert MapSet.new(candidates(String.downcase(sample))) == reference_candidates(sample)
+    end
+  end
+
+  test "a long input is scanned in time linear in its length" do
+    # About 400 KB, the size of the largest file versions in this repository's history.
+    filler = Enum.map_join(1..60_000, " ", &"w#{&1}")
+    content = filler <> " " <> @test_canary
+    {microseconds, found?} = :timer.tc(fn -> forbidden?(content, test_hmacs(), @test_key) end)
+
+    assert found?
+    assert microseconds < 5_000_000
+  end
+
+  test "historical contents are read whole from every reachable file version" do
+    AgentBlueprintProtocol.Scratch.with_dir("public-privacy-batch", fn repo ->
+      AgentBlueprintProtocol.Scratch.init_git!(repo)
+
+      # Contents that would desynchronize a reader that frames objects by lines:
+      # NUL bytes, a line shaped like a batch header, an empty file, no final newline.
+      versions = [
+        {"binary.bin", <<0, 1, 2, 0>> <> "\n0000000000000000000000000000000000000000 blob 9\n"},
+        {"empty.txt", ""},
+        {"no-newline.txt", "public protocol"},
+        {"binary.bin", <<255, 0>> <> String.duplicate("x\n", 5000)}
+      ]
+
+      for {{path, content}, index} <- Enum.with_index(versions) do
+        File.write!(Path.join(repo, path), content)
+        git!(repo, ["add", path])
+        git!(repo, ["commit", "-m", "version #{index}"])
+      end
+
+      refute historical_content_forbidden?(repo, test_hmacs(), @test_key)
+
+      canary = @test_canary |> String.split(" ") |> Enum.join()
+      File.write!(Path.join(repo, "late.txt"), <<0>> <> "\n" <> canary)
+      git!(repo, ["add", "late.txt"])
+      git!(repo, ["commit", "-m", "late"])
+      git!(repo, ["rm", "late.txt"])
+      git!(repo, ["commit", "-m", "remove late"])
+
+      assert historical_content_forbidden?(repo, test_hmacs(), @test_key)
+    end)
   end
 
   test "Git plumbing detects tracked, historical, merge, ref-name, and tag violations" do
@@ -292,6 +349,24 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
       :absolute -> path
       _relative -> Path.expand(path, repo)
     end
+  end
+
+  # The definition by slicing: every contiguous run of one to three tokens, and of
+  # one to three hyphen- or underscore-separated components, joined four ways.
+  defp reference_candidates(content) do
+    tokens =
+      ~r/[a-z0-9_]+(?:-[a-z0-9_]+)*/
+      |> Regex.scan(String.downcase(content), capture: :first)
+      |> List.flatten()
+
+    components = Enum.flat_map(tokens, &String.split(&1, ["-", "_"], trim: true))
+
+    for list <- [tokens, components],
+        size <- 1..3,
+        offset <- 0..(length(list) - size)//1,
+        separator <- ["", " ", "_", "-"],
+        into: MapSet.new(),
+        do: list |> Enum.slice(offset, size) |> Enum.join(separator)
   end
 
   defp test_hmacs do

@@ -140,23 +140,16 @@ defmodule PublicPrivacyScan do
   end
 
   def historical_content_forbidden?(repo, forbidden_hmacs, key) do
-    commits =
+    # Git's own reachability walk lists every reachable object once, so each distinct
+    # file version is scanned once however many commits carry it.
+    ids =
       repo
-      |> git!(["rev-list", "--all"])
+      |> git!(["rev-list", "--all", "--objects", "--no-object-names"])
       |> String.split("\n", trim: true)
 
-    # Every file of every commit, scanned once per distinct content: an unchanged file is
-    # the same blob in every commit that carries it, so the scan grows with the number of
-    # file versions, not commits × files (that was 1625s of a 1632s suite at 0.8.2).
-    commits
-    |> Enum.flat_map(fn commit ->
-      repo
-      |> git!(["ls-tree", "-r", "-z", commit])
-      |> String.split(<<0>>, trim: true)
-      |> Enum.map(&tree_entry_blob!/1)
-    end)
-    |> Enum.uniq()
-    |> parallel(&historical_blob_forbidden?(repo, &1, forbidden_hmacs, key))
+    repo
+    |> read_blobs!(ids)
+    |> parallel(&forbidden?(&1, forbidden_hmacs, key))
     |> Enum.any?()
   end
 
@@ -167,22 +160,71 @@ defmodule PublicPrivacyScan do
     |> Enum.map(fn {:ok, result} -> result end)
   end
 
-  defp tree_entry_blob!(entry) do
-    case Regex.run(~r/\A\d+ (\w+) ([0-9a-f]+)\t/, entry, capture: :all_but_first) do
-      ["blob", id] -> id
-      _other -> raise "unexpected tree entry (only files are scanned)"
+  # One `git cat-file --batch` reads every object; only file contents are kept.
+  # Objects are framed by their declared size, never by lines.
+  defp read_blobs!(_repo, []), do: []
+
+  defp read_blobs!(repo, ids) do
+    git = System.find_executable("git") || raise "git executable not found"
+
+    port =
+      Port.open({:spawn_executable, git}, [
+        :binary,
+        :exit_status,
+        :hide,
+        args: ["--no-replace-objects", "-C", repo, "cat-file", "--batch"],
+        env: Enum.map(@git_env, fn {name, value} -> {~c"#{name}", ~c"#{value}"} end)
+      ])
+
+    Port.command(port, Enum.map(ids, &[&1, ?\n]))
+
+    try do
+      collect_blobs(port, length(ids), "", [])
+    after
+      Port.close(port)
     end
   end
 
-  defp historical_blob_forbidden?(repo, id, forbidden_hmacs, key) do
-    case System.cmd(
-           "git",
-           ["--no-replace-objects", "-C", repo, "cat-file", "blob", id],
-           stderr_to_stdout: true,
-           env: @git_env
-         ) do
-      {content, 0} -> forbidden?(content, forbidden_hmacs, key)
-      {_output, status} -> raise "git cat-file failed with #{status}"
+  defp collect_blobs(_port, 0, "", blobs), do: blobs
+  defp collect_blobs(_port, 0, _extra, _blobs), do: raise("unexpected git cat-file output")
+
+  defp collect_blobs(port, remaining, buffer, blobs) do
+    case next_object(buffer) do
+      {:ok, {"blob", content}, rest} ->
+        collect_blobs(port, remaining - 1, rest, [content | blobs])
+
+      {:ok, {_type, _content}, rest} ->
+        collect_blobs(port, remaining - 1, rest, blobs)
+
+      :more ->
+        collect_blobs(port, remaining, buffer <> receive_output!(port), blobs)
+    end
+  end
+
+  defp receive_output!(port) do
+    receive do
+      {^port, {:data, data}} -> data
+      {^port, {:exit_status, status}} -> raise "git cat-file failed with #{status}"
+    end
+  end
+
+  defp next_object(buffer) do
+    with [header, rest] <- :binary.split(buffer, "\n") do
+      case String.split(header, " ") do
+        [_id, type, size] ->
+          size = String.to_integer(size)
+
+          case rest do
+            <<content::binary-size(^size), ?\n, rest::binary>> -> {:ok, {type, content}, rest}
+            _incomplete when byte_size(rest) <= size -> :more
+            _malformed -> raise "unexpected git cat-file output"
+          end
+
+        _missing ->
+          raise "git cat-file could not read a reachable object"
+      end
+    else
+      [_partial_header] -> :more
     end
   end
 
@@ -211,7 +253,7 @@ defmodule PublicPrivacyScan do
     |> Enum.any?(&(fingerprint(&1, key) in forbidden_hmacs))
   end
 
-  defp candidates(content) do
+  def candidates(content) do
     tokens =
       ~r/[a-z0-9_]+(?:-[a-z0-9_]+)*/
       |> Regex.scan(content, capture: :first)
@@ -227,15 +269,7 @@ defmodule PublicPrivacyScan do
   end
 
   defp windows(tokens, max_size) do
-    case length(tokens) do
-      0 ->
-        []
-
-      count ->
-        for size <- 1..min(max_size, count),
-            offset <- 0..(count - size),
-            do: Enum.slice(tokens, offset, size)
-    end
+    for size <- 1..max_size, window <- Enum.chunk_every(tokens, size, 1, :discard), do: window
   end
 
   def fingerprint(value, key) do
