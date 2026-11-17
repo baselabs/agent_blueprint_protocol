@@ -11,7 +11,7 @@ Formatted JSON is for reading, not wire-ready bytes. Download the exact canonica
 
 ## Echo Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.5/priv/examples/echo-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/echo-blueprint.json).
 
 This Blueprint declares one read capability, one input port, one output port, and operational ceilings. Its cost amount is expressed in millionths of USD.
 
@@ -117,7 +117,7 @@ bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples
 
 ## Echo Deployment Manifest
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.5/priv/examples/echo-deployment.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/echo-deployment.json).
 
 This manifest records environment-specific bindings and bounds for the echo Blueprint.
 
@@ -253,7 +253,7 @@ bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples
 
 ## Signed Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.5/priv/examples/signed-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/signed-blueprint.json).
 
 This example adds a signature entry to the echo Blueprint. Decoding checks the artifact structure and content digest. The signature verification operation also needs the public key supplied by the caller.
 
@@ -381,7 +381,7 @@ This shipped signature uses the accepted `EdDSA` header spelling. The [compose g
 
 ## Extension Blueprint
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.5/priv/examples/extension-blueprint.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/extension-blueprint.json).
 
 This example carries an optional classification-labels namespace in the extension member.
 
@@ -493,7 +493,7 @@ bytes = File.read!(Application.app_dir(:agent_blueprint_protocol, "priv/examples
 
 ## Federation TaskEnvelope
 
-[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.5/priv/examples/federation-envelope.json).
+[Download the exact canonical file](https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/priv/examples/federation-envelope.json).
 
 This complete Federation TaskEnvelope carries task identity, state, and receipt commitments. Its namespace and carrier fields are described in the [federation guide](federation.md).
 

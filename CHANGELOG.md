@@ -2,6 +2,30 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.1.0] - 2026-11-17
+
+Promotes 1.1.0-rc.5 without changes. Changes since 1.0.1, detailed in the
+candidate entries below:
+
+- Revision-specific member vocabularies for Blueprint Core, Deployment Manifest
+  and Federation TaskEnvelope in Elixir and TypeScript (1.1.0-rc.1).
+- The validity periods of the signing key and the signature are host-owned in
+  both verifiers. Every evidence value lists `signature_created_at`,
+  `lifecycle_state` and `signature_time_validity` in `not_verified`
+  (1.1.0-rc.3). This moves the verification-semantics version from 3 to 4.
+- Release verification replays every earlier release census and the signed
+  0.8.x golden artifacts through the installed Hex and npm packages, and the Hex
+  package runs its own consumer gates without a checkout (1.1.0-rc.3).
+- Documentation, examples and consumer commands work as published on HexDocs,
+  GitHub and npm, on Linux, macOS and Windows (1.1.0-rc.3 to 1.1.0-rc.5).
+- Security maintenance moves from 1.0.x to 1.1.x; the 0.8 transition line
+  remains supported.
+
+Protocol revision 1 is unchanged. The corpus contains 626 cases, digest
+`sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE`; the registry digest is
+`sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest
+is `sha-256:kr7Wtl2ZNdTpSBKqBk3xmE57saO9q_Y8T-kmn_S7PKc`.
+
 ## [1.1.0-rc.5] - 2026-11-17
 
 ### Fixed

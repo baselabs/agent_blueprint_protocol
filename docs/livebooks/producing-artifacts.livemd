@@ -2,7 +2,7 @@
 livebook:{"persist_outputs":true}
 -->
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0-rc.5/docs/livebooks/producing-artifacts.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.0/docs/livebooks/producing-artifacts.livemd)
 
 # Producing artifacts
 
@@ -10,12 +10,12 @@ This notebook starts with the shipped Blueprint and Deployment Manifest, changes
 
 ## Before you run
 
-Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.1.0-rc.5` requirement permits later 1.1 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.1.0-rc.5`.
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.1.0` requirement permits later 1.1 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.1.0`.
 
 The first cell installs the published package. Resources are read from the installed application with `Application.app_dir/2`.
 
 ```elixir
-Mix.install([{:agent_blueprint_protocol, "~> 1.1.0-rc.5"}])
+Mix.install([{:agent_blueprint_protocol, "~> 1.1.0"}])
 ```
 
 Locate the shipped examples from the installed package or the current source checkout.
@@ -383,8 +383,8 @@ deployment_output = Path.join(output_dir, "deployment.json")
 With Node.js 24 or newer, run these commands from the directory containing `abp-artifacts`:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.1.0-rc.5 --artifact abp-artifacts/blueprint.json
-npx @agent-blueprint-protocol/verifier@1.1.0-rc.5 --artifact abp-artifacts/deployment.json
+npx @agent-blueprint-protocol/verifier@1.1.0 --artifact abp-artifacts/blueprint.json
+npx @agent-blueprint-protocol/verifier@1.1.0 --artifact abp-artifacts/deployment.json
 ```
 
 Both print a valid artifact report and exit `0`. This CLI mode performs decoding checks. It does not use keys or reconcile the pair. The [CI guide](../../documentation/verifying-in-ci.md) adds those checks when required. Download or copy the files into your project before closing the runtime. The walkthrough owns `abp-artifacts` and removes it on runtime exit; run the CLI while the runtime remains open.
