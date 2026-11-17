@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.EvidenceTest do
   @moduledoc """
   The Evidence constructor's contract: the frozen host-owned field set,
-  the seven-atom default, the union law over caller extras, and the typed
+  the host-owned default, the union law over caller extras, and the typed
   rim denials (a forged constructor input never yields a record).
   """
 
@@ -9,17 +9,17 @@ defmodule AgentBlueprintProtocol.EvidenceTest do
 
   alias AgentBlueprintProtocol.{Error, Evidence}
 
-  @seven ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth)a
+  @host_owned ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth signature_created_at lifecycle_state signature_time_validity)a
 
-  test "build/0 defaults: not_verified is exactly the seven, in pinned order" do
-    assert {:ok, %Evidence{not_verified: @seven, checks: [], clamps: []}} = Evidence.build()
+  test "build/0 defaults: not_verified is exactly the ten, in pinned order" do
+    assert {:ok, %Evidence{not_verified: @host_owned, checks: [], clamps: []}} = Evidence.build()
   end
 
-  test "build/1 unions caller extras after the seven, deduplicating" do
+  test "build/1 unions caller extras after the ten, deduplicating" do
     assert {:ok, %Evidence{not_verified: listed}} =
              Evidence.build(not_verified: [:billing, :custom_surface, :custom_surface])
 
-    assert listed == @seven ++ [:custom_surface]
+    assert listed == @host_owned ++ [:custom_surface]
   end
 
   test "build/1 accepts a map of attrs and sets the frozen fields" do

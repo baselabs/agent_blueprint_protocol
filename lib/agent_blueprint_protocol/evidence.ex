@@ -4,6 +4,9 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   Use it when inspecting results of compatibility or reconcile operations.
 
+  Signature creation time, lifecycle state, and signing-key and signature time
+  validity are host-owned facts and always appear in `not_verified`.
+
   This module does not authorize operations.
 
   ## Example
@@ -64,7 +67,7 @@ defmodule AgentBlueprintProtocol.Evidence do
     @type t :: %__MODULE__{checked: [atom()], not_verified: [atom()]}
   end
 
-  @host_owned ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth)a
+  @host_owned ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth signature_created_at lifecycle_state signature_time_validity)a
 
   defstruct [
     :protocol_revision,
@@ -88,8 +91,21 @@ defmodule AgentBlueprintProtocol.Evidence do
         }
 
   @typedoc """
-  The public data type for AgentBlueprintProtocol.Evidence.
+  A fact whose truth is judged by the host rather than the protocol verifier.
   """
+  @type host_owned ::
+          :tenancy
+          | :live_policy
+          | :authority
+          | :effect_ownership
+          | :execution
+          | :billing
+          | :evaluation_truth
+          | :signature_created_at
+          | :lifecycle_state
+          | :signature_time_validity
+
+  @typedoc "The public data type for AgentBlueprintProtocol.Evidence."
   @type t :: %__MODULE__{
           protocol_revision: pos_integer() | nil,
           blueprint_digest: Digest.t() | nil,
@@ -98,7 +114,7 @@ defmodule AgentBlueprintProtocol.Evidence do
           effective_bounds: BoundsAlgebra.BoundSet.t() | nil,
           clamps: [BoundsAlgebra.ClampEvidence.t()],
           optional_extensions_retained: [binary()],
-          not_verified: [atom()]
+          not_verified: [host_owned() | atom()]
         }
 
   @spec build(keyword() | map()) :: {:ok, t()} | {:error, Error.t()}

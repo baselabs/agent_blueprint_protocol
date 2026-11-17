@@ -4,6 +4,9 @@ defmodule AgentBlueprintProtocol.Reconcile do
 
   Use it when an application needs one Evidence result for a pair and host inputs.
 
+  Signature creation time, lifecycle state, and signing-key and signature time
+  validity remain host-owned and appear in `Evidence.not_verified`.
+
   This module does not authorize operations.
 
   ## Example
@@ -177,10 +180,6 @@ defmodule AgentBlueprintProtocol.Reconcile do
             digest ++ negotiation ++ structure ++ portability ++ signatures ++ bind ++ bounds,
         effective_bounds: effective,
         clamps: clamps,
-        not_verified: [
-          :signature_created_at,
-          :lifecycle_state
-        ],
         optional_extensions_retained:
           Enum.uniq(bp_outcome.optional_retained ++ dep_outcome.optional_retained)
       )

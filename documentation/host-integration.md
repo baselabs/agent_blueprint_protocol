@@ -159,7 +159,7 @@ In TypeScript the corresponding fresh observation is `{observed: inventory, now:
 
 ## Read evidence and preserve host boundaries
 
-Read both artifact subjects, effective bounds, every clamp, retained extensions, and the nonempty `not_verified` list. Signature creation time and lifecycle state remain unverified by reconciliation. Tenancy, live policy, authority, effect ownership, execution, billing, and evaluation truth remain host-owned. Protocol evidence does not make those local decisions.
+Read both artifact subjects, effective bounds, every clamp, retained extensions, and the nonempty `not_verified` list. Signature creation time, lifecycle state, and the validity periods of the signing key and signature remain unverified by reconciliation as `signature_created_at`, `lifecycle_state`, and `signature_time_validity`. Tenancy, live policy, authority, effect ownership, execution, billing, and evaluation truth remain host-owned. Protocol evidence does not make those local decisions.
 
 - [Read typed evidence](reading-evidence.md)
 - [Handle typed denials](handling-errors.md)

@@ -58,6 +58,8 @@ Evidence detail variants may grow. This code handles the known Signatures and Bi
 
 ## Read `not_verified`
 
+`signature_created_at`, `lifecycle_state`, and `signature_time_validity` always remain host-owned. Reconciliation checks timestamp and lifecycle formats but does not judge creation time, lifecycle state, or the validity periods of a signing key and signature.
+
 The `not_verified` names may also grow. Look up names you understand and retain a default branch:
 
 ```elixir fragment

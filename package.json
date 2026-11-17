@@ -35,6 +35,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.0.0",
+    "jose": "6.2.17",
     "typescript": "^7.0.2",
     "typescript-floor": "npm:typescript@5.0.2"
   },

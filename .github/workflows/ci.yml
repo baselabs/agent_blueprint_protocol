@@ -257,6 +257,7 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm run build
           node dist/kit/cli.mjs
+          node --test test/typescript/signature_interop.mjs test/typescript/reconcile.mjs
       - name: Build and verify both consumer packages before publication
         shell: pwsh
         run: |

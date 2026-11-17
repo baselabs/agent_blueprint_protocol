@@ -3,7 +3,7 @@
 Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`, 626 cases) are
+`sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE`, 626 cases) are
 certified against this document at every release through the release
 identity chain: the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -910,9 +910,12 @@ and both `now` and a maximum attestation age are supplied; a future-date
 check alone does not establish staleness verification. Those skipped surfaces and every false
 check surface join `not_verified`. Canonical checks on structs establish
 encodability; they do not establish equality to unavailable received bytes.
-`signature_created_at` and `lifecycle_state` are always unverified by
-reconcile. The timestamp is signed and format-checked but never judged;
-lifecycle state is shape-checked and never judged.
+`signature_created_at`, `lifecycle_state`, and `signature_time_validity` MUST
+appear in `not_verified`, in that order after the other host-owned facts.
+The signature timestamp is signed and format-checked but never judged;
+lifecycle state is shape-checked and never judged. The validity periods of
+the signing key and the signature are host-owned and MUST NOT be judged by
+reconcile.
 
 Federation receipt verification separately supports the existing explicit
 `created_after` and `created_before` receiving-context pins. Both are
@@ -940,7 +943,7 @@ The package ships a portable conformance corpus (`priv/conformance/`):
 626 cases covering every required cell of the 18-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`. Corpus identity
+`sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE`. Corpus identity
 is the digest of the domain-separated index, versioned by digest, not
 by name. The loader is pure over an in-memory path-to-bytes map and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,

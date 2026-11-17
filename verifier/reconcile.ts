@@ -21,9 +21,11 @@ export interface Check {surface:string;subject:(string|number)[];verified:boolea
 export interface Evidence {
   protocol_revision:number;blueprint_digest:string;deployment_digest:string;
   checks:Check[];effective_bounds:Record<string,unknown>;clamps:unknown[];
-  optional_extensions_retained:string[];not_verified:string[];
+  optional_extensions_retained:string[];not_verified:(HostOwnedFact | (string & {}))[];
 }
-const HOST_OWNED=['tenancy','live_policy','authority','effect_ownership','execution','billing','evaluation_truth'];
+export const HOST_OWNED=['tenancy','live_policy','authority','effect_ownership','execution','billing','evaluation_truth','signature_created_at','lifecycle_state','signature_time_validity'] as const;
+/** Time facts are reported without judging clocks, key lifetimes, or signature lifetimes. */
+export type HostOwnedFact=typeof HOST_OWNED[number];
 const CLASSIFICATION=['public','internal','confidential','restricted'];
 function failure(e:string,subject:(string|number)[]=[]):Failure{return {ok:false,e,subject};}
 function lift(bp:blueprint.Blueprint):Record<string,unknown> {
@@ -102,5 +104,5 @@ export function reconcile(bp:blueprint.Blueprint,dep:deployment.Deployment,input
   checked('bounds','bounds');
   const clamps=jsonValue(bounds.v.clamps.map(c=>({field:c.field,class:c.cls,unit:c.cls==='protected'?'ordinal':c.field==='max_cost'?'money':c.field==='max_elapsed_ms'?'millisecond':c.field==='max_tokens'?'token':'count',requested:c.requested,effective:c.effective,source:c.source,acknowledged:c.acknowledged}))).map((c:any)=>{delete c.cls;return c;});
   for(const clamp of clamps)checked('bounds',clamp.field,true,clamp);
-  return {ok:true,v:{protocol_revision:plain(member(bp.value,'protocol_revision')!),blueprint_digest:blueprint.contentDigest(bp) as string,deployment_digest:deployment.contentDigest(dep) as string,checks,effective_bounds:bounds.v.effective,clamps,optional_extensions_retained:[...new Set(outcomes.flatMap(o=>o.optionalRetained))],not_verified:[...new Set([...HOST_OWNED,'signature_created_at','lifecycle_state',...checks.flatMap(c=>c.verified?[]:[c.surface]),...skipped])]}};
+  return {ok:true,v:{protocol_revision:plain(member(bp.value,'protocol_revision')!),blueprint_digest:blueprint.contentDigest(bp) as string,deployment_digest:deployment.contentDigest(dep) as string,checks,effective_bounds:bounds.v.effective,clamps,optional_extensions_retained:[...new Set(outcomes.flatMap(o=>o.optionalRetained))],not_verified:[...new Set([...HOST_OWNED,...checks.flatMap(c=>c.verified?[]:[c.surface]),...skipped])]}};
 }

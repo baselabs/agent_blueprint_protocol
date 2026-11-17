@@ -135,7 +135,7 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
 
   # ---- golden green -----------------------------------------------------------------
 
-  test "green end-to-end over the fixture pair: stage checks, retained fact, no clamps, seven atoms" do
+  test "green end-to-end over the fixture pair: stage checks, retained fact, no clamps, host facts" do
     blueprint =
       golden_blueprint(
         extensions:
@@ -157,11 +157,11 @@ defmodule AgentBlueprintProtocol.ReconcileTest do
               not_verified: not_verified
             } = evidence} = Reconcile.reconcile(blueprint, deployment, inputs())
 
-    assert Enum.take(not_verified, 7) ==
-             ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth)a
+    assert Enum.take(not_verified, 10) ==
+             ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth signature_created_at lifecycle_state signature_time_validity)a
 
     assert not_verified ==
-             ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth signature_created_at lifecycle_state extensions signatures bind binding_descriptors)a
+             ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth signature_created_at lifecycle_state signature_time_validity extensions signatures bind binding_descriptors)a
 
     assert surfaces(evidence) == [
              :canonical,

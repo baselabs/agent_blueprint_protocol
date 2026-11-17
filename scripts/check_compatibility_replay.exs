@@ -113,6 +113,56 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
     end
   end
 
+  # The installed package supplies every verifier module and its registry. Git
+  # supplies only the released inputs, through the same census reader as run/0.
+  def run_installed(repository, kit) do
+    package = Mix.Project.deps_paths() |> Map.fetch!(:agent_blueprint_protocol)
+
+    manifest =
+      package |> Path.join("priv/release-metadata.json") |> File.read!() |> :json.decode()
+
+    history = package |> Path.join(@history_path) |> File.read!() |> :json.decode()
+    index = package |> Path.join("priv/conformance/index.json") |> File.read!() |> :json.decode()
+    registry = Path.join(package, @registry_path)
+
+    File.cd!(repository, fn ->
+      tags =
+        manifest_tags!(nil)
+        |> Enum.filter(fn {_tag, released} ->
+          Version.compare(released["package_version"], manifest["package_version"]) != :gt
+        end)
+
+      censuses =
+        tags |> census_groups() |> Enum.map(&replay_census(&1, index["corpus_digest"], registry))
+
+      # Include the installed release's tagged census, but never a later release
+      # when a manual post-publish run targets an older published version.
+      replay_kit!(censuses, kit, true)
+      replay_signed_goldens!(tags, kit)
+
+      findings =
+        claim_findings(
+          censuses,
+          manifest["prior_census_verdicts"],
+          history["rows"],
+          manifest["verification_semantics_version"]
+        )
+
+      if findings != [],
+        do: raise("installed compatibility replay: FAILED\n" <> Enum.join(findings, "\n"))
+
+      IO.puts(
+        "installed compatibility replay: ok (#{length(tags)} tags, #{length(censuses)} censuses, Hex and npm)"
+      )
+    end)
+  end
+
+  defp decode_json(bytes) do
+    {:ok, :json.decode(bytes)}
+  rescue
+    _ -> :error
+  end
+
   # ---- tag census map -----------------------------------------------------------
 
   # Every release tag that carries a manifest (the manifest era). Any git
@@ -132,7 +182,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
           |> Enum.sort()
           |> Enum.flat_map(fn tag ->
             case System.cmd("git", ["show", "#{tag}:priv/release-metadata.json"], cd) do
-              {out, 0} -> [{tag, Jason.decode!(out)}]
+              {out, 0} -> [{tag, :json.decode(out)}]
               _other -> []
             end
           end)
@@ -183,7 +233,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
 
   # ---- census replay --------------------------------------------------------------
 
-  defp replay_census(group, current_digest) do
+  defp replay_census(group, current_digest, registry \\ @registry_path) do
     tag = hd(group.tags)
     map = census_map_at(tag)
 
@@ -209,7 +259,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
           |> Enum.reject(fn {_case_obj, result} -> result.agree end)
           |> Enum.map(fn {case_obj, _result} -> case_obj end)
 
-        changed = changed_namespaces(tag)
+        changed = changed_namespaces(tag, registry)
         {explained, unexplained} = classify(disagreements, changed)
 
         Map.merge(group, %{
@@ -235,7 +285,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
     index = git!(["show", "#{tag}:priv/conformance/index.json"])
 
     index
-    |> Jason.decode!()
+    |> :json.decode()
     |> Map.get("files")
     |> Enum.map(& &1["path"])
     |> Enum.reduce(%{"index.json" => index}, fn path, acc ->
@@ -245,9 +295,9 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
 
   # A namespace is CHANGED when its registry entry differs between the
   # census's release and HEAD — added, removed, or edited.
-  defp changed_namespaces(tag) do
+  defp changed_namespaces(tag, registry) do
     at_tag = registry_at(tag)
-    at_head = registry_at_head()
+    at_head = File.read!(registry) |> read_registry()
 
     (Map.keys(at_tag) ++ Map.keys(at_head))
     |> Enum.uniq()
@@ -257,11 +307,9 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
 
   defp registry_at(tag), do: git!(["show", "#{tag}:#{@registry_path}"]) |> read_registry()
 
-  defp registry_at_head, do: File.read!(@registry_path) |> read_registry()
-
   defp read_registry(bytes) do
     bytes
-    |> Jason.decode!()
+    |> :json.decode()
     |> Map.get("entries", [])
     |> Enum.into(%{}, fn entry -> {entry["namespace"], entry} end)
   end
@@ -274,7 +322,10 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
 
     Enum.split_with(disagreements, fn case_obj ->
       case_obj["surface"] in @registry_surfaces and
-        Enum.any?(changed_list, &String.contains?(Jason.encode!(case_obj["input"]), &1))
+        Enum.any?(
+          changed_list,
+          &String.contains?(IO.iodata_to_binary(:json.encode(case_obj["input"])), &1)
+        )
     end)
   end
 
@@ -472,7 +523,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
     if listing == "" do
       :absent
     else
-      case Jason.decode(git!(["show", "HEAD:#{@history_path}"])) do
+      case decode_json(git!(["show", "HEAD:#{@history_path}"])) do
         {:ok, %{"rows" => rows}} when is_list(rows) -> {:ok, rows}
         _other -> raise "compatibility replay: HEAD's committed history is undecodable"
       end
@@ -487,14 +538,14 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         ["#{label} records #{inspect(recorded)}, derived state carries #{inspect(actual)}"]
 
   defp read_history_rows! do
-    case Jason.decode(File.read!(@history_path)) do
+    case decode_json(File.read!(@history_path)) do
       {:ok, %{"rows" => rows}} when is_list(rows) -> rows
       _other -> raise "compatibility replay: #{@history_path} is unreadable"
     end
   end
 
   defp format_ok? do
-    case Jason.decode(File.read!(@history_path)) do
+    case decode_json(File.read!(@history_path)) do
       {:ok, %{"format" => @history_format}} -> true
       _other -> false
     end
@@ -518,18 +569,16 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
 
   # ---- kit replay ---------------------------------------------------------------------
 
-  defp replay_kit!(censuses) do
+  defp replay_kit!(censuses, cli \\ Path.expand("../verifier/cli.ts", __DIR__), all? \\ false) do
     node = AgentBlueprintProtocol.GateNode.find_node!()
 
     Enum.each(censuses, fn census ->
-      unless census.current do
+      if all? or not census.current do
         Scratch.with_dir("compat", fn dir ->
           write_census_dir!(dir, census.map)
 
           {out, status} =
-            System.cmd(node, [Path.expand("../verifier/cli.ts", __DIR__), "--prior-corpus", dir],
-              stderr_to_stdout: false
-            )
+            System.cmd(node, [cli, "--prior-corpus", dir], stderr_to_stdout: false)
 
           {:ok, bytes} = Report.to_bytes(census.corpus, census.results)
 
@@ -541,7 +590,15 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
             """
           end
 
-          case Jason.decode(out) do
+          {:ok, expected_results} = Report.results_bytes(census.corpus)
+
+          {actual_results, result_status} =
+            System.cmd(node, [cli, "--results", "--prior-corpus", dir])
+
+          if actual_results != expected_results or result_status != status,
+            do: raise("kit/Hex per-case drift over prior census #{census.digest}")
+
+          case decode_json(out) do
             {:ok, %{"exit_status" => reported}} when reported == status ->
               :ok
 
@@ -551,6 +608,47 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         end)
       end
     end)
+  end
+
+  defp replay_signed_goldens!(tags, kit) do
+    node = AgentBlueprintProtocol.GateNode.find_node!()
+    legacy = Enum.filter(tags, fn {tag, _} -> String.starts_with?(tag, "v0.8.") end)
+    if legacy == [], do: raise("installed compatibility replay: no 0.8.x release tags found")
+
+    for {tag, _} <- legacy do
+      # The same index-directed reader supplies both the census and its goldens.
+      map = census_map_at(tag)
+
+      for {kind, module} <- [
+            {"blueprint", AgentBlueprintProtocol.Blueprint},
+            {"deployment", AgentBlueprintProtocol.Deployment}
+          ] do
+        bytes = Map.fetch!(map, "vectors/#{kind}-golden.json")
+        {:ok, artifact} = module.decode(bytes)
+        :ok = module.verify_content_digest(artifact)
+        {:object, members} = module.to_value(artifact)
+        {"signatures", {:array, signatures}} = List.keyfind(members, "signatures", 0)
+        if signatures == [], do: raise("historical golden is unsigned at #{tag}")
+
+        Scratch.with_dir("signed-golden", fn dir ->
+          path = Path.join(dir, "#{kind}.json")
+          File.write!(path, bytes)
+          {out, status} = System.cmd(node, [kit, "--artifact", path])
+
+          if status != 0 or
+               :json.decode(out) != %{
+                 "format" => "agent-blueprint-protocol-artifact-report",
+                 "verdict" => "valid",
+                 "kind" => kind
+               },
+             do: raise("installed npm rejected #{kind} signed golden at #{tag}")
+        end)
+      end
+    end
+
+    IO.puts(
+      "installed signed goldens: #{length(legacy)} historical 0.8.x releases decoded and digest-checked in Hex and npm"
+    )
   end
 
   defp write_census_dir!(dir, map) do
@@ -735,4 +833,10 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
   end
 end
 
-AgentBlueprintProtocol.CompatibilityReplayGate.run()
+case System.argv() do
+  ["--installed", repository, kit] ->
+    AgentBlueprintProtocol.CompatibilityReplayGate.run_installed(repository, kit)
+
+  _ ->
+    AgentBlueprintProtocol.CompatibilityReplayGate.run()
+end

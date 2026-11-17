@@ -1,6 +1,6 @@
 # Generates the shipped conformance corpus (priv/conformance/**).
 #
-#   MIX_ENV=test mix run --no-start scripts/generate_conformance_corpus.exs
+#   MIX_ENV=test mix run --no-start scripts/generate_conformance_corpus.exs [--output DIRECTORY]
 #
 # Authoring tooling. Verdicts and expected CODES are hand-authored literals
 # carried from the adversarially-pinned ExUnit lanes and their probes;
@@ -2243,7 +2243,7 @@ signature_key_scan_cases =
   end
 
 # New signing fixtures derive from one fixed, obviously test-only seed.
-# Existing case signatures are preserved below; new fixtures regenerate from arithmetic.
+# Every fixture regenerates from arithmetic without reading committed output.
 fixture_label = "agent-blueprint-protocol/obviously-test-only-ed25519-fixture-seed"
 
 {alias_entry, alias_pub} =
@@ -3065,7 +3065,8 @@ defmodule ImportCases do
         "billing",
         "evaluation_truth",
         "signature_created_at",
-        "lifecycle_state"
+        "lifecycle_state",
+        "signature_time_validity"
       ] ++ for(c <- checks, c["verified"] == false, do: c["surface"]) ++ skipped
 
     %{
@@ -3712,63 +3713,8 @@ defmodule GenMain do
   defp project({:ok, m}) when is_map(m), do: {:ok, m}
   defp project(other), do: other
 
-  # The goldens' fixture signatures (kid example-demo-signing-key /
-  # example-demo-deploy-key, over the digest-UNCOVERED `signatures`
-  # member) historically used random test keys. New signatures use the fixed
-  # test-only seed in BlueprintFixture.signing_keypair/0. Preserve tokens per case, so adding cases to a file does not
-  # replace an existing case's signature. Non-case files retain the same
-  # whole-file comparison.
-  @fixture_signature ~r/(example-demo-(?:signing|deploy)-key\\?"\},\\?"signature\\?":\\?")[A-Za-z0-9_-]{86}/
-
-  def preserve_fixture_signatures(map, dir) do
-    Enum.reduce(map, map, fn
-      {"index.json", _bytes}, acc ->
-        acc
-
-      {path, bytes}, acc ->
-        case File.read(Path.join(dir, path)) do
-          {:ok, committed} when committed != bytes ->
-            preserved = preserve_case_signatures(bytes, committed)
-
-            if preserved != bytes,
-              do:
-                AgentBlueprintProtocol.ConformanceTest.Builder.resync_file(acc, path, preserved),
-              else: acc
-
-          _unchanged_or_new ->
-            acc
-        end
-    end)
-  end
-
-  defp preserve_case_signatures(bytes, committed) do
-    with {:ok, prior_value} <- AgentBlueprintProtocol.Json.decode(committed),
-         {:ok, fresh_value} <- AgentBlueprintProtocol.Json.decode(bytes),
-         %{"cases" => previous} <- CorpusGen.plain(prior_value),
-         %{"cases" => fresh} = body <- CorpusGen.plain(fresh_value) do
-      by_id = Map.new(previous, &{&1["id"], &1})
-
-      cases =
-        Enum.map(fresh, fn current ->
-          prior = Map.get(by_id, current["id"])
-
-          if prior && mask(CorpusGen.json_text!(prior)) == mask(CorpusGen.json_text!(current)),
-            do: prior,
-            else: current
-        end)
-
-      CorpusGen.json_text!(Map.put(body, "cases", cases))
-    else
-      _ -> if mask(committed) == mask(bytes), do: committed, else: bytes
-    end
-  end
-
-  defp mask(bytes), do: Regex.replace(@fixture_signature, bytes, "\\1<fixture-signature>")
-
-  def main(all_cases, data) do
-    map =
-      AgentBlueprintProtocol.ConformanceTest.Builder.build(all_cases, %{}, data: data)
-      |> preserve_fixture_signatures("priv/conformance")
+  def main(all_cases, data, root) do
+    map = AgentBlueprintProtocol.ConformanceTest.Builder.build(all_cases, %{}, data: data)
 
     with {:ok, corpus} <- AgentBlueprintProtocol.Conformance.Corpus.load(map) do
       results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)
@@ -3805,7 +3751,7 @@ defmodule GenMain do
         System.halt(2)
       end
 
-      dir = "priv/conformance"
+      dir = Path.join(root, "priv/conformance")
       File.rm_rf!(dir)
       File.mkdir_p!(dir)
 
@@ -3816,6 +3762,16 @@ defmodule GenMain do
           File.write!(target, bytes)
           n + 1
         end)
+
+      {:ok, certified} = AgentBlueprintProtocol.Conformance.Report.results_bytes(corpus)
+      certified_path = Path.join(root, "spec/conformance/certified-results.json")
+      File.mkdir_p!(Path.dirname(certified_path))
+      File.write!(certified_path, certified)
+
+      signed_example = Enum.find(all_cases, &(&1["id"] == "blueprint-decode-signed-valid"))
+      example_path = Path.join(root, "priv/examples/signed-blueprint.json")
+      File.mkdir_p!(Path.dirname(example_path))
+      File.write!(example_path, signed_example["input"]["text"])
 
       IO.puts("wrote #{count} files, #{length(all_cases)} cases, digest #{corpus.identity}")
     else
@@ -3891,5 +3847,12 @@ if System.get_env("CORPUS_DUMP_CASE") do
       inspect(AgentBlueprintProtocol.Federation.decode(c["input"]["text"]), limit: 6)
   )
 else
-  GenMain.main(all_cases, data)
+  root =
+    case System.argv() do
+      [] -> "."
+      ["--output", root] -> Path.expand(root)
+      _ -> raise "usage: generate_conformance_corpus.exs [--output DIRECTORY]"
+    end
+
+  GenMain.main(all_cases, data, root)
 end

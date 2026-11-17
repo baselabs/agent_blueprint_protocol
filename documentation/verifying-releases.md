@@ -111,6 +111,9 @@ in-process. It loads the gates and example documents from the packages.
 `--local HEX.tar NPM.tgz` accepts archives built by `mix hex.build` and
 `npm pack ./dist/package --ignore-scripts` and runs those same package gates.
 Local mode verifies candidate bytes without requiring them to be published.
+Both modes use the checkout's release tags to replay historical censuses and
+the signed 0.8.x goldens under both installed packages. A missing tag history
+fails verification; fetch the release tags before running either mode.
 See [Contributing](../CONTRIBUTING.md) for the build commands.
 
 ## Next steps

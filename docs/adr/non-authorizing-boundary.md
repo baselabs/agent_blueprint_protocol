@@ -15,8 +15,9 @@ Concretely:
 
 - `reconcile/3`'s result is an `%Evidence{}` record, never a decision;
   its `not_verified` list is non-empty BY CONSTRUCTION, always naming
-  the seven host-owned surfaces (tenancy, live policy, authority,
-  effect ownership, execution, billing, evaluation truth).
+  the ten host-owned surfaces (tenancy, live policy, authority,
+  effect ownership, execution, billing, evaluation truth, signature
+  creation time, lifecycle state, and signing-key and signature time validity).
 - No authorization-decision vocabulary exists in any shipped
   identifier: no `authorize`/`authorized`, no `:unauthorized` in
   either polarity (source-scan gate).

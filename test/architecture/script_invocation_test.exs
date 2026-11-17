@@ -62,6 +62,20 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
     refute postpublish =~ "postpublish_examples.mjs"
   end
 
+  test "consumer replay fetches release tags and uses installed verifier packages" do
+    driver = File.read!("scripts/consumer_examples.exs")
+    assert driver =~ "--installed"
+    assert driver =~ "check_compatibility_replay.exs"
+
+    for path <- [".github/workflows/ci.yml", ".github/workflows/postpublish.yml"] do
+      jobs = Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, File.read!(path))
+
+      for job <- jobs, job =~ "elixir scripts/consumer_examples.exs" do
+        assert job =~ "fetch-depth: 0"
+      end
+    end
+  end
+
   defp paths do
     Path.wildcard(".github/workflows/*.{yml,yaml}") ++
       Enum.filter(Path.wildcard("scripts/*"), &File.regular?/1)

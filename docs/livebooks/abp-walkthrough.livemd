@@ -153,6 +153,7 @@ not_verified =
              :signatures,
              :signature_created_at,
              :lifecycle_state,
+             :signature_time_validity,
              :binding_descriptors,
              :binding_staleness,
              :bind
@@ -210,6 +211,7 @@ not_verified =
     host_owned: :evaluation_truth,
     known_unverified: :signature_created_at,
     known_unverified: :lifecycle_state,
+    known_unverified: :signature_time_validity,
     known_unverified: :signatures,
     known_unverified: :bind,
     known_unverified: :binding_staleness,
@@ -227,7 +229,7 @@ not_verified =
 |---|---|
 | `signatures` | Both example subjects are unsigned. |
 | `binding_descriptors`, `binding_staleness`, `bind` | No descriptor inventory or clock/age was supplied. The host notebook adds these inputs. |
-| `signature_created_at`, `lifecycle_state` | These remain outside the reconciliation checks. |
+| `signature_created_at`, `lifecycle_state`, `signature_time_validity` | Creation time, lifecycle state, and signing-key and signature validity periods remain host-owned. |
 | `tenancy`, `live_policy`, `authority`, `effect_ownership`, `execution`, `billing`, `evaluation_truth` | Host-owned decisions and observations. |
 
 ## Run the shipped corpus

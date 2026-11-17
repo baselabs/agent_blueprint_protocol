@@ -274,6 +274,7 @@ not_verified =
            :signatures,
            :signature_created_at,
            :lifecycle_state,
+           :signature_time_validity,
            :binding_descriptors,
            :binding_staleness,
            :bind
@@ -324,6 +325,7 @@ signatures =
     host_owned: :evaluation_truth,
     known_unverified: :signature_created_at,
     known_unverified: :lifecycle_state,
+    known_unverified: :signature_time_validity,
     known_unverified: :signatures
   ],
   clamps: [{:disclosure_ceiling, :full, :none}, {:max_attempts, 3, 2}],
@@ -337,6 +339,7 @@ signatures =
 | `signatures` | At least one artifact subject is unsigned; here both are. |
 | `signature_created_at` | A signature timestamp is signed data, not an independent clock check. |
 | `lifecycle_state` | Reconciliation does not establish host lifecycle state. |
+| `signature_time_validity` | The host judges the validity periods of the signing key and signature. |
 | Host-owned names | Tenancy, policy, authority, effects, execution, billing, and evaluation truth need host decisions. |
 
 The complete descriptor map and fixed clock establish both optional binding kinds in this run. The narrowed attempts `2` and disclosure `:none` remain effective, with both clamps recorded.

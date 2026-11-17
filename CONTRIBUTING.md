@@ -49,6 +49,9 @@ version. Registry mode checks the Hex API release checksum and npm
 The tagged checkout supplies the driver; the extracted Hex package supplies all
 four gates, and both packages supply their own example documents. Both modes
 extract archives in-process and run the same gates over the extracted bytes.
+Both modes also replay every earlier release census and the signed 0.8.x
+goldens through the installed Hex and npm verifiers. The checkout supplies
+released inputs through its Git tags; keep those tags available in either mode.
 
 To run the corpus from the repository checkout:
 

@@ -81,6 +81,35 @@ defmodule AgentBlueprintProtocol.SignatureTest do
   end
 
   describe "header shape (exact, closed world)" do
+    test "exactly the two declared algorithm spellings verify" do
+      for alg <- ["EdDSA", "Ed25519"] do
+        hdr = put_member(header(), "alg", {:string, alg})
+        assert {:ok, %Signature.Attributes{}} = Signature.verify(signed_entry(hdr), keys())
+      end
+
+      for alg <- [
+            "",
+            "none",
+            "Ed448",
+            "eddsa",
+            "ed25519",
+            "ED25519",
+            "EdDSA ",
+            " Ed25519",
+            "HS256",
+            "ES256",
+            "RS256",
+            "__proto__",
+            "constructor",
+            "unknown"
+          ] do
+        hdr = put_member(header(), "alg", {:string, alg})
+
+        assert {:error, %AgentBlueprintProtocol.Error{code: :signature_algorithm_unsupported}} =
+                 Signature.verify(signed_entry(hdr), keys())
+      end
+    end
+
     test "alg other than EdDSA denies :signature_algorithm_unsupported" do
       bad = put_member(header(), "alg", {:string, "HS256"})
 

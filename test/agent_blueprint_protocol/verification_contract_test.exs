@@ -141,7 +141,8 @@ defmodule AgentBlueprintProtocol.VerificationContractTest do
           :binding_staleness,
           :binding_descriptors,
           :signature_created_at,
-          :lifecycle_state
+          :lifecycle_state,
+          :signature_time_validity
         ] do
       assert surface in evidence.not_verified
     end

@@ -1,11 +1,11 @@
 defmodule AgentBlueprintProtocol.Property.EvidenceTest do
   @moduledoc """
   The Evidence record's host-owned non-establishment laws:
-  `not_verified` is non-empty BY CONSTRUCTION — the seven host-owned atoms
+  `not_verified` is non-empty BY CONSTRUCTION — the ten host-owned atoms
   are unioned in by the constructor, never passed — and it only grows
   across producing paths (caller extras add; no path removes).
 
-  The seven are pinned from the spec text, not from the implementation's
+  The ten are pinned from the spec text, not from the implementation's
   constant — the constructor mutation red (delete one atom from the module
   constant) must fail these properties.
   """
@@ -27,18 +27,18 @@ defmodule AgentBlueprintProtocol.Property.EvidenceTest do
   alias AgentBlueprintProtocol.Deployment.Observations
   alias AgentBlueprintProtocol.Negotiation.Support
 
-  @seven ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth)a
+  @host_owned ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth signature_created_at lifecycle_state signature_time_validity)a
 
   defp extras do
     gen all(names <- list_of(atom(:alphanumeric), min_length: 0, max_length: 8)) do
-      names |> Enum.reject(&(&1 in @seven)) |> Enum.uniq()
+      names |> Enum.reject(&(&1 in @host_owned)) |> Enum.uniq()
     end
   end
 
-  property "every Evidence the constructor can produce names all seven host-owned atoms" do
+  property "every Evidence the constructor can produce names all ten host-owned atoms" do
     check all(extra <- extras()) do
       assert {:ok, %Evidence{} = evidence} = Evidence.build(not_verified: extra)
-      assert MapSet.subset?(MapSet.new(@seven), MapSet.new(evidence.not_verified))
+      assert MapSet.subset?(MapSet.new(@host_owned), MapSet.new(evidence.not_verified))
     end
   end
 
@@ -49,15 +49,15 @@ defmodule AgentBlueprintProtocol.Property.EvidenceTest do
     end
   end
 
-  property "the bare constructor carries exactly the seven, extras append after them" do
+  property "the bare constructor carries exactly the ten, extras append after them" do
     check all(extra <- extras(), max_runs: 50) do
       assert {:ok, %Evidence{not_verified: listed}} = Evidence.build(not_verified: extra)
-      assert Enum.take(listed, 7) == @seven
-      assert Enum.drop(listed, 7) == extra
+      assert Enum.take(listed, 10) == @host_owned
+      assert Enum.drop(listed, 10) == extra
     end
   end
 
-  property "every producing path carries the seven: compatibility verification" do
+  property "every producing path carries the ten: compatibility verification" do
     check all(_seed <- integer(), max_runs: 25) do
       deployment =
         DeploymentFixture.fixture_value([])
@@ -67,11 +67,11 @@ defmodule AgentBlueprintProtocol.Property.EvidenceTest do
       assert {:ok, %Evidence{not_verified: not_verified}} =
                Compatibility.verify(deployment, observed())
 
-      assert MapSet.subset?(MapSet.new(@seven), MapSet.new(not_verified))
+      assert MapSet.subset?(MapSet.new(@host_owned), MapSet.new(not_verified))
     end
   end
 
-  property "every producing path carries the seven: the composed reconcile pass" do
+  property "every producing path carries the ten: the composed reconcile pass" do
     check all(_seed <- integer(), max_runs: 10) do
       {:ok, blueprint} =
         BlueprintFixture.fixture_value([])
@@ -96,8 +96,8 @@ defmodule AgentBlueprintProtocol.Property.EvidenceTest do
 
       # :acknowledge keeps the default pair green (its protected
       # disclosure narrowing is acknowledged, the algebra's documented
-      # law) — so the seven-atom law is assertable on this path directly.
-      assert MapSet.subset?(MapSet.new(@seven), MapSet.new(not_verified))
+      # law) — so the host-owned law is assertable on this path directly.
+      assert MapSet.subset?(MapSet.new(@host_owned), MapSet.new(not_verified))
     end
   end
 

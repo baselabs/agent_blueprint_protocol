@@ -193,7 +193,7 @@ const inputs: Inputs = {
 };
 const result = reconcile(blueprint.value, deployment.value, inputs);
 if (!result.ok) throw new Error(result.error.code);
-console.log(result.value.not_verified.length > 0); // true
+console.log(result.value.not_verified.includes("signature_time_validity")); // true
 ```
 
 ## Verify a signature

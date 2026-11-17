@@ -20,7 +20,7 @@ export const KNOWN_NOTICES=Object.freeze({clamp_applied:'clamp_applied',extensio
 export type KnownNotice=typeof KNOWN_NOTICES[keyof typeof KNOWN_NOTICES];
 export type Notice=KnownNotice|(string & {});
 /** Known evidence surfaces, never an exhaustive proof checklist. */
-export const KNOWN_EVIDENCE_SURFACES=Object.freeze({canonical:'canonical',digest:'digest',negotiation:'negotiation',structure:'structure',portability:'portability',signatures:'signatures',extensions:'extensions',bind:'bind',bounds:'bounds',compatibility:'compatibility',tenancy:'tenancy',live_policy:'live_policy',authority:'authority',effect_ownership:'effect_ownership',execution:'execution',billing:'billing',evaluation_truth:'evaluation_truth',signature_created_at:'signature_created_at',lifecycle_state:'lifecycle_state',binding_descriptors:'binding_descriptors',binding_staleness:'binding_staleness'} as const);
+export const KNOWN_EVIDENCE_SURFACES=Object.freeze({canonical:'canonical',digest:'digest',negotiation:'negotiation',structure:'structure',portability:'portability',signatures:'signatures',extensions:'extensions',bind:'bind',bounds:'bounds',compatibility:'compatibility',tenancy:'tenancy',live_policy:'live_policy',authority:'authority',effect_ownership:'effect_ownership',execution:'execution',billing:'billing',evaluation_truth:'evaluation_truth',signature_created_at:'signature_created_at',lifecycle_state:'lifecycle_state',signature_time_validity:'signature_time_validity',binding_descriptors:'binding_descriptors',binding_staleness:'binding_staleness'} as const);
 export type KnownEvidenceSurface=typeof KNOWN_EVIDENCE_SURFACES[keyof typeof KNOWN_EVIDENCE_SURFACES];
 export type EvidenceSurface=KnownEvidenceSurface|(string & {});
 /** Known binding check kinds; unknown kinds establish no familiar check. */
@@ -83,7 +83,8 @@ export interface Clamp {readonly field:keyof BoundSet;readonly class:'operationa
 export interface Intersection {readonly effective:BoundSet;readonly clamps:readonly Clamp[]}
 /** One performed or explicitly unverified check. */
 export interface Check {readonly surface:EvidenceSurface;readonly subject:readonly (string|number)[];readonly verified:boolean;readonly detail:JsonValue}
-/** Typed import evidence; its unverified surfaces never form an empty set. */
+/** Typed import evidence; its unverified surfaces never form an empty set.
+ * Time facts, including signing-key and signature validity periods, remain host-owned. */
 export interface Evidence {readonly protocol_revision:number|null;readonly blueprint_digest:string|null;readonly deployment_digest:string|null;readonly checks:readonly Check[];readonly effective_bounds:BoundSet|null;readonly clamps:readonly Clamp[];readonly optional_extensions_retained:readonly string[];readonly not_verified:readonly EvidenceSurface[]}
 /** One transport mapping row, returned as inert data. */
 export interface MappingRow {readonly index:number;readonly logical_field:string;readonly a2a_location:string;readonly mcp_location:string;readonly verdict:'native'|'partial'|'extension'}
@@ -124,7 +125,7 @@ export function verifyCompatibility(value:Deployment,observed:Observed):Result<E
   const result=compat.verify({value:tagged(value.value)},observed as any);
   if(!result.ok)return result;
   const entries=value.value.build_identities as readonly {readonly digest:string}[];
-  return {ok:true,v:{protocol_revision:value.value.protocol_revision,blueprint_digest:null,deployment_digest:null,effective_bounds:null,clamps:[],optional_extensions_retained:[],checks:entries.map((entry,index)=>({surface:'compatibility',subject:['build_identities',index],verified:true,detail:entry.digest})),not_verified:['tenancy','live_policy','authority','effect_ownership','execution','billing','evaluation_truth']}};
+  return {ok:true,v:{protocol_revision:value.value.protocol_revision,blueprint_digest:null,deployment_digest:null,effective_bounds:null,clamps:[],optional_extensions_retained:[],checks:entries.map((entry,index)=>({surface:'compatibility',subject:['build_identities',index],verified:true,detail:entry.digest})),not_verified:[...imports.HOST_OWNED]}};
 });}
 /** Run the eight-stage import pass and return non-authorizing evidence. */
 export function reconcile(blueprint:Blueprint,deployment:Deployment,options:Inputs):Result<Evidence>{return guarded(()=>{if(options.observations.now!==null&&dep.parseTimestamp(options.observations.now)===null)return {ok:false,e:"invalid_type"};return imports.reconcile({value:tagged(blueprint.value)},{value:tagged(deployment.value)},{...options,hostBounds:options.hostBounds as any,support:support(options.support),keys:options.keys.map(key=>({keyId:key.keyId,key:key.algorithm==='ed25519'?key.key:new Uint8Array()})),observations:options.observations as dep.Observations});});}
