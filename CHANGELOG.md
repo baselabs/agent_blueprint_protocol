@@ -13,6 +13,12 @@ candidate entries below:
   both verifiers. Every evidence value lists `signature_created_at`,
   `lifecycle_state` and `signature_time_validity` in `not_verified`
   (1.1.0-rc.3). This moves the verification-semantics version from 3 to 4.
+  Evidence compared with 1.0.x output differs: reconcile evidence gains
+  `signature_time_validity`, and evidence from construction, compatibility
+  verification and TypeScript import verification gains all three entries. The
+  1.0.x census (`sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`) is
+  declared `not_equivalent`. Update stored evidence comparisons as the Upgrading
+  guide describes.
 - Release verification replays every earlier release census and the signed
   0.8.x golden artifacts through the installed Hex and npm packages, and the Hex
   package runs its own consumer gates without a checkout (1.1.0-rc.3).
