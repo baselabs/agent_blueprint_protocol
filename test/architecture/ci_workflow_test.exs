@@ -121,19 +121,20 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
     end
   end
 
-  test "every runner job has twice its measured green duration with a two-minute floor" do
+  test "every runner job has twice its measured green duration with a five-minute floor" do
     for name <- @workflows, {job_name, job} <- jobs(workflow(name)) do
       if job =~ "    runs-on:" do
         if {name, job_name} == {"publish", "draft-release"} do
-          assert job =~ "# No predecessor; gh release create only.\n    timeout-minutes: 2"
+          assert job =~
+                   "# No predecessor; gh release create only. The 5-minute floor.\n    timeout-minutes: 5"
         else
           assert [_, duration, _run, timeout] =
                    Regex.run(
-                     ~r/# Twice the slowest green run: (\d+\.\d+) min, (?:private )?run (\d+)\.\n    timeout-minutes: (\d+)\n/,
+                     ~r/# Twice the slowest green run, at least 5 min: (\d+\.\d+) min, (?:private )?run (\d+)\.\n    timeout-minutes: (\d+)\n/,
                      job
                    )
 
-          assert String.to_integer(timeout) == max(2, ceil(2 * String.to_float(duration)))
+          assert String.to_integer(timeout) == max(5, ceil(2 * String.to_float(duration)))
         end
       else
         # Reusable workflow callers cannot set timeout-minutes. The callee's

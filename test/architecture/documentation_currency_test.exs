@@ -10,7 +10,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   @readme_path "README.md"
   @security_path "SECURITY.md"
 
-  test "release instructions describe dispatch, refusal, and owner-created tags" do
+  test "release instructions describe dispatch, refusal, and DevOps-created tags" do
     for path <- [
           "AGENTS.md",
           "CONTRIBUTING.md",
@@ -23,6 +23,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
       refute source =~ "The tag starts the publish workflow", path
       refute source =~ "rerun the workflow on the same tag", path
       refute source =~ "deploys `site/` on tags", path
+      refute source =~ "workflow_run", path
+      refute source =~ "DevOps owner", path
     end
 
     publication = File.read!("docs/adr/release-publication.md")
@@ -34,8 +36,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert publication =~ "owner review and default-branch deployment"
 
     site = File.read!("docs/adr/release-site.md")
-    assert site =~ "`head_sha`"
-    assert site =~ "No tag push starts Pages"
+    assert site =~ "Pages accepts only `workflow_dispatch`"
+    assert site =~ "No tag push or workflow event starts Pages"
+    refute site =~ "head_sha"
 
     for path <- [
           "CONTRIBUTING.md",

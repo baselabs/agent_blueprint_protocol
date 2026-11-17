@@ -263,22 +263,21 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert workflow =~ "version: ${{ needs.verify.outputs.version }}"
   end
 
-  test "Pages follows only successful publication and deploys the published commit" do
+  test "Pages deploys only by an owner's default-branch dispatch" do
     pages = workflow("pages")
-    assert pages =~ "workflow_run:\n    workflows: [Publish]\n    types: [completed]"
-    assert pages =~ "github.event.workflow_run.conclusion == 'success'"
-    assert pages =~ "ref: ${{ github.event.workflow_run.head_sha || github.sha }}"
-
-    assert pages =~
-             "PUBLISHED_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}"
-
-    assert pages =~ "PUBLISHED_BRANCH: ${{ github.event.workflow_run.head_branch }}"
+    [_, triggers] = String.split(pages, "\non:\n", parts: 2)
+    [triggers | _] = String.split(triggers, "\npermissions:", parts: 2)
+    assert String.trim(triggers) == "workflow_dispatch:"
+    refute pages =~ "workflow_run"
     assert pages =~ "path: site"
-    assert_default_branch_first(job(pages, "build"))
-    deploy = job(pages, "deploy")
-    assert_default_branch_first(deploy)
-    assert deploy =~ "    if: " <> Enum.join(@owners, " && ") <> "\n"
-    assert deploy =~ "      name: github-pages\n"
+
+    for name <- ["build", "deploy"] do
+      job = job(pages, name)
+      assert_default_branch_first(job)
+      assert job =~ "    if: " <> Enum.join(@owners, " && ") <> "\n"
+    end
+
+    assert job(pages, "deploy") =~ "      name: github-pages\n"
 
     postpublish = workflow("postpublish")
     assert postpublish =~ "workflow_call:"

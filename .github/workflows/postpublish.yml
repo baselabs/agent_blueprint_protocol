@@ -21,8 +21,8 @@ jobs:
   smoke:
     name: Published kit — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    # Twice the slowest green run: 0.5 min, run 44085034568.
-    timeout-minutes: 2
+    # Twice the slowest green run, at least 5 min: 0.5 min, run 44085034568.
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +57,7 @@ jobs:
   livebooks:
     name: Published consumer examples - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    # Twice the slowest green run: 2.9 min, run 44022461020.
+    # Twice the slowest green run, at least 5 min: 2.9 min, run 44022461020.
     timeout-minutes: 6
     strategy:
       fail-fast: false

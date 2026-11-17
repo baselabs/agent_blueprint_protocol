@@ -5,8 +5,9 @@
 A release ships equal versions to Hex and npm and attaches the standalone
 verifier and certified results to a GitHub release. Registries can require
 approval, and upload success does not prove that the live bytes match the
-verified archives. The DevOps owner dispatches publication, reads packages
-back, and only then pushes the version tag and publishes the draft.
+verified archives. DevOps dispatches publication as an owner, reads packages
+back, and only then pushes the version tag, publishes the draft, and
+dispatches the site.
 
 The identity of a release is governed by the
 [release identity](release-identity-semantics.md) and
@@ -75,15 +76,16 @@ Windows consumers.
    censuses and signed historical goldens through both installed packages.
    The replay enumerates existing manifest-era tags and filters versions
    newer than the installed package; it does not require the new tag.
-7. **Deploy Pages from that commit.** Pages follows a successful Publish
-   `workflow_run` and checks out that run's `head_sha`, rather than a newer
-   default-branch head. Manual default-branch dispatch remains available.
-   Its deployment uses the protected `github-pages` environment. Neither
-   Pages nor postpublish starts from a tag push.
-8. **Finish as the owner.** Read both registries back and compare with this
-   run's verified archives. Push `v<version>` at the dispatched SHA only
-   after those checks, then publish the existing draft. Tags remain
-   immutable historical inputs for later compatibility replay.
+7. **Finish as DevOps.** After the dispatch, read both registries back and
+   compare with this run's verified archives. Push `v<version>` at the
+   dispatched SHA only after those checks, then publish the existing draft.
+   Tags remain immutable historical inputs for later compatibility replay.
+8. **Deploy Pages by dispatch.** A site deployment is the same act as a
+   publication: one owner dispatch of Pages from the default branch, made
+   by DevOps after the read-back. Both Pages jobs carry the owner condition
+   and refuse other refs first. Deployment uses the protected
+   `github-pages` environment. Neither Pages nor postpublish starts from a
+   tag push or a workflow event.
 
 ## Partial-state recovery
 
@@ -93,25 +95,25 @@ Hex and tag status and refuses before uploading anything. A staged slot may
 not appear in the public registry API; its upload conflict still fails and
 never becomes a successful skip. Unknown registry state also fails closed.
 
-The owner inspects the failed run, approves any pending staged uploads,
+DevOps inspects the failed run, has any pending staged uploads approved,
 downloads that run's `verified-release` artifacts, and reads back any live
 archives to verify their integrity. Complete missing uploads, documentation,
 or draft assets by hand with those exact verified bytes; rerun postpublish
-by its version-input dispatch and dispatch Pages from the published commit
-if the failed Publish run did not deploy it. Then perform the tag and draft
+by its version-input dispatch. Then perform the tag, draft, and Pages
 steps above. Do not replace live bytes, rebuild for recovery, or redispatch
 Publish against an occupied version. This deliberately trades automatic
 resumption for an explicit boundary around irreversible partial publication.
 
-## Registry and environment setup owned by DevOps
+## Registry and environment setup
 
-- Repoint npmjs.com's trusted publisher to this repository, `publish.yml`,
-  and environment **`publish`**, replacing **`GH TP for ABP`**. The registry
-  binds all three; changing YAML alone does not update npm. No npm token is
-  used. Retain the registry's maintainer approval and publishing protections.
-- Store `HEX_API_KEY` as an environment secret in **`publish`**, scoped to
-  publishing this public package and its docs. The privacy guard's HMAC
-  remains a step-scoped repository secret.
-- Protect **`publish`** with owner review and default-branch deployment
+- The repository owner repoints npmjs.com's trusted publisher to this
+  repository, `publish.yml`, and environment **`publish`**, replacing
+  **`GH TP for ABP`**; DevOps raises it. The registry binds all three;
+  changing YAML alone does not update npm. No npm token is used. Retain the
+  registry's maintainer approval and publishing protections.
+- DevOps stores `HEX_API_KEY` as an environment secret in **`publish`**,
+  scoped to publishing this public package and its docs. The privacy guard's
+  HMAC remains a step-scoped repository secret.
+- DevOps protects **`publish`** with owner review and default-branch deployment
   restrictions, covering registry uploads and drafting. Pages deployment
   stays in `github-pages`, restricted to the default branch.

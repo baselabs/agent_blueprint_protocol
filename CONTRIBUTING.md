@@ -93,7 +93,7 @@ Regenerate release metadata after specification, corpus, or registry changes wit
 
 A release commit carries the equal Hex and npm version, release metadata,
 and all versioned install commands, documentation links, and notebook targets.
-The DevOps owner dispatches **Publish** from the default branch with no inputs.
+DevOps dispatches **Publish** as an owner from the default branch with no inputs.
 The run derives the version from `mix.exs`, checks it against `package.json`,
 using `scripts/release_artifact_info.mjs version`, and refuses if that version
 is already on either registry or already tagged.
@@ -110,19 +110,20 @@ archives. The GitHub release remains a draft named `v<version>`, targeted at
 the dispatched SHA, with the standalone verifier and certified results attached.
 The run never creates or pushes a tag. Postpublish verifies installed packages
 on Linux, macOS, and Windows using historical tags; the new tag is not required.
-Pages deploys only after a successful Publish run and checks out that run's SHA.
+Pages deploys only by an owner's dispatch from the default branch.
 
 Pending approvals, upload conflicts, and partial publication fail the run.
-Redispatch does not resume: occupied versions refuse. The owner approves staged
-bytes, reads back live archives, and completes missing steps by hand with the
-failed run's `verified-release` artifacts. Dispatch postpublish with the version
-and Pages from the published commit after recovery. After reading packages back,
-push the version tag at the published SHA and publish the existing draft.
+Redispatch does not resume: occupied versions refuse. DevOps has staged bytes
+approved, reads back live archives, and completes missing steps by hand with the
+failed run's `verified-release` artifacts, then dispatches postpublish with the
+version. After every Publish run, DevOps reads packages back, pushes the version
+tag at the published SHA, publishes the existing draft, and dispatches Pages.
 
-Before the first dispatch, DevOps must repoint npmjs.com's trusted publisher to
-this repository, `publish.yml`, and environment `publish`; place `HEX_API_KEY`
-in that environment; and configure owner review and default-branch environment
-protection for uploads, drafts, and Pages. The
+Before the first dispatch, the repository owner repoints npmjs.com's trusted
+publisher to this repository, `publish.yml`, and environment `publish`, which
+DevOps raises. DevOps places `HEX_API_KEY` in that environment and configures
+owner review and default-branch environment protection for uploads, drafts, and
+Pages. The
 [release publication](docs/adr/release-publication.md) record gives the sequence,
 refusal policy, recovery procedure, and registry setup.
 

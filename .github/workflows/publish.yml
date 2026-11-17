@@ -1,16 +1,18 @@
 name: Publish
 
-# Maintainer-dispatched publication from the default branch, without inputs.
-# The DevOps owner must repoint npmjs.com's trusted publisher to this repository,
-# publish.yml, and environment publish (formerly GH TP for ABP). No npm token.
-# Protect publish for the two owners and the default branch; store HEX_API_KEY
-# there. The privacy guard's HMAC remains a step-scoped repository secret.
+# Owner-dispatched publication from the default branch, without inputs.
+# The repository owner repoints npmjs.com's trusted publisher to this repository,
+# publish.yml, and environment publish (formerly GH TP for ABP); DevOps raises
+# it. No npm token. Protect publish for the two owners and the default branch;
+# store HEX_API_KEY there. The privacy guard's HMAC remains a step-scoped
+# repository secret.
 # Refuse occupied npm/Hex versions or a remote version tag before publishing.
 # Partial or pending publication requires manual recovery with this run's exact
 # artifacts; redispatch is not a resume operation. Never create or push a tag.
 # npm, then Hex, then a GitHub DRAFT with the verifier and certified results.
-# The owner reads packages back, pushes v<version> at this run's SHA, then
-# publishes the draft. Historical replay needs earlier tags, not the new tag.
+# After the dispatch, DevOps reads packages back, pushes v<version> at this
+# run's SHA, publishes the draft, then dispatches Pages. Historical replay
+# needs earlier tags, not the new tag.
 
 on:
   workflow_dispatch:
@@ -28,7 +30,7 @@ jobs:
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     environment: publish
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 8.6 min, run 44033341768.
+    # Twice the slowest green run, at least 5 min: 8.6 min, run 44033341768.
     timeout-minutes: 18
     outputs:
       version: ${{ steps.inputs.outputs.version }}
@@ -167,8 +169,8 @@ jobs:
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     environment: publish
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 0.3 min, run 44033341768.
-    timeout-minutes: 2
+    # Twice the slowest green run, at least 5 min: 0.3 min, run 44033341768.
+    timeout-minutes: 5
     permissions:
       contents: read
       id-token: write
@@ -244,8 +246,8 @@ jobs:
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     environment: publish
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 1.1 min, run 44085034568.
-    timeout-minutes: 3
+    # Twice the slowest green run, at least 5 min: 1.1 min, run 44085034568.
+    timeout-minutes: 5
     env:
       NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
       VERSION: ${{ needs.verify.outputs.version }}
@@ -350,8 +352,8 @@ jobs:
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     environment: publish
     runs-on: ubuntu-24.04
-    # No predecessor; gh release create only.
-    timeout-minutes: 2
+    # No predecessor; gh release create only. The 5-minute floor.
+    timeout-minutes: 5
     env:
       VERSION: ${{ needs.verify.outputs.version }}
     permissions:

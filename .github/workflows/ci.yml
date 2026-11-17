@@ -15,8 +15,8 @@ jobs:
   toolchain:
     name: Read suite toolchains
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 0.1 min, private run 44125456373.
-    timeout-minutes: 2
+    # Twice the slowest green run, at least 5 min: 0.1 min, private run 44125456373.
+    timeout-minutes: 5
     outputs:
       elixir: ${{ steps.versions.outputs.elixir }}
       otp: ${{ steps.versions.outputs.otp }}
@@ -38,8 +38,8 @@ jobs:
     needs: toolchain
     name: Workflow syntax
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 0.4 min, run 44123748944.
-    timeout-minutes: 2
+    # Twice the slowest green run, at least 5 min: 0.4 min, run 44123748944.
+    timeout-minutes: 5
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,8 +69,8 @@ jobs:
     needs: toolchain
     name: Secret scan
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 0.8 min, run 44031988112.
-    timeout-minutes: 2
+    # Twice the slowest green run, at least 5 min: 0.8 min, run 44031988112.
+    timeout-minutes: 5
     steps:
       - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -102,8 +102,8 @@ jobs:
     needs: toolchain
     name: Specification extraction
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 0.9 min, run 44089335225.
-    timeout-minutes: 2
+    # Twice the slowest green run, at least 5 min: 0.9 min, run 44089335225.
+    timeout-minutes: 5
     steps:
       - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -151,7 +151,7 @@ jobs:
     needs: toolchain
     name: Supported toolchain — Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }}
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 3.3 min, run 44033161483.
+    # Twice the slowest green run, at least 5 min: 3.3 min, run 44033161483.
     timeout-minutes: 7
     strategy:
       fail-fast: false
@@ -211,7 +211,7 @@ jobs:
     needs: toolchain
     name: Complete quality and package boundary
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 10.8 min, run 44091220164.
+    # Twice the slowest green run, at least 5 min: 10.8 min, run 44091220164.
     timeout-minutes: 22
     steps:
       - name: Check out source
@@ -276,7 +276,7 @@ jobs:
     needs: toolchain
     name: Consumer and contributor — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    # Twice the slowest green run: 6.8 min, run 43998494043.
+    # Twice the slowest green run, at least 5 min: 6.8 min, run 43998494043.
     timeout-minutes: 14
     defaults:
       run:
@@ -364,7 +364,7 @@ jobs:
     needs: toolchain
     name: TypeScript consumer / Node ${{ matrix.node }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    # Twice the slowest green run: 2.4 min, run 44084805695.
+    # Twice the slowest green run, at least 5 min: 2.4 min, run 44084805695.
     timeout-minutes: 5
     defaults:
       run:
@@ -425,8 +425,8 @@ jobs:
     if: always()
     needs: [toolchain, workflow-syntax, secret-scan, spec-extraction, compatibility, quality, platforms, typescript-consumers]
     runs-on: ubuntu-24.04
-    # Twice the slowest green run: 0.1 min, private run 44125456373.
-    timeout-minutes: 2
+    # Twice the slowest green run, at least 5 min: 0.1 min, private run 44125456373.
+    timeout-minutes: 5
     steps:
       - name: Require every qualification job to succeed
         env:

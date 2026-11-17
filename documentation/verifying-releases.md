@@ -118,7 +118,7 @@ Both modes read the checkout's release tags to replay historical censuses and
 the signed 0.8.x goldens under both installed packages. A missing tag history
 fails verification; fetch the historical release tags before running either
 mode. The version being verified does not need its own tag, so Publish calls
-postpublish before the DevOps owner creates the new tag.
+postpublish before DevOps creates the new tag.
 
 Without a checkout, the Hex package's own `scripts/consumer_examples.exs` takes
 the same arguments and runs the four package gates alone. It loads nothing
