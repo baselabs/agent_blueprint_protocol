@@ -246,10 +246,12 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   # packed module may reference testdata. Read from `npm pack --dry-run`,
   # the file list npm would publish.
   defp packed_files_check! do
-    npm = System.find_executable("npm") || raise "npm not found for the packed-file check"
-
+    # npm runs through Node (scripts/npm.mjs): Windows cannot spawn npm's
+    # .cmd launcher, and the gate runs the same way on every platform.
     {json, 0} =
-      System.cmd(npm, ["pack", "./dist/package", "--dry-run", "--json", "--ignore-scripts"],
+      System.cmd(
+        AgentBlueprintProtocol.GateNode.find_node!(),
+        ["scripts/npm.mjs", "pack", "./dist/package", "--dry-run", "--json", "--ignore-scripts"],
         cd: @root,
         stderr_to_stdout: false
       )

@@ -20,9 +20,18 @@ defmodule AgentBlueprintProtocol.ShippedDocuments do
 
   defp documents(entry) do
     cond do
-      File.dir?(entry) -> Path.wildcard(Path.join(entry, "**/*.{md,livemd,cheatmd}"))
+      File.dir?(entry) -> directory_documents(entry)
       File.regular?(entry) and Path.extname(entry) in ~w(.md .livemd .cheatmd) -> [entry]
       true -> []
     end
+  end
+
+  # The root is the lookup's working directory, never part of the pattern.
+  # Packaging tools skip dot entries, so a dot segment is never a shipped document.
+  defp directory_documents(root) do
+    for relative <- :filelib.wildcard(~c"**/*.{md,livemd,cheatmd}", String.to_charlist(root)),
+        relative = List.to_string(relative),
+        not Enum.any?(Path.split(relative), &String.starts_with?(&1, ".")),
+        do: Path.join(root, relative)
   end
 end

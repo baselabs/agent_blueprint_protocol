@@ -1,11 +1,11 @@
-import { mkdtempSync,writeFileSync,readFileSync,rmSync,existsSync } from 'node:fs';
-import { join,dirname,resolve } from 'node:path';
+import { mkdtempSync,writeFileSync,readFileSync,rmSync } from 'node:fs';
+import { join,resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { npmCli } from './npm.mjs';
 
-const npm=[join(dirname(process.execPath),'node_modules/npm/bin/npm-cli.js'),resolve(dirname(process.execPath),'../lib/node_modules/npm/bin/npm-cli.js')].find(existsSync);
-assert.ok(npm);
+const npm=npmCli();
 function run(scratch,args){
   const result=spawnSync(process.execPath,args,{cwd:scratch,encoding:'utf8',maxBuffer:10_000_000});
   assert.equal(result.status,0,result.stderr);

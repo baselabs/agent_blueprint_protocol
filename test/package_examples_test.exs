@@ -419,7 +419,8 @@ defmodule AgentBlueprintProtocol.PackageExamplesTest do
   test "the TypeScript package gate skips comment fragments and rejects all info suffixes" do
     Scratch.with_dir("typescript-fragments", fn root ->
       {packed, 0} =
-        System.cmd("npm", [
+        System.cmd("node", [
+          "scripts/npm.mjs",
           "pack",
           "./dist/package",
           "--ignore-scripts",

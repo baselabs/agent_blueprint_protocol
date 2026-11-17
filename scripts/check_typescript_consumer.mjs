@@ -1,11 +1,12 @@
 import { mkdtempSync,mkdirSync,readFileSync,writeFileSync,cpSync,rmSync,existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join,resolve,dirname } from 'node:path';
+import { join,resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-const npmCli=[join(dirname(process.execPath),'node_modules/npm/bin/npm-cli.js'),resolve(dirname(process.execPath),'../lib/node_modules/npm/bin/npm-cli.js')].find(existsSync);
+import { npmCli } from './npm.mjs';
+const npm=npmCli();
 const root=resolve('.'),scratch=mkdtempSync(join(tmpdir(),'abp-consumer-'));
-function command(program,args,cwd=scratch,status=0){const r=spawnSync(program==='npm'&&npmCli?process.execPath:program,program==='npm'&&npmCli?[npmCli,...args]:args,{cwd,encoding:'utf8',maxBuffer:5_000_000});assert.equal(r.status,status,r.stdout+r.stderr);return r;}
+function command(program,args,cwd=scratch,status=0){const r=spawnSync(program==='npm'?process.execPath:program,program==='npm'?[npm,...args]:args,{cwd,encoding:'utf8',maxBuffer:5_000_000});assert.equal(r.status,status,r.stdout+r.stderr);return r;}
 try {
   cpSync('.tool-versions',join(scratch,'.tool-versions'));
   const packed=command('npm',['pack','./dist/package','--ignore-scripts','--json','--pack-destination',scratch],root);

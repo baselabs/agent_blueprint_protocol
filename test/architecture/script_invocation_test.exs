@@ -28,6 +28,48 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
     assert offenders == [], "Node Elixir toolchain invocation at " <> Enum.join(offenders, ", ")
   end
 
+  # Windows cannot spawn npm's .cmd launcher as a native process. Elixir and
+  # Node callers run npm's CLI script with the Node executable: repository
+  # callers through scripts/npm.mjs, the shipped TypeScript gate with its own
+  # copy of that lookup because it ships alone.
+  @npm_by_name [
+    ~r/System\.(?:cmd|find_executable)\(\s*"npm(?:\.cmd)?"/,
+    ~r/\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync)\(\s*['"`]npm(?:\.cmd)?['"`]/
+  ]
+  @npm_lookup "node_modules/npm/bin/npm-cli.js"
+  @npm_lookup_owners ["scripts/npm.mjs", "scripts/run_package_typescript_examples.mjs"]
+
+  test "npm is launched as Node running npm's CLI script, never by name" do
+    sources =
+      for path <-
+            Path.wildcard("{lib,scripts,test}/**/*.{ex,exs,js,mjs,cjs,ts}") --
+              ["test/architecture/script_invocation_test.exs"],
+          do: {path, File.read!(path)}
+
+    by_name =
+      for {path, source} <- sources,
+          {line, index} <- source |> String.split("\n") |> Enum.with_index(1),
+          Enum.any?(@npm_by_name, &Regex.match?(&1, line)),
+          do: "#{path}:#{index}"
+
+    assert by_name == [], "npm launched by name at " <> Enum.join(by_name, ", ")
+
+    lookups = for {path, source} <- sources, source =~ @npm_lookup, do: path
+    assert Enum.sort(lookups) == Enum.sort(@npm_lookup_owners)
+
+    for launch <- [
+          ~s|System.cmd("npm", ["pack"])|,
+          ~s|System.find_executable("npm")|,
+          ~s|System.cmd("npm.cmd", [])|,
+          ~s|spawnSync('npm',['pack'])|,
+          ~s|execFileSync("npm", args)|
+        ] do
+      assert Enum.any?(@npm_by_name, &Regex.match?(&1, launch)), launch
+    end
+
+    refute Enum.any?(@npm_by_name, &Regex.match?(&1, ~s|System.cmd("node", ["scripts/npm.mjs"])|))
+  end
+
   test "the inline detector covers shell commands and argv arrays" do
     for command <- [
           ~s(elixir -e 'program'),
