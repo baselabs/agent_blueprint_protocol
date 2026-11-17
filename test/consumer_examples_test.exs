@@ -1,4 +1,5 @@
 Code.require_file("../scripts/consumer_examples.exs", __DIR__)
+Code.require_file("../scripts/verify_release_packages.exs", __DIR__)
 
 defmodule AgentBlueprintProtocol.ConsumerExamplesTest do
   use ExUnit.Case, async: true
@@ -80,6 +81,10 @@ defmodule AgentBlueprintProtocol.ConsumerExamplesTest do
 
     assert_raise RuntimeError, ~r/usage:/, fn ->
       ConsumerExamples.main(["--local", "one.tar"])
+    end
+
+    assert_raise RuntimeError, ~r/usage: elixir scripts\/verify_release_packages\.exs /, fn ->
+      VerifyReleasePackages.main([])
     end
   end
 end

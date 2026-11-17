@@ -31,27 +31,29 @@ mix typescript.guide
 ```
 
 CI builds both consumer packages and runs their own notebook, doctest, Elixir
-snippet, and TypeScript example gates on Linux, macOS, and Windows before a tag.
-Run that same gate locally after `npm run build`:
+snippet, and TypeScript example gates on Linux, macOS, and Windows before a tag,
+then replays every earlier release census and the signed 0.8.x goldens through
+the installed Hex and npm verifiers. Run that same verification locally after
+`npm run build`:
 
 ```sh
 VERSION=$(node -p "require('./dist/package/package.json').version")
 mix hex.build --output package.tar
 npm pack ./dist/package --ignore-scripts --pack-destination .
-elixir scripts/consumer_examples.exs --local package.tar "agent-blueprint-protocol-verifier-$VERSION.tgz"
+elixir scripts/verify_release_packages.exs --local package.tar "agent-blueprint-protocol-verifier-$VERSION.tgz"
 ```
 
 Remove the two archives after verification. Local mode consumes those exact
 builds without contacting either package registry. For a published version,
-use `elixir scripts/consumer_examples.exs --registry VERSION` with that release's
-version. Registry mode checks the Hex API release checksum and npm
+use `elixir scripts/verify_release_packages.exs --registry VERSION` with that
+release's version. Registry mode checks the Hex API release checksum and npm
 `dist.integrity` before extraction.
-The tagged checkout supplies the driver; the extracted Hex package supplies all
-four gates, and both packages supply their own example documents. Both modes
-extract archives in-process and run the same gates over the extracted bytes.
-Both modes also replay every earlier release census and the signed 0.8.x
-goldens through the installed Hex and npm verifiers. The checkout supplies
-released inputs through its Git tags; keep those tags available in either mode.
+The extracted Hex package supplies all four gates, and both packages supply
+their own example documents. Both modes extract archives in-process and run the
+same gates over the extracted bytes. The replay reads released inputs from the
+checkout's Git tags; keep those tags available in either mode. The Hex package
+also ships `scripts/consumer_examples.exs`, which runs the four package gates
+alone and loads nothing outside the package.
 
 To run the corpus from the repository checkout:
 

@@ -1,15 +1,19 @@
 # Load the extracted package's Elixir gates in-process: Node cannot spawn Windows
 # .bat files, and program source must never cross a shell argument boundary.
-Code.require_file("../test/support/scratch.exs", __DIR__)
-
+# This driver ships in the Hex package, so it loads only the package's own
+# files. The checkout's release verification (scripts/verify_release_packages.exs)
+# composes it with the installed compatibility replay.
 defmodule ConsumerExamples do
   @moduledoc false
-  alias AgentBlueprintProtocol.Scratch
 
-  def main(["--registry", version]) do
+  def main(args), do: with_packages("consumer_examples.exs", args, &run_gates!/1)
+
+  # Acquires both archives, extracts them into this driver's own scratch
+  # directory and passes the extracted layout to `fun`.
+  def with_packages(_script, ["--registry", version], fun) do
     version = version!(version)
 
-    Scratch.with_dir("consumer-examples", fn scratch ->
+    with_scratch(fn scratch ->
       release =
         fetch_json!("https://hex.pm/api/packages/agent_blueprint_protocol/releases/#{version}")
 
@@ -30,21 +34,18 @@ defmodule ConsumerExamples do
       tarball = Path.join(scratch, "verifier.tgz")
       File.write!(archive, hex)
       File.write!(tarball, packed)
-      run!(archive, tarball, scratch)
+      fun.(extract!(archive, tarball, scratch))
     end)
   end
 
-  def main(["--local", archive, tarball]) do
+  def with_packages(_script, ["--local", archive, tarball], fun) do
     archive = Path.expand(archive)
     tarball = Path.expand(tarball)
-    Scratch.with_dir("consumer-examples", &run!(archive, tarball, &1))
+    with_scratch(&fun.(extract!(archive, tarball, &1)))
   end
 
-  def main(_args),
-    do:
-      raise(
-        "usage: elixir scripts/consumer_examples.exs --registry VERSION | --local HEX.tar NPM.tgz"
-      )
+  def with_packages(script, _args, _fun),
+    do: raise("usage: elixir scripts/#{script} --registry VERSION | --local HEX.tar NPM.tgz")
 
   def version!(version) do
     if is_binary(version) and Regex.match?(~r/\A\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\z/, version),
@@ -80,7 +81,7 @@ defmodule ConsumerExamples do
     :ok
   end
 
-  defp run!(archive, tarball, scratch) do
+  defp extract!(archive, tarball, scratch) do
     package = Path.join(scratch, "hex")
     installed = Path.join(scratch, "npm")
     File.mkdir!(package)
@@ -98,8 +99,16 @@ defmodule ConsumerExamples do
         {:cwd, String.to_charlist(installed)}
       ])
 
-    replay!(package, tarball, installed, scratch)
+    %{
+      archive: archive,
+      tarball: tarball,
+      package: package,
+      installed: installed,
+      scratch: scratch
+    }
+  end
 
+  def run_gates!(%{archive: archive, tarball: tarball, package: package, installed: installed}) do
     # These are always the package's own gates and documents, never the checkout's.
     # Their child consumers use System.cmd, which supports Windows batch launch;
     # only filenames and fixed task arguments cross that boundary.
@@ -115,79 +124,27 @@ defmodule ConsumerExamples do
     # executable inside the published TypeScript gate, never through npm.cmd.
     # Keep the caller's cwd for version-manager shims; the gate isolates its
     # consumer in its own scratch directory using process.execPath.
-    node = if match?({:win32, _}, :os.type()), do: "node.exe", else: "node"
-
-    {_, status} =
-      System.cmd(
-        node,
-        [
-          Path.join(package, "scripts/run_package_typescript_examples.mjs"),
-          tarball,
-          Path.join(installed, "package/README.md"),
-          Path.join(package, "documentation/typescript.md")
-        ],
-        into: IO.stream(),
-        stderr_to_stdout: true
-      )
-
-    if status != 0, do: raise("package TypeScript examples failed")
-    IO.puts("consumer examples: installed compatibility replay and all four package gates passed")
-  end
-
-  def replay!(package, tarball, installed, scratch) do
-    repository = File.cwd!()
-    node = if match?({:win32, _}, :os.type()), do: "node.exe", else: "node"
-
     command!(
-      node,
-      [Path.join(__DIR__, "postpublish_smoke.mjs"), "--local", tarball, installed],
+      node_executable(),
+      [
+        Path.join(package, "scripts/run_package_typescript_examples.mjs"),
+        tarball,
+        Path.join(installed, "package/README.md"),
+        Path.join(package, "documentation/typescript.md")
+      ],
       []
     )
 
-    kit = Path.join(installed, "node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs")
-    consumers = Path.join(scratch, "consumers")
-    File.mkdir!(consumers)
-    consumer = Path.join(consumers, "replay")
-    File.mkdir!(consumer)
-
-    try do
-      File.write!(Path.join(consumer, "mix.exs"), """
-      defmodule CompatibilityConsumer.MixProject do
-        use Mix.Project
-        def project, do: [app: :compatibility_consumer, version: "0.0.0", deps: [{:agent_blueprint_protocol, path: #{inspect(package)}, env: :prod}]]
-        def application, do: [extra_applications: [:crypto]]
-      end
-      """)
-
-      options = [
-        cd: consumer,
-        env: [{"MIX_ENV", "test"}, {"MIX_BUILD_PATH", nil}, {"MIX_DEPS_PATH", nil}]
-      ]
-
-      command!("mix", ["deps.get"], options)
-
-      command!(
-        "mix",
-        [
-          "run",
-          Path.join(__DIR__, "check_compatibility_replay.exs"),
-          "--installed",
-          repository,
-          kit
-        ],
-        options
-      )
-    after
-      # Remove consumer priv links before their package target, including on Windows.
-      File.rm_rf!(consumers)
-    end
+    IO.puts("consumer examples: all four package gates passed")
   end
 
-  defp command!(program, args, options) do
+  def node_executable, do: if(match?({:win32, _}, :os.type()), do: "node.exe", else: "node")
+
+  def command!(program, args, options) do
     {_, status} =
       System.cmd(program, args, [into: IO.stream(), stderr_to_stdout: true] ++ options)
 
-    if status != 0, do: raise("installed consumer command failed with exit #{status}")
+    if status != 0, do: raise("#{Path.basename(program)} exited with status #{status}")
   end
 
   # Only the pattern is glob syntax. The package root is the lookup's working
@@ -228,6 +185,31 @@ defmodule ConsumerExamples do
         raise "package registry request failed"
     end
   end
+
+  defp with_scratch(run) do
+    scratch =
+      Path.join(
+        System.tmp_dir!(),
+        "consumer-examples-#{Base.encode16(:crypto.strong_rand_bytes(12), case: :lower)}"
+      )
+
+    File.mkdir!(scratch)
+
+    try do
+      run.(scratch)
+    after
+      File.rm_rf!(scratch)
+    end
+  end
 end
 
-if :code.is_loaded(Mix.Project) == false, do: ConsumerExamples.main(System.argv())
+# The VM's first plain argument is the executed script. Code.require_file/2
+# leaves it pointing at the caller, so loading this file never runs main.
+case :init.get_plain_arguments() do
+  [script | _args] ->
+    if Path.expand(List.to_string(script)) == __ENV__.file,
+      do: ConsumerExamples.main(System.argv())
+
+  [] ->
+    :ok
+end

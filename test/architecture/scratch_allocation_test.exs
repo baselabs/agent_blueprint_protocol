@@ -18,6 +18,8 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
     The packaged consumer driver (`scripts/consumer_examples.exs`) owns the
     same exclusive allocation and removal; it loads only the package's own
     gates, never a checkout file, because consumers run it from the package.
+    The checkout's release verification (`scripts/verify_release_packages.exs`)
+    works inside the driver's scratch and never reads the temp directory.
   - Node and TypeScript: `const dir = mkdtempSync(join(tmpdir(), "abp-..."))`,
     removed by `rmSync(dir, ...)` in a `finally`. Every `tmpdir()` call is
     that argument, and every `mkdtempSync` result is bound and removed.
@@ -76,7 +78,8 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
           String.replace(driver, "File.rm_rf!(scratch)", ":ok"),
           String.replace(driver, "File.mkdir!(scratch)", "File.mkdir_p!(scratch)"),
           String.replace(driver, ":crypto.strong_rand_bytes(12)", "\"fixed\""),
-          driver <> ~s|\nCode.require_file("../test/support/scratch.exs", __DIR__)\n|
+          driver <> ~s|\nCode.require_file("../test/support/scratch.exs", __DIR__)\n|,
+          driver <> ~s|\nPath.join(__DIR__, "postpublish_smoke.mjs")\n|
         ] do
       assert elixir_offences(@driver, broken) != []
     end
@@ -155,7 +158,8 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
     exclusive_scratch?(source) and
       Regex.match?(~r/after\s+(?:#[^\n]*\n\s*)*File\.rm_rf!\(scratch\)\s+end/, source) and
       count(source, ~r/Code\.require_file\(/) ==
-        count(source, ~r/Code\.require_file\(Path\.join\(package,/)
+        count(source, ~r/Code\.require_file\(Path\.join\(package,/) and
+      not String.contains?(source, "__DIR__")
   end
 
   defp standalone_owner?(_path, _source), do: false

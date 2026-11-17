@@ -54,23 +54,33 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
     assert platforms =~ "os: [ubuntu-24.04, macos-15, windows-2025]"
     assert platforms =~ "mix hex.build --output"
     assert platforms =~ "npm pack ./dist/package --ignore-scripts"
-    assert platforms =~ "elixir scripts/consumer_examples.exs --local"
+    assert platforms =~ "elixir scripts/verify_release_packages.exs --local"
 
     postpublish = File.read!(".github/workflows/postpublish.yml")
-    assert postpublish =~ "elixir scripts/consumer_examples.exs --registry"
+    assert postpublish =~ "elixir scripts/verify_release_packages.exs --registry"
     refute postpublish =~ "ref: v${{ inputs.version }}"
     refute postpublish =~ "postpublish_examples.mjs"
   end
 
-  test "consumer replay fetches release tags and uses installed verifier packages" do
+  test "release verification replays release tags through the installed packages" do
+    verification = File.read!("scripts/verify_release_packages.exs")
+    assert verification =~ ~s|Code.require_file("consumer_examples.exs", __DIR__)|
+    assert verification =~ "--installed"
+    assert verification =~ "check_compatibility_replay.exs"
+    assert verification =~ "postpublish_smoke.mjs"
+
+    # The shipped driver is only the package gates; the replay is the checkout's.
     driver = File.read!("scripts/consumer_examples.exs")
-    assert driver =~ "--installed"
-    assert driver =~ "check_compatibility_replay.exs"
+    refute driver =~ "check_compatibility_replay"
+    refute driver =~ "postpublish_smoke"
 
     for path <- [".github/workflows/ci.yml", ".github/workflows/postpublish.yml"] do
       jobs = Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, File.read!(path))
+      verifying = for job <- jobs, job =~ "elixir scripts/verify_release_packages.exs", do: job
+      assert verifying != [], "#{path} no longer runs release package verification"
+      refute Enum.any?(jobs, &(&1 =~ "elixir scripts/consumer_examples.exs"))
 
-      for job <- jobs, job =~ "elixir scripts/consumer_examples.exs" do
+      for job <- verifying do
         assert job =~ "fetch-depth: 0"
       end
     end

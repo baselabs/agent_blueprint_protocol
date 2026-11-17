@@ -41,9 +41,13 @@ Publication is one ordered, resumable transaction on a release tag:
    as a prerelease for a candidate.
 6. **Verify the published release.** The release run calls the
    post-publication workflow directly. It installs the published npm kit and
-   verifies its corpus on every supported platform, then fetches the
-   published Hex archive and runs every shipped consumer example from it,
-   with no checkout of the source tree. A failure turns the release run red.
+   verifies its corpus on every supported platform, then fetches both
+   published archives, checks them against the registries' checksums, and
+   runs every shipped consumer example from them. The source checkout
+   supplies only transport, extraction, and its release tags, which the
+   installed compatibility replay reads to run every earlier census and the
+   signed 0.8.x goldens through both installed packages. A failure turns the
+   release run red.
 
 A pending approval or a conflict never reports success: the run fails and
 its error names what is pending, so no later job is skipped under a green

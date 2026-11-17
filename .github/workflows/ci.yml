@@ -272,8 +272,8 @@ jobs:
             $npm = @(Get-ChildItem -Path $scratch -Filter "*.tgz")
             if ($npm.Count -ne 1) { throw "Expected one npm package" }
             $tarball = $npm[0].FullName
-            elixir scripts/consumer_examples.exs --local $hex $tarball
-            if ($LASTEXITCODE -ne 0) { throw "Consumer examples failed" }
+            elixir scripts/verify_release_packages.exs --local $hex $tarball
+            if ($LASTEXITCODE -ne 0) { throw "Release package verification failed" }
           } finally {
             Remove-Item -Recurse -Force $scratch
           }

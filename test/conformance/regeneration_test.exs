@@ -34,17 +34,19 @@ defmodule AgentBlueprintProtocol.Conformance.RegenerationTest do
     end)
   end
 
+  # The root is the lookup's working directory, never part of the pattern.
   defp tree(root) do
-    paths =
-      Path.wildcard(Path.join(root, "priv/conformance/**/*")) ++
-        Enum.map(
-          ["spec/conformance/certified-results.json", "priv/examples/signed-blueprint.json"],
-          &Path.join(root, &1)
-        )
+    relatives =
+      Enum.map(
+        :filelib.wildcard(~c"priv/conformance/**/*", String.to_charlist(root)),
+        &List.to_string/1
+      ) ++
+        ["spec/conformance/certified-results.json", "priv/examples/signed-blueprint.json"]
 
-    for path <- paths,
+    for relative <- relatives,
+        path = Path.join(root, relative),
         File.regular?(path),
         into: %{},
-        do: {Path.relative_to(path, root), File.read!(path)}
+        do: {relative, File.read!(path)}
   end
 end

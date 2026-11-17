@@ -70,10 +70,11 @@ jobs:
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
         shell: pwsh
-      - name: Fetch the published gates and run every published consumer example
+      - name: Verify the published packages and replay release history through them
         env:
           ABP_VERSION: ${{ inputs.version }}
-        # The checkout supplies transport/extraction only. Every gate and input
-        # document is loaded from the checksum-verified published packages.
-        run: elixir scripts/consumer_examples.exs --registry "$env:ABP_VERSION"
+        # Every consumer gate and example document is loaded from the
+        # checksum-verified published packages. The checkout supplies only
+        # transport, extraction, and the release tags the installed replay reads.
+        run: elixir scripts/verify_release_packages.exs --registry "$env:ABP_VERSION"
         shell: pwsh
