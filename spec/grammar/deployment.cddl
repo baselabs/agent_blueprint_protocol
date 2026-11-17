@@ -1,8 +1,6 @@
 ; Agent Blueprint Protocol: Deployment Manifest grammar (normative)
-; RFC 8610 CDDL. Bound to the compiled registry table by the derivation gate
-; (root member set + required flags cross-read); corpus goldens validate under the derived JSON Schema. By-key
-; uniqueness (name, logical_operation, logical_dataset, value) and the
-; cross-field hooks are reference-implementation-enforced.
+; RFC 8610 CDDL; JSON Schemas are derived from this grammar.
+; By-key uniqueness and cross-field hooks are implementation-enforced.
 
 deployment = {
   protocol_revision: positive-integer

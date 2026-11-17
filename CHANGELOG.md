@@ -2,6 +2,67 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.1.0-rc.3] - 2026-11-16
+
+### Changed
+
+Reconcile reports the validity periods of the signing key and the signature as
+host-owned in both verifiers. `signature_time_validity` now always appears in
+`Evidence.not_verified`, after `signature_created_at` and `lifecycle_state`.
+Reconcile never judges creation time, lifecycle state or validity periods; the
+host does. Specification section 13 states this, and the Elixir
+`Evidence.host_owned` type names every host-owned fact.
+
+Specification text that described repository process rather than the protocol
+is removed: the foundation transition's trigger list and its list of
+capabilities not included, the registration steps in the registry operations
+guide, and the notes on repository checks in the three CDDL grammar headers.
+The grammar rules are unchanged.
+
+### Added
+
+Release verification replays every earlier release census and the signed 0.8.x
+golden artifacts through the installed Hex and npm packages, so a published
+package is checked against release history and not only against the source
+tree. `scripts/verify_release_packages.exs` runs that replay with the package
+gates from a tagged checkout. The Hex package's own
+`scripts/consumer_examples.exs` runs the four package gates without a checkout.
+
+The TypeScript verifier is checked against the pinned stock JOSE library for both
+Ed25519 algorithm spellings, `EdDSA` and `Ed25519`.
+
+The producer guide and the glossary gain JSON examples, which run as packaged
+examples.
+
+### Fixed
+
+Consumer package verification works on Windows. Package documents are found
+with the package root as the lookup's working directory, so a temporary path's
+backslashes are never read as glob syntax.
+
+Post-publication verification checks out the calling ref, so any released
+version can be verified again.
+
+### Compatibility
+
+Protocol revision 1 is unchanged. The verification-semantics version moves from
+3 to 4: reconcile outputs certified under earlier censuses now carry
+`signature_time_validity` in `not_verified`. The release claims the 1.1.0-rc.2
+census (`sha-256:0B_9tnAAo05n3bWVvnIPDxFeqEr2XhJoDdaxNJv0_9A`) and the
+`sha-256:oYnkSmTkHGk4AmZ8Sul99_6KYJUIuj2SN2GZAiT1glw` census `not_equivalent`;
+the earlier censuses remain `diverged_by_registry_census`. The corpus contains
+626 cases, digest `sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE`; the
+registry digest is unchanged at
+`sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest
+is `sha-256:kr7Wtl2ZNdTpSBKqBk3xmE57saO9q_Y8T-kmn_S7PKc`.
+
+### Security
+
+This project publishes one npm package, `@agent-blueprint-protocol/verifier`.
+Install nothing under the unscoped name `agent-blueprint-protocol`: two
+placeholder versions published there on 2026-11-03 contained no code and were
+withdrawn the same day.
+
 ## [1.1.0-rc.2] - 2026-11-15
 
 Library and verifier behavior, the protocol revision, the verification-semantics
@@ -420,8 +481,8 @@ digest `sha-256:UkpTfB07D8H8xxtuqDysU-xIXFCKovkaUn7_aiR-tAs`.
 ### Changed
 
 - The verifier publishes as `@agent-blueprint-protocol/verifier`. The 0.6.0
-  package (`@rjpalermo/agent-blueprint-protocol`) is deprecated with a forward
-  pointer. npm and Hex retain the same version.
+  package name (`@rjpalermo/agent-blueprint-protocol`) is retired; npm no longer
+  serves it. npm and Hex retain the same version.
 - The bin gains a `verifier` alias alongside `agent-blueprint-protocol`.
 
 The corpus and registry are unchanged from 0.6.0; the specification digest

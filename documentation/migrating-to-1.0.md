@@ -229,7 +229,7 @@ import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 const newResult = decodeBlueprint(bytes);
 ```
 
-Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.0-rc.2/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
+Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.0-rc.3/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
 
 ## 6. Update package and release identity pins
 
@@ -244,16 +244,16 @@ Before, pin the previous Hex release:
 After, select the current 1.x release:
 
 ```elixir fragment
-{:agent_blueprint_protocol, "~> 1.1.0-rc.2"}
+{:agent_blueprint_protocol, "~> 1.1.0-rc.3"}
 ```
 
-For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.1.0-rc.2`. The Hex and npm packages carry the same version.
+For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.1.0-rc.3`. The Hex and npm packages carry the same version.
 
 Before, install the previous npm release; after, install the current 1.x release:
 
 ```sh
 npm install @agent-blueprint-protocol/verifier@0.8.4
-npm install @agent-blueprint-protocol/verifier@1.1.0-rc.2
+npm install @agent-blueprint-protocol/verifier@1.1.0-rc.3
 ```
 
 ## 7. Use the preferred identifiers

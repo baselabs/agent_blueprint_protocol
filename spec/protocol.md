@@ -496,6 +496,11 @@ product example registrations from the shipped registry. Hosts supply their own
 registrations for those namespaces. Earlier censuses that relied on those
 compiled entries diverge by the registry difference, as declared in the release
 manifest and certified by replay. Protocol revision remains 1.
+Verification-semantics version 4 makes the validity periods of the signing
+key and the signature host-owned: reconcile lists `signature_time_validity`
+in `not_verified` and never judges it. Reconcile outcomes certified under
+earlier censuses differ by that entry, and the release manifest declares
+the affected censuses not equivalent. Protocol revision remains 1.
 
 Released identities are immutable: a published digest, corpus, registry,
 manifest, or release-history row is never mutated in place; a correction
