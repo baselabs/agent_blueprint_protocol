@@ -15,6 +15,9 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
     live under `scratch/consumers`, removed before the scratch: a consumer's
     build links its priv directory into the unpacked package, and Windows
     cannot remove that link once the package is gone.
+    The packaged consumer driver (`scripts/consumer_examples.exs`) owns the
+    same exclusive allocation and removal; it loads only the package's own
+    gates, never a checkout file, because consumers run it from the package.
   - Node and TypeScript: `const dir = mkdtempSync(join(tmpdir(), "abp-..."))`,
     removed by `rmSync(dir, ...)` in a `finally`. Every `tmpdir()` call is
     that argument, and every `mkdtempSync` result is bound and removed.
@@ -30,6 +33,7 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
   @self "test/architecture/scratch_allocation_test.exs"
   @scratch "test/support/scratch.exs"
   @standalone ~w(scripts/extract_livebooks.exs scripts/package_examples.exs)
+  @driver "scripts/consumer_examples.exs"
   @elixir_roots ["lib", "scripts", "test"]
   @node_roots ["scripts", "verifier", "lib"]
   @known_node_allocators [
@@ -64,6 +68,17 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
           ] do
         assert elixir_offences(path, broken) != []
       end
+    end
+
+    driver = File.read!(@driver)
+
+    for broken <- [
+          String.replace(driver, "File.rm_rf!(scratch)", ":ok"),
+          String.replace(driver, "File.mkdir!(scratch)", "File.mkdir_p!(scratch)"),
+          String.replace(driver, ":crypto.strong_rand_bytes(12)", "\"fixed\""),
+          driver <> ~s|\nCode.require_file("../test/support/scratch.exs", __DIR__)\n|
+        ] do
+      assert elixir_offences(@driver, broken) != []
     end
   end
 
@@ -122,10 +137,7 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
   end
 
   defp standalone_owner?(path, source) when path in @standalone do
-    count(source, ~r/System\.tmp_dir/) == 1 and
-      Regex.match?(~r/scratch\s*=\s*Path.join\(\s*System.tmp_dir!\(\)\s*,/s, source) and
-      source =~ ":crypto.strong_rand_bytes(12)" and
-      source =~ "File.mkdir!(scratch)" and
+    exclusive_scratch?(source) and
       source =~ ~s|consumers = Path.join(scratch, "consumers")| and
       Regex.match?(
         ~r/after\s+(?:#[^\n]*\n\s*)*File\.rm_rf!\(consumers\)\s+File\.rm_rf!\(scratch\)\s+end/,
@@ -134,7 +146,22 @@ defmodule AgentBlueprintProtocol.Architecture.ScratchAllocationTest do
       not String.contains?(source, "Code.require_file")
   end
 
+  # The driver runs from the extracted package, so every file it loads is the package's own.
+  defp standalone_owner?(@driver, source) do
+    exclusive_scratch?(source) and
+      Regex.match?(~r/after\s+(?:#[^\n]*\n\s*)*File\.rm_rf!\(scratch\)\s+end/, source) and
+      count(source, ~r/Code\.require_file\(/) ==
+        count(source, ~r/Code\.require_file\(Path\.join\(package,/)
+  end
+
   defp standalone_owner?(_path, _source), do: false
+
+  defp exclusive_scratch?(source) do
+    count(source, ~r/System\.tmp_dir/) == 1 and
+      Regex.match?(~r/scratch\s*=\s*Path.join\(\s*System.tmp_dir!\(\)\s*,/s, source) and
+      source =~ ":crypto.strong_rand_bytes(12)" and
+      source =~ "File.mkdir!(scratch)"
+  end
 
   defp node_offences(source) do
     tmpdirs = count(source, ~r/\btmpdir\(\)/)

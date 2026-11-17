@@ -129,8 +129,16 @@ defmodule ConsumerExamples do
     IO.puts("consumer examples: all four package gates passed")
   end
 
-  defp documents!(package, pattern) do
-    case package |> Path.join(pattern) |> Path.wildcard() |> Enum.sort() do
+  # Only the pattern is glob syntax. The package root is the lookup's working
+  # directory, never part of the pattern: a Windows temp path's backslashes,
+  # like brackets and braces in any path, would be read as glob syntax.
+  def documents!(package, pattern) do
+    pattern
+    |> String.to_charlist()
+    |> :filelib.wildcard(String.to_charlist(package))
+    |> Enum.map(&Path.join(package, List.to_string(&1)))
+    |> Enum.sort()
+    |> case do
       [] -> raise "package has no example documents"
       paths -> paths
     end
