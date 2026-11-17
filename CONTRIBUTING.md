@@ -81,11 +81,36 @@ Regenerate release metadata after specification, corpus, or registry changes wit
 
 ## Releases
 
-A release is one act. Text that names a version's install commands, documentation links, tag, or notebook install targets lands as part of that version's release act, not ahead of it. The release commit carries the version bump, the release metadata, and all of that text together; it is tagged and published in one sequence. Until then, `main` names only versions that are already published, because a version's install, documentation, tag, and notebook targets do not exist before its release.
+A release commit carries the equal Hex and npm version, release metadata,
+and all versioned install commands, documentation links, and notebook targets.
+The DevOps owner dispatches **Publish** from the default branch with no inputs.
+The run derives the version from `mix.exs`, checks it against `package.json`,
+and refuses if that version is already on either registry or already tagged.
+It verifies the dispatched commit with the complete quality battery and runs
+both built archives through the local consumer verification before publishing
+those exact archives. Local `npm publish` is not part of this process.
 
-The tag starts the publish workflow. It runs the complete quality battery on the tagged tree, then uses npm trusted publishing to stage the package. A maintainer reviews and approves the staged version through npm's Staged Packages interface. The version becomes installable after approval. Local `npm publish` is not part of this release process.
+npm uses trusted publishing with provenance in environment `publish`, followed
+by Hex publication to public hexpm. Both live packages must match the verified
+archives. The GitHub release remains a draft named `v<version>`, targeted at
+the dispatched SHA, with the standalone verifier and certified results attached.
+The run never creates or pushes a tag. Postpublish verifies installed packages
+on Linux, macOS, and Windows using historical tags; the new tag is not required.
+Pages deploys only after a successful Publish run and checks out that run's SHA.
 
-Until the staged version is approved, the release run fails at the npm live check with an error naming the pending version; Hex and the GitHub release do not run. After approval, check the published version with `npm view @agent-blueprint-protocol/verifier version`, then rerun the workflow on the same tag. It verifies the installed kit against the tagged artifact and publishes Hex. If Hex holds the version for approval, the run fails with an error naming it; approve it on hex.pm and rerun the workflow on the same tag again; the GitHub release is created only once the live Hex package matches the verified archive. The [release publication](docs/adr/release-publication.md) record states the whole sequence. The same run then calls the postpublish workflow, which installs the published packages and runs every consumer example and notebook on Linux, macOS, and Windows. A failure there turns the release run red.
+Pending approvals, upload conflicts, and partial publication fail the run.
+Redispatch does not resume: occupied versions refuse. The owner approves staged
+bytes, reads back live archives, and completes missing steps by hand with the
+failed run's `verified-release` artifacts. Dispatch postpublish with the version
+and Pages from the published commit after recovery. After reading packages back,
+push the version tag at the published SHA and publish the existing draft.
+
+Before the first dispatch, DevOps must repoint npmjs.com's trusted publisher to
+this repository, `publish.yml`, and environment `publish`; place `HEX_API_KEY`
+in that environment; and configure owner review and default-branch environment
+protection for uploads, drafts, and Pages. The
+[release publication](docs/adr/release-publication.md) record gives the sequence,
+refusal policy, recovery procedure, and registry setup.
 
 ## Next steps
 

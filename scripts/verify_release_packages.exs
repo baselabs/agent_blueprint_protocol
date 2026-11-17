@@ -1,4 +1,4 @@
-# Release verification for a tagged checkout: the shipped consumer driver's
+# Release verification with historical tags available: the shipped consumer driver's
 # package gates, then the installed compatibility replay. The replay runs every
 # earlier release census and the signed 0.8.x goldens through the installed
 # Hex and npm verifiers, so it needs this checkout's release tags and scripts;

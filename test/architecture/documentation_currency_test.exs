@@ -10,6 +10,34 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   @readme_path "README.md"
   @security_path "SECURITY.md"
 
+  test "release instructions describe dispatch, refusal, and owner-created tags" do
+    for path <- [
+          "AGENTS.md",
+          "CONTRIBUTING.md",
+          "docs/adr/release-publication.md",
+          "docs/adr/release-site.md"
+        ] do
+      source = File.read!(path)
+      assert source =~ "dispatch", path
+      assert source =~ "publish", path
+      refute source =~ "The tag starts the publish workflow", path
+      refute source =~ "rerun the workflow on the same tag", path
+      refute source =~ "deploys `site/` on tags", path
+    end
+
+    publication = File.read!("docs/adr/release-publication.md")
+    assert publication =~ "Redispatch is a fresh publication attempt, never a resume operation"
+    assert publication =~ "new tag"
+    assert publication =~ "`draft: true` and `target_commitish`"
+    assert publication =~ "`HEX_API_KEY` as an environment secret"
+    assert publication =~ "environment **`publish`**"
+    assert publication =~ "owner review and default-branch deployment"
+
+    site = File.read!("docs/adr/release-site.md")
+    assert site =~ "`head_sha`"
+    assert site =~ "No tag push starts Pages"
+  end
+
   test "shipped document fences have at most a bare language info string" do
     offenders =
       for file <- shipped_markdown(),

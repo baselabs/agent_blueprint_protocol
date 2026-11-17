@@ -1,8 +1,7 @@
 name: Published package smoke
-# The release run calls this workflow once Hex is live and the GitHub release
-# exists, so every release verifies its published packages and a failure here
-# turns the release run red. A maintainer can also run it for any released
-# version.
+# Publish calls this after both registries are live and its draft exists.
+# Installed replay needs historical tags, not the new version's tag. Dispatch
+# can check any published version from a checkout carrying the historical tags.
 on:
   workflow_call:
     inputs:
@@ -30,10 +29,16 @@ jobs:
     steps:
       - name: Check out smoke script
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read the default toolchain and package version
+        id: inputs
+        run: python scripts/read_release_inputs.py
+        shell: pwsh
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.19.0"
+          node-version: ${{ steps.inputs.outputs.node }}
           package-manager-cache: false
       - name: Install the published package and verify its corpus
         env:
@@ -50,23 +55,28 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
     steps:
-      # A release run checks out its tag, so the driver and the replay match the
-      # release. A manual run checks out the chosen ref and can verify a package
-      # that ships its own consumer gates; the driver names any gate a package lacks.
+      # A workflow call uses Publish's commit; dispatch uses the selected ref.
+      # Full history supplies the earlier censuses and signed 0.8.x goldens.
       - name: Check out the consumer driver
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
+      - name: Read the default toolchain and package version
+        id: inputs
+        run: python scripts/read_release_inputs.py
+        shell: pwsh
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.19.0"
+          node-version: ${{ steps.inputs.outputs.node }}
           package-manager-cache: false
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          elixir-version: ${{ steps.inputs.outputs.elixir }}
+          otp-version: ${{ steps.inputs.outputs.otp }}
+          version-type: strict
           install-hex: false
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force

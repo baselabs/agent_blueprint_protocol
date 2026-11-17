@@ -116,7 +116,11 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
     refute driver =~ "check_compatibility_replay"
     refute driver =~ "postpublish_smoke"
 
-    for path <- [".github/workflows/ci.yml", ".github/workflows/postpublish.yml"] do
+    for path <- [
+          ".github/workflows/ci.yml",
+          ".github/workflows/publish.yml",
+          ".github/workflows/postpublish.yml"
+        ] do
       jobs = Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, File.read!(path))
       verifying = for job <- jobs, job =~ "elixir scripts/verify_release_packages.exs", do: job
       assert verifying != [], "#{path} no longer runs release package verification"
@@ -126,6 +130,18 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
         assert job =~ "fetch-depth: 0"
       end
     end
+
+    publish = File.read!(".github/workflows/publish.yml")
+    assert publish =~ "uses: ./.github/workflows/postpublish.yml"
+    assert publish =~ "version: ${{ needs.verify.outputs.version }}"
+
+    replay = File.read!("scripts/check_compatibility_replay.exs")
+    assert replay =~ ~s|["tag", "-l", "v*"]|
+
+    assert replay =~
+             ~s|Version.compare(released["package_version"], manifest["package_version"]) != :gt|
+
+    refute replay =~ ~s|"v" <> manifest["package_version"]|
   end
 
   defp paths do

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 
 // Publication is established by the public API, never by upload success.
 // A version that is not listed yet is pending, and pending is not success:
-// the step fails with a named error and a rerun after approval resumes.
+// the step fails with a named error; manual recovery uses the verified artifacts.
 const [version,archive]=process.argv.slice(2);
 if(!version||!archive||process.argv.length!==4)throw new Error('Expected version and verified Hex archive');
 const base='https://hex.pm/api/packages/agent_blueprint_protocol';
@@ -13,7 +13,7 @@ if(!Array.isArray(pkg.releases))throw new Error('Hex API release list is malform
 const listed=pkg.releases.some(release=>release.version===version);
 if(!listed){
   console.log('::error::Hex version is not live. It may be staged and awaiting approval. The GitHub release did not run.');
-  console.log('Approve the staged release on hex.pm, then rerun this workflow on the same tag.');
+  console.log("Approve on hex.pm and recover by hand with this run's verified artifacts; do not redispatch.");
   process.exitCode=1;
 }else{
   const release=await json(base+'/releases/'+encodeURIComponent(version));

@@ -1,13 +1,12 @@
-# GitHub Pages — the ABP landing. Pure static site (no build step, no
-# JavaScript, no secrets). The page names the package version, so it
-# deploys only from a release tag (the site as of that release) or a
-# manual dispatch, never from a main-branch push that may name a version
-# the registry does not have yet.
+# Deploy the successful Publish run's exact commit, even if main has advanced.
+# No tag event publishes this site. Manual dispatch deploys its selected default
+# branch commit. Deployment stays in Pages' own github-pages environment.
 name: Pages
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -15,16 +14,47 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     name: Stage the landing
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Refuse refs outside the default branch
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$RELEASE_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "::error::Pages requires the default branch"
+            exit 1
+          fi
+
+      - name: Validate the publication source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISHED_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          PUBLISHED_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_run ]; then
+            if [ "$PUBLISHED_BRANCH" != "$DEFAULT_BRANCH" ] || \
+               [ "$PUBLISHED_REPOSITORY" != "$GITHUB_REPOSITORY" ]; then
+              echo "::error::Pages requires this repository's default-branch Publish run"
+              exit 1
+            fi
+          fi
+
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
@@ -33,6 +63,7 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -43,6 +74,16 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Refuse refs outside the default branch
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$RELEASE_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "::error::Pages requires the default branch"
+            exit 1
+          fi
+
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

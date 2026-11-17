@@ -10,7 +10,11 @@ mix quality
 Requirements:
 
 - Install the toolchain in `.tool-versions`.
-- Keep release tags (`refs/tags/v*`) available for compatibility replay.
+- Keep historical release tags (`refs/tags/v*`) available for compatibility replay.
+- Publish is dispatched from the default branch without inputs, never by pushing a tag.
+  It refuses occupied versions, verifies both archives, and publishes through environment
+  `publish`. DevOps reads packages back before pushing the version tag at the run's SHA
+  and publishing its GitHub draft. See [release publication](docs/adr/release-publication.md).
 - Publication guards run at the point of publication: the pre-push hook
   and CI run the same command,
   `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`.

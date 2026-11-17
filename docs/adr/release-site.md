@@ -1,13 +1,30 @@
-# ADR: Release-tag site publication
+# ADR: site publication after dispatched release
 
 ## Context
 
-The static site names package versions and links to release artifacts. Its deployed bytes must identify the source ref that supplies them.
+The static site names package versions and links to release artifacts. Its
+deployed bytes must identify the source commit that supplied the packages.
 
 ## Decision
 
-The Pages workflow automatically deploys `site/` on tags matching `v*`, never on a `main` push. It uploads the checked-out static files without a site build. Manual workflow dispatch remains available and publishes the selected ref through the same upload and deployment jobs.
+Pages starts on completion of Publish and stages `site/` only when that run
+succeeded. It checks that the source is this repository's default branch and
+checks out the Publish run's `head_sha`, so an intervening branch update
+cannot deploy different bytes. It uploads static files without a site build.
+No tag push starts Pages. Manual default-branch dispatch remains available
+and checks out the dispatch commit.
+
+The deployment job requires both the actor and triggering actor to be an
+owner and deploys in Pages' own `github-pages` environment. Both jobs first
+refuse refs outside the default branch. All runners are GitHub-hosted Ubuntu.
+Checkout persists no credentials, and deployment does not cancel an in-flight
+run.
 
 ## Consequences
 
-Automatic site publication follows release tags. A manual deployment uses the selected checkout's version text and links, so ref selection determines the published content.
+Automatic site publication follows successful registry publication and
+installed-package checks. The DevOps owner reads the packages back, pushes
+the version tag at the published commit, then publishes the GitHub draft.
+Until that final act, links to the new tag or draft assets may not resolve.
+A failed Publish run requires manual recovery and a Pages dispatch from the
+published default-branch commit; tags themselves never deploy the site.

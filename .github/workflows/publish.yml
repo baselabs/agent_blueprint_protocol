@@ -1,66 +1,73 @@
 name: Publish
 
-# Tag-triggered release publishing: the full quality battery runs on the
-# tagged tree FIRST (a tag is not a green claim by itself); publishing
-# happens only from a green battery.
-#
-# npm publishing uses TRUSTED PUBLISHING (GitHub OIDC): no npm token of
-# any kind — the registry trusts this exact repository + workflow file,
-# authenticates the run's OIDC identity, and generates the provenance
-# attestation automatically. Configure once on npmjs.com (package
-# Settings -> Trusted publishing, GitHub Actions: baselabs /
-# agent_blueprint_protocol / publish.yml). Recommended hardening once
-# configured: package Settings -> Publishing access -> require 2FA and
-# disallow tokens — trusted publishing keeps working; bearer tokens
-# cannot publish at all. (Direct publish via granular tokens is removed
-# registry-wide January 2027; the token path is not coming back.)
-#
-# Every publish step is IDEMPOTENT: if the version already exists in the
-# target registry (a re-run, or a release bootstrapped by a local
-# publish — required for a package's very first version, since a trusted
-# publisher cannot be configured before the package exists), the step
-# skips loudly instead of erroring. Partial states are still resolved by
-# hand: a step that reds mid-flight stops the chain. Order is fixed: npm
-# kit first (it embeds the corpus), then Hex, then the GitHub release
-# with the standalone verifier kit attached, then a post-publish
-# verification that installs the PUBLISHED npm package from the registry
-# and re-runs the agreement against the tag's escript.
+# Maintainer-dispatched publication from the default branch, without inputs.
+# The DevOps owner must repoint npmjs.com's trusted publisher to this repository,
+# publish.yml, and environment publish (formerly GH TP for ABP). No npm token.
+# Protect publish for the two owners and the default branch; store HEX_API_KEY
+# there. The privacy guard's HMAC remains a step-scoped repository secret.
+# Refuse occupied npm/Hex versions or a remote version tag before publishing.
+# Partial or pending publication requires manual recovery with this run's exact
+# artifacts; redispatch is not a resume operation. Never create or push a tag.
+# npm, then Hex, then a GitHub DRAFT with the verifier and certified results.
+# The owner reads packages back, pushes v<version> at this run's SHA, then
+# publishes the draft. Historical replay needs earlier tags, not the new tag.
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
   verify:
-    name: Verify the tagged source
-    # A manual dispatch resumes publishing after registry approval; it must run on
-    # a release tag, never on a branch that merely carries a tag-like name.
-    if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
+    name: Verify the dispatched source
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
+    environment: publish
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    outputs:
+      version: ${{ steps.inputs.outputs.version }}
     steps:
-      - name: Check out source (full history)
+      - name: Refuse refs outside the default branch
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$RELEASE_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "::error::Publication requires the default branch"
+            exit 1
+          fi
+
+      - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
+
+      - name: Read the default toolchain and package version
+        id: inputs
+        run: python scripts/read_release_inputs.py
 
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.19.0"
+          node-version: ${{ steps.inputs.outputs.node }}
           package-manager-cache: false
 
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          elixir-version: ${{ steps.inputs.outputs.elixir }}
+          otp-version: ${{ steps.inputs.outputs.otp }}
+          version-type: strict
           install-hex: false
+
+      - name: Refuse an occupied release version
+        run: bash scripts/check_publication.sh
 
       - name: Check public privacy over full history
         run: elixir scripts/check_public_privacy.exs scripts/public_privacy.json
@@ -70,22 +77,14 @@ jobs:
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
 
-      - name: Require a release tag
-        run: |
-          if [[ "$GITHUB_REF_TYPE" != tag || "$GITHUB_REF" != refs/tags/v* || ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Run publishing on a release tag"
-            exit 1
-          fi
-
       - name: Install dependencies and build the kit
         run: |
-          mix deps.get
+          mix deps.get --check-locked
           npm ci --ignore-scripts --no-audit --no-fund
           npm run build
 
       - name: Check final-release promotion against its candidate
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           if [[ "$VERSION" == *-* ]]; then
             echo "Candidate publication: final promotion does not apply"
           else
@@ -98,29 +97,41 @@ jobs:
             mix release.promote --check "$CANDIDATE"
           fi
 
-      - name: Run the complete quality battery on the tagged tree
+      - name: Run the complete quality battery on the dispatched source
         run: mix quality
 
       - name: Prepare the verified release artifacts
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir verified-release
           cp spec/conformance/certified-results.json verified-release/certified-results.json
           npm pack ./dist/package --ignore-scripts --pack-destination verified-release
           env MIX_ENV=test mix release.asset --write
           mv "verifier-${VERSION}.tar.gz" verified-release/
           mix hex.build --output "verified-release/agent_blueprint_protocol-${VERSION}.tar"
-          tar -czf verified-release/kit-dist.tar.gz --exclude='.DS_Store' --exclude='._*' dist agent_blueprint_protocol_conformance
+          tar -czf verified-release/kit-dist.tar.gz \
+            --exclude='.DS_Store' --exclude='._*' dist agent_blueprint_protocol_conformance
 
       - name: Verify the packed npm artifact
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir "$RUNNER_TEMP/packed-kit"
-          tar -xzf "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" -C "$RUNNER_TEMP/packed-kit"
-          diff --recursive --brief --exclude='package' --exclude='self_checks.*' --exclude='.DS_Store' --exclude='._*' dist "$RUNNER_TEMP/packed-kit/package/dist"
-          node "$RUNNER_TEMP/packed-kit/package/dist/kit/cli.mjs" > "$RUNNER_TEMP/packed-report.json"
-          escript agent_blueprint_protocol_conformance --corpus priv/conformance > "$RUNNER_TEMP/verified-report.json"
+          tar -xzf "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" \
+            -C "$RUNNER_TEMP/packed-kit"
+          diff --recursive --brief --exclude='package' --exclude='self_checks.*' \
+            --exclude='.DS_Store' --exclude='._*' dist "$RUNNER_TEMP/packed-kit/package/dist"
+          node "$RUNNER_TEMP/packed-kit/package/dist/kit/cli.mjs" \
+            > "$RUNNER_TEMP/packed-report.json"
+          escript agent_blueprint_protocol_conformance --corpus priv/conformance \
+            > "$RUNNER_TEMP/verified-report.json"
           cmp "$RUNNER_TEMP/packed-report.json" "$RUNNER_TEMP/verified-report.json"
+
+      - name: Verify both built release packages
+        run: |
+          elixir scripts/verify_release_packages.exs --local \
+            "verified-release/agent_blueprint_protocol-${VERSION}.tar" \
+            "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
+
+      - name: Prepare the verified documentation archive
+        run: tar -czf verified-release/hex-docs.tar.gz -C doc .
 
       - name: Upload the verified release artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -128,29 +139,43 @@ jobs:
           name: verified-release
           path: verified-release/
           if-no-files-found: error
-          overwrite: true
 
   npm-publish:
     name: Stage the npm package
     needs: verify
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
+    environment: publish
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
-    environment: GH TP for ABP
     env:
       NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
     steps:
-      - name: Check out source (full history)
+      - name: Refuse refs outside the default branch
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$RELEASE_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "::error::Publication requires the default branch"
+            exit 1
+          fi
+
+      - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read the default toolchain and package version
+        id: inputs
+        run: python scripts/read_release_inputs.py
 
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.19.0"
+          node-version: ${{ steps.inputs.outputs.node }}
           package-manager-cache: false
 
       - name: Download the verified release artifacts
@@ -159,69 +184,72 @@ jobs:
           name: verified-release
           path: verified-release
 
+      - name: Refuse an occupied release version again before publishing
+        run: bash scripts/check_publication.sh
+
       - name: Publish the npm kit (staged trusted publishing, provenance)
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          if npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
-            echo "npm: ${NPM_PACKAGE}@${VERSION} already published — skipping (idempotent re-run or local bootstrap)"
-          else
-            # npm stage first shipped in npm 11.15. Pin the tested patch
-            # independently of the runtime's bundled npm version.
-            npm install -g --ignore-scripts npm@11.19.1 >/dev/null
-            npm --version
-            NPM_TAG=latest
-            if [[ "${VERSION%%+*}" == *-* ]]; then NPM_TAG=rc; fi
-            if npm stage publish "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" --ignore-scripts --access public --provenance --tag "$NPM_TAG" > "$RUNNER_TEMP/npm-stage.log" 2>&1; then
-              cat "$RUNNER_TEMP/npm-stage.log"
-            elif grep -Eq 'E409|already.*staged|cannot publish over' "$RUNNER_TEMP/npm-stage.log"; then
-              echo "::notice::The version already occupies a staging slot. Its staged bytes are not verified by this run."
-            else
-              cat "$RUNNER_TEMP/npm-stage.log"
-              exit 1
-            fi
-          fi
-
-      # A pending approval is not success: the run fails here, naming what
-      # is pending, and a rerun on the same tag after approval resumes.
-      - name: Require the npm version to be live
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          if npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
-            echo "npm: ${NPM_PACKAGE}@${VERSION} is live"
-          else
-            echo "::error::npm version is staged, not yet approved. Hex and the GitHub release did not run."
-            echo "Approve the reviewed staged package on npmjs.com, then rerun this workflow on the same tag."
+          npm install -g --ignore-scripts npm@11.19.1 >/dev/null
+          npm --version
+          NPM_TAG=latest
+          if [[ "${VERSION%%+*}" == *-* ]]; then NPM_TAG=rc; fi
+          if ! npm stage publish \
+            "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" \
+            --ignore-scripts --access public --provenance --tag "$NPM_TAG"; then
+            echo "::error::npm upload failed or staging slot occupied; manual recovery required"
             exit 1
           fi
 
-  publish:
-    name: Publish Hex and the release
+      - name: Require the npm version to be live
+        run: |
+          if ! npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null; then
+            echo "::error::npm is pending or unreadable. Hex and the draft did not run."
+            echo "Approve staged bytes and recover by hand using this run's verified artifacts."
+            echo "Do not redispatch: an occupied version is refused."
+            exit 1
+          fi
+
+  hex-publish:
+    name: Publish Hex and docs
     needs: npm-publish
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
+    environment: publish
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    permissions:
-      contents: write
-    outputs:
-      released: ${{ steps.release.outputs.version }}
     env:
       NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
     steps:
-      - name: Check out source (full history)
+      - name: Refuse refs outside the default branch
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$RELEASE_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "::error::Publication requires the default branch"
+            exit 1
+          fi
+
+      - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read the default toolchain and package version
+        id: inputs
+        run: python scripts/read_release_inputs.py
 
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.19.0"
+          node-version: ${{ steps.inputs.outputs.node }}
           package-manager-cache: false
 
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          elixir-version: ${{ steps.inputs.outputs.elixir }}
+          otp-version: ${{ steps.inputs.outputs.otp }}
+          version-type: strict
           install-hex: false
 
       - name: Install the pinned Hex client
@@ -233,25 +261,16 @@ jobs:
           name: verified-release
           path: verified-release
 
-      - name: Restore the verified kit and install Hex dependencies
-        run: |
-          tar -xzf verified-release/kit-dist.tar.gz
-          mix deps.get
-
-      - name: Confirm the rebuilt Hex package matches the verified artifact
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          mix hex.build --output rebuilt.tar
-          cmp rebuilt.tar "verified-release/agent_blueprint_protocol-${VERSION}.tar"
+      - name: Restore the verified kit
+        run: tar -xzf verified-release/kit-dist.tar.gz
 
       - name: Verify the live npm version before further publication
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          npm view "${NPM_PACKAGE}@${VERSION}" version >/dev/null
           LIVE_INTEGRITY=$(npm view "${NPM_PACKAGE}@${VERSION}" dist.integrity)
-          VERIFIED_INTEGRITY=$(node scripts/release_artifact_info.mjs npm-integrity "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
+          VERIFIED_INTEGRITY=$(node scripts/release_artifact_info.mjs npm-integrity \
+            "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz")
           if [ "$LIVE_INTEGRITY" != "$VERIFIED_INTEGRITY" ]; then
-            echo "::error::Live npm bytes differ from the verified archive"
+            echo "::error::Live npm bytes differ from the verified archive; recover by hand"
             exit 1
           fi
           mkdir "$RUNNER_TEMP/postpublish"
@@ -260,67 +279,90 @@ jobs:
           npm install --ignore-scripts --no-audit --no-fund "${NPM_PACKAGE}@${VERSION}"
           npx --no-install verifier > "$RUNNER_TEMP/kit-report.json"
           cd "$GITHUB_WORKSPACE"
-          escript agent_blueprint_protocol_conformance --corpus priv/conformance > "$RUNNER_TEMP/escript-report.json"
+          escript agent_blueprint_protocol_conformance --corpus priv/conformance \
+            > "$RUNNER_TEMP/escript-report.json"
           cmp "$RUNNER_TEMP/kit-report.json" "$RUNNER_TEMP/escript-report.json"
 
-      - name: Publish the Hex package and docs
+      - name: Refuse occupied Hex or tag state before publishing
+        run: bash scripts/check_publication.sh --after-npm
+
+      - name: Publish the verified Hex archive and docs to public hexpm
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: |
-          if [ -z "$HEX_API_KEY" ]; then
-            echo "::error::HEX_API_KEY absent; further publication stopped"
-            exit 1
-          fi
-          VERSION="${GITHUB_REF_NAME#v}"
-          curl --fail --silent --show-error "https://hex.pm/api/packages/agent_blueprint_protocol" > "$RUNNER_TEMP/hex-package.json"
-          HEX_LIVE=$(node scripts/release_artifact_info.mjs hex-listed "$RUNNER_TEMP/hex-package.json" "$VERSION")
-          if [ "$HEX_LIVE" = true ]; then
-            echo "hex: already live; verifying its bytes before the GitHub release"
-          else
-            # Hex 2.7.0 prints API validation errors as field: message.
-            # https://github.com/hexpm/hex/blob/v2.7.0/lib/hex/utils.ex#L216-L248
-            # https://github.com/hexpm/hexpm/blob/7fcc788cde63fe0a1d3e3cd1ec58372d8c17bfbe/lib/hexpm/repository/staged_releases.ex#L129
-            if mix hex.publish --yes > "$RUNNER_TEMP/hex-publish.log" 2>&1; then
-              cat "$RUNNER_TEMP/hex-publish.log"
-            elif grep -Fxq 'version: is awaiting approval' "$RUNNER_TEMP/hex-publish.log"; then
-              echo "hex: already staged; the public release check still gates publication"
-            else
-              cat "$RUNNER_TEMP/hex-publish.log"
-              exit 1
-            fi
-          fi
+          mix run --no-mix-exs scripts/publish_hex_artifacts.exs \
+            "$VERSION" "verified-release/agent_blueprint_protocol-${VERSION}.tar" \
+            verified-release/hex-docs.tar.gz
 
       - name: Require the Hex version to be live with the verified bytes
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          node scripts/check_hex_release.mjs "$VERSION" "verified-release/agent_blueprint_protocol-${VERSION}.tar"
+          node scripts/check_hex_release.mjs "$VERSION" \
+            "verified-release/agent_blueprint_protocol-${VERSION}.tar"
 
-      - name: Attach the verifier kit to the GitHub release
-        id: release
+  draft-release:
+    name: Draft the GitHub release without creating a tag
+    needs: hex-publish
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
+    environment: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Refuse refs outside the default branch
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$RELEASE_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "::error::Publication requires the default branch"
+            exit 1
+          fi
+
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the default toolchain and package version
+        id: inputs
+        run: python scripts/read_release_inputs.py
+
+      - name: Download the verified release artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verified-release
+          path: verified-release
+
+      - name: Attach the verifier kit to a draft GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "release $GITHUB_REF_NAME already exists — leaving it as-is (idempotent)"
-          else
-            PRERELEASE_ARGS=()
-            if [[ "${VERSION%%+*}" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi
-            gh release create "$GITHUB_REF_NAME" "verified-release/verifier-${VERSION}.tar.gz" "verified-release/certified-results.json" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "${VERSION}: installable verifier" \
-              --generate-notes "${PRERELEASE_ARGS[@]}"
+          REMOTE_TAG=$(git ls-remote --tags origin "refs/tags/v${VERSION}")
+          if [ -n "$REMOTE_TAG" ]; then
+            echo "::error::Release tag already exists; manual recovery required"
+            exit 1
           fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          PRERELEASE_ARGS=()
+          if [[ "${VERSION%%+*}" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi
+          gh release create "v${VERSION}" \
+            "verified-release/verifier-${VERSION}.tar.gz" \
+            "verified-release/certified-results.json" \
+            --repo "$GITHUB_REPOSITORY" --draft --target "$RELEASE_SHA" \
+            --title "v${VERSION}" --generate-notes "${PRERELEASE_ARGS[@]}"
+          REMOTE_TAG=$(git ls-remote --tags origin "refs/tags/v${VERSION}")
+          if [ -n "$REMOTE_TAG" ]; then
+            echo "::error::Unexpected release tag after drafting; owner investigation required"
+            exit 1
+          fi
 
-  # A release created with the workflow token starts no other workflow, so
-  # the release run itself calls the published-package checks. Its jobs carry
-  # their own time limits; a failure turns this run red.
+  # Installed replay reads historical tags; the new version's tag is not needed.
   postpublish:
     name: Verify the published release
-    needs: publish
+    needs: [verify, draft-release]
     permissions:
       contents: read
     uses: ./.github/workflows/postpublish.yml
     with:
-      version: ${{ needs.publish.outputs.released }}
+      version: ${{ needs.verify.outputs.version }}
