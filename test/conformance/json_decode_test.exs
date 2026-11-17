@@ -186,20 +186,29 @@ defmodule AgentBlueprintProtocol.Conformance.JsonDecodeTest do
     end
   end
 
-  describe "aggregate — max-shape all-window document decodes in bounded time" do
-    test "199,501 nodes of window numbers decode within seconds, not minutes" do
+  describe "aggregate — max-shape all-window document decodes in linear work" do
+    # Work is counted in BEAM reductions, not wall time, so the bound holds on any
+    # runner. With the node, byte and item ceilings, linear work bounds the time.
+    test "199,501 nodes of window numbers decode in work linear in their count" do
       # 9,500 inner arrays x 20 numbers = 190,000 number nodes + 9,500 array
       # element nodes + 1 root = 199,501 <= nodes max; ~4.2 MB <= bytes max;
       # 9,500 <= items max per array. Every number exercises the full window
       # rule (to_integer + float convert + ES6 serialize + byte compare).
-      number = "295147905179352830000"
-      inner = "[" <> Enum.map_join(1..20, ",", fn _ -> number end) <> "]"
-      doc = "[" <> Enum.map_join(1..9_500, ",", fn _ -> inner end) <> "]"
-
-      {usec, result} = :timer.tc(fn -> Json.decode(doc) end)
+      {small, _} = decode_reductions(4_750)
+      {large, result} = decode_reductions(9_500)
 
       assert {:ok, {:array, [{:array, [{:float, 2.951_479_051_793_528_3e20} | _]} | _]}} = result
-      assert usec < 10_000_000
+      assert large / small < 2.5
     end
+  end
+
+  defp decode_reductions(arrays) do
+    number = "295147905179352830000"
+    inner = "[" <> Enum.map_join(1..20, ",", fn _ -> number end) <> "]"
+    doc = "[" <> Enum.map_join(1..arrays, ",", fn _ -> inner end) <> "]"
+    {:reductions, before} = Process.info(self(), :reductions)
+    result = Json.decode(doc)
+    {:reductions, after_decode} = Process.info(self(), :reductions)
+    {after_decode - before, result}
   end
 end

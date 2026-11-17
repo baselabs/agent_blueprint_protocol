@@ -102,14 +102,14 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     end
   end
 
-  test "a long input is scanned in time linear in its length" do
-    # About 400 KB, the size of the largest file versions in this repository's history.
-    filler = Enum.map_join(1..60_000, " ", &"w#{&1}")
-    content = filler <> " " <> @test_canary
-    {microseconds, found?} = :timer.tc(fn -> forbidden?(content, test_hmacs(), @test_key) end)
+  # Work is counted in BEAM reductions, not wall time, so the bound holds on any
+  # runner. Doubling the input doubles the reductions of a linear scan (2.0 on
+  # the box) and quadruples those of the per-offset slicing it replaced (3.9).
+  test "a long input is scanned in work linear in its length" do
+    small = scan_reductions(10_000)
+    large = scan_reductions(20_000)
 
-    assert found?
-    assert microseconds < 5_000_000
+    assert large / small < 2.5
   end
 
   test "historical contents are read whole from every reachable file version" do
@@ -373,6 +373,17 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     [@test_canary, String.replace(@test_canary, " ", "")]
     |> Enum.map(&fingerprint(&1, @test_key))
     |> MapSet.new()
+  end
+
+  # Reductions this process spends scanning `words` filler tokens and the canary;
+  # every candidate is built before matching, so the whole input is scanned.
+  defp scan_reductions(words) do
+    content = Enum.map_join(1..words, " ", &"w#{&1}") <> " " <> @test_canary
+    hmacs = test_hmacs()
+    {:reductions, before} = Process.info(self(), :reductions)
+    assert forbidden?(content, hmacs, @test_key)
+    {:reductions, after_scan} = Process.info(self(), :reductions)
+    after_scan - before
   end
 
   defp with_env(pairs, fun) do
