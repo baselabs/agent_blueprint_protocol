@@ -10,14 +10,14 @@ defmodule AgentBlueprintProtocol.ConsumerExamplesTest do
       end
     end
 
-    assert ConsumerExamples.version!("1.1.0-rc.2") == "1.1.0-rc.2"
+    assert ConsumerExamples.version!("9.8.7-rc.1") == "9.8.7-rc.1"
   end
 
   test "Hex verification binds the entire archive to the API version and checksum" do
     bytes = File.read!("README.md")
     checksum = Base.encode16(:crypto.hash(:sha256, bytes), case: :lower)
-    release = %{"version" => "1.1.0-rc.2", "checksum" => checksum}
-    assert ConsumerExamples.verify_hex!(bytes, release, "1.1.0-rc.2") == :ok
+    release = %{"version" => "9.8.7-rc.1", "checksum" => checksum}
+    assert ConsumerExamples.verify_hex!(bytes, release, "9.8.7-rc.1") == :ok
 
     for {candidate, metadata} <- [
           {bytes <> "changed", release},
@@ -25,7 +25,7 @@ defmodule AgentBlueprintProtocol.ConsumerExamplesTest do
           {bytes, Map.delete(release, "checksum")}
         ] do
       assert_raise RuntimeError, "Hex release checksum or version mismatch", fn ->
-        ConsumerExamples.verify_hex!(candidate, metadata, "1.1.0-rc.2")
+        ConsumerExamples.verify_hex!(candidate, metadata, "9.8.7-rc.1")
       end
     end
   end
