@@ -112,6 +112,7 @@ defmodule ConsumerExamples do
     # These are always the package's own gates and documents, never the checkout's.
     # Their child consumers use System.cmd, which supports Windows batch launch;
     # only filenames and fixed task arguments cross that boundary.
+    gates!(package)
     Code.require_file(Path.join(package, "scripts/extract_livebooks.exs"))
     Code.require_file(Path.join(package, "scripts/package_examples.exs"))
     notebooks = documents!(package, "docs/livebooks/*.livemd")
@@ -136,6 +137,20 @@ defmodule ConsumerExamples do
     )
 
     IO.puts("consumer examples: all four package gates passed")
+  end
+
+  @gates [
+    "scripts/extract_livebooks.exs",
+    "scripts/package_examples.exs",
+    "scripts/run_package_typescript_examples.mjs"
+  ]
+
+  # A package published before its gates shipped cannot be verified here; name what it lacks.
+  defp gates!(package) do
+    case Enum.reject(@gates, &File.regular?(Path.join(package, &1))) do
+      [] -> :ok
+      missing -> raise "package does not ship its consumer gates: " <> Enum.join(missing, ", ")
+    end
   end
 
   def node_executable, do: if(match?({:win32, _}, :os.type()), do: "node.exe", else: "node")

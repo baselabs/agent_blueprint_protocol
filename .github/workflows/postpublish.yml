@@ -50,8 +50,9 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
     steps:
-      # A release run checks out its tag; a manual run checks out the chosen
-      # branch, so any released version can be re-verified with the current driver.
+      # A release run checks out its tag, so the driver and the replay match the
+      # release. A manual run checks out the chosen ref and can verify a package
+      # that ships its own consumer gates; the driver names any gate a package lacks.
       - name: Check out the consumer driver
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

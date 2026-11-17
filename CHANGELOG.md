@@ -6,12 +6,20 @@ All notable public changes to `agent_blueprint_protocol` are documented here.
 
 ### Changed
 
-Reconcile reports the validity periods of the signing key and the signature as
-host-owned in both verifiers. `signature_time_validity` now always appears in
+The validity periods of the signing key and the signature are host-owned in
+both verifiers. `signature_time_validity` now always appears in
 `Evidence.not_verified`, after `signature_created_at` and `lifecycle_state`.
 Reconcile never judges creation time, lifecycle state or validity periods; the
-host does. Specification section 13 states this, and the Elixir
-`Evidence.host_owned` type names every host-owned fact.
+host does. Specification section 13 states this. The Elixir
+`Evidence.host_owned` type names every host-owned fact, and the TypeScript
+`KNOWN_EVIDENCE_SURFACES` gains `signature_time_validity`.
+
+The three time facts are now host-owned in every evidence value, not only in
+reconcile's. Evidence from Elixir `Evidence.build/1` and
+`Compatibility.verify/2`, and from the TypeScript import verification, now lists
+`signature_created_at`, `lifecycle_state` and `signature_time_validity` in
+`not_verified`. A consumer that compares that evidence with 1.1.0-rc.2 output
+sees these three additional entries.
 
 Specification text that described repository process rather than the protocol
 is removed: the foundation transition's trigger list and its list of
@@ -40,8 +48,9 @@ Consumer package verification works on Windows. Package documents are found
 with the package root as the lookup's working directory, so a temporary path's
 backslashes are never read as glob syntax.
 
-Post-publication verification checks out the calling ref, so any released
-version can be verified again.
+Post-publication verification checks out the calling ref. A release run uses
+its tag's driver and replay. A manual run can verify any package that ships its
+own consumer gates, and the driver names any gate a package lacks.
 
 ### Compatibility
 

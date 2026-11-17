@@ -76,6 +76,28 @@ defmodule AgentBlueprintProtocol.ConsumerExamplesTest do
     end)
   end
 
+  # Packages published before the gates shipped cannot be verified by this driver.
+  test "a package without its own gates is refused by name before any gate runs" do
+    AgentBlueprintProtocol.Scratch.with_dir("consumer-gates", fn scratch ->
+      package = Path.join(scratch, "package")
+      File.mkdir_p!(Path.join(package, "scripts"))
+      File.write!(Path.join(package, "scripts/extract_livebooks.exs"), "")
+
+      message =
+        "package does not ship its consumer gates: scripts/package_examples.exs, " <>
+          "scripts/run_package_typescript_examples.mjs"
+
+      assert_raise RuntimeError, message, fn ->
+        ConsumerExamples.run_gates!(%{
+          archive: Path.join(scratch, "package.tar"),
+          tarball: Path.join(scratch, "package.tgz"),
+          package: package,
+          installed: Path.join(scratch, "installed")
+        })
+      end
+    end)
+  end
+
   test "invalid usage fails before fetching or building packages" do
     assert_raise RuntimeError, ~r/usage:/, fn -> ConsumerExamples.main([]) end
 
