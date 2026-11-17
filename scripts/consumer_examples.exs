@@ -155,16 +155,18 @@ defmodule ConsumerExamples do
 
   def node_executable, do: if(match?({:win32, _}, :os.type()), do: "node.exe", else: "node")
 
+  # Output always streams, so callers choose only the directory and environment.
   def command!(program, args, options) do
-    cwd = options |> Keyword.get(:cd, File.cwd!()) |> Path.relative_to_cwd()
+    options = Keyword.validate!(options, cd: File.cwd!(), env: [])
+    cwd = Path.relative_to_cwd(options[:cd])
     IO.puts(:stderr, "command: #{inspect([program | args])} (cwd: #{cwd})")
 
     {_, status} =
       System.cmd(program, args,
         into: IO.stream(),
         stderr_to_stdout: true,
-        cd: Keyword.get(options, :cd, File.cwd!()),
-        env: Keyword.get(options, :env, [])
+        cd: options[:cd],
+        env: options[:env]
       )
 
     if status != 0, do: raise("#{Path.basename(program)} exited with status #{status}")
