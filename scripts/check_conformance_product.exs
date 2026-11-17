@@ -57,8 +57,10 @@ end
 
 node = System.find_executable("node") || raise "node missing"
 
-{output, status} =
-  System.cmd(node, ["scripts/check_conformance_product.mjs"], stderr_to_stdout: true)
+{_, status} =
+  System.cmd(node, ["scripts/check_conformance_product.mjs"],
+    into: IO.stream(),
+    stderr_to_stdout: true
+  )
 
-IO.write(output)
 if status != 0, do: raise("conformance product failed")

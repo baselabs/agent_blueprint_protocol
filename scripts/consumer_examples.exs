@@ -156,8 +156,16 @@ defmodule ConsumerExamples do
   def node_executable, do: if(match?({:win32, _}, :os.type()), do: "node.exe", else: "node")
 
   def command!(program, args, options) do
+    cwd = options |> Keyword.get(:cd, File.cwd!()) |> Path.relative_to_cwd()
+    IO.puts(:stderr, "command: #{inspect([program | args])} (cwd: #{cwd})")
+
     {_, status} =
-      System.cmd(program, args, [into: IO.stream(), stderr_to_stdout: true] ++ options)
+      System.cmd(program, args,
+        into: IO.stream(),
+        stderr_to_stdout: true,
+        cd: Keyword.get(options, :cd, File.cwd!()),
+        env: Keyword.get(options, :env, [])
+      )
 
     if status != 0, do: raise("#{Path.basename(program)} exited with status #{status}")
   end

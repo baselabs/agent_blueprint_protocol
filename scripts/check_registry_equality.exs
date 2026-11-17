@@ -1,3 +1,5 @@
+Code.require_file("gate_command.exs", __DIR__)
+
 # The registry equality gate: spec/registry/registry.json is the
 # governance-canonical registry source; BOTH compiled twins (the Elixir
 # module and the TypeScript verifier's registry) stay hand-written, and
@@ -201,7 +203,7 @@ defmodule AgentBlueprintProtocol.RegistryEqualityGate do
   # The twin is hand-written TypeScript; the digest is read by running
   # the verifier's own registry module under Node (local, offline).
   defp typescript_digest do
-    case System.cmd("node", ["scripts/registry_digest.mjs"],
+    case AgentBlueprintProtocol.GateCommand.capture("node", ["scripts/registry_digest.mjs"],
            stderr_to_stdout: true,
            env: [{"NODE_NO_WARNINGS", "1"}]
          ) do

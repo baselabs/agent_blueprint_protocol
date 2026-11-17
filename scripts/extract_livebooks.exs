@@ -49,6 +49,10 @@ defmodule PackageLivebooks do
         consumer = Path.join(consumers, "notebook-#{index}")
         installs = Path.join(consumer, "installs")
         File.mkdir!(consumer)
+
+        if File.regular?(".tool-versions"),
+          do: File.cp!(".tool-versions", Path.join(consumer, ".tool-versions"))
+
         notebook = Path.expand(notebook)
         source = File.read!(notebook)
 
@@ -61,9 +65,17 @@ defmodule PackageLivebooks do
         path = Path.join(consumer, "notebook.exs")
         File.write!(path, script)
 
-        {output, status} =
+        IO.puts(:stderr, "package Livebook #{Path.basename(notebook)}: starting")
+
+        IO.puts(
+          :stderr,
+          "command: #{inspect([elixir(), path])} (cwd: #{Path.relative_to_cwd(consumer)})"
+        )
+
+        {_, status} =
           System.cmd(elixir(), [path],
             cd: consumer,
+            into: IO.stream(),
             stderr_to_stdout: true,
             env: [
               {"MIX_ENV", "prod"},
@@ -76,7 +88,6 @@ defmodule PackageLivebooks do
             ]
           )
 
-        IO.write(output)
         if status != 0, do: raise("#{notebook}: exit #{status}")
         IO.puts("package Livebook #{Path.basename(notebook)}: passed")
       end

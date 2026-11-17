@@ -1,10 +1,10 @@
 import { readFileSync,existsSync,mkdtempSync,mkdirSync,writeFileSync,rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import {capture} from './gate_command.mjs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
-const git=args=>{const r=spawnSync('git',args,{maxBuffer:20_000_000});if(r.status!==0)throw Error('release promotion: git reference unavailable');return r.stdout;};
+const git=args=>{const r=capture('git',args,{maxBuffer:20_000_000});if(r.status!==0)throw Error('release promotion: git reference unavailable');return r.stdout;};
 const hash=bytes=>createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
 const paths=()=>git(['ls-files','--cached','--others','--exclude-standard','-z']).toString().split('\0').filter(Boolean);
 // The final release adds its own dated entry directly above the candidate's

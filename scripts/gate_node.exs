@@ -1,3 +1,5 @@
+Code.require_file("gate_command.exs", __DIR__)
+
 # The shared node locator for the gate scripts (the verifier agreement
 # gate and the compatibility replay gate): finds the runtime by name and
 # enforces the major-version floor from the shared release-identity
@@ -23,7 +25,8 @@ defmodule AgentBlueprintProtocol.GateNode do
         raise "node not found: a gate requires Node >= #{floor} for the TypeScript verifier"
 
       path ->
-        {version_out, 0} = System.cmd(path, ["--version"], stderr_to_stdout: true)
+        {version_out, 0} =
+          AgentBlueprintProtocol.GateCommand.capture(path, ["--version"], stderr_to_stdout: true)
 
         major =
           version_out

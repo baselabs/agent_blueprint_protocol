@@ -1,15 +1,15 @@
 import { mkdtempSync,writeFileSync,readFileSync,rmSync } from 'node:fs';
 import { join,resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { spawnSync } from 'node:child_process';
+import {capture,stream} from './gate_command.mjs';
 import assert from 'node:assert/strict';
 import { npmCli } from './npm.mjs';
 
 const npm=npmCli();
-function run(scratch,args){
-  const result=spawnSync(process.execPath,args,{cwd:scratch,encoding:'utf8',maxBuffer:10_000_000});
-  assert.equal(result.status,0,result.stderr);
-  return result.stdout;
+function run(scratch,args,captured=false){
+  const result=(captured?capture:stream)(process.execPath,args,{cwd:scratch,encoding:'utf8',maxBuffer:10_000_000});
+  assert.equal(result.status,0);
+  return captured?result.stdout:undefined;
 }
 function install(scratch,specifier){
   writeFileSync(join(scratch,'package.json'),'{"private":true,"type":"module"}');
@@ -28,7 +28,7 @@ if(process.argv[2]==='--local'){
     const pkg=install(scratch,'@agent-blueprint-protocol/verifier@'+version);
     assert.equal(JSON.parse(readFileSync(join(pkg,'package.json'))).version,version);
     const cli=join(pkg,'dist/kit/cli.mjs'),corpus=join(pkg,'dist/corpus');
-    const report=JSON.parse(run(scratch,[cli]));
+    const report=JSON.parse(run(scratch,[cli],true));
     assert.equal(report.agreement,true);
     const results=join(scratch,'results.json');
     run(scratch,[cli,'conformance','run','--corpus',corpus,'--results',results,'--',process.execPath,cli,'--serve','--corpus',corpus]);

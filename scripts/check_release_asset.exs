@@ -1,3 +1,5 @@
+Code.require_file("gate_command.exs", __DIR__)
+
 # The release-asset gate: the standalone verifier tarball (the per-release
 # kit: verifier/ + the conformance corpus) runs against the SHIPPED hex
 # archive's corpus — exit 0 with a byte-identical report — and the asset's
@@ -138,7 +140,9 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
   end
 
   defp run_cli(scratch, corpus_dir) do
-    System.cmd("node", [Path.join(scratch, "cli.ts"), "--corpus", corpus_dir],
+    AgentBlueprintProtocol.GateCommand.capture(
+      "node",
+      [Path.join(scratch, "cli.ts"), "--corpus", corpus_dir],
       stderr_to_stdout: false,
       env: [{"NODE_NO_WARNINGS", "1"}]
     )
@@ -152,12 +156,14 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
     # tree under test.
     {_out, 0} =
       System.cmd("mix", ["hex.build", "--unpack", "--output", dir],
+        into: IO.stream(),
         stderr_to_stdout: true,
         env: [{"MIX_ENV", "test"}, {"MIX_QUIET", "1"}]
       )
 
     {_out, 0} =
       System.cmd("mix", ["escript.build"],
+        into: IO.stream(),
         stderr_to_stdout: true,
         env: [{"MIX_ENV", "test"}, {"MIX_QUIET", "1"}]
       )
@@ -168,7 +174,12 @@ defmodule AgentBlueprintProtocol.ReleaseAssetGate do
 
   defp escript_report(dir, corpus_dir) do
     escript = Path.join(dir, @escript)
-    {out, 0} = System.cmd("escript", [escript, "--corpus", corpus_dir], stderr_to_stdout: false)
+
+    {out, 0} =
+      AgentBlueprintProtocol.GateCommand.capture("escript", [escript, "--corpus", corpus_dir],
+        stderr_to_stdout: false
+      )
+
     String.trim_trailing(out)
   end
 end

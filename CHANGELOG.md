@@ -2,6 +2,12 @@
 
 All notable public changes to `agent_blueprint_protocol` are documented here.
 
+## [1.1.0-rc.5] - 2026-11-17
+
+### Fixed
+
+- Package and release gates now stream child output or name the command before it starts, so a stalled step is identifiable.
+
 ## [1.1.0-rc.4] - 2026-11-17
 
 ### Fixed

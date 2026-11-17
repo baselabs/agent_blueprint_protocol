@@ -1,6 +1,6 @@
 import {existsSync} from 'node:fs';
 import {join,resolve,dirname} from 'node:path';
-import {spawnSync} from 'node:child_process';
+import {stream} from './gate_command.mjs';
 import {pathToFileURL} from 'node:url';
 
 // npm's own CLI script, found beside the running Node executable. On Windows,
@@ -17,7 +17,7 @@ export function npmCli(){
 // Run directly, this is npm for callers outside Node, such as Elixir tests and
 // gates: node scripts/npm.mjs <npm arguments>. It exits with npm's status.
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
-  const result=spawnSync(process.execPath,[npmCli(),...process.argv.slice(2)],{stdio:'inherit'});
+  const result=stream(process.execPath,[npmCli(),...process.argv.slice(2)]);
   if(result.error)throw result.error;
   process.exit(result.status??1);
 }

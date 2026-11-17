@@ -142,6 +142,9 @@ defmodule PackageExamples do
     consumer = Path.join(consumers, name)
     File.mkdir!(consumer)
 
+    if File.regular?(".tool-versions"),
+      do: File.cp!(".tool-versions", Path.join(consumer, ".tool-versions"))
+
     File.write!(Path.join(consumer, "mix.exs"), """
     defmodule PackageExamplesConsumer.MixProject do
       use Mix.Project
@@ -156,8 +159,15 @@ defmodule PackageExamples do
 
   defp command!(consumer, args) do
     env = [{"MIX_ENV", "test"}, {"MIX_BUILD_PATH", nil}, {"MIX_DEPS_PATH", nil}]
-    {output, status} = System.cmd("mix", args, cd: consumer, env: env, stderr_to_stdout: true)
-    IO.write(output)
+
+    IO.puts(
+      :stderr,
+      "command: #{inspect(["mix" | args])} (cwd: #{Path.relative_to_cwd(consumer)})"
+    )
+
+    {_, status} =
+      System.cmd("mix", args, cd: consumer, env: env, into: IO.stream(), stderr_to_stdout: true)
+
     if status != 0, do: raise("package consumer #{Enum.join(args, " ")}: exit #{status}")
   end
 end

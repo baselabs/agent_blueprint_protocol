@@ -34,6 +34,9 @@ defmodule VerifyReleasePackages do
     consumer = Path.join(consumers, "replay")
     File.mkdir!(consumer)
 
+    if File.regular?(".tool-versions"),
+      do: File.cp!(".tool-versions", Path.join(consumer, ".tool-versions"))
+
     try do
       File.write!(Path.join(consumer, "mix.exs"), """
       defmodule CompatibilityConsumer.MixProject do

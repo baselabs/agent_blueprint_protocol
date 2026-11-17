@@ -1,3 +1,5 @@
+Code.require_file("gate_command.exs", __DIR__)
+
 defmodule PublicPrivacyScan do
   @moduledoc """
   Build-free publication guard for tracked files and full reachable Git history.
@@ -168,13 +170,16 @@ defmodule PublicPrivacyScan do
     git = System.find_executable("git") || raise "git executable not found"
 
     port =
-      Port.open({:spawn_executable, git}, [
-        :binary,
-        :exit_status,
-        :hide,
-        args: ["--no-replace-objects", "-C", repo, "cat-file", "--batch"],
-        env: Enum.map(@git_env, fn {name, value} -> {~c"#{name}", ~c"#{value}"} end)
-      ])
+      AgentBlueprintProtocol.GateCommand.open(
+        git,
+        ["--no-replace-objects", "-C", repo, "cat-file", "--batch"],
+        [
+          :binary,
+          :exit_status,
+          :hide,
+          env: Enum.map(@git_env, fn {name, value} -> {~c"#{name}", ~c"#{value}"} end)
+        ]
+      )
 
     Port.command(port, Enum.map(ids, &[&1, ?\n]))
 
@@ -229,7 +234,9 @@ defmodule PublicPrivacyScan do
   end
 
   defp git!(repo, args) do
-    case System.cmd("git", ["--no-replace-objects", "-C", repo | args],
+    case AgentBlueprintProtocol.GateCommand.capture(
+           "git",
+           ["--no-replace-objects", "-C", repo | args],
            stderr_to_stdout: true,
            env: @git_env
          ) do

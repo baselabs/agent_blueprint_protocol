@@ -10,9 +10,10 @@ export function run(archive, files) {
   const scratch=mkdtempSync(join(tmpdir(),'package-typescript-'));
   const npmCli=[join(dirname(process.execPath),'node_modules/npm/bin/npm-cli.js'),resolve(dirname(process.execPath),'../lib/node_modules/npm/bin/npm-cli.js')].find(existsSync);
   const command=(program,args)=>{
-    const result=spawnSync(program==='npm'&&npmCli?process.execPath:program,program==='npm'&&npmCli?[npmCli,...args]:args,{cwd:scratch,encoding:'utf8',maxBuffer:10_000_000});
-    if(result.status!==0)throw new Error(`${program} ${args.join(' ')}: exit ${result.status}\n${result.stdout}${result.stderr}`);
-    return result.stdout;
+    if(program==='npm'&&npmCli){program=process.execPath;args=[npmCli,...args];}
+    console.error('command: '+JSON.stringify([program,...args])+' (cwd: '+scratch+')');
+    const result=spawnSync(program,args,{cwd:scratch,stdio:'inherit'});
+    if(result.status!==0)throw new Error(`${program} ${args.join(' ')}: exit ${result.status}`);
   };
   try {
     writeFileSync(join(scratch,'package.json'),' {"private":true,"type":"module"}');
@@ -27,7 +28,7 @@ export function run(archive, files) {
         if(/(?:^|\n)<!-- fragment -->\r?\n$/.test(source.slice(0,match.index)))continue;
         const script=join(scratch,`example-${total++}.mts`);
         writeFileSync(script,match[2]);
-        try { process.stdout.write(command(process.execPath,[script])); }
+        try { command(process.execPath,[script]); }
         catch(error) { throw new Error(`${file} block ${index}: ${error.message}`); }
       }
       console.log(`package TypeScript ${basename(file)}: ${index} blocks checked`);

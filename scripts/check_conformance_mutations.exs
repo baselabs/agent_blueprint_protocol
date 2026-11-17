@@ -346,15 +346,16 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
     Scratch.with_replica("conformance-mutation-#{mutation.name}", [root: @root], fn scratch ->
       mutate_once!(Path.join(scratch, mutation.path), mutation.from, mutation.to)
 
-      {output, status} =
+      {_, status} =
         System.cmd(hd(mutation.command), tl(mutation.command),
           cd: scratch,
+          into: IO.stream(),
           stderr_to_stdout: true,
           env: [{"MIX_ENV", "dev"}, {"TMPDIR", Scratch.dir!(scratch, "tmp")}]
         )
 
       if status == 0 do
-        raise "mutation survived: #{mutation.name}\n#{output}"
+        raise "mutation survived: #{mutation.name}"
       end
 
       IO.puts("mutation caught: #{mutation.name}")
@@ -369,15 +370,16 @@ defmodule AgentBlueprintProtocol.ConformanceMutationGate do
 
     if :persistent_term.get(key, nil) != :ok do
       Scratch.with_replica("conformance-baseline", [root: @root], fn scratch ->
-        {output, status} =
+        {_, status} =
           System.cmd(hd(command), tl(command),
             cd: scratch,
+            into: IO.stream(),
             stderr_to_stdout: true,
             env: [{"MIX_ENV", "dev"}, {"TMPDIR", Scratch.dir!(scratch, "tmp")}]
           )
 
         if status != 0 do
-          raise "baseline not green: the unmutated command exited #{status}\n#{output}"
+          raise "baseline not green: the unmutated command exited #{status}"
         end
 
         :persistent_term.put(key, :ok)

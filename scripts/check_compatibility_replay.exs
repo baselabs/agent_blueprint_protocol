@@ -1,3 +1,5 @@
+Code.require_file("gate_command.exs", __DIR__)
+
 # The compatibility replay gate: certifies the manifest's compatibility
 # claims (prior_census_verdicts, verification_semantics_version's
 # equivalence span) and the release history from LIVE repository state.
@@ -175,13 +177,21 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
     # refusal); the per-tag CONTENT read does not (a stray stderr byte
     # on a successful read would splice into Jason.decode!).
     tags =
-      case System.cmd("git", ["tag", "-l", "v*"], [stderr_to_stdout: true] ++ cd) do
+      case AgentBlueprintProtocol.GateCommand.capture(
+             "git",
+             ["tag", "-l", "v*"],
+             [stderr_to_stdout: true] ++ cd
+           ) do
         {listing, 0} ->
           listing
           |> String.split("\n", trim: true)
           |> Enum.sort()
           |> Enum.flat_map(fn tag ->
-            case System.cmd("git", ["show", "#{tag}:priv/release-metadata.json"], cd) do
+            case AgentBlueprintProtocol.GateCommand.capture(
+                   "git",
+                   ["show", "#{tag}:priv/release-metadata.json"],
+                   cd
+                 ) do
               {out, 0} -> [{tag, :json.decode(out)}]
               _other -> []
             end
@@ -578,7 +588,9 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
           write_census_dir!(dir, census.map)
 
           {out, status} =
-            System.cmd(node, [cli, "--prior-corpus", dir], stderr_to_stdout: false)
+            AgentBlueprintProtocol.GateCommand.capture(node, [cli, "--prior-corpus", dir],
+              stderr_to_stdout: false
+            )
 
           {:ok, bytes} = Report.to_bytes(census.corpus, census.results)
 
@@ -593,7 +605,12 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
           {:ok, expected_results} = Report.results_bytes(census.corpus)
 
           {actual_results, result_status} =
-            System.cmd(node, [cli, "--results", "--prior-corpus", dir])
+            AgentBlueprintProtocol.GateCommand.capture(node, [
+              cli,
+              "--results",
+              "--prior-corpus",
+              dir
+            ])
 
           if actual_results != expected_results or result_status != status,
             do: raise("kit/Hex per-case drift over prior census #{census.digest}")
@@ -633,7 +650,9 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         Scratch.with_dir("signed-golden", fn dir ->
           path = Path.join(dir, "#{kind}.json")
           File.write!(path, bytes)
-          {out, status} = System.cmd(node, [kit, "--artifact", path])
+
+          {out, status} =
+            AgentBlueprintProtocol.GateCommand.capture(node, [kit, "--artifact", path])
 
           if status != 0 or
                :json.decode(out) != %{
@@ -823,7 +842,7 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
   # would splice into census/spec content and false-red confusingly);
   # failures raise with the exit status.
   defp git!(args) do
-    case System.cmd("git", args, stderr_to_stdout: false) do
+    case AgentBlueprintProtocol.GateCommand.capture("git", args, stderr_to_stdout: false) do
       {out, 0} ->
         out
 

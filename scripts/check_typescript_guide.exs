@@ -7,7 +7,7 @@ codes =
 
 mapping = Enum.map(AgentBlueprintProtocol.federation_mapping(), &Map.from_struct/1)
 
-{output, status} =
+{_, status} =
   System.cmd(
     node,
     [
@@ -17,8 +17,8 @@ mapping = Enum.map(AgentBlueprintProtocol.federation_mapping(), &Map.from_struct
       "--mapping",
       IO.iodata_to_binary(:json.encode(mapping))
     ],
+    into: IO.stream(),
     stderr_to_stdout: true
   )
 
-IO.write(output)
 if status != 0, do: raise("TypeScript packed consumer or guide failed")

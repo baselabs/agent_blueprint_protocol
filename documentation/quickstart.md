@@ -20,7 +20,7 @@ Replace the generated `deps/0` function with:
 <!-- fragment -->
 ```elixir
 defp deps do
-  [{:agent_blueprint_protocol, "~> 1.1.0-rc.4"}]
+  [{:agent_blueprint_protocol, "~> 1.1.0-rc.5"}]
 end
 ```
 

@@ -1,25 +1,25 @@
 import { mkdtempSync,mkdirSync,readFileSync,writeFileSync,cpSync,rmSync,existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join,resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import {capture,stream} from './gate_command.mjs';
 import assert from 'node:assert/strict';
 import { npmCli } from './npm.mjs';
 const npm=npmCli();
 const root=resolve('.'),scratch=mkdtempSync(join(tmpdir(),'abp-consumer-'));
-function command(program,args,cwd=scratch,status=0){const r=spawnSync(program==='npm'?process.execPath:program,program==='npm'?[npm,...args]:args,{cwd,encoding:'utf8',maxBuffer:5_000_000});assert.equal(r.status,status,r.stdout+r.stderr);return r;}
+function command(program,args,cwd=scratch,status=0,captured=false){const r=(captured?capture:stream)(program==='npm'?process.execPath:program,program==='npm'?[npm,...args]:args,{cwd,encoding:'utf8',maxBuffer:5_000_000});assert.equal(r.status,status);return r;}
 try {
   cpSync('.tool-versions',join(scratch,'.tool-versions'));
-  const packed=command('npm',['pack','./dist/package','--ignore-scripts','--json','--pack-destination',scratch],root);
+  const packed=command('npm',['pack','./dist/package','--ignore-scripts','--json','--pack-destination',scratch],root,0,true);
   const file=JSON.parse(packed.stdout)[0].filename;
   writeFileSync(join(scratch,'package.json'),'{"private":true,"type":"module"}');
   command('npm',['install','--ignore-scripts','--no-audit','--no-fund',join(scratch,file)]);
   assert.equal(existsSync(join(scratch,'node_modules/@types/node')),false);
   writeFileSync(join(scratch,'import.mjs'),"await import('@agent-blueprint-protocol/verifier');\n");
-  const imported=command(process.execPath,['import.mjs']);assert.equal(imported.stdout,'');assert.equal(imported.stderr,'');
+  const imported=command(process.execPath,['import.mjs'],scratch,0,true);assert.equal(imported.stdout,'');assert.equal(imported.stderr,'');
   const mappingIndex=process.argv.indexOf('--mapping');
   if(mappingIndex>=0)writeFileSync(join(scratch,'expected-mapping.json'),process.argv[mappingIndex+1]);
   cpSync('test/typescript/consumer.mjs',join(scratch,'consumer.mjs'));
-  process.stdout.write(command(process.execPath,['consumer.mjs',root]).stdout);
+  command(process.execPath,['consumer.mjs',root]);
   const guide=readFileSync('documentation/typescript.md','utf8');
   const sample=guide.match(/```js\n([\s\S]*?)```/)[1];
   const claimed=sample.match(/console\.log\(.*\); \/\/ (\S+)\n/)[1];
@@ -27,10 +27,10 @@ try {
   const example=readFileSync('priv/examples/echo-blueprint.json','utf8');
   const examplePath=join(scratch,'node_modules/@agent-blueprint-protocol/verifier/dist/examples/echo-blueprint.json');
   assert.equal(readFileSync(examplePath,'utf8'),example);
-  assert.equal(command(process.execPath,['verify.mjs']).stdout.trim(),claimed);
+  assert.equal(command(process.execPath,['verify.mjs'],scratch,0,true).stdout.trim(),claimed);
   const edited=example.replace('"max_attempts":3','"max_attempts":4');assert.notEqual(edited,example);
   writeFileSync(examplePath,edited);
-  assert.notEqual(command(process.execPath,['verify.mjs']).stdout.trim(),claimed);
+  assert.notEqual(command(process.execPath,['verify.mjs'],scratch,0,true).stdout.trim(),claimed);
   const codes=[...readFileSync('verifier/errors.ts','utf8').matchAll(/\| "([^"]+)"/g)].map(x=>x[1]);
   const ex=readFileSync('lib/agent_blueprint_protocol/error.ex','utf8');
   const declared=[...ex.split('@codes [')[1].split('\n  ]')[0].matchAll(/^\s+:([a-z0-9_]+),?$/gm)].map(x=>x[1]);
@@ -51,9 +51,9 @@ try {
     writeFileSync(join(scratch,'consumer.ts'),source+forward);
     command(process.execPath,[tsc,'-p','tsconfig.json']);
     writeFileSync(join(scratch,'consumer.ts'),(source+forward).replace('case '+JSON.stringify(codes[0])+':return '+JSON.stringify(codes[0])+';',''));
-    const missing=command(process.execPath,[tsc,'-p','tsconfig.json'],scratch,compiler==='typescript-floor'?2:1);assert.match(missing.stdout,/never/);
+    const missing=command(process.execPath,[tsc,'-p','tsconfig.json'],scratch,compiler==='typescript-floor'?2:1,true);assert.match(missing.stdout,/never/);
     console.log(compiler+': packed declarations, open identifiers, default notice switch, and exhaustive ErrorCode passed; missing case failed');
   }
-  for(const runtime of ['bun','deno']){const r=spawnSync(runtime,['--version'],{encoding:'utf8'});if(r.error?.code==='ENOENT'){console.log(runtime+': unavailable');continue;}const args=runtime==='bun'?['run','consumer.mjs',root]:['run','--allow-read','consumer.mjs',root];process.stdout.write(command(runtime,args).stdout);}
+  for(const runtime of ['bun','deno']){const r=stream(runtime,['--version']);if(r.error?.code==='ENOENT'){console.log(runtime+': unavailable');continue;}const args=runtime==='bun'?['run','consumer.mjs',root]:['run','--allow-read','consumer.mjs',root];command(runtime,args);}
   console.log('consumer: root ESM import, isolated declarations, and exhaustive ErrorCode passed; missing case failed');
 }finally{rmSync(scratch,{recursive:true,force:true});}

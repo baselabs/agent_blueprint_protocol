@@ -1,7 +1,7 @@
 import { readFileSync,mkdtempSync,rmSync,cpSync,writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import {stream} from './gate_command.mjs';
 import assert from 'node:assert/strict';
 import {canonical} from '../verifier/results.ts';
 import {hash,toTagged} from '../verifier/digest.ts';
@@ -11,7 +11,7 @@ import {documentDigest} from '../verifier/harness.ts';
 import '../test/typescript/harness_startup.mjs';
 const scratch=mkdtempSync(join(tmpdir(),'abp-conformance-'));
 const certified=readFileSync('spec/conformance/certified-results.json');
-function run(args,expected=0){const r=spawnSync(process.execPath,args,{encoding:'utf8',maxBuffer:10_000_000,timeout:15000});assert.equal(r.status,expected,r.stderr);return r;}
+function run(args,expected=0){const r=stream(process.execPath,args,{timeout:15000});assert.equal(r.status,expected);return r;}
 try {
   for(const [label,command] of [['escript',['escript','agent_blueprint_protocol_conformance','--serve','--corpus','priv/conformance']],['kit',[process.execPath,'dist/kit/cli.mjs','--serve','--corpus','priv/conformance']]]) {
     const output=join(scratch,label+'.json');

@@ -1,3 +1,5 @@
+Code.require_file("gate_command.exs", __DIR__)
+
 # The verifier agreement gate: the Elixir escript
 # and the TypeScript verifier must produce BYTE-IDENTICAL JCS reports over
 # the same corpus — repo-side AND from the built Hex archive — and the TS
@@ -61,14 +63,14 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       IO.puts("agreement: archive corpus byte-identical")
     end)
 
-    {self_out, self_status} =
+    {_, self_status} =
       System.cmd(node, [Path.join([@root, @verifier, "self_checks.ts"])],
+        into: IO.stream(),
         stderr_to_stdout: true,
         env: [{"MIX_ENV", "dev"}]
       )
 
-    unless self_status == 0, do: raise("self-checks failed:\n#{self_out}")
-    IO.puts(String.trim_trailing(self_out))
+    unless self_status == 0, do: raise("self-checks failed: exit #{self_status}")
 
     kit_checks!(node, escript_bytes)
 
@@ -79,17 +81,18 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   # ---- the agreement runs ---------------------------------------------------------
 
   defp run_escript! do
-    {build_out, build_status} =
+    {_, build_status} =
       System.cmd("mix", ["escript.build"],
+        into: IO.stream(),
         cd: @root,
         stderr_to_stdout: true,
         env: [{"MIX_ENV", "test"}]
       )
 
-    unless build_status == 0, do: raise("escript build failed:\n#{build_out}")
+    unless build_status == 0, do: raise("escript build failed: exit #{build_status}")
 
     {out, status} =
-      System.cmd(
+      AgentBlueprintProtocol.GateCommand.capture(
         "escript",
         [Path.join(@root, "agent_blueprint_protocol_conformance"), "--corpus", @corpus],
         cd: @root,
@@ -104,7 +107,9 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     # The verifier is REPO-side (never shipped in the archive): the script
     # always runs from @root; only the corpus directory moves.
     {out, status} =
-      System.cmd(node, [Path.join(@root, "verifier/cli.ts"), "--corpus", corpus_dir],
+      AgentBlueprintProtocol.GateCommand.capture(
+        node,
+        [Path.join(@root, "verifier/cli.ts"), "--corpus", corpus_dir],
         cd: @root,
         stderr_to_stdout: false
       )
@@ -116,14 +121,15 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
   defp build_and_unpack_archive!(build_dir) do
     unpack_dir = Path.join(build_dir, "pkg")
 
-    {out, status} =
+    {_, status} =
       System.cmd("mix", ["hex.build", "--unpack", "--output", unpack_dir],
+        into: IO.stream(),
         cd: @root,
         stderr_to_stdout: true,
         env: [{"MIX_QUIET", "1"}, {"MIX_ENV", "test"}]
       )
 
-    unless status == 0, do: raise("hex archive build failed:\n#{out}")
+    unless status == 0, do: raise("hex archive build failed: exit #{status}")
     Path.join(unpack_dir, "priv/conformance")
   end
 
@@ -249,7 +255,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     # npm runs through Node (scripts/npm.mjs): Windows cannot spawn npm's
     # .cmd launcher, and the gate runs the same way on every platform.
     {json, 0} =
-      System.cmd(
+      AgentBlueprintProtocol.GateCommand.capture(
         AgentBlueprintProtocol.GateNode.find_node!(),
         ["scripts/npm.mjs", "pack", "./dist/package", "--dry-run", "--json", "--ignore-scripts"],
         cd: @root,
@@ -301,7 +307,8 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
     packed_files_check!()
 
-    {kit_out, kit_status} = System.cmd(node, [@kit_bin], stderr_to_stdout: false)
+    {kit_out, kit_status} =
+      AgentBlueprintProtocol.GateCommand.capture(node, [@kit_bin], stderr_to_stdout: false)
 
     unless kit_status == 0 and kit_out == escript_bytes do
       raise """
@@ -312,7 +319,11 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
     end
 
     {explicit_out, explicit_status} =
-      System.cmd(node, [@kit_bin, "--corpus", Path.join(@root, @corpus)], stderr_to_stdout: false)
+      AgentBlueprintProtocol.GateCommand.capture(
+        node,
+        [@kit_bin, "--corpus", Path.join(@root, @corpus)],
+        stderr_to_stdout: false
+      )
 
     unless explicit_status == 0 and explicit_out == escript_bytes do
       raise """
@@ -465,7 +476,10 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       file = Path.join(dir, id <> ".json")
       File.write!(file, text)
 
-      {out, status} = System.cmd(node, [@kit_bin, "--artifact", file], stderr_to_stdout: true)
+      {out, status} =
+        AgentBlueprintProtocol.GateCommand.capture(node, [@kit_bin, "--artifact", file],
+          stderr_to_stdout: true
+        )
 
       report =
         case Jason.decode(out) do
@@ -700,7 +714,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       case seed.expect do
         :byte_drift ->
           {out, status} =
-            System.cmd(
+            AgentBlueprintProtocol.GateCommand.capture(
               node,
               [Path.join(scratch, "verifier/cli.ts"), "--corpus", Path.join(scratch, "corpus")],
               stderr_to_stdout: false
@@ -717,13 +731,14 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
           end
 
         :self_check_failure ->
-          {out, status} =
+          {_, status} =
             System.cmd(node, [Path.join(scratch, "verifier/self_checks.ts")],
+              into: IO.stream(),
               stderr_to_stdout: true
             )
 
           if status == 0 do
-            raise "seeded red did not fail self-checks: #{seed.name}\n#{out}"
+            raise "seeded red did not fail self-checks: #{seed.name}"
           end
       end
 
