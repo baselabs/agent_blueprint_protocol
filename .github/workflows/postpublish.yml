@@ -50,10 +50,10 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
     steps:
-      - name: Check out the tagged consumer bootstrap
+      # A release run checks out its tag; a manual run checks out the chosen
+      # branch, so any released version can be re-verified with the current driver.
+      - name: Check out the consumer driver
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: v${{ inputs.version }}
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

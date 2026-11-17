@@ -58,7 +58,7 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
 
     postpublish = File.read!(".github/workflows/postpublish.yml")
     assert postpublish =~ "elixir scripts/consumer_examples.exs --registry"
-    assert postpublish =~ "ref: v${{ inputs.version }}"
+    refute postpublish =~ "ref: v${{ inputs.version }}"
     refute postpublish =~ "postpublish_examples.mjs"
   end
 
