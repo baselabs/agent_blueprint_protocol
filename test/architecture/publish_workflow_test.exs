@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
   use ExUnit.Case, async: true
 
-  @workflows ~w(publish pages postpublish)
+  @workflows ~w(ci publish pages postpublish)
   @owners [
     ~s|contains(fromJSON('["corepay","palermo-git"]'), github.actor)|,
     ~s|contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)|
@@ -37,8 +37,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert length(Regex.scan(~r/^\s+contents: write$/m, workflow)) == 1
     assert draft =~ "contents: write"
     assert npm =~ "needs: verify"
-    assert hex =~ "needs: npm-publish"
-    assert draft =~ "needs: hex-publish"
+    assert hex =~ "needs: [verify, npm-publish]"
+    assert draft =~ "needs: [verify, hex-publish]"
     refute npm =~ "HEX_API_KEY"
 
     key_step = step(hex, "Publish the verified Hex archive and docs to public hexpm")
@@ -50,8 +50,27 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     publisher = File.read!("scripts/publish_hex_artifacts.exs")
     assert publisher =~ ~s|System.fetch_env!("HEX_API_KEY")|
-    assert publisher =~ ~s|Hex.API.Release.publish("hexpm", File.read!(archive), key: key)|
-    assert publisher =~ "Hex.API.ReleaseDocs.publish("
+    assert publisher =~ "OptionParser.parse(argv, strict: [organization: :string])"
+    assert publisher =~ "publish(opts[:organization], name, version, archive, docs)"
+    assert publisher =~ "auth = [key: key]"
+
+    assert publisher =~
+             "absent!(Hex.API.Release.get(repo, name, version, auth), repo, name, version)"
+
+    assert publisher =~ "Hex.API.Release.publish(repo, File.read!(archive), auth)"
+    assert publisher =~ "Hex.API.ReleaseDocs.publish(repo, name, version, File.read!(docs), auth)"
+    assert publisher =~ "defp absent!({:ok, {404, _headers, _body}}"
+    assert publisher =~ "already has"
+    assert publisher =~ "could not confirm"
+    assert publisher =~ "when code in 200..299"
+    assert publisher =~ ~s|body["status"] == "staged"|
+
+    assert key_step =~
+             ~s|publish_hex_artifacts.exs \\\n            agent_blueprint_protocol "$VERSION"|
+
+    refute key_step =~ "--organization"
+    assert_before(publisher, "absent!(Hex.API.Release.get", "Hex.API.Release.publish")
+    assert_before(publisher, "Hex.API.Release.publish", "Hex.API.ReleaseDocs.publish")
     refute publisher =~ "File.write"
     refute publisher =~ "inspect("
     refute publisher =~ "hex.build"
@@ -62,7 +81,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
       workflow = workflow(name)
       assert workflow =~ "permissions:\n  contents: read"
       refute workflow =~ "actions/cache"
-      refute Regex.match?(~r/^\s+cache:/m, workflow)
+      refute Regex.match?(~r/^\s+cache: (?!false$)/m, workflow)
       refute Regex.match?(~r/^\s+package-manager-cache: (?!false$)/m, workflow)
       refute workflow =~ "self-hosted"
       refute workflow =~ "BASELABS_RUNNER"
@@ -77,13 +96,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
       end
 
       for action <- steps(workflow), action =~ "uses: actions/setup-node@" do
-        assert action =~ "node-version: ${{ steps.inputs.outputs.node }}"
         assert action =~ "package-manager-cache: false"
       end
 
       for action <- steps(workflow), action =~ "uses: erlef/setup-beam@" do
-        assert action =~ "elixir-version: ${{ steps.inputs.outputs.elixir }}"
-        assert action =~ "otp-version: ${{ steps.inputs.outputs.otp }}"
         assert action =~ "version-type: strict"
         assert action =~ "install-hex: false"
       end
@@ -110,66 +126,46 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     end
   end
 
-  test "one reader supplies the default toolchain and equal package versions" do
-    defaults =
-      for line <- String.split(File.read!(".tool-versions"), "\n", trim: true), into: %{} do
-        [name, version | _] = String.split(line)
-        {name, version}
-      end
-
+  test "the existing artifact reader requires one equal source package version" do
     AgentBlueprintProtocol.Scratch.with_dir("release-inputs", fn dir ->
-      output = Path.join(dir, "output")
-      environment = Path.join(dir, "environment")
-      script = Path.expand("scripts/read_release_inputs.py")
+      script = Path.expand("scripts/release_artifact_info.mjs")
 
       for file <- ["mix.exs", "package.json"] do
         File.cp!(file, Path.join(dir, file))
       end
 
-      toolchain =
-        ".tool-versions"
-        |> File.read!()
-        |> String.split("\n", trim: true)
-        |> Enum.map_join("\n", &(&1 <> " 99.99.99"))
-
-      File.write!(Path.join(dir, ".tool-versions"), toolchain)
-
-      assert {_, 0} =
-               System.cmd("python", [script],
-                 cd: dir,
-                 env: [{"GITHUB_OUTPUT", output}, {"GITHUB_ENV", environment}]
-               )
-
-      values = File.read!(output)
-      assert values =~ "elixir=#{defaults["elixir"]}\n"
-      assert values =~ "otp=#{defaults["erlang"]}\n"
-      assert values =~ "node=#{defaults["nodejs"]}\n"
-      assert values =~ "version=#{Mix.Project.config()[:version]}\n"
-      assert File.read!(environment) == "VERSION=#{Mix.Project.config()[:version]}\n"
+      assert {version, 0} = System.cmd("node", [script, "version"], cd: dir)
+      assert version == Mix.Project.config()[:version]
 
       package = :json.decode(File.read!("package.json"))
       mismatched = Map.put(package, "version", package["version"] <> "-mismatch")
       File.write!(Path.join(dir, "package.json"), :json.encode(mismatched))
 
       assert {_, 1} =
-               System.cmd("python", [script],
+               System.cmd("node", [script, "version"],
                  cd: dir,
-                 env: [{"GITHUB_OUTPUT", output}, {"GITHUB_ENV", environment}],
                  stderr_to_stdout: true
                )
 
-      assert File.read!(output) == values
+      File.cp!("package.json", Path.join(dir, "package.json"))
+
+      for invalid <- ["", ~s|@version "1.0.0"\n@version "1.0.0"|, ~s|@version "main"|] do
+        File.write!(Path.join(dir, "mix.exs"), invalid)
+
+        assert {_, 1} =
+                 System.cmd("node", [script, "version"], cd: dir, stderr_to_stdout: true)
+      end
     end)
 
-    reader = File.read!("scripts/read_release_inputs.py")
-    assert reader =~ "tools.setdefault(fields[0], fields[1])"
-    assert reader =~ ~s|Path("mix.exs").read_text()|
-    assert reader =~ ~s|Path("package.json").read_text())["version"] != version|
+    workflow = workflow("publish")
+    verify = job(workflow, "verify")
+    assert verify =~ "VERSION=$(node scripts/release_artifact_info.mjs version)"
+    assert verify =~ ~S|printf 'VERSION=%s\n' "$VERSION" >> "$GITHUB_ENV"|
+    assert verify =~ ~S|printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"|
+    assert verify =~ "version: ${{ steps.inputs.outputs.version }}"
 
-    for name <- ["publish", "postpublish"],
-        job <- Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, workflow(name)),
-        job =~ "uses: actions/setup-node@" do
-      assert job =~ "python scripts/read_release_inputs.py"
+    for name <- ["npm-publish", "hex-publish", "draft-release"] do
+      assert job(workflow, name) =~ "VERSION: ${{ needs.verify.outputs.version }}"
     end
   end
 
@@ -224,6 +220,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert verify =~ "fetch-depth: 0"
     assert verify =~ "Check public privacy over full history"
     assert_before(verify, "run: mix quality", "npm pack ./dist/package --ignore-scripts")
+    assert "docs --warnings-as-errors" in Mix.Project.config()[:aliases][:quality]
     assert_before(verify, "mix hex.build --output", "verify_release_packages.exs --local")
     assert_before(verify, "verify_release_packages.exs --local", "actions/upload-artifact@")
     assert verify =~ "MIX_ENV=test mix release.asset --write"
@@ -274,6 +271,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     assert pages =~
              "PUBLISHED_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}"
+
     assert pages =~ "PUBLISHED_BRANCH: ${{ github.event.workflow_run.head_branch }}"
     assert pages =~ "path: site"
     assert_default_branch_first(job(pages, "build"))

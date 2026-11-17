@@ -12,4 +12,6 @@ Publication runs the same build-free guard in both the pre-push hook and CI. The
 
 ## Consequences
 
-Fork pull requests receive no repository secret, so the keyed history check skips with an explicit banner there. Maintainer branches and merged source enforce it; a fork pass is never described as having executed that private-key-dependent scan.
+Qualification runs only on `kci/**` pushes and always enforces the keyed history
+check. The scan has no skip mode: the publication workflow enforces it before
+uploads, and a missing or short privacy key fails every invocation closed.

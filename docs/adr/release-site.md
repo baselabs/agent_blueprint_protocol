@@ -18,7 +18,9 @@ The deployment job requires both the actor and triggering actor to be an
 owner and deploys in Pages' own `github-pages` environment. Both jobs first
 refuse refs outside the default branch. All runners are GitHub-hosted Ubuntu.
 Checkout persists no credentials, and deployment does not cancel an in-flight
-run.
+run. Each job has a timeout based on its measured green duration. This static
+upload installs no runtime. Qualification is the separate `kci/**`-only CI
+workflow, whose final `qualified` job gates landing.
 
 ## Consequences
 

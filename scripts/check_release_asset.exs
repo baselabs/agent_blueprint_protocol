@@ -8,7 +8,7 @@ Code.require_file("gate_command.exs", __DIR__)
 #   mix release.asset          # build scratch asset → run over the archive corpus
 #   mix release.asset --write  # regenerate verifier-<version>.tar.gz at repo root
 #
-# The CI job runs this gate on every push; a broken or drifted asset reds
+# The CI job runs this gate on every landing push; a broken or drifted asset reds
 # BEFORE a release tag carries it.
 
 Code.require_file("../test/support/scratch.exs", __DIR__)

@@ -36,6 +36,22 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     site = File.read!("docs/adr/release-site.md")
     assert site =~ "`head_sha`"
     assert site =~ "No tag push starts Pages"
+
+    for path <- [
+          "CONTRIBUTING.md",
+          "docs/adr/continuous-integration.md",
+          "docs/adr/release-publication.md"
+        ] do
+      source = File.read!(path)
+      assert source =~ "kci/**", path
+      assert source =~ "qualified", path
+      assert source =~ "scripts/toolchain.sh", path
+    end
+
+    assert publication =~
+             "scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS"
+
+    assert publication =~ "`github-pages` environment"
   end
 
   test "shipped document fences have at most a bare language info string" do
@@ -454,7 +470,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   end
 
   # The migration guide must show the exact previous package pin it
-  # replaces. CONTRIBUTING may name the exact toolchain versions from CI.
+  # replaces. CONTRIBUTING may name the exact configured toolchain versions.
   defp allowed_document_version?("documentation/migrating-to-1.0.md", claim, version),
     do: claim in [version, "0.8.4"]
 
@@ -468,7 +484,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
        do: claim in [version, "0.1.0", "0.1.0-dev.abc"]
 
   defp allowed_document_version?("CONTRIBUTING.md", claim, version) do
-    claim == version or claim in ci_toolchain_versions()
+    claim == version or claim in configured_toolchain_versions()
   end
 
   defp allowed_document_version?(file, claim, version)
@@ -489,11 +505,11 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
 
   defp allowed_document_version?(_file, claim, version), do: claim == version
 
-  defp ci_toolchain_versions do
-    workflow = File.read!(".github/workflows/ci.yml")
+  defp configured_toolchain_versions do
+    {output, 0} = System.cmd("sh", ["scripts/toolchain.sh"])
 
-    ~r/(?:node-version|elixir-version|otp-version|elixir):\s*"(\d+\.\d+\.\d+)(?:-otp-\d+(?:\.\d+)*)?"/
-    |> Regex.scan(workflow)
+    ~r/\b(\d+(?:\.\d+)+)(?:-otp-\d+)?/
+    |> Regex.scan(output)
     |> Enum.map(fn [_, version] -> version end)
     |> Enum.uniq()
   end

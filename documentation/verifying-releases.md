@@ -96,12 +96,13 @@ The command prints the matching digest and exits `0`; a missing asset, failed do
 
 ## Consumer example verification
 
-The release workflow runs the published packages' notebook, doctest, Elixir
-snippet, and TypeScript example gates on Linux, macOS, and Windows, then
-replays every earlier release census and the signed 0.8.x goldens through the
-installed packages. CI builds both packages and runs the same verification on
-those platforms before publication. From a checkout with historical release
-tags available and Elixir and Node installed, run:
+Once both registries are live and the draft release exists, the release
+workflow installs the published packages and runs their notebook, doctest,
+Elixir snippet, and TypeScript example gates on Linux, macOS, and Windows,
+then replays every earlier release census and the signed 0.8.x goldens
+through the installed packages. CI builds both packages and runs the same
+verification on those platforms before publication. From a checkout with
+historical release tags available and Elixir and Node installed, run:
 
 ```sh
 elixir scripts/verify_release_packages.exs --registry 1.1.0

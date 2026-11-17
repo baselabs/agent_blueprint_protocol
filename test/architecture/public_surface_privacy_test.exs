@@ -10,17 +10,13 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
       forbidden?: 3,
       candidates: 1,
       fingerprint: 2,
-      privacy_scan_decision: 1
+      privacy_key!: 1
     ]
 
   @moduletag timeout: :infinity
   @test_canary "public privacy canary"
   @test_key "public-test-key-for-privacy-scan-32-bytes"
-  @test_config %{
-    "key_env" => "PUBLIC_PRIVACY_TEST_KEY",
-    "mode_env" => "PUBLIC_PRIVACY_TEST_MODE"
-  }
-  @fork_skip_mode "fork-skip"
+  @test_config %{"key_env" => "PUBLIC_PRIVACY_TEST_KEY"}
 
   # maintenance.auto false: a commit in the throwaway repository must not
   # start git's detached background maintenance (the geometric repack, the
@@ -35,40 +31,20 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     {"GIT_CONFIG_VALUE_1", "false"}
   ]
 
-  test "a fork run without the secret skips loudly instead of failing" do
+  test "a missing or short privacy key fails closed" do
     for key <- [nil, "", String.duplicate("k", 31), "  " <> String.duplicate("k", 31) <> "  "] do
-      with_env(
-        [{@test_config["mode_env"], @fork_skip_mode}, {@test_config["key_env"], key}],
-        fn ->
-          assert {:skip, banner} = privacy_scan_decision(@test_config)
-          assert banner =~ "SKIPPED"
-          assert banner =~ "NOT executed"
-        end
-      )
-    end
-  end
-
-  test "an unknown scan-mode value fails closed like an enforcing run" do
-    for mode <- [nil, "enforce", "banana"],
-        key <- [nil, "", String.duplicate("k", 31), "  " <> String.duplicate("k", 31) <> "  "] do
-      with_env([{@test_config["mode_env"], mode}, {@test_config["key_env"], key}], fn ->
+      with_env([{@test_config["key_env"], key}], fn ->
         assert_raise RuntimeError, ~r/privacy key is required/, fn ->
-          privacy_scan_decision(@test_config)
+          privacy_key!(@test_config)
         end
       end)
     end
   end
 
-  test "a fork run whose secret is present still enforces the scan" do
-    with_env(
-      [
-        {@test_config["mode_env"], @fork_skip_mode},
-        {@test_config["key_env"], "  " <> @test_key <> "  "}
-      ],
-      fn ->
-        assert {:enforce, @test_key} = privacy_scan_decision(@test_config)
-      end
-    )
+  test "a present privacy key is trimmed and enforces the scan" do
+    with_env([{@test_config["key_env"], "  " <> @test_key <> "  "}], fn ->
+      assert privacy_key!(@test_config) == @test_key
+    end)
   end
 
   test "candidate normalization is red-capable without publishing protected terms" do
@@ -303,7 +279,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
       )
 
       script = Path.expand("scripts/check_public_privacy.exs")
-      env = [{@test_config["mode_env"], "enforce"}, {@test_config["key_env"], @test_key}]
+      env = [{@test_config["key_env"], @test_key}]
 
       assert {_output, 0} =
                System.cmd("elixir", [script, config_path, repo],

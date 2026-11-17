@@ -21,7 +21,8 @@ jobs:
   smoke:
     name: Published kit — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # Twice the slowest green run: 0.5 min, run 44085034568.
+    timeout-minutes: 2
     strategy:
       fail-fast: false
       matrix:
@@ -31,15 +32,22 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Read the default toolchain and package version
-        id: inputs
-        run: python scripts/read_release_inputs.py
-        shell: pwsh
+      - name: Read the default toolchain
+        id: versions
+        run: sh scripts/toolchain.sh >> "$GITHUB_OUTPUT"
+        shell: bash
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ steps.inputs.outputs.node }}
+          node-version: ${{ steps.versions.outputs.nodejs }}
           package-manager-cache: false
+
+      - name: Verify installed Node versions
+        shell: bash
+        env:
+          TOOLCHAIN_NODEJS: ${{ steps.versions.outputs.nodejs }}
+        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+
       - name: Install the published package and verify its corpus
         env:
           ABP_VERSION: ${{ inputs.version }}
@@ -49,7 +57,8 @@ jobs:
   livebooks:
     name: Published consumer examples - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # Twice the slowest green run: 2.9 min, run 44022461020.
+    timeout-minutes: 6
     strategy:
       fail-fast: false
       matrix:
@@ -62,22 +71,37 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Read the default toolchain and package version
-        id: inputs
-        run: python scripts/read_release_inputs.py
-        shell: pwsh
+      - name: Read the default toolchain
+        id: versions
+        run: sh scripts/toolchain.sh >> "$GITHUB_OUTPUT"
+        shell: bash
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ steps.inputs.outputs.node }}
+          node-version: ${{ steps.versions.outputs.nodejs }}
           package-manager-cache: false
+
+      - name: Verify installed Node versions
+        shell: bash
+        env:
+          TOOLCHAIN_NODEJS: ${{ steps.versions.outputs.nodejs }}
+        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: ${{ steps.inputs.outputs.elixir }}
-          otp-version: ${{ steps.inputs.outputs.otp }}
+          elixir-version: ${{ steps.versions.outputs.elixir }}
+          otp-version: ${{ steps.versions.outputs.otp }}
           version-type: strict
           install-hex: false
+
+      - name: Verify installed BEAM versions
+        shell: bash
+        env:
+          TOOLCHAIN_ELIXIR: ${{ steps.versions.outputs.elixir }}
+          TOOLCHAIN_ERLANG: ${{ steps.versions.outputs.otp }}
+        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
+
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
         shell: pwsh

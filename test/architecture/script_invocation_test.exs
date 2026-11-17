@@ -5,15 +5,33 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
   # lines and evaluated environment values must never enter failure diagnostics.
   @inline ~r/(?:^|[\s"',\[])(?:--eval|--execute|--print|-[Cc]ommand|-eval|-e|-c)(?=$|[\s"',\]=])|(?:\bnode(?:\.exe)?\b|process\.execPath)[\s"',\[]+-p(?=$|[\s"',\]])/m
   @toolchain ~r/["'`](?:[^"'`\r\n]*[\x2f\\])?(?:elixir|mix)(?:\.(?:bat|cmd))?["'`]/i
+  # The byte-shared toolchain reader has two fixed installed-version probes.
+  # These exact, credential-free commands are its only inline exceptions.
+  @installed_probes [
+    ~S|have=$(elixir -e 'IO.write(System.version() <> "-otp-" <> System.build_info()[:otp_release])') ;;|,
+    ~S|have=$(erl -noshell -eval '{ok, V} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:put_chars(string:trim(V)), halt().') ;;|
+  ]
 
   test "workflows and scripts pass filenames instead of inline program arguments" do
     offenders =
       for path <- paths(),
           {line, index} <- File.read!(path) |> String.split("\n") |> Enum.with_index(1),
           Regex.match?(@inline, line),
+          not installed_probe?(path, line),
           do: "#{path}:#{index}"
 
     assert offenders == [], "inline program arguments at " <> Enum.join(offenders, ", ")
+  end
+
+  test "the shared installed-version probes are the only toolchain inline commands" do
+    probes =
+      "scripts/toolchain.sh"
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.filter(&Regex.match?(@inline, &1))
+      |> Enum.map(&String.trim/1)
+
+    assert probes == @installed_probes
   end
 
   test "Node scripts never launch the Elixir toolchain, directly or through a command helper" do
@@ -143,6 +161,9 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
 
     refute replay =~ ~s|"v" <> manifest["package_version"]|
   end
+
+  defp installed_probe?("scripts/toolchain.sh", line), do: String.trim(line) in @installed_probes
+  defp installed_probe?(_path, _line), do: false
 
   defp paths do
     Path.wildcard(".github/workflows/*.{yml,yaml}") ++

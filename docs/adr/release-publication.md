@@ -16,9 +16,14 @@ The identity of a release is governed by the
 
 Publish accepts only `workflow_dispatch`, with no inputs. Every publishing
 job first refuses a ref outside the repository's default branch. The source
-version comes from `mix.exs` and must equal `package.json`. One reader takes
-the first-listed development toolchain from `.tool-versions`; setup uses
-those exact versions, with strict BEAM selection and caching disabled.
+version comes from `mix.exs` and must equal `package.json`, checked by
+`scripts/release_artifact_info.mjs version` in verify and passed to subsequent
+jobs through its output. The shared `scripts/toolchain.sh` reader takes
+defaults and compatibility lanes from `.tool-versions`; setup uses those
+exact versions, with strict BEAM selection, installed-version checks, and
+caching disabled. Qualification is separate: only `kci/**` pushes start CI,
+and its final `qualified` job requires every other job to succeed before
+`kimosabe-land` moves the default branch.
 
 Publishing jobs use environment `publish`. Both the actor and triggering
 actor must be `corepay` or `palermo-git`. Within Publish, only npm receives
@@ -36,6 +41,7 @@ Windows consumers.
 2. **Verify the dispatched commit.** Keep the complete quality battery,
    privacy check, and final-release promotion check against the highest
    candidate tag. Fetch dependencies with `mix deps.get --check-locked`.
+   The quality gate builds docs with warnings as errors before packaging.
    Build both archives, the standalone verifier, and certified results.
    Run `scripts/verify_release_packages.exs --local HEX.tar NPM.tgz` on the
    built archives before uploading them as `verified-release` run artifacts.
@@ -45,11 +51,14 @@ Windows consumers.
    final. A conflict or pending approval fails the run, naming the partial
    state. Once live, npm's integrity must match the verified archive, and
    its installed verifier report must equal the dispatched escript's report.
-4. **Publish Hex to public hexpm.** The pinned Hex client's archive API
+4. **Publish Hex to public hexpm.** The shared script
+   `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS`
+   confirms version absence with the pinned Hex client's release API, then
    uploads the exact verified Hex archive and the documentation archive
-   prepared by verify. It never rebuilds the package. `HEX_API_KEY` exists
-   only in this step's environment; it is never passed on a command line,
-   printed, or saved. Pending approval or a conflict fails. The public Hex
+   prepared by verify. The call names `agent_blueprint_protocol` with no
+   organization, which is the public repository. It never rebuilds the
+   package. `HEX_API_KEY` exists only in this step's environment; it is never
+   passed on a command line, printed, or saved. Pending approval or a conflict fails. The public Hex
    release must match the verified archive's checksum before drafting.
 5. **Create a draft without a tag.** Use `gh release create --draft --target`
    with the dispatched commit SHA, naming the draft `v<version>`, and attach
@@ -69,7 +78,7 @@ Windows consumers.
 7. **Deploy Pages from that commit.** Pages follows a successful Publish
    `workflow_run` and checks out that run's `head_sha`, rather than a newer
    default-branch head. Manual default-branch dispatch remains available.
-   Its deployment uses the same protected `publish` environment. Neither
+   Its deployment uses the protected `github-pages` environment. Neither
    Pages nor postpublish starts from a tag push.
 8. **Finish as the owner.** Read both registries back and compare with this
    run's verified archives. Push `v<version>` at the dispatched SHA only

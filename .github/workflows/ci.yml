@@ -1,14 +1,8 @@
 name: CI
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
-      # kimosabe-land lands a commit by pushing it to kci/<sha> and moves
-      # main only after this workflow's run on that branch is green.
-      - "kci/**"
-  workflow_dispatch:
+    branches: ['kci/**']
 
 permissions:
   contents: read
@@ -18,22 +12,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  workflow-syntax:
-    name: Workflow syntax
+  toolchain:
+    name: Read suite toolchains
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Twice the slowest green run: 0.1 min, private run 44125456373.
+    timeout-minutes: 2
+    outputs:
+      elixir: ${{ steps.versions.outputs.elixir }}
+      otp: ${{ steps.versions.outputs.otp }}
+      nodejs: ${{ steps.versions.outputs.nodejs }}
+      golang: ${{ steps.versions.outputs.golang }}
+      beam_lanes: ${{ steps.versions.outputs.beam_lanes }}
+      nodejs_lanes: ${{ steps.versions.outputs.nodejs_lanes }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      # setup-go pinned to its release commit for v7.0.0 and Go 1.27.4,
-      # verified first-hand against the actions/setup-go tags API and the
-      # go.dev release list. No runner's ambient Go is used.
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.4"
+          persist-credentials: false
+
+      - name: Read defaults and compatibility lanes
+        id: versions
+        run: sh scripts/toolchain.sh >> "$GITHUB_OUTPUT"
+
+  workflow-syntax:
+    needs: toolchain
+    name: Workflow syntax
+    runs-on: ubuntu-24.04
+    # Twice the slowest green run: 0.4 min, run 44123748944.
+    timeout-minutes: 2
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Go uses the default read from .tool-versions.
+      - name: Set up Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: ${{ needs.toolchain.outputs.golang }}
           cache: false
+
+      - name: Verify installed Go versions
+        shell: bash
+        env:
+          TOOLCHAIN_GOLANG: ${{ needs.toolchain.outputs.golang }}
+        run: sh scripts/toolchain.sh --installed golang="$TOOLCHAIN_GOLANG"
 
       # actionlint pinned to its release commit for v1.7.12, verified first-hand
       # against the rhysd/actionlint tags API. `go run` fetches the module by
@@ -42,23 +66,30 @@ jobs:
         run: go run github.com/rhysd/actionlint/cmd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca
 
   secret-scan:
+    needs: toolchain
     name: Secret scan
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Twice the slowest green run: 0.8 min, run 44031988112.
+    timeout-minutes: 2
     steps:
       - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
-      # setup-go pinned to its release commit for v7.0.0 and Go 1.27.4,
-      # verified first-hand against the actions/setup-go tags API and the
-      # go.dev release list. No runner's ambient Go is used.
+      # Go uses the default read from .tool-versions.
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
-          go-version: "1.27.4"
+          go-version: ${{ needs.toolchain.outputs.golang }}
           cache: false
+
+      - name: Verify installed Go versions
+        shell: bash
+        env:
+          TOOLCHAIN_GOLANG: ${{ needs.toolchain.outputs.golang }}
+        run: sh scripts/toolchain.sh --installed golang="$TOOLCHAIN_GOLANG"
 
       # gitleaks pinned to its release commit for v8.30.1, verified first-hand
       # against the gitleaks/gitleaks tags API. `go run` fetches the module by
@@ -68,13 +99,16 @@ jobs:
         run: go run github.com/zricethezav/gitleaks/v8@83d9cd684c87d95d656c1458ef04895a7f1cbd8e git --config .gitleaks.toml --redact --no-banner
 
   spec-extraction:
+    needs: toolchain
     name: Specification extraction
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Twice the slowest green run: 0.9 min, run 44089335225.
+    timeout-minutes: 2
     steps:
       - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install git-filter-repo
@@ -82,13 +116,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-filter-repo
 
-      # The dev pin (mirrors .tool-versions).
+      # The default BEAM toolchain read from .tool-versions.
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          version-type: strict
+          elixir-version: ${{ needs.toolchain.outputs.elixir }}
+          otp-version: ${{ needs.toolchain.outputs.otp }}
           install-hex: false
+
+      - name: Verify installed BEAM versions
+        shell: bash
+        env:
+          TOOLCHAIN_ELIXIR: ${{ needs.toolchain.outputs.elixir }}
+          TOOLCHAIN_ERLANG: ${{ needs.toolchain.outputs.otp }}
+        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
@@ -106,41 +148,36 @@ jobs:
         run: elixir scripts/check_spec_extraction.exs --tree /tmp/spec-extraction-clone
 
   compatibility:
-    name: Supported toolchain — ${{ matrix.lane }}
+    needs: toolchain
+    name: Supported toolchain — Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Twice the slowest green run: 3.3 min, run 44033161483.
+    timeout-minutes: 7
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # The enforced support matrix (docs/adr/supported-otp-set.md):
-          # Elixir 1.19 on OTP 28, and Elixir 1.20 on every supported OTP
-          # major. OTP 29 is exercised by the quality job on the dev pin;
-          # every supported major has a lane, and no lane sits outside
-          # config/config.exs's supported set. Every lane builds the npm
-          # kit before tests (including its consumers) and the conformance
-          # corpus; the full quality battery stays on the dev pin.
-          - lane: "Elixir 1.19 / OTP 28"
-            elixir: "1.19.6-otp-28"
-            otp: "28.5"
-          - lane: "Elixir 1.20 / OTP 28"
-            elixir: "1.20.4-otp-28"
-            otp: "28.5"
-          - lane: "Elixir 1.20 / OTP 27"
-            elixir: "1.20.4-otp-27"
-            otp: "27.3.4.17"
+        include: ${{ fromJSON(needs.toolchain.outputs.beam_lanes) }}
     steps:
       - name: Check out source (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
+          version-type: strict
           elixir-version: ${{ matrix.elixir }}
           otp-version: ${{ matrix.otp }}
           install-hex: false
+
+      - name: Verify installed BEAM versions
+        shell: bash
+        env:
+          TOOLCHAIN_ELIXIR: ${{ matrix.elixir }}
+          TOOLCHAIN_ERLANG: ${{ matrix.otp }}
+        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
@@ -148,11 +185,17 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.19.0"
+          node-version: ${{ needs.toolchain.outputs.nodejs }}
           package-manager-cache: false
 
+      - name: Verify installed Node versions
+        shell: bash
+        env:
+          TOOLCHAIN_NODEJS: ${{ needs.toolchain.outputs.nodejs }}
+        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+
       - name: Install dependencies
-        run: mix deps.get
+        run: mix deps.get --check-locked
 
       - name: Build the npm kit
         run: |
@@ -165,42 +208,57 @@ jobs:
           mix conformance.verify
 
   quality:
+    needs: toolchain
     name: Complete quality and package boundary
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # Twice the slowest green run: 10.8 min, run 44091220164.
+    timeout-minutes: 22
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.19.0"
+          node-version: ${{ needs.toolchain.outputs.nodejs }}
           package-manager-cache: false
 
-      # The dev pin (mirrors .tool-versions): Elixir 1.20.x on OTP 29.x.
+      - name: Verify installed Node versions
+        shell: bash
+        env:
+          TOOLCHAIN_NODEJS: ${{ needs.toolchain.outputs.nodejs }}
+        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+
+      # The default BEAM toolchain read from .tool-versions.
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          version-type: strict
+          elixir-version: ${{ needs.toolchain.outputs.elixir }}
+          otp-version: ${{ needs.toolchain.outputs.otp }}
           install-hex: false
 
-      # Publication guards run independently of the build and tests. Fork
-      # pull requests without the secret skip loudly; every other run enforces.
+      - name: Verify installed BEAM versions
+        shell: bash
+        env:
+          TOOLCHAIN_ELIXIR: ${{ needs.toolchain.outputs.elixir }}
+          TOOLCHAIN_ERLANG: ${{ needs.toolchain.outputs.otp }}
+        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
+
+      # Every landing enforces publication privacy independently of the build and tests.
       - name: Check public privacy over full history
         run: elixir scripts/check_public_privacy.exs scripts/public_privacy.json
         env:
           ABP_PUBLIC_PRIVACY_HMAC_KEY: ${{ secrets.ABP_PUBLIC_PRIVACY_HMAC_KEY }}
-          ABP_PRIVACY_SCAN: ${{ github.event.pull_request.head.repo.fork == true && 'fork-skip' || 'enforce' }}
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
 
       - name: Install dependencies
-        run: mix deps.get
+        run: mix deps.get --check-locked
 
       # The agreement gate proves the npm kit against the escript, so the
       # kit (gitignored dist/) must be built from this same tree first.
@@ -212,12 +270,14 @@ jobs:
       - name: Run complete quality gate
         run: mix quality
         # includes release.asset: the standalone verifier kit must run
-        # green over the shipped archive's corpus on every push
+        # green over the shipped archive's corpus on every landing
 
   platforms:
+    needs: toolchain
     name: Consumer and contributor — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # Twice the slowest green run: 6.8 min, run 43998494043.
+    timeout-minutes: 14
     defaults:
       run:
         shell: bash
@@ -231,26 +291,42 @@ jobs:
       - name: Check out byte-exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.19.0"
+          node-version: ${{ needs.toolchain.outputs.nodejs }}
           package-manager-cache: false
+
+      - name: Verify installed Node versions
+        shell: bash
+        env:
+          TOOLCHAIN_NODEJS: ${{ needs.toolchain.outputs.nodejs }}
+        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+
       - name: Verify checkout bytes and paths
         run: node scripts/check_checkout.mjs
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          version-type: strict
+          elixir-version: ${{ needs.toolchain.outputs.elixir }}
+          otp-version: ${{ needs.toolchain.outputs.otp }}
           install-hex: false
+
+      - name: Verify installed BEAM versions
+        shell: bash
+        env:
+          TOOLCHAIN_ELIXIR: ${{ needs.toolchain.outputs.elixir }}
+          TOOLCHAIN_ERLANG: ${{ needs.toolchain.outputs.otp }}
+        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
       - name: Install dependencies and compile
         run: |
-          mix deps.get
+          mix deps.get --check-locked
           mix compile --warnings-as-errors
       - name: Build and exercise the kit
         run: |
@@ -285,9 +361,11 @@ jobs:
           mix typescript.guide
 
   typescript-consumers:
+    needs: toolchain
     name: TypeScript consumer / Node ${{ matrix.node }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # Twice the slowest green run: 2.4 min, run 44084805695.
+    timeout-minutes: 5
     defaults:
       run:
         shell: bash
@@ -295,15 +373,25 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
-        node: ["26.13.0"]
+        node: ${{ fromJSON(needs.toolchain.outputs.nodejs_lanes) }}
     steps:
       - name: Check out byte-exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
+
+      - name: Verify installed Node versions
+        shell: bash
+        env:
+          TOOLCHAIN_NODEJS: ${{ matrix.node }}
+        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+
       - name: Build the typed library and CLI
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
@@ -313,14 +401,42 @@ jobs:
       - name: Exercise both conformance adapters and the harness
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          version-type: strict
+          elixir-version: ${{ needs.toolchain.outputs.elixir }}
+          otp-version: ${{ needs.toolchain.outputs.otp }}
           install-hex: false
+
+      - name: Verify installed BEAM versions
+        shell: bash
+        env:
+          TOOLCHAIN_ELIXIR: ${{ needs.toolchain.outputs.elixir }}
+          TOOLCHAIN_ERLANG: ${{ needs.toolchain.outputs.otp }}
+        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
       - name: Verify the harness
         run: |
-          mix deps.get
+          mix deps.get --check-locked
           mix escript.build
           node scripts/check_conformance_product.mjs
+
+  qualified:
+    if: always()
+    needs: [toolchain, workflow-syntax, secret-scan, spec-extraction, compatibility, quality, platforms, typescript-consumers]
+    runs-on: ubuntu-24.04
+    # Twice the slowest green run: 0.1 min, private run 44125456373.
+    timeout-minutes: 2
+    steps:
+      - name: Require every qualification job to succeed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = json.loads(os.environ['NEEDS'])
+          failed = [name for name, job in results.items() if job['result'] != 'success']
+          if failed:
+              print('Qualification refused: ' + ', '.join(failed))
+          sys.exit(bool(failed) or not results)
+          PY

@@ -17,18 +17,6 @@ defmodule PublicPrivacyScan do
     {"GIT_CONFIG_KEY_1", "maintenance.auto"},
     {"GIT_CONFIG_VALUE_1", "false"}
   ]
-  # Fork pull requests receive no repository secrets, so the enforcing scan
-  # cannot run there. The ONLY relaxation is an exact "fork-skip" mode set
-  # by CI for github.event.pull_request.head.repo.fork; every other mode
-  # value (including typos) stays enforcing and fails closed without a key.
-  @fork_skip_mode "fork-skip"
-
-  @fork_skip_banner """
-  [privacy-scan] SKIPPED: fork pull request without access to the privacy secret.
-  The full-history consumer-topology scan was NOT executed on this run.
-  The enforcing scan runs on every push, on maintainer pull requests, and on
-  any run whose secret IS present; merging requires one of those contexts.
-  """
 
   def main(argv) do
     {config_path, repo} =
@@ -39,33 +27,26 @@ defmodule PublicPrivacyScan do
       end
 
     config = load_config!(config_path)
+    key = privacy_key!(config)
+    result = scan_repo(repo, MapSet.new(config["forbidden_hmacs"]), key)
 
-    case privacy_scan_decision(config) do
-      {:skip, banner} ->
-        IO.puts(banner)
-        0
+    findings =
+      [
+        "tracked files",
+        "commit messages",
+        "historical paths",
+        "historical contents",
+        "tag messages",
+        "ref names"
+      ]
+      |> Enum.zip(Tuple.to_list(result))
+      |> Enum.filter(fn {_surface, finding} -> finding not in [0, false] end)
 
-      {:enforce, key} ->
-        result = scan_repo(repo, MapSet.new(config["forbidden_hmacs"]), key)
+    Enum.each(findings, fn {surface, _finding} ->
+      IO.puts(:stderr, "[privacy-scan] FAILED: #{surface}")
+    end)
 
-        findings =
-          [
-            "tracked files",
-            "commit messages",
-            "historical paths",
-            "historical contents",
-            "tag messages",
-            "ref names"
-          ]
-          |> Enum.zip(Tuple.to_list(result))
-          |> Enum.filter(fn {_surface, finding} -> finding not in [0, false] end)
-
-        Enum.each(findings, fn {surface, _finding} ->
-          IO.puts(:stderr, "[privacy-scan] FAILED: #{surface}")
-        end)
-
-        if findings == [], do: 0, else: 1
-    end
+    if findings == [], do: 0, else: 1
   rescue
     error in RuntimeError ->
       IO.puts(:stderr, "[privacy-scan] REFUSED: " <> Exception.message(error))
@@ -81,11 +62,9 @@ defmodule PublicPrivacyScan do
 
     valid? =
       is_map(config) and
-        Enum.sort(Map.keys(config)) == ["forbidden_hmacs", "key_env", "mode_env"] and
-        Enum.all?(["key_env", "mode_env"], fn field ->
-          is_binary(config[field]) and Regex.match?(~r/\A[A-Za-z_][A-Za-z0-9_]*\z/, config[field])
-        end) and
-        config["key_env"] != config["mode_env"] and
+        Enum.sort(Map.keys(config)) == ["forbidden_hmacs", "key_env"] and
+        is_binary(config["key_env"]) and
+        Regex.match?(~r/\A[A-Za-z_][A-Za-z0-9_]*\z/, config["key_env"]) and
         is_list(config["forbidden_hmacs"]) and config["forbidden_hmacs"] != [] and
         Enum.all?(config["forbidden_hmacs"], fn digest ->
           is_binary(digest) and Regex.match?(~r/\A[0-9a-f]{64}\z/, digest)
@@ -95,19 +74,14 @@ defmodule PublicPrivacyScan do
     config
   end
 
-  def privacy_scan_decision(config) do
+  def privacy_key!(config) do
     key = config["key_env"] |> System.get_env() |> then(&String.trim(&1 || ""))
 
-    cond do
-      byte_size(key) >= 32 ->
-        {:enforce, key}
-
-      System.get_env(config["mode_env"]) == @fork_skip_mode ->
-        {:skip, @fork_skip_banner}
-
-      true ->
-        raise "public-history privacy key is required and must be at least 32 bytes"
+    if byte_size(key) < 32 do
+      raise "public-history privacy key is required and must be at least 32 bytes"
     end
+
+    key
   end
 
   def scan_repo(repo, forbidden_hmacs, key) do

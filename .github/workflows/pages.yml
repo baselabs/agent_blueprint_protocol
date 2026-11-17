@@ -23,7 +23,8 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Twice the slowest green run: 0.2 min, run 44033341668.
+    timeout-minutes: 2
     steps:
       - name: Refuse refs outside the default branch
         env:
@@ -66,7 +67,8 @@ jobs:
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Twice the slowest green run: 0.3 min, run 44033341668.
+    timeout-minutes: 2
     permissions:
       pages: write
       id-token: write

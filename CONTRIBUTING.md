@@ -12,16 +12,26 @@ Use Elixir 1.19 or newer with OTP 27, 28, or 29. Install Node.js 24 or newer for
 Install the declared development toolchain, including Elixir 1.19+ with supported OTP and Node.js 24+. Keep the repository release tags available because compatibility replay checks released versions. Fetch missing tags with `git fetch --tags origin` (and unshallow a shallow checkout first with `git fetch --unshallow origin`). Then prepare both toolchains:
 
 ```sh
-mix deps.get
+mix deps.get --check-locked
 npm ci --ignore-scripts --no-audit --no-fund
 npm run build
 ```
 
 A standalone `mix typescript.guide` check also requires the npm dependencies and generated package from `npm run build`.
 
-## Local checks
+## CI and checks
 
-Run focused tests for the files you change and their direct dependents in the source checkout. Other useful checks include:
+Qualification starts only on a push to `kci/**`. `kimosabe-land` moves the
+default branch only after `qualified` has required every other job to succeed.
+Pull requests, default-branch pushes, tags, and dispatches do not start CI.
+This public repository uses pinned GitHub-hosted runners; builds and tests
+run only in CI, never on the owner's Mac or the build box. Workstation checks
+are limited to static inspection, actionlint, and the shell toolchain reader.
+
+`scripts/toolchain.sh` is the only reader of `.tool-versions`. CI reads its
+defaults and compatibility lanes once in `toolchain`; runtime setup uses
+those outputs, strict BEAM versions, and installed-version checks. Publish
+and postpublish use the same reader. CI also runs:
 
 ```sh
 mix format --check-formatted
@@ -33,11 +43,11 @@ mix typescript.guide
 CI builds both consumer packages and runs their own notebook, doctest, Elixir
 snippet, and TypeScript example gates on Linux, macOS, and Windows before a tag,
 then replays every earlier release census and the signed 0.8.x goldens through
-the installed Hex and npm verifiers. Run that same verification locally after
-`npm run build`:
+the installed Hex and npm verifiers. The corresponding CI verification after
+`npm run build` is:
 
 ```sh
-VERSION=$(node -p "require('./dist/package/package.json').version")
+VERSION=$(node scripts/release_artifact_info.mjs version)
 mix hex.build --output package.tar
 npm pack ./dist/package --ignore-scripts --pack-destination .
 elixir scripts/verify_release_packages.exs --local package.tar "agent-blueprint-protocol-verifier-$VERSION.tgz"
@@ -67,7 +77,7 @@ mix conformance.verify
 
 The command prints a canonical aggregate report. Exit `0` means agreement, `1` means disagreement, `2` means invalid usage or corpus data, and `3` means an internal error.
 
-Run the complete quality checks with:
+CI runs the complete quality checks with:
 
 ```sh
 mix quality
@@ -85,13 +95,17 @@ A release commit carries the equal Hex and npm version, release metadata,
 and all versioned install commands, documentation links, and notebook targets.
 The DevOps owner dispatches **Publish** from the default branch with no inputs.
 The run derives the version from `mix.exs`, checks it against `package.json`,
-and refuses if that version is already on either registry or already tagged.
+using `scripts/release_artifact_info.mjs version`, and refuses if that version
+is already on either registry or already tagged.
 It verifies the dispatched commit with the complete quality battery and runs
 both built archives through the local consumer verification before publishing
 those exact archives. Local `npm publish` is not part of this process.
 
 npm uses trusted publishing with provenance in environment `publish`, followed
-by Hex publication to public hexpm. Both live packages must match the verified
+by Hex publication to public hexpm through the shared script
+`scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS`.
+That script confirms absence through the pinned Hex client's API before it
+uploads the verified package and docs. Both live packages must match the verified
 archives. The GitHub release remains a draft named `v<version>`, targeted at
 the dispatched SHA, with the standalone verifier and certified results attached.
 The run never creates or pushes a tag. Postpublish verifies installed packages
