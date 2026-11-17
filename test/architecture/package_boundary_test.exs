@@ -252,6 +252,17 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     assert Mix.Project.config()[:package][:files] == @declared_files
   end
 
+  # The kit's shipped declarations import `node:` types, so they compile against
+  # the oldest Node the package supports, never a newer one.
+  test "Node typings track the engines floor" do
+    package = :json.decode(File.read!("package.json"))
+    lock = :json.decode(File.read!("package-lock.json"))
+    [floor] = Regex.run(~r/\A>=(\d+)\z/, package["engines"]["node"], capture: :all_but_first)
+
+    assert package["devDependencies"]["@types/node"] == "^#{floor}.0.0"
+    assert [^floor | _] = String.split(lock["packages"]["node_modules/@types/node"]["version"], ".")
+  end
+
   test "the built Hex archive ships exactly the allowlist, both directions" do
     on_exit(fn -> File.rm_rf!(@build_dir) end)
     {unpack_dir, shipped} = build_and_list_archive()
