@@ -116,10 +116,10 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
     assert platforms =~ "npm pack ./dist/package --ignore-scripts"
     assert platforms =~ "elixir scripts/verify_release_packages.exs --local"
 
-    postpublish = File.read!(".github/workflows/postpublish.yml")
-    assert postpublish =~ "elixir scripts/verify_release_packages.exs --registry"
-    refute postpublish =~ "ref: v${{ inputs.version }}"
-    refute postpublish =~ "postpublish_examples.mjs"
+    published = File.read!(".github/workflows/publish.yml")
+    assert published =~ "elixir scripts/verify_release_packages.exs --registry"
+    refute published =~ "ref: v${{ inputs.version }}"
+    refute published =~ "postpublish_examples.mjs"
   end
 
   test "release verification replays release tags through the installed packages" do
@@ -136,8 +136,7 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
 
     for path <- [
           ".github/workflows/ci.yml",
-          ".github/workflows/publish.yml",
-          ".github/workflows/postpublish.yml"
+          ".github/workflows/publish.yml"
         ] do
       jobs = Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, File.read!(path))
       verifying = for job <- jobs, job =~ "elixir scripts/verify_release_packages.exs", do: job
@@ -150,8 +149,8 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
     end
 
     publish = File.read!(".github/workflows/publish.yml")
-    assert publish =~ "uses: ./.github/workflows/postpublish.yml"
-    assert publish =~ "version: ${{ needs.verify.outputs.version }}"
+    assert publish =~ "needs: [verify, hex-publish]"
+    assert publish =~ "ABP_VERSION: ${{ needs.verify.outputs.version }}"
 
     replay = File.read!("scripts/check_compatibility_replay.exs")
     assert replay =~ ~s|["tag", "-l", "v*"]|

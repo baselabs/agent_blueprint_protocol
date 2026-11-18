@@ -1,372 +1,273 @@
 defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
   use ExUnit.Case, async: true
 
-  @workflows ~w(ci publish pages postpublish)
-  @owners [
-    ~s|contains(fromJSON('["corepay","palermo-git"]'), github.actor)|,
-    ~s|contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)|
-  ]
+  @owners ~s|contains(fromJSON('["corepay","palermo-git"]'), github.actor) && | <>
+            ~s|contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)|
 
-  test "publication is an input-free dispatch serialized without cancellation" do
+  test "publication is input-free and serialized, with every job owner gated and default-ref guarded" do
     workflow = workflow("publish")
     [_, triggers] = String.split(workflow, "\non:\n", parts: 2)
     [triggers | _] = String.split(triggers, "\npermissions:", parts: 2)
     assert String.trim(triggers) == "workflow_dispatch:"
-    assert workflow =~ "permissions:\n  contents: read\n"
     assert workflow =~ "group: publish\n  cancel-in-progress: false"
-    refute workflow =~ "github.ref_type"
-    refute workflow =~ "GITHUB_REF_NAME"
-    refute workflow =~ "skipping"
-    refute workflow =~ "idempotent"
 
-    for name <- ["verify", "npm-publish", "hex-publish", "draft-release"] do
-      job = job(workflow, name)
-      assert job =~ "    if: " <> Enum.join(@owners, " && ") <> "\n"
-      assert job =~ "    environment: publish\n"
+    assert Enum.map(jobs(workflow), &elem(&1, 0)) ==
+             ~w(verify npm-publish hex-publish smoke livebooks)
+
+    for {name, job} <- jobs(workflow) do
+      assert job =~ "    if: " <> @owners <> "\n"
       assert_default_branch_first(job)
+      if name in ~w(verify npm-publish hex-publish), do: assert(job =~ "environment: publish")
     end
+
+    refute workflow =~ "contents: write"
+    refute Regex.match?(~r/\bgh\s+release\b|^\s+git (?:push|tag)\b/m, workflow)
+    refute File.exists?(".github/workflows/postpublish.yml")
   end
 
-  test "publishing credentials are scoped to their protected job and step" do
+  test "credential-free published-package checks need the upload and retain their measured platforms" do
+    workflow = workflow("publish")
+
+    for {name, duration, run, limit} <- [
+          {"smoke", "0.5", "44085034568", 5},
+          {"livebooks", "2.9", "44022461020", 6}
+        ] do
+      job = job(workflow, name)
+      assert job =~ "needs: [verify, hex-publish]"
+      assert job =~ "permissions:\n      contents: read"
+      assert job =~ "ABP_VERSION: ${{ needs.verify.outputs.version }}"
+      assert job =~ "os: [ubuntu-24.04, macos-15, windows-2025]"
+      assert job =~ "# Measured as this repository's postpublish.yml #{name} job."
+      assert job =~ "#{duration} min, run #{run}.\n    timeout-minutes: #{limit}"
+      refute job =~ "environment:"
+      refute job =~ "secrets."
+      refute job =~ "HEX_HOME"
+    end
+
+    assert job(workflow, "smoke") =~ "node scripts/postpublish_smoke.mjs"
+    livebooks = job(workflow, "livebooks")
+    assert livebooks =~ "fetch-depth: 0"
+    assert livebooks =~ "elixir scripts/verify_release_packages.exs --registry"
+  end
+
+  test "only npm gets OIDC and only the conditional no-project Hex upload gets the key" do
     workflow = workflow("publish")
     npm = job(workflow, "npm-publish")
     hex = job(workflow, "hex-publish")
-    draft = job(workflow, "draft-release")
     assert length(Regex.scan(~r/^\s+id-token: write$/m, workflow)) == 1
     assert npm =~ "id-token: write"
-    assert length(Regex.scan(~r/^\s+contents: write$/m, workflow)) == 1
-    assert draft =~ "contents: write"
     assert npm =~ "needs: verify"
     assert hex =~ "needs: [verify, npm-publish]"
-    assert draft =~ "needs: [verify, hex-publish]"
-    refute npm =~ "HEX_API_KEY"
-
     key_step = step(hex, "Publish the verified Hex archive and docs to public hexpm")
-    assert key_step =~ "        working-directory: verified-release\n"
-    assert key_step =~ "        env:\n          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}"
-    assert key_step =~ "mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs"
-    [_, run] = String.split(key_step, "        run:", parts: 2)
-    refute run =~ "HEX_API_KEY"
-    assert length(Regex.scan(~r/HEX_API_KEY/, workflow)) == 3
+    assert key_step =~ "working-directory: verified-release"
 
     assert key_step =~
-             ~s|publish_hex_artifacts.exs \\\n            agent_blueprint_protocol "$VERSION"|
+             "if: needs.verify.outputs.hex_package == 'upload' || needs.verify.outputs.hex_docs == 'upload'"
 
-    assert key_step =~ ~s|"agent_blueprint_protocol-${VERSION}.tar" hex-docs.tar.gz|
+    assert key_step =~ "HEX_PACKAGE: ${{ needs.verify.outputs.hex_package }}"
+    assert key_step =~ "HEX_DOCS: ${{ needs.verify.outputs.hex_docs }}"
+    assert key_step =~ "HEX_API_KEY: ${{ secrets.HEX_API_KEY }}"
+    assert key_step =~ ~s|if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package|
+    assert key_step =~ ~s|if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs|
+    assert key_step =~ ~s|mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs "$@"|
     refute key_step =~ "--organization"
-
-    publisher = File.read!("scripts/publish_hex_artifacts.exs")
-    assert publisher =~ "OptionParser.parse(argv, strict: [organization: :string])"
-    assert publisher =~ "publish(opts[:organization], name, version, archive, docs)"
-    assert publisher =~ "auth = [key: key]"
-    [unkeyed, keyed] = String.split(publisher, ~s|System.fetch_env!("HEX_API_KEY")|, parts: 2)
-    [_usage, unkeyed] = String.split(unkeyed, "defp publish(", parts: 2)
-    assert unkeyed =~ "if Mix.Project.get() do"
-    assert unkeyed =~ "a Mix project is loaded; run from a directory without mix.exs"
-    assert unkeyed =~ "Hex.start()"
-    assert unkeyed =~ "Enum.each([Hex.API.Release, Hex.API.ReleaseDocs], &Code.ensure_loaded!/1)"
-    assert keyed =~ "Hex.API.Release.publish(repo, File.read!(archive), auth)"
-    assert keyed =~ "Hex.API.ReleaseDocs.publish(repo, name, version, File.read!(docs), auth)"
-    assert publisher =~ "when code in 200..299"
-    assert publisher =~ ~s|body["status"] == "staged"|
-    assert_before(publisher, "Hex.API.Release.publish", "Hex.API.ReleaseDocs.publish")
-    refute publisher =~ "Hex.API.Release.get"
-    refute publisher =~ "File.write"
-    refute publisher =~ "inspect("
-    refute publisher =~ "hex.build"
+    assert length(Enum.filter(steps(workflow), &(&1 =~ "HEX_API_KEY"))) == 1
+    refute npm =~ "HEX_API_KEY"
   end
 
-  @tag skip: match?({:win32, _}, :os.type())
-  test "the publisher resolves the installed Hex outside a project and refuses inside one" do
-    AgentBlueprintProtocol.Scratch.with_dir("hex-publisher", fn dir ->
-      outside = Path.join(dir, "outside")
-      inside = Path.join(dir, "inside")
-      File.mkdir_p!(outside)
-      File.mkdir_p!(inside)
-
-      File.write!(Path.join(inside, "mix.exs"), """
-      defmodule HexScriptProbe.MixProject do
-        use Mix.Project
-        def project, do: [app: :hex_script_probe, version: "0.0.0"]
-      end
-      """)
-
-      {output, status} = publisher(outside)
-      assert status != 0
-      assert output =~ "HEX_API_KEY"
-      refute output =~ "UndefinedFunctionError"
-      refute output =~ "a Mix project is loaded"
-
-      {output, status} = publisher(inside)
-      assert status != 0
-      assert output =~ "a Mix project is loaded; run from a directory without mix.exs"
-    end)
-  end
-
-  test "all source actions are pinned, uncredentialed, and uncached" do
-    for name <- @workflows do
-      workflow = workflow(name)
-      assert workflow =~ "permissions:\n  contents: read"
-      refute workflow =~ "actions/cache"
-      refute Regex.match?(~r/^\s+cache: (?!false$)/m, workflow)
-      refute Regex.match?(~r/^\s+package-manager-cache: (?!false$)/m, workflow)
-      refute workflow =~ "self-hosted"
-      refute workflow =~ "BASELABS_RUNNER"
-
-      for [_, action] <- Regex.scan(~r/^\s+uses: (.+)$/m, workflow) do
-        assert String.starts_with?(action, "./.github/workflows/") or
-                 Regex.match?(~r/@[0-9a-f]{40} # v\d+\.\d+\.\d+$/, action)
-      end
-
-      for action <- steps(workflow), action =~ "uses: actions/checkout@" do
-        assert action =~ "persist-credentials: false"
-      end
-
-      for action <- steps(workflow), action =~ "uses: actions/setup-node@" do
-        assert action =~ "package-manager-cache: false"
-      end
-
-      for action <- steps(workflow), action =~ "uses: erlef/setup-beam@" do
-        assert action =~ "version-type: strict"
-        assert action =~ "install-hex: false"
-      end
-
-      for action <- steps(workflow), action =~ "        run:" do
-        [_, run] = String.split(action, "        run:", parts: 2)
-        [run | _] = Regex.split(~r/^        (?:env|shell):/m, run, parts: 2)
-        refute run =~ "${{", name
-      end
-    end
-
-    for name <- ["publish", "pages"],
-        [_, runner] <- Regex.scan(~r/^    runs-on: (.+)$/m, workflow(name)) do
-      assert runner == "ubuntu-24.04"
-    end
-
-    for path <- Path.wildcard(".github/workflows/*.yml"),
-        job <- Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, File.read!(path)),
-        job =~ "uses: erlef/setup-beam@" do
-      assert job =~ "install-hex: false", path
-
-      assert Regex.scan(~r/mix local.hex (\d+\.\d+\.\d+) --force/, job) ==
-               [["mix local.hex 2.7.0 --force", "2.7.0"]]
-    end
-  end
-
-  test "the existing artifact reader requires one equal source package version" do
-    AgentBlueprintProtocol.Scratch.with_dir("release-inputs", fn dir ->
-      script = Path.expand("scripts/release_artifact_info.mjs")
-
-      for file <- ["mix.exs", "package.json"] do
-        File.cp!(file, Path.join(dir, file))
-      end
-
-      assert {version, 0} = System.cmd("node", [script, "version"], cd: dir)
-      assert version == Mix.Project.config()[:version]
-
-      package = :json.decode(File.read!("package.json"))
-      mismatched = Map.put(package, "version", package["version"] <> "-mismatch")
-      File.write!(Path.join(dir, "package.json"), :json.encode(mismatched))
-
-      assert {_, 1} =
-               System.cmd("node", [script, "version"],
-                 cd: dir,
-                 stderr_to_stdout: true
-               )
-
-      File.cp!("package.json", Path.join(dir, "package.json"))
-
-      for invalid <- ["", ~s|@version "1.0.0"\n@version "1.0.0"|, ~s|@version "main"|] do
-        File.write!(Path.join(dir, "mix.exs"), invalid)
-
-        assert {_, 1} =
-                 System.cmd("node", [script, "version"], cd: dir, stderr_to_stdout: true)
-      end
-    end)
-
+  test "source and artifacts are verified before read-only plans compare the exact built bytes" do
     workflow = workflow("publish")
     verify = job(workflow, "verify")
-    assert verify =~ "VERSION=$(node scripts/release_artifact_info.mjs version)"
-    assert verify =~ ~S|printf 'VERSION=%s\n' "$VERSION" >> "$GITHUB_ENV"|
-    assert verify =~ ~S|printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"|
-    assert verify =~ "version: ${{ steps.inputs.outputs.version }}"
-
-    for name <- ["npm-publish", "hex-publish", "draft-release"] do
-      assert job(workflow, name) =~ "VERSION: ${{ needs.verify.outputs.version }}"
-    end
-  end
-
-  test "occupied, partial, and unknown publication state refuse before uploading" do
-    workflow = workflow("publish")
-    verify = job(workflow, "verify")
-    npm = job(workflow, "npm-publish")
-    hex = job(workflow, "hex-publish")
     assert_before(verify, "bash scripts/check_publication.sh", "mix quality")
-    assert_before(npm, "bash scripts/check_publication.sh", "npm stage publish")
-    assert_before(hex, "bash scripts/check_publication.sh --after-npm", "mix run --no-mix-exs")
-    check = File.read!("scripts/check_publication.sh")
-    assert check =~ "set -euo pipefail"
-    assert check =~ "EXPECTED_NPM=404"
-    assert check =~ "EXPECTED_NPM=200"
-    assert check =~ ~s|git ls-remote --tags origin "refs/tags/v${VERSION}"|
-    assert check =~ ~s|"$NPM_STATUS" != "$EXPECTED_NPM"|
-    assert check =~ ~s|"$HEX_STATUS" != 404|
-    assert check =~ "https://registry.npmjs.org/@agent-blueprint-protocol%2fverifier\")"
-    assert check =~ "https://hex.pm/api/packages/agent_blueprint_protocol\")"
-    assert check =~ ~s|"$NPM_PACKAGE_STATUS" != 200 \|\| "$HEX_PACKAGE_STATUS" != 200|
-    assert check =~ "this workflow never creates a package"
-    assert_before(check, "NPM_PACKAGE_STATUS=", "NPM_STATUS=")
-    assert check =~ ~s|-n "$REMOTE_TAG"|
-    assert check =~ "::error::Refusing occupied or unknown release state"
-    assert check =~ "partial release or pending approval must be resolved by hand"
-    assert check =~ "exit 1"
-    refute check =~ "|| true"
-    assert npm =~ "Do not redispatch: an occupied version is refused"
-    assert npm =~ "::error::npm is pending or unreadable"
-
-    check_hex = File.read!("scripts/check_hex_release.mjs")
-    assert check_hex =~ "::error::Hex version is not live"
-    assert check_hex =~ "process.exitCode=1"
-    assert check_hex =~ "do not redispatch"
-    refute workflow =~ "continue-on-error"
-    refute workflow =~ "always()"
-
-    for {job, name} <- [
-          {npm, "Publish the npm kit (staged trusted publishing, provenance)"},
-          {hex, "Publish the verified Hex archive and docs to public hexpm"},
-          {job(workflow, "draft-release"), "Attach the verifier kit to a draft GitHub release"}
-        ] do
-      refute Regex.match?(~r/^\s+if:/m, step(job, name))
-    end
-  end
-
-  test "quality and both local package gates precede publication of the exact archives" do
-    workflow = workflow("publish")
-    verify = job(workflow, "verify")
-    npm = job(workflow, "npm-publish")
-    hex = job(workflow, "hex-publish")
+    assert_before(verify, "run: mix quality", "npm pack ./dist/package --ignore-scripts")
+    assert_before(verify, "mix hex.build --output", "verify_release_packages.exs --local")
+    assert_before(verify, "verify_release_packages.exs --local", "id: npm")
+    assert_before(verify, "Docs checksum:", "id: hex")
+    assert verify =~ "VERSION=$(node scripts/release_artifact_info.mjs version)"
+    assert verify =~ "version: ${{ steps.inputs.outputs.version }}"
+    assert verify =~ "npm: ${{ steps.npm.outputs.npm }}"
+    assert verify =~ "hex_package: ${{ steps.hex.outputs.package }}"
+    assert verify =~ "hex_docs: ${{ steps.hex.outputs.docs }}"
     assert verify =~ "mix deps.get --check-locked"
-    refute Regex.match?(~r/mix deps.get(?! --check-locked)/, workflow)
     assert verify =~ "npm ci --ignore-scripts --no-audit --no-fund"
     assert verify =~ "mix release.promote --check"
     assert verify =~ "fetch-depth: 0"
-    assert verify =~ "Check public privacy over full history"
-    assert_before(verify, "run: mix quality", "npm pack ./dist/package --ignore-scripts")
-    assert "docs --warnings-as-errors" in Mix.Project.config()[:aliases][:quality]
-    assert_before(verify, "mix hex.build --output", "verify_release_packages.exs --local")
-    assert_before(verify, "verify_release_packages.exs --local", "actions/upload-artifact@")
     assert verify =~ "MIX_ENV=test mix release.asset --write"
-    assert verify =~ "Verify the packed npm artifact"
+    assert verify =~ "Check public privacy over full history"
     assert verify =~ ~s|cmp "$RUNNER_TEMP/packed-report.json" "$RUNNER_TEMP/verified-report.json"|
-    assert verify =~ "if-no-files-found: error"
-    assert_before(verify, "tar -czf verified-release/hex-docs.tar.gz -C doc .", "Docs checksum")
+    assert verify =~ "node scripts/npm_release_state.mjs plan"
+    assert verify =~ "mix run --no-mix-exs ../scripts/hex_release_state.exs plan"
+    assert step(verify, "Plan the Hex uploads") =~ "working-directory: verified-release"
+    assert verify =~ ~s|[ "$NPM_STATE" = upload ]|
+    assert verify =~ ~s|[ "$HEX_PACKAGE" = served ] \|\| [ "$HEX_DOCS" = served ]|
+    refute workflow =~ "continue-on-error"
+
+    check = File.read!("scripts/check_publication.sh")
+    assert check =~ "set -euo pipefail"
+    assert check =~ "NPM_PACKAGE_STATUS="
+    assert check =~ "HEX_PACKAGE_STATUS="
+    assert check =~ "this workflow never creates a package"
+    assert check =~ ~s|git ls-remote --tags origin "refs/tags/v${VERSION}"|
+    refute check =~ "--after-npm"
+    refute check =~ "NPM_STATUS="
+    refute check =~ "/releases/${VERSION}"
+  end
+
+  test "deterministic docs omit EPUB and release assets include every consumer file and checksum" do
+    workflow = workflow("publish")
+    verify = job(workflow, "verify")
+    assert Mix.Project.config()[:docs][:formatters] == ["html", "markdown"]
+    assert verify =~ "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct HEAD)"
 
     assert verify =~
-             ~s|echo "Docs checksum: $(sha256sum verified-release/hex-docs.tar.gz \| cut -d' ' -f1)"|
+             ~s|tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner|
 
-    for job <- [npm, hex] do
-      assert job =~ "actions/download-artifact@"
-      assert job =~ "name: verified-release"
-      refute job =~ "npm run build"
-      refute job =~ "mix hex.build"
+    assert verify =~ "-cf - -C doc . | gzip -n > verified-release/hex-docs.tar.gz"
+    assert verify =~ "Docs checksum:"
+    assert verify =~ "Package checksum:"
+    assets = step(verify, "Prepare consumer release assets")
+
+    for file <- [
+          "agent_blueprint_protocol-${VERSION}.tar",
+          "agent-blueprint-protocol-verifier-${VERSION}.tgz",
+          "verifier-${VERSION}.tar.gz",
+          "certified-results.json",
+          "release-notes.md"
+        ] do
+      assert assets =~ file
     end
 
-    assert npm =~ ~s|"./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"|
+    assert assets =~ "elixir scripts/release_notes.exs"
+    assert assets =~ "sha256sum -- * > SHA256SUMS"
+    refute assets =~ "hex-docs.tar.gz"
+    hex = job(workflow, "hex-publish")
+    assert_before(hex, "hex_release_state.exs read-back", "name: release-assets")
+    upload = step(hex, "Hand consumer release assets to infra")
+    assert upload =~ "path: verified-release/release-assets/"
+    assert upload =~ "if-no-files-found: error"
+  end
+
+  test "served plans skip upload only and always complete registry read-back" do
+    workflow = workflow("publish")
+    npm = job(workflow, "npm-publish")
+    hex = job(workflow, "hex-publish")
+
+    assert step(npm, "Publish the npm kit (staged trusted publishing, provenance)") =~
+             "if: needs.verify.outputs.npm == 'upload'"
+
+    assert npm =~ "npm stage publish"
     assert npm =~ "--ignore-scripts --access public --provenance"
-    assert hex =~ ~s|"verified-release/agent_blueprint_protocol-${VERSION}.tar"|
+    assert npm =~ "node scripts/npm_release_state.mjs read-back"
+    refute step(npm, "Read back the served npm version") =~ "if:"
     assert hex =~ "node scripts/release_artifact_info.mjs npm-integrity"
     assert hex =~ ~s|if [ "$LIVE_INTEGRITY" != "$VERIFIED_INTEGRITY" ]; then|
-    assert hex =~ "node scripts/check_hex_release.mjs"
+    assert hex =~ ~s|cmp "$RUNNER_TEMP/kit-report.json" "$RUNNER_TEMP/escript-report.json"|
+    assert hex =~ "mix run --no-mix-exs ../scripts/hex_release_state.exs read-back"
+    refute step(hex, "Read back the served Hex package and docs") =~ "if:"
+    refute hex =~ "check_hex_release.mjs"
+    refute hex =~ "check_publication.sh"
 
-    package = :json.decode(File.read!("package.json"))
-    lock = :json.decode(File.read!("package-lock.json"))
-    assert lock["packages"][""]["devDependencies"] == package["devDependencies"]
+    for job <- [npm, hex] do
+      assert job =~ "name: verified-release"
+      refute job =~ "mix hex.build"
+      refute job =~ "npm run build"
+    end
   end
 
-  test "the source release stays a draft targeted at the dispatched commit without a tag" do
-    workflow = workflow("publish")
-    draft = job(workflow, "draft-release")
-    assert draft =~ "RELEASE_SHA: ${{ github.sha }}"
-    assert draft =~ ~s|gh release create "v${VERSION}"|
-    assert draft =~ ~s|--draft --target "$RELEASE_SHA"|
-    assert draft =~ ~s|--title "v${VERSION}"|
-    assert draft =~ ~s|"verified-release/verifier-${VERSION}.tar.gz"|
-    assert draft =~ ~s|"verified-release/certified-results.json"|
-    assert draft =~ ~s|git ls-remote --tags origin "refs/tags/v${VERSION}"|
-    refute Regex.match?(~r/^\s+git (?:push|tag)\b/m, workflow)
-    refute workflow =~ "gh release edit"
-    assert workflow =~ "uses: ./.github/workflows/postpublish.yml"
-    assert workflow =~ "version: ${{ needs.verify.outputs.version }}"
+  test "actions stay fully pinned and uncached and shell inputs enter through env" do
+    for name <- ~w(ci publish pages) do
+      source = workflow(name)
+      assert source =~ "permissions:\n  contents: read"
+      refute source =~ "actions/cache"
+      refute source =~ "BASELABS_RUNNER"
+
+      for [_, action] <- Regex.scan(~r/^\s+uses: (.+)$/m, source) do
+        assert Regex.match?(~r/@[0-9a-f]{40} # v\d+\.\d+\.\d+$/, action)
+      end
+
+      for step <- steps(source) do
+        if step =~ "uses: actions/checkout@", do: assert(step =~ "persist-credentials: false")
+        if step =~ "uses: actions/setup-node@", do: assert(step =~ "package-manager-cache: false")
+
+        if step =~ "uses: erlef/setup-beam@" do
+          assert step =~ "version-type: strict"
+          assert step =~ "install-hex: false"
+        end
+
+        if step =~ "        run:" do
+          [_, run] = String.split(step, "        run:", parts: 2)
+          [run | _] = Regex.split(~r/^        (?:env|shell):/m, run, parts: 2)
+          refute run =~ "${{"
+        end
+      end
+    end
   end
 
-  test "Pages deploys only by an owner's default-branch dispatch" do
+  test "Pages stays an owner's default-branch dispatch" do
     pages = workflow("pages")
     [_, triggers] = String.split(pages, "\non:\n", parts: 2)
     [triggers | _] = String.split(triggers, "\npermissions:", parts: 2)
     assert String.trim(triggers) == "workflow_dispatch:"
-    refute pages =~ "workflow_run"
-    assert pages =~ "path: site"
 
-    for name <- ["build", "deploy"] do
-      job = job(pages, name)
+    for {_name, job} <- jobs(pages) do
       assert_default_branch_first(job)
-      assert job =~ "    if: " <> Enum.join(@owners, " && ") <> "\n"
+      assert job =~ "    if: " <> @owners <> "\n"
     end
 
-    assert job(pages, "deploy") =~ "      name: github-pages\n"
-
-    postpublish = workflow("postpublish")
-    assert postpublish =~ "workflow_call:"
-    assert postpublish =~ "workflow_dispatch:"
-    assert postpublish =~ "version:\n"
-    assert postpublish =~ "elixir scripts/verify_release_packages.exs --registry"
-
-    assert length(Regex.scan(~r/os: \[ubuntu-24.04, macos-15, windows-2025\]/, postpublish)) ==
-             2
-
-    for name <- ["pages", "postpublish"] do
-      refute Regex.match?(~r/^  push:/m, workflow(name))
-      refute Regex.match?(~r/^\s+tags:/m, workflow(name))
-    end
+    assert job(pages, "deploy") =~ "name: github-pages"
   end
 
   @tag skip: match?({:win32, _}, :os.type())
-  test "prereleases keep their npm distribution tag and draft prerelease flag" do
+  test "the actual ref guard and prerelease npm tag selection execute correctly" do
     workflow = workflow("publish")
 
-    [npm] = Regex.run(~r/NPM_TAG=latest\n[^\n]*if \[\[ [^\n]*NPM_TAG=rc; fi/, workflow)
-
-    [release] =
-      Regex.run(~r/PRERELEASE_ARGS=\(\)\n[^\n]*if \[\[ [^\n]*--prerelease[^\n]*/, workflow)
-
-    for {version, tag, flag} <- [
-          {"1.0.0-rc.1", "rc", "--prerelease"},
-          {"1.0.0", "latest", ""}
-        ] do
-      script = npm <> "\n" <> release <> ~s(\nprintf '%s\\n%s' "$NPM_TAG" "${PRERELEASE_ARGS[*]}")
-      assert {output, 0} = System.cmd("bash", ["-c", script], env: [{"VERSION", version}])
-      assert output == tag <> "\n" <> flag
-    end
-  end
-
-  @tag skip: match?({:win32, _}, :os.type())
-  test "the actual first-step script refuses branch and tag refs other than the default" do
-    guard = workflow("publish") |> job("verify") |> steps() |> hd()
-    [_, script] = String.split(guard, "        run: |\n", parts: 2)
+    [_, guard] =
+      workflow |> job("verify") |> steps() |> hd() |> String.split("        run: |\n", parts: 2)
 
     for {ref, default, status} <- [
           {"refs/heads/main", "main", 0},
           {"refs/heads/stable", "stable", 0},
           {"refs/heads/main", "stable", 1},
-          {"refs/heads/feature", "main", 1},
           {"refs/tags/v1.0.0", "main", 1}
         ] do
       assert {_, ^status} =
-               System.cmd("bash", ["-c", script],
+               System.cmd("bash", ["-c", guard],
                  env: [{"RELEASE_REF", ref}, {"DEFAULT_BRANCH", default}]
                )
     end
+
+    [npm] = Regex.run(~r/NPM_TAG=latest\n[^\n]*if \[\[ [^\n]*NPM_TAG=rc; fi/, workflow)
+
+    for {version, tag} <- [{"1.0.0-rc.1", "rc"}, {"1.0.0", "latest"}] do
+      assert {^tag, 0} =
+               System.cmd("bash", ["-c", npm <> ~s(\nprintf '%s' "$NPM_TAG")],
+                 env: [{"VERSION", version}]
+               )
+    end
   end
+
+  defp workflow(name), do: File.read!(".github/workflows/#{name}.yml")
+
+  defp jobs(source) do
+    [_, body] = String.split(source, "\njobs:\n", parts: 2)
+
+    for [_, name, job] <-
+          Regex.scan(~r/^  ([a-z][a-z0-9-]*):\n(.*?)(?=^  [a-z][a-z0-9-]*:\n|\z)/ms, body),
+        do: {name, job}
+  end
+
+  defp job(source, name), do: source |> jobs() |> Map.new() |> Map.fetch!(name)
+
+  defp steps(source) do
+    source
+    |> String.split("      - name: ")
+    |> tl()
+    |> Enum.map(fn step ->
+      Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, step, parts: 2) |> hd()
+    end)
+  end
+
+  defp step(job, name), do: Enum.find(steps(job), &String.starts_with?(&1, name <> "\n"))
 
   defp assert_default_branch_first(job) do
     [guard | _] = steps(job)
@@ -377,48 +278,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert guard =~ "exit 1"
   end
 
-  defp publisher(dir) do
-    script = Path.expand("scripts/publish_hex_artifacts.exs")
-    args = ["agent_blueprint_protocol", "0.0.0", "package.tar", "hex-docs.tar.gz"]
-
-    System.cmd("mix", ["run", "--no-mix-exs", script | args],
-      cd: dir,
-      env: [
-        {"HEX_API_KEY", nil},
-        {"MIX_ENV", "dev"},
-        {"MIX_EXS", nil},
-        {"MIX_BUILD_PATH", nil},
-        {"MIX_BUILD_ROOT", nil},
-        {"MIX_DEPS_PATH", nil},
-        {"MIX_LOCKFILE", nil}
-      ],
-      stderr_to_stdout: true
-    )
-  end
-
   defp assert_before(source, earlier, later) do
     {first, _} = :binary.match(source, earlier)
     {second, _} = :binary.match(source, later)
     assert first < second
   end
-
-  defp workflow(name), do: File.read!(".github/workflows/#{name}.yml")
-
-  defp job(workflow, name) do
-    [_, rest] = String.split(workflow, "\n  #{name}:\n", parts: 2)
-    [job | _] = Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, rest, parts: 2)
-    job
-  end
-
-  defp steps(workflow) do
-    workflow
-    |> String.split("      - name: ")
-    |> tl()
-    |> Enum.map(fn step ->
-      [step | _] = Regex.split(~r/^  [a-z][a-z0-9-]*:\n/m, step, parts: 2)
-      step
-    end)
-  end
-
-  defp step(job, name), do: Enum.find(steps(job), &String.starts_with?(&1, name <> "\n"))
 end

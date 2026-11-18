@@ -28,9 +28,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     end
 
     publication = File.read!("docs/adr/release-publication.md")
-    assert publication =~ "Redispatch is a fresh publication attempt, never a resume operation"
+    assert publication =~ "A second dispatch on the same commit finishes a held release"
     assert publication =~ "new tag"
-    assert publication =~ "`draft: true` and `target_commitish`"
+    assert publication =~ "No workflow creates a release or tag"
     assert publication =~ "`HEX_API_KEY` as an environment secret"
     assert publication =~ "environment **`publish`**"
     assert publication =~ "owner review and default-branch deployment"
@@ -52,7 +52,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     end
 
     assert publication =~
-             "scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS"
+             "scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]"
 
     assert publication =~ "`github-pages` environment"
   end

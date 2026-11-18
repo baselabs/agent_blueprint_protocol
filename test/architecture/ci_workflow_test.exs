@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
   use ExUnit.Case, async: true
 
-  @workflows ~w(ci publish pages postpublish)
+  @workflows ~w(ci publish pages)
   @runtimes [
     {"erlef/setup-beam", [{"elixir", "elixir-version"}, {"erlang", "otp-version"}]},
     {"actions/setup-node", [{"nodejs", "node-version"}]},
@@ -123,26 +123,28 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
 
   test "every runner job has twice its measured green duration with a five-minute floor" do
     for name <- @workflows, {job_name, job} <- jobs(workflow(name)) do
-      if job =~ "    runs-on:" do
-        if {name, job_name} == {"publish", "draft-release"} do
-          assert job =~
-                   "# No predecessor; gh release create only. The 5-minute floor.\n    timeout-minutes: 5"
-        else
-          assert [_, duration, _run, timeout] =
-                   Regex.run(
-                     ~r/# Twice the slowest green run, at least 5 min: (\d+\.\d+) min, (?:private )?run (\d+)\.\n    timeout-minutes: (\d+)\n/,
-                     job
-                   )
+      assert job =~ "    runs-on:", "#{name}/#{job_name} must be a measured runner job"
 
-          assert String.to_integer(timeout) == max(5, ceil(2 * String.to_float(duration)))
-        end
-      else
-        # Reusable workflow callers cannot set timeout-minutes. The callee's
-        # runner jobs are checked by this same loop.
-        assert name == "publish" and job_name == "postpublish"
-        assert job =~ "uses: ./.github/workflows/postpublish.yml"
-        refute job =~ "timeout-minutes:"
-      end
+      assert [_, duration, _run, timeout] =
+               Regex.run(
+                 ~r/# Twice the slowest green run, at least 5 min: (\d+\.\d+) min, run (\d+)\.\n    timeout-minutes: (\d+)\n/,
+                 job
+               )
+
+      assert String.to_integer(timeout) == max(5, ceil(2 * String.to_float(duration)))
+    end
+  end
+
+  test "refreshed CI measurements name this repository's green runs" do
+    ci = Map.new(jobs(workflow("ci")))
+
+    for {name, duration, run, timeout} <- [
+          {"toolchain", "0.2", "44284713586", 5},
+          {"qualified", "0.1", "44284713586", 5},
+          {"workflow-syntax", "0.5", "44274680272", 5},
+          {"typescript-consumers", "3.0", "44195292472", 6}
+        ] do
+      assert ci[name] =~ "#{duration} min, run #{run}.\n    timeout-minutes: #{timeout}\n"
     end
   end
 

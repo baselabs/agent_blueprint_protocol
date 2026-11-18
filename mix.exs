@@ -148,6 +148,8 @@ defmodule AgentBlueprintProtocol.MixProject do
 
   defp docs do
     [
+      # EPUB zip entries carry build time; docs must rebuild byte for byte to compare with the registry on redispatch.
+      formatters: ["html", "markdown"],
       main: "readme",
       source_ref: "v#{@version}",
       # Released changelog entries retain names that are now implementation details.

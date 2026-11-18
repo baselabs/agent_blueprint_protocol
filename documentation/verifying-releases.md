@@ -94,10 +94,29 @@ node --input-type=module -e '
 
 The command prints the matching digest and exits `0`; a missing asset, failed download, or mismatch exits nonzero. The archive contains `release-metadata.json` and `conformance/index.json` for the same corpus comparison. Run these recipes in a fresh working directory; keep verified archives deliberately or remove the downloaded archives and extracted example directories when finished.
 
+## Verify SHA256SUMS and registry bytes
+
+For releases carrying SHA256SUMS, download all assets from the GitHub release
+`v<version>` into a fresh directory, using GitHub CLI or the release page:
+
+```sh
+VERSION=1.1.0
+gh release download "v$VERSION" --repo baselabs/agent_blueprint_protocol
+sha256sum --check SHA256SUMS
+```
+
+Require every listed file to pass. Compare the release's
+`agent_blueprint_protocol-<version>.tar` SHA-256 with the Hex release API checksum
+using the Hex recipe above. Compare the release's npm tgz with the registry's
+`dist.integrity` using the npm recipe. The `verifier-<version>.tar.gz` asset remains
+the standalone verifier; its SHA-256 must also match SHA256SUMS and GitHub's asset
+digest. A checksum file checks consistency; registry signatures and provenance
+provide independent checks. Remove the downloaded files when finished.
+
 ## Consumer example verification
 
-Once both registries are live and the draft release exists, the release
-workflow installs the published packages and runs their notebook, doctest,
+Once both registries and Hex docs are served, Publish
+installs the published packages and runs their notebook, doctest,
 Elixir snippet, and TypeScript example gates on Linux, macOS, and Windows,
 then replays every earlier release census and the signed 0.8.x goldens
 through the installed packages. CI builds both packages and runs the same
@@ -117,8 +136,7 @@ Local mode verifies candidate bytes without requiring them to be published.
 Both modes read the checkout's release tags to replay historical censuses and
 the signed 0.8.x goldens under both installed packages. A missing tag history
 fails verification; fetch the historical release tags before running either
-mode. The version being verified does not need its own tag, so Publish calls
-postpublish before DevOps creates the new tag.
+mode. The version being verified does not need its own tag, so Publish runs its installed-package jobs before infra creates the new tag.
 
 Without a checkout, the Hex package's own `scripts/consumer_examples.exs` takes
 the same arguments and runs the four package gates alone. It loads nothing

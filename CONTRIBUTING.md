@@ -31,7 +31,7 @@ are limited to static inspection, actionlint, and the shell toolchain reader.
 `scripts/toolchain.sh` is the only reader of `.tool-versions`. CI reads its
 defaults and compatibility lanes once in `toolchain`; runtime setup uses
 those outputs, strict BEAM versions, and installed-version checks. Publish
-and postpublish use the same reader. CI also runs:
+and published-package checks use the same reader. CI also runs:
 
 ```sh
 mix format --check-formatted
@@ -91,43 +91,39 @@ Regenerate release metadata after specification, corpus, or registry changes wit
 
 ## Releases
 
-A release commit carries the equal Hex and npm version, release metadata,
-and all versioned install commands, documentation links, and notebook targets.
-DevOps dispatches **Publish** as an owner from the default branch with no inputs.
-The run derives the version from `mix.exs`, checks it against `package.json`,
-using `scripts/release_artifact_info.mjs version`, and refuses if that version
-is already on either registry or already tagged. Both package names must
-already exist: a first publication is the owner's decision.
-It verifies the dispatched commit with the complete quality battery and runs
-both built archives through the local consumer verification before publishing
-those exact archives. Local `npm publish` is not part of this process.
+A release commit carries equal Hex and npm versions and current release metadata,
+install commands, documentation links, and notebook targets. DevOps dispatches
+**Publish** from the default branch as an owner, without inputs. The version is
+read by `scripts/release_artifact_info.mjs version`. Both package names must
+already exist, and an existing remote tag refuses publication. Qualification on
+`kci/**`, with every job required by `qualified`, precedes landing.
 
-npm uses trusted publishing with provenance in environment `publish`, followed
-by Hex publication to public hexpm through the shared script
-`scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS`.
-That script runs from the verified archives' directory, where no project is
-loaded, and uploads the verified package and docs through the pinned Hex
-client's API. Both live packages must match the verified
-archives. The GitHub release remains a draft named `v<version>`, targeted at
-the dispatched SHA, with the standalone verifier and certified results attached.
-The run never creates or pushes a tag. Postpublish verifies installed packages
-on Linux, macOS, and Windows using historical tags; the new tag is not required.
-Pages deploys only by an owner's dispatch from the default branch.
+Publish verifies the source, builds and inspects both archives, and compares
+served bytes before uploading only missing packages or docs. ExDoc produces HTML
+and Markdown; EPUB is omitted because its zip entries carry build time. The docs
+tarball is deterministic so another dispatch can compare it byte for byte.
 
-Pending approvals, upload conflicts, and partial publication fail the run.
-Redispatch does not resume: occupied versions refuse. DevOps has staged bytes
-approved, reads back live archives, and completes missing steps by hand with the
-failed run's `verified-release` artifacts, then dispatches postpublish with the
-version. After every Publish run, DevOps reads packages back, pushes the version
-tag at the published SHA, publishes the existing draft, and dispatches Pages.
+npm uses staged trusted publishing with provenance in environment `publish`.
+Hex uses `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]`
+through the pinned client's API from a directory with no Mix project. The Hex key
+reaches only that upload step. A held upload stops explicitly: approve it on
+npmjs.com or hex.pm, then dispatch Publish again on the same commit. The next run
+uploads only what is missing. Served equal bytes succeed; differing bytes,
+retirement, and unknown state refuse. No upload replaces a package.
 
-Before the first dispatch, the repository owner repoints npmjs.com's trusted
-publisher to this repository, `publish.yml`, and environment `publish`, which
-DevOps raises. DevOps places `HEX_API_KEY` in that environment and configures
-owner review and default-branch environment protection for uploads, drafts, and
-Pages. The
-[release publication](docs/adr/release-publication.md) record gives the sequence,
-refusal policy, recovery procedure, and registry setup.
+After package and docs read-back, all consumer files leave together as
+`release-assets`, including both package archives, the standalone verifier,
+certified results, CHANGELOG release notes, and SHA256SUMS. Publish's separate
+published-package jobs run installed consumers on Linux, macOS, and Windows with
+historical tags, no key, and no environment. No workflow creates a release or tag.
+Infra reads packages back, tags the dispatched SHA, compares the package archive
+with the registry, creates the GitHub release `v<version>` from those assets, and
+dispatches Pages. Pages deploys only through an owner's default-branch dispatch.
+
+Before publication, the owner configures npm's trusted publisher for this
+repository, `publish.yml`, and environment `publish`; DevOps configures
+`HEX_API_KEY` as an environment secret and owner review and default-branch
+environment protection. See [release publication](docs/adr/release-publication.md).
 
 ## Next steps
 

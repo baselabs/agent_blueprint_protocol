@@ -2,126 +2,88 @@
 
 ## Context
 
-A release ships equal versions to Hex and npm and attaches the standalone
-verifier and certified results to a GitHub release. Registries can require
-approval, and upload success does not prove that the live bytes match the
-verified archives. DevOps dispatches publication as an owner, reads packages
-back, and only then pushes the version tag, publishes the draft, and
-dispatches the site.
+A release ships equal versions to Hex and npm and supplies the standalone verifier,
+certified results, package archives, release notes, and SHA256SUMS for the GitHub
+release. Registries can hold uploads for approval. Upload acceptance alone does not
+prove publication or establish that the served bytes match the verified archives.
 
-The identity of a release is governed by the
-[release identity](release-identity-semantics.md) and
-[no-versioning](no-versioning-rule.md) records. This record governs publication.
+The [release identity](release-identity-semantics.md) and
+[no-versioning](no-versioning-rule.md) records govern release identity.
 
 ## Decision
 
-Publish accepts only `workflow_dispatch`, with no inputs. Every publishing
-job first refuses a ref outside the repository's default branch. The source
-version comes from `mix.exs` and must equal `package.json`, checked by
-`scripts/release_artifact_info.mjs version` in verify and passed to subsequent
-jobs through its output. The shared `scripts/toolchain.sh` reader takes
-defaults and compatibility lanes from `.tool-versions`; setup uses those
-exact versions, with strict BEAM selection, installed-version checks, and
-caching disabled. Qualification is separate: only `kci/**` pushes start CI,
-and its final `qualified` job requires every other job to succeed before
-landing moves the default branch.
+Publish accepts only an owner's `workflow_dispatch` from the default branch, with
+no inputs. Both actor and triggering actor must be `corepay` or `palermo-git`.
+Every job first refuses any other ref. Upload jobs use environment **`publish`**;
+configure owner review and default-branch deployment protection there. Only npm's
+upload job receives OIDC write permission. No job has contents write permission.
+Installed-package checks have the same owner gate, `contents: read`, no environment,
+and no key. Publication is serialized without cancelling an in-flight run.
 
-Publishing jobs use environment `publish`. Both the actor and triggering
-actor must be `corepay` or `palermo-git`. Within Publish, only npm receives
-OIDC permission; only the draft job receives repository contents write permission. The
-workflow serializes publications and never cancels one in flight. Publish
-and Pages use GitHub-hosted Ubuntu; postpublish retains Linux, macOS, and
-Windows consumers.
+Qualification remains separate: `kci/**` pushes run CI, and `qualified` requires
+every job before landing moves the default branch. Qualification installs only
+locally built ABP archives, never this package from its registry. All runtimes
+come from `scripts/toolchain.sh` and `.tool-versions`, are installed strictly and
+checked immediately; checkout uses `persist-credentials: false`, dependency
+fetches use `--check-locked`, and no caches are written. Publishing runs on
+GitHub-hosted Ubuntu; installed consumers run on Linux, macOS, and Windows.
 
-1. **Refuse occupied state before publication.** Both package names must
-   already exist on public npm and Hex: a first publication is the owner's
-   decision, and this workflow never creates a package. Check the
-   version-specific public npm and Hex endpoints and
-   `git ls-remote --tags origin` for `refs/tags/v<version>`. Any occupied
-   registry version or tag refuses the run. Only a registry HTTP not-found
-   response establishes absence; network failures and unexpected statuses
-   refuse. Repeat before npm uploads, and check Hex and tag absence again
-   after npm is live.
-2. **Verify the dispatched commit.** Keep the complete quality battery,
-   privacy check, and final-release promotion check against the highest
-   candidate tag. Fetch dependencies with `mix deps.get --check-locked`.
-   The quality gate builds docs with warnings as errors before packaging.
-   Build both archives, the standalone verifier, and certified results.
-   Run `scripts/verify_release_packages.exs --local HEX.tar NPM.tgz` on the
-   built archives before uploading them as `verified-release` run artifacts.
-   Preserve the packed npm comparison and escript agreement check.
-3. **Stage npm through trusted publishing.** Publish the verified npm
-   archive with provenance, using `rc` for a prerelease and `latest` for a
-   final. A conflict or pending approval fails the run, naming the partial
-   state. Once live, npm's integrity must match the verified archive, and
-   its installed verifier report must equal the dispatched escript's report.
-4. **Publish Hex to public hexpm.** The shared script
-   `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS`
-   uploads the exact verified Hex archive and the documentation archive
-   prepared by verify through the pinned Hex client's API. It runs in the
-   verified archives' directory, which has no `mix.exs`: `mix run --no-mix-exs`
-   still loads a `mix.exs` in its directory, which would compile the project
-   while the key is present and hide Hex's modules behind the project's code
-   path, so the script refuses a loaded project before it reads the key. The
-   call names `agent_blueprint_protocol` with no organization, which is the
-   public repository. It never rebuilds the package and requests no replace, so
-   Hex refuses a second upload of a version. `HEX_API_KEY` exists only in this
-   step's environment; it is never passed on a command line, printed, or saved.
-   Pending approval or a conflict fails. The public Hex release must match the
-   verified archive's checksum before drafting.
-5. **Create a draft without a tag.** Use `gh release create --draft --target`
-   with the dispatched commit SHA, naming the draft `v<version>`, and attach
-   the standalone verifier tarball and `certified-results.json`. Explicit
-   draft creation leaves it unpublished after asset upload; the CLI sends
-   `draft: true` and `target_commitish` to the release API. Check remote tag
-   absence before and after drafting. The workflow never creates or pushes
-   a tag or publishes the draft. Run artifacts retain the same assets for
-   recovery if drafting or asset upload fails.
-6. **Verify installed packages.** Call postpublish after the draft exists.
-   Its reusable call and version-input dispatch install the published npm
-   kit and both checksum-verified archives on Linux, macOS, and Windows.
-   They run every shipped consumer example and notebook and replay earlier
-   censuses and signed historical goldens through both installed packages.
-   The replay enumerates existing manifest-era tags and filters versions
-   newer than the installed package; it does not require the new tag.
-7. **Finish as DevOps.** After the dispatch, read both registries back and
-   compare with this run's verified archives. Push `v<version>` at the
-   dispatched SHA only after those checks, then publish the existing draft.
-   Tags remain immutable historical inputs for later compatibility replay.
-8. **Deploy Pages by dispatch.** A site deployment is the same act as a
-   publication: one owner dispatch of Pages from the default branch, made
-   by DevOps after the read-back. Both Pages jobs carry the owner condition
-   and refuse other refs first. Deployment uses the protected
-   `github-pages` environment. Neither Pages nor postpublish starts from a
-   tag push or a workflow event.
+1. **Verify the source and package names.** Derive equal versions from `mix.exs`
+   and `package.json`. Refuse a remote `v<version>` tag and any package name that
+   npm or Hex does not confirm exists. A first publication belongs to the owner;
+   unknown registry state is refused. Keep all historical release tags for replay.
+   Run the privacy guard, promotion check, and complete quality battery.
+2. **Build and inspect the exact bytes.** Pack the npm kit, standalone verifier,
+   certified results, and Hex package. Run the local consumer verification on
+   both packages. ExDoc produces HTML and Markdown, without EPUB: EPUB zip
+   entries carry build time. Archive docs with sorted entries, the commit's
+   timestamp, numeric owner/group zero, and `gzip -n`, so redispatch rebuilds
+   byte-identical docs. Print package and docs checksums.
+3. **Plan missing uploads.** `scripts/npm_release_state.mjs` compares the npm
+   version's `dist.integrity` with the built tgz. The shared
+   `scripts/hex_release_state.exs` compares the signed registry's raw outer
+   checksum and the stored docs tarball against the built bytes. Active, equal
+   bytes are served; absent uploads are planned. Retired releases, differing
+   bytes, malformed responses, and registry errors refuse. Docs without a
+   package, or served Hex bytes without npm, refuse as inconsistent.
+4. **Stage npm, then publish Hex.** Upload npm only when planned, using trusted
+   publishing with provenance, and read its integrity back with bounded retries.
+   Approve staged bytes on npmjs.com when required. Keep the live npm integrity
+   and installed-kit comparison before the Hex upload. The shared command is
+   `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]`.
+   It receives only missing archives and uploads the package before docs. Run it
+   with `mix run --no-mix-exs` from `verified-release`, without a `mix.exs`.
+   A loaded Mix project is refused before reading the key. Hex's modules remain
+   on the code path; nothing is compiled or rebuilt under the key. Store
+   `HEX_API_KEY` as an environment secret, exposed only in the upload step's env.
+   No response body, key, or authentication file is printed or persisted.
+5. **Read both Hex uploads back.** The upload script checks under the key whether
+   Hex already holds a requested package version before attempting upload. Held
+   packages stop before docs; held docs also stop explicitly. The read-only
+   state script requires package and docs to be served with the built bytes,
+   retrying only absence, six attempts ten seconds apart. It never replaces bytes.
+6. **Hand release assets to infra.** All consumer files leave the Hex publish job
+   together as `release-assets`: the Hex tar, npm tgz, `verifier-<version>.tar.gz`,
+   `certified-results.json`, `release-notes.md` from the dated CHANGELOG section,
+   and SHA256SUMS over the other files. Internal `verified-release` transport
+   carries inspected archives between jobs. No workflow creates a release or tag.
+7. **Check installed consumers.** Publish's `smoke` and `livebooks` jobs need
+   `verify` and `hex-publish`. They install the published packages and run their
+   notebooks, doctests, snippets, TypeScript examples, and historical replay.
+   The new tag is unnecessary; earlier release tags must remain available.
+8. **Infra creates the release.** After read-back and the new tag at the dispatched
+   SHA, infra compares the package archive with the registry and creates the
+   GitHub release `v<version>` using the complete release assets. It then dispatches
+   Pages from the default branch. Pages uses its own `github-pages` environment;
+   no tag push or workflow event deploys it.
 
-## Partial-state recovery
+## Held releases and redispatch
 
-Redispatch is a fresh publication attempt, never a resume operation. If npm
-is live but Hex is absent, preflight reports npm's occupied status alongside
-Hex and tag status and refuses before uploading anything. A staged slot may
-not appear in the public registry API; its upload conflict still fails and
-never becomes a successful skip. Unknown registry state also fails closed.
-
-DevOps inspects the failed run, has any pending staged uploads approved,
-downloads that run's `verified-release` artifacts, and reads back any live
-archives to verify their integrity. Complete missing uploads, documentation,
-or draft assets by hand with those exact verified bytes; rerun postpublish
-by its version-input dispatch. Then perform the tag, draft, and Pages
-steps above. Do not replace live bytes, rebuild for recovery, or redispatch
-Publish against an occupied version. This deliberately trades automatic
-resumption for an explicit boundary around irreversible partial publication.
-
-## Registry and environment setup
-
-- The repository owner repoints npmjs.com's trusted publisher to this
-  repository, `publish.yml`, and environment **`publish`**, replacing
-  **`GH TP for ABP`**; DevOps raises it. The registry binds all three;
-  changing YAML alone does not update npm. No npm token is used. Retain the
-  registry's maintainer approval and publishing protections.
-- DevOps stores `HEX_API_KEY` as an environment secret in **`publish`**,
-  scoped to publishing this public package and its docs. The privacy guard's
-  HMAC remains a step-scoped repository secret.
-- DevOps protects **`publish`** with owner review and default-branch deployment
-  restrictions, covering registry uploads and drafting. Pages deployment
-  stays in `github-pages`, restricted to the default branch.
+A second dispatch on the same commit finishes a held release, uploading only what
+is missing. Approve held npm uploads on npmjs.com or held Hex uploads on hex.pm,
+then dispatch Publish again on that same commit. Already served equal bytes
+succeed without uploading, including when all uploads are served: read-back,
+installed-package checks, and release assets still complete. An existing remote
+tag refuses a finished release. Differing bytes or retirement always refuse.
+Upload errors leave accepted uploads intact; resolve the cause and redispatch.
+Consumer verification uses the permanent GitHub release, never expiring run storage.

@@ -23,9 +23,9 @@ workflow, whose final `qualified` job gates landing.
 
 ## Consequences
 
-Site publication follows registry publication only by DevOps sequence. After
-a Publish run, DevOps reads the packages back, pushes the version tag at the
-published commit, publishes the GitHub draft, then dispatches Pages from the
-default branch. Until the draft is published, links to the new tag or draft
-assets may not resolve. The dispatch deploys the default branch as it stands;
-tags themselves never deploy the site.
+Site publication follows registry publication by infra sequence. After a Publish
+run, infra reads packages back, pushes the version tag at the published commit,
+compares the package archive with the registry, and creates the GitHub release
+from release-assets. It then dispatches Pages from the default branch. Links to
+the new tag and release assets resolve after that sequence completes. The dispatch
+deploys the default branch as it stands; tags themselves never deploy the site.
