@@ -259,6 +259,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert verify =~ "Verify the packed npm artifact"
     assert verify =~ ~s|cmp "$RUNNER_TEMP/packed-report.json" "$RUNNER_TEMP/verified-report.json"|
     assert verify =~ "if-no-files-found: error"
+    assert_before(verify, "tar -czf verified-release/hex-docs.tar.gz -C doc .", "Docs checksum")
+
+    assert verify =~
+             ~s|echo "Docs checksum: $(sha256sum verified-release/hex-docs.tar.gz \| cut -d' ' -f1)"|
 
     for job <- [npm, hex] do
       assert job =~ "actions/download-artifact@"

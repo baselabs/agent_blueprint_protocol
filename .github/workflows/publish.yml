@@ -155,7 +155,9 @@ jobs:
             "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
 
       - name: Prepare the verified documentation archive
-        run: tar -czf verified-release/hex-docs.tar.gz -C doc .
+        run: |
+          tar -czf verified-release/hex-docs.tar.gz -C doc .
+          echo "Docs checksum: $(sha256sum verified-release/hex-docs.tar.gz | cut -d' ' -f1)"
 
       - name: Upload the verified release artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
