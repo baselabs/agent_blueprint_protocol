@@ -33,12 +33,15 @@ workflow serializes publications and never cancels one in flight. Publish
 and Pages use GitHub-hosted Ubuntu; postpublish retains Linux, macOS, and
 Windows consumers.
 
-1. **Refuse occupied state before publication.** Check the version-specific
-   public npm and Hex endpoints and `git ls-remote --tags origin` for
-   `refs/tags/v<version>`. Any occupied registry version or tag refuses the
-   run. Only a registry HTTP not-found response establishes absence; network
-   failures and unexpected statuses refuse. Repeat before npm uploads, and
-   check Hex and tag absence again after npm is live.
+1. **Refuse occupied state before publication.** Both package names must
+   already exist on public npm and Hex: a first publication is the owner's
+   decision, and this workflow never creates a package. Check the
+   version-specific public npm and Hex endpoints and
+   `git ls-remote --tags origin` for `refs/tags/v<version>`. Any occupied
+   registry version or tag refuses the run. Only a registry HTTP not-found
+   response establishes absence; network failures and unexpected statuses
+   refuse. Repeat before npm uploads, and check Hex and tag absence again
+   after npm is live.
 2. **Verify the dispatched commit.** Keep the complete quality battery,
    privacy check, and final-release promotion check against the highest
    candidate tag. Fetch dependencies with `mix deps.get --check-locked`.
@@ -54,13 +57,18 @@ Windows consumers.
    its installed verifier report must equal the dispatched escript's report.
 4. **Publish Hex to public hexpm.** The shared script
    `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS`
-   confirms version absence with the pinned Hex client's release API, then
    uploads the exact verified Hex archive and the documentation archive
-   prepared by verify. The call names `agent_blueprint_protocol` with no
-   organization, which is the public repository. It never rebuilds the
-   package. `HEX_API_KEY` exists only in this step's environment; it is never
-   passed on a command line, printed, or saved. Pending approval or a conflict fails. The public Hex
-   release must match the verified archive's checksum before drafting.
+   prepared by verify through the pinned Hex client's API. It runs in the
+   verified archives' directory, which has no `mix.exs`: `mix run --no-mix-exs`
+   still loads a `mix.exs` in its directory, which would compile the project
+   while the key is present and hide Hex's modules behind the project's code
+   path, so the script refuses a loaded project before it reads the key. The
+   call names `agent_blueprint_protocol` with no organization, which is the
+   public repository. It never rebuilds the package and requests no replace, so
+   Hex refuses a second upload of a version. `HEX_API_KEY` exists only in this
+   step's environment; it is never passed on a command line, printed, or saved.
+   Pending approval or a conflict fails. The public Hex release must match the
+   verified archive's checksum before drafting.
 5. **Create a draft without a tag.** Use `gh release create --draft --target`
    with the dispatched commit SHA, naming the draft `v<version>`, and attach
    the standalone verifier tarball and `certified-results.json`. Explicit

@@ -96,7 +96,8 @@ and all versioned install commands, documentation links, and notebook targets.
 DevOps dispatches **Publish** as an owner from the default branch with no inputs.
 The run derives the version from `mix.exs`, checks it against `package.json`,
 using `scripts/release_artifact_info.mjs version`, and refuses if that version
-is already on either registry or already tagged.
+is already on either registry or already tagged. Both package names must
+already exist: a first publication is the owner's decision.
 It verifies the dispatched commit with the complete quality battery and runs
 both built archives through the local consumer verification before publishing
 those exact archives. Local `npm publish` is not part of this process.
@@ -104,8 +105,9 @@ those exact archives. Local `npm publish` is not part of this process.
 npm uses trusted publishing with provenance in environment `publish`, followed
 by Hex publication to public hexpm through the shared script
 `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS`.
-That script confirms absence through the pinned Hex client's API before it
-uploads the verified package and docs. Both live packages must match the verified
+That script runs from the verified archives' directory, where no project is
+loaded, and uploads the verified package and docs through the pinned Hex
+client's API. Both live packages must match the verified
 archives. The GitHub release remains a draft named `v<version>`, targeted at
 the dispatched SHA, with the standalone verifier and certified results attached.
 The run never creates or pushes a tag. Postpublish verifies installed packages

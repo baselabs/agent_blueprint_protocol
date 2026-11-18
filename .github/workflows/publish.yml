@@ -6,7 +6,8 @@ name: Publish
 # it. No npm token. Protect publish for the two owners and the default branch;
 # store HEX_API_KEY there. The privacy guard's HMAC remains a step-scoped
 # repository secret.
-# Refuse occupied npm/Hex versions or a remote version tag before publishing.
+# Refuse a package name either registry lacks (a first publication is the owner's),
+# occupied npm/Hex versions, or a remote version tag before publishing.
 # Partial or pending publication requires manual recovery with this run's exact
 # artifacts; redispatch is not a resume operation. Never create or push a tag.
 # npm, then Hex, then a GitHub DRAFT with the verifier and certified results.
@@ -333,13 +334,13 @@ jobs:
         run: bash scripts/check_publication.sh --after-npm
 
       - name: Publish the verified Hex archive and docs to public hexpm
+        working-directory: verified-release
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: |
-          mix run --no-mix-exs scripts/publish_hex_artifacts.exs \
+          mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs \
             agent_blueprint_protocol "$VERSION" \
-            "verified-release/agent_blueprint_protocol-${VERSION}.tar" \
-            verified-release/hex-docs.tar.gz
+            "agent_blueprint_protocol-${VERSION}.tar" hex-docs.tar.gz
 
       - name: Require the Hex version to be live with the verified bytes
         run: |

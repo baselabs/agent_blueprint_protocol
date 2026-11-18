@@ -1,8 +1,11 @@
 # Publish verified bytes with Hex 2.7.0's own API: the package archive, then its docs.
-# Usage: mix run --no-mix-exs scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS
-# Without --organization the package goes to the public repository; with it, to that
-# organization's repository. Hex's API calls take the organization exactly as
-# `mix hex.publish --organization ORG` passes it (nil for public).
+# Usage, from a directory without mix.exs, such as the verified archives' own:
+#   mix run --no-mix-exs PATH/publish_hex_artifacts.exs [--organization ORG] NAME VERSION ARCHIVE DOCS
+# Without mix.exs no project is loaded or compiled while the key is in the environment, and
+# the Hex archive stays on the code path; with one, Mix narrows the path to the project's
+# dependencies and Hex's modules become unloadable. A loaded project refuses before the key
+# is read. The workflow refuses an existing version or a missing package before this step;
+# Hex itself refuses a second upload of a version, because no replace is requested.
 # The key comes only from HEX_API_KEY in the step's env. Nothing is rebuilt here, no
 # authentication is persisted, and no response body or credential is printed.
 defmodule PublishHexArtifacts do
@@ -19,12 +22,16 @@ defmodule PublishHexArtifacts do
   end
 
   defp publish(repo, name, version, archive, docs) do
+    if Mix.Project.get() do
+      raise "a Mix project is loaded; run from a directory without mix.exs"
+    end
+
+    Hex.start()
+    Enum.each([Hex.API.Release, Hex.API.ReleaseDocs], &Code.ensure_loaded!/1)
+
     key = System.fetch_env!("HEX_API_KEY")
     if key == "", do: raise("HEX_API_KEY is empty; publication stopped")
-    Hex.start()
     auth = [key: key]
-
-    absent!(Hex.API.Release.get(repo, name, version, auth), repo, name, version)
 
     package_state =
       accepted!(Hex.API.Release.publish(repo, File.read!(archive), auth), "Hex package")
@@ -39,19 +46,6 @@ defmodule PublishHexArtifacts do
       raise "Hex approval pending; approve on hex.pm and recover by hand with the verified artifacts"
     end
   end
-
-  defp absent!({:ok, {404, _headers, _body}}, _repo, _name, _version), do: :ok
-
-  defp absent!({:ok, {code, _headers, _body}}, repo, name, version) when code in 200..299 do
-    raise "#{where(repo)} already has #{name} #{version}; publication refused"
-  end
-
-  defp absent!(_result, repo, name, version) do
-    raise "could not confirm #{name} #{version} is absent from #{where(repo)}; publication refused"
-  end
-
-  defp where(nil), do: "the public Hex repository"
-  defp where(organization), do: "Hex organization #{organization}"
 
   defp accepted!({:ok, {code, _headers, body}}, label) when code in 200..299 do
     IO.puts("#{label}: archive accepted")

@@ -42,38 +42,65 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     refute npm =~ "HEX_API_KEY"
 
     key_step = step(hex, "Publish the verified Hex archive and docs to public hexpm")
+    assert key_step =~ "        working-directory: verified-release\n"
     assert key_step =~ "        env:\n          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}"
-    assert key_step =~ "mix run --no-mix-exs scripts/publish_hex_artifacts.exs"
+    assert key_step =~ "mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs"
     [_, run] = String.split(key_step, "        run:", parts: 2)
     refute run =~ "HEX_API_KEY"
     assert length(Regex.scan(~r/HEX_API_KEY/, workflow)) == 3
 
-    publisher = File.read!("scripts/publish_hex_artifacts.exs")
-    assert publisher =~ ~s|System.fetch_env!("HEX_API_KEY")|
-    assert publisher =~ "OptionParser.parse(argv, strict: [organization: :string])"
-    assert publisher =~ "publish(opts[:organization], name, version, archive, docs)"
-    assert publisher =~ "auth = [key: key]"
-
-    assert publisher =~
-             "absent!(Hex.API.Release.get(repo, name, version, auth), repo, name, version)"
-
-    assert publisher =~ "Hex.API.Release.publish(repo, File.read!(archive), auth)"
-    assert publisher =~ "Hex.API.ReleaseDocs.publish(repo, name, version, File.read!(docs), auth)"
-    assert publisher =~ "defp absent!({:ok, {404, _headers, _body}}"
-    assert publisher =~ "already has"
-    assert publisher =~ "could not confirm"
-    assert publisher =~ "when code in 200..299"
-    assert publisher =~ ~s|body["status"] == "staged"|
-
     assert key_step =~
              ~s|publish_hex_artifacts.exs \\\n            agent_blueprint_protocol "$VERSION"|
 
+    assert key_step =~ ~s|"agent_blueprint_protocol-${VERSION}.tar" hex-docs.tar.gz|
     refute key_step =~ "--organization"
-    assert_before(publisher, "absent!(Hex.API.Release.get", "Hex.API.Release.publish")
+
+    publisher = File.read!("scripts/publish_hex_artifacts.exs")
+    assert publisher =~ "OptionParser.parse(argv, strict: [organization: :string])"
+    assert publisher =~ "publish(opts[:organization], name, version, archive, docs)"
+    assert publisher =~ "auth = [key: key]"
+    [unkeyed, keyed] = String.split(publisher, ~s|System.fetch_env!("HEX_API_KEY")|, parts: 2)
+    [_usage, unkeyed] = String.split(unkeyed, "defp publish(", parts: 2)
+    assert unkeyed =~ "if Mix.Project.get() do"
+    assert unkeyed =~ "a Mix project is loaded; run from a directory without mix.exs"
+    assert unkeyed =~ "Hex.start()"
+    assert unkeyed =~ "Enum.each([Hex.API.Release, Hex.API.ReleaseDocs], &Code.ensure_loaded!/1)"
+    assert keyed =~ "Hex.API.Release.publish(repo, File.read!(archive), auth)"
+    assert keyed =~ "Hex.API.ReleaseDocs.publish(repo, name, version, File.read!(docs), auth)"
+    assert publisher =~ "when code in 200..299"
+    assert publisher =~ ~s|body["status"] == "staged"|
     assert_before(publisher, "Hex.API.Release.publish", "Hex.API.ReleaseDocs.publish")
+    refute publisher =~ "Hex.API.Release.get"
     refute publisher =~ "File.write"
     refute publisher =~ "inspect("
     refute publisher =~ "hex.build"
+  end
+
+  @tag skip: match?({:win32, _}, :os.type())
+  test "the publisher resolves the installed Hex outside a project and refuses inside one" do
+    AgentBlueprintProtocol.Scratch.with_dir("hex-publisher", fn dir ->
+      outside = Path.join(dir, "outside")
+      inside = Path.join(dir, "inside")
+      File.mkdir_p!(outside)
+      File.mkdir_p!(inside)
+
+      File.write!(Path.join(inside, "mix.exs"), """
+      defmodule HexScriptProbe.MixProject do
+        use Mix.Project
+        def project, do: [app: :hex_script_probe, version: "0.0.0"]
+      end
+      """)
+
+      {output, status} = publisher(outside)
+      assert status != 0
+      assert output =~ "HEX_API_KEY"
+      refute output =~ "UndefinedFunctionError"
+      refute output =~ "a Mix project is loaded"
+
+      {output, status} = publisher(inside)
+      assert status != 0
+      assert output =~ "a Mix project is loaded; run from a directory without mix.exs"
+    end)
   end
 
   test "all source actions are pinned, uncredentialed, and uncached" do
@@ -184,6 +211,11 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert check =~ ~s|git ls-remote --tags origin "refs/tags/v${VERSION}"|
     assert check =~ ~s|"$NPM_STATUS" != "$EXPECTED_NPM"|
     assert check =~ ~s|"$HEX_STATUS" != 404|
+    assert check =~ "https://registry.npmjs.org/@agent-blueprint-protocol%2fverifier\")"
+    assert check =~ "https://hex.pm/api/packages/agent_blueprint_protocol\")"
+    assert check =~ ~s|"$NPM_PACKAGE_STATUS" != 200 \|\| "$HEX_PACKAGE_STATUS" != 200|
+    assert check =~ "this workflow never creates a package"
+    assert_before(check, "NPM_PACKAGE_STATUS=", "NPM_STATUS=")
     assert check =~ ~s|-n "$REMOTE_TAG"|
     assert check =~ "::error::Refusing occupied or unknown release state"
     assert check =~ "partial release or pending approval must be resolved by hand"
@@ -339,6 +371,25 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert guard =~ "DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}"
     assert guard =~ ~s|if [ "$RELEASE_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then|
     assert guard =~ "exit 1"
+  end
+
+  defp publisher(dir) do
+    script = Path.expand("scripts/publish_hex_artifacts.exs")
+    args = ["agent_blueprint_protocol", "0.0.0", "package.tar", "hex-docs.tar.gz"]
+
+    System.cmd("mix", ["run", "--no-mix-exs", script | args],
+      cd: dir,
+      env: [
+        {"HEX_API_KEY", nil},
+        {"MIX_ENV", "dev"},
+        {"MIX_EXS", nil},
+        {"MIX_BUILD_PATH", nil},
+        {"MIX_BUILD_ROOT", nil},
+        {"MIX_DEPS_PATH", nil},
+        {"MIX_LOCKFILE", nil}
+      ],
+      stderr_to_stdout: true
+    )
   end
 
   defp assert_before(source, earlier, later) do
