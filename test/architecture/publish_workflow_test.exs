@@ -12,12 +12,15 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert workflow =~ "group: publish\n  cancel-in-progress: false"
 
     assert Enum.map(jobs(workflow), &elem(&1, 0)) ==
-             ~w(verify npm-publish hex-publish smoke livebooks)
+             ~w(verify npm-publish npm-kit hex-publish smoke livebooks)
 
     for {name, job} <- jobs(workflow) do
       assert job =~ "    if: " <> @owners <> "\n"
       assert_default_branch_first(job)
-      if name in ~w(verify npm-publish hex-publish), do: assert(job =~ "environment: publish")
+
+      if name in ~w(verify npm-publish hex-publish),
+        do: assert(job =~ "environment: publish"),
+        else: refute(job =~ "environment:")
     end
 
     refute workflow =~ "contents: write"
@@ -50,6 +53,22 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert livebooks =~ "elixir scripts/verify_release_packages.exs --registry"
   end
 
+  test "the published npm kit is checked without credentials before the Hex upload" do
+    workflow = workflow("publish")
+    kit = job(workflow, "npm-kit")
+    assert kit =~ "needs: [verify, npm-publish]"
+    assert kit =~ "permissions:\n      contents: read"
+    assert kit =~ "run\n    # 44085034568. Measured under 2.5 min, so 5.\n    timeout-minutes: 5"
+    refute kit =~ "environment:"
+    refute kit =~ "secrets."
+    assert kit =~ "node scripts/release_artifact_info.mjs npm-integrity"
+    assert kit =~ ~s|if [ "$LIVE_INTEGRITY" != "$VERIFIED_INTEGRITY" ]; then|
+    assert kit =~ ~s|cmp "$RUNNER_TEMP/kit-report.json" "$RUNNER_TEMP/escript-report.json"|
+    hex = job(workflow, "hex-publish")
+    refute hex =~ "npm install"
+    refute hex =~ "npx"
+  end
+
   test "only npm gets OIDC and only the conditional no-project Hex upload gets the key" do
     workflow = workflow("publish")
     npm = job(workflow, "npm-publish")
@@ -57,7 +76,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert length(Regex.scan(~r/^\s+id-token: write$/m, workflow)) == 1
     assert npm =~ "id-token: write"
     assert npm =~ "needs: verify"
-    assert hex =~ "needs: [verify, npm-publish]"
+    assert hex =~ "needs: [verify, npm-kit]"
     key_step = step(hex, "Publish the verified Hex archive and docs to public hexpm")
     assert key_step =~ "working-directory: verified-release"
 
@@ -159,9 +178,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert npm =~ "--ignore-scripts --access public --provenance"
     assert npm =~ "node scripts/npm_release_state.mjs read-back"
     refute step(npm, "Read back the served npm version") =~ "if:"
-    assert hex =~ "node scripts/release_artifact_info.mjs npm-integrity"
-    assert hex =~ ~s|if [ "$LIVE_INTEGRITY" != "$VERIFIED_INTEGRITY" ]; then|
-    assert hex =~ ~s|cmp "$RUNNER_TEMP/kit-report.json" "$RUNNER_TEMP/escript-report.json"|
     assert hex =~ "mix run --no-mix-exs ../scripts/hex_release_state.exs read-back"
     refute step(hex, "Read back the served Hex package and docs") =~ "if:"
     refute hex =~ "check_hex_release.mjs"

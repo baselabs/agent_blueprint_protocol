@@ -48,8 +48,9 @@ GitHub-hosted Ubuntu; installed consumers run on Linux, macOS, and Windows.
    package, or served Hex bytes without npm, refuse as inconsistent.
 4. **Stage npm, then publish Hex.** Upload npm only when planned, using trusted
    publishing with provenance, and read its integrity back with bounded retries.
-   Approve staged bytes on npmjs.com when required. Keep the live npm integrity
-   and installed-kit comparison before the Hex upload. The shared command is
+   Approve staged bytes on npmjs.com when required. The `npm-kit` job, with no
+   environment and no key, compares the live npm integrity and the installed kit's
+   report with the verified escript; `hex-publish` needs it. The shared command is
    `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]`.
    It receives only missing archives and uploads the package before docs. Run it
    with `mix run --no-mix-exs` from `verified-release`, without a `mix.exs`.
