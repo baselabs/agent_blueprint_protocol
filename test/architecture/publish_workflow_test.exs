@@ -58,10 +58,12 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     kit = job(workflow, "npm-kit")
     assert kit =~ "needs: [verify, npm-publish]"
     assert kit =~ "permissions:\n      contents: read"
+
     assert kit =~
              "    # Split out of hex-publish; that whole job, including this check, bounds it.\n" <>
                "    # Twice the slowest green run, at least 5 min: 1.1 min, run 44085034568.\n" <>
                "    timeout-minutes: 5\n"
+
     refute kit =~ "environment:"
     refute kit =~ "secrets."
     assert kit =~ "node scripts/release_artifact_info.mjs npm-integrity"
