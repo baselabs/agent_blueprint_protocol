@@ -146,9 +146,7 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
     AgentBlueprintProtocol.Scratch.with_dir("docs-provenance", fn dir ->
       repository = Path.join(dir, "repository")
       File.mkdir!(repository)
-      git!(repository, ["init", "--initial-branch=main"])
-      git!(repository, ["config", "user.name", "Release provenance test"])
-      git!(repository, ["config", "user.email", "release-probe@example.test"])
+      AgentBlueprintProtocol.Scratch.init_git!(repository)
       git!(repository, ["config", "core.hooksPath", "/dev/null"])
       git!(repository, ["commit", "--allow-empty", "--no-gpg-sign", "-m", "Ancestor"])
       ancestor = git!(repository, ["rev-parse", "HEAD"])

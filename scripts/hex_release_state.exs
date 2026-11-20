@@ -5,6 +5,8 @@
 # Hex 2.7.0 vendors hex_core v0.21.1: Release has atom keys :version,
 # :outer_checksum (raw bytes), and an optional :retired map, omitted when active.
 # Docs HTTP 200 means served, 404 means absent; planning never inspects docs bytes.
+Code.require_file("gate_command.exs", __DIR__)
+
 defmodule HexReleaseState do
   @moduledoc false
   @attempts 6
@@ -142,7 +144,7 @@ defmodule HexReleaseState do
       raise "docs release.json version does not match #{version}; publication refused"
     end
 
-    commit = release["commit"]
+    commit = Map.get(release, "commit")
 
     unless is_binary(commit) and Regex.match?(~r/\A[0-9a-f]{40}\z/, commit) do
       raise "docs release.json commit is not a full Git SHA; publication refused"
@@ -152,9 +154,9 @@ defmodule HexReleaseState do
       raise "dispatched commit is not a full Git SHA; publication refused"
     end
 
-    case System.cmd("git", ["-C", repository, "merge-base", "--is-ancestor", commit, dispatched],
-           stderr_to_stdout: true
-         ) do
+    ancestry = ["-C", repository, "merge-base", "--is-ancestor", commit, dispatched]
+
+    case AgentBlueprintProtocol.GateCommand.capture("git", ancestry, stderr_to_stdout: true) do
       {_output, 0} ->
         IO.puts("published commit: #{commit}")
 
