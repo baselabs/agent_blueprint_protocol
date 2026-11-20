@@ -78,6 +78,9 @@ GitHub-hosted Ubuntu; installed consumers run on Linux, macOS, and Windows.
    `certified-results.json`, `release-notes.md` from the dated CHANGELOG section,
    the inspected served `hex-docs-<version>.tar.gz`, and SHA256SUMS over those files.
    Internal `verified-release` transport carries inspected archives between jobs. No workflow creates a release or tag.
+   The release notes are the dispatched head's CHANGELOG section. CHANGELOG.md ships in the
+   package that read-back compares, so that section is the published commit's. A change that
+   removes CHANGELOG.md from the package must read the notes from the published commit instead.
 7. **Check installed consumers.** Publish's `smoke` and `livebooks` jobs need
    `verify` and `hex-publish`. They install the published packages and run their
    notebooks, doctests, snippets, TypeScript examples, and historical replay.

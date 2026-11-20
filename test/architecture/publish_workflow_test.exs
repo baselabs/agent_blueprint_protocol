@@ -192,6 +192,12 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert upload =~ "if-no-files-found: error"
   end
 
+  test "release notes rely on CHANGELOG.md shipping in the compared package" do
+    assert "CHANGELOG.md" in Mix.Project.config()[:package][:files],
+           "release-notes.md comes from the dispatched head's CHANGELOG.md; read-back's package " <>
+             "comparison makes it the published commit's only while CHANGELOG.md ships in the package"
+  end
+
   test "served plans skip upload only and always complete registry read-back" do
     workflow = workflow("publish")
     npm = job(workflow, "npm-publish")
