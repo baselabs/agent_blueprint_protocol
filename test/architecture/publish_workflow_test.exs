@@ -99,7 +99,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     refute npm =~ "HEX_API_KEY"
   end
 
-  test "source and artifacts are verified before read-only plans compare the exact built bytes" do
+  test "source and artifacts are verified before read-only plans compare package bytes" do
     workflow = workflow("publish")
     verify = job(workflow, "verify")
     assert_before(verify, "bash scripts/check_publication.sh", "mix quality")
@@ -137,10 +137,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     refute check =~ "/releases/${VERSION}"
   end
 
-  test "deterministic docs omit EPUB and release assets include every consumer file and checksum" do
+  test "docs provenance and release assets include every consumer file and checksum" do
     workflow = workflow("publish")
     verify = job(workflow, "verify")
-    assert Mix.Project.config()[:docs][:formatters] == ["html", "markdown"]
     assert verify =~ "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct HEAD)"
 
     assert verify =~
@@ -164,7 +163,29 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert assets =~ "elixir scripts/release_notes.exs"
     assert assets =~ "sha256sum -- * > SHA256SUMS"
     refute assets =~ "hex-docs.tar.gz"
+    archive = step(verify, "Prepare the verified documentation archive")
+    assert archive =~ "DISPATCHED_SHA: ${{ github.sha }}"
+    assert archive =~ ~s|os.environ["DISPATCHED_SHA"]|
+    assert archive =~ "json.dumps(release"
+    assert_before(archive, ~s|Path("doc/release.json").write_text|, "tar --sort=name")
+    assert_before(archive, "tar --sort=name", "hex_release_state.exs docs-provenance")
+    assert archive =~ ~s|hex-docs.tar.gz "$DISPATCHED_SHA" "$GITHUB_WORKSPACE"|
+    plan = step(verify, "Plan the Hex uploads")
+
+    assert plan =~
+             ~s|agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar"|
+
+    refute plan =~ "hex-docs"
     hex = job(workflow, "hex-publish")
+    assert step(hex, "Check out source") =~ "fetch-depth: 0"
+    read_back = step(hex, "Read back the served Hex package and docs")
+    assert read_back =~ "DISPATCHED_SHA: ${{ github.sha }}"
+
+    assert read_back =~
+             ~s|"release-assets/hex-docs-${VERSION}.tar.gz" "$DISPATCHED_SHA" "$GITHUB_WORKSPACE"|
+
+    assert read_back =~ ~s|sha256sum -- "hex-docs-${VERSION}.tar.gz" >> SHA256SUMS|
+    assert_before(read_back, "hex_release_state.exs read-back", "sha256sum")
     assert_before(hex, "hex_release_state.exs read-back", "name: release-assets")
     upload = step(hex, "Hand consumer release assets to infra")
     assert upload =~ "path: verified-release/release-assets/"

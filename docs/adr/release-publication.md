@@ -5,7 +5,7 @@
 A release ships equal versions to Hex and npm and supplies the standalone verifier,
 certified results, package archives, release notes, and SHA256SUMS for the GitHub
 release. Registries can hold uploads for approval. Upload acceptance alone does not
-prove publication or establish that the served bytes match the verified archives.
+prove publication or establish that served package bytes match the verified archives.
 
 The [release identity](release-identity-semantics.md) and
 [no-versioning](no-versioning-rule.md) records govern release identity.
@@ -35,17 +35,21 @@ GitHub-hosted Ubuntu; installed consumers run on Linux, macOS, and Windows.
    Run the privacy guard, promotion check, and complete quality battery.
 2. **Build and inspect the exact bytes.** Pack the npm kit, standalone verifier,
    certified results, and Hex package. Run the local consumer verification on
-   both packages. ExDoc produces HTML and Markdown, without EPUB: EPUB zip
-   entries carry build time. Archive docs with sorted entries, the commit's
-   timestamp, numeric owner/group zero, and `gzip -n`, so redispatch rebuilds
-   byte-identical docs. Print package and docs checksums.
+   both packages. ExDoc uses its default HTML, Markdown, and EPUB formatters.
+   After `mix docs`, write `doc/release.json` with fixed key order and a trailing
+   newline: `package`, `version`, and the dispatched `commit`. Archive docs with
+   sorted entries, the commit timestamp, numeric owner/group zero, and `gzip -n`.
+   Inspect the archive's provenance before uploading. Print both checksums.
+   Docs are a rendering of the package and need not rebuild with the same bytes.
 3. **Plan missing uploads.** `scripts/npm_release_state.mjs` compares the npm
    version's `dist.integrity` with the built tgz. The shared
    `scripts/hex_release_state.exs` compares the signed registry's raw outer
-   checksum and the stored docs tarball against the built bytes. Active, equal
-   bytes are served; absent uploads are planned. Retired releases, differing
-   bytes, malformed responses, and registry errors refuse. Docs without a
-   package, or served Hex bytes without npm, refuse as inconsistent.
+   package checksum with the built archive. The package is the release: a served
+   version must have the same package bytes. Planning treats any docs HTTP 200 as
+   served and 404 as missing, without inspecting or comparing docs bytes.
+   Served docs are kept. Retired releases, differing package bytes, malformed
+   responses, and registry errors refuse. Docs without a package, or served Hex
+   bytes without npm, refuse as inconsistent.
 4. **Stage npm, then publish Hex.** Upload npm only when planned, using trusted
    publishing with provenance, and read its integrity back with bounded retries.
    Approve staged bytes on npmjs.com when required. The `npm-kit` job, with no
@@ -61,20 +65,26 @@ GitHub-hosted Ubuntu; installed consumers run on Linux, macOS, and Windows.
 5. **Read both Hex uploads back.** The upload script checks under the key whether
    Hex already holds a requested package version before attempting upload. Held
    packages stop before docs; held docs also stop explicitly. The read-only
-   state script requires package and docs to be served with the built bytes,
-   retrying only absence, six attempts ten seconds apart. It never replaces bytes.
+   state script requires the package to match the built bytes and docs to be
+   served, retrying only absence, six attempts ten seconds apart. Read-back saves
+   the served docs archive and requires readable gzip tar contents, `index.html`,
+   and a valid `release.json` naming this package and version. Its commit must be
+   the dispatched commit or an ancestor of it on the default branch, checked with
+   `git merge-base --is-ancestor` against full checkout history. Missing or invalid
+   provenance refuses publication. Success prints `published commit: <sha>`.
+   The workflow never replaces a package or served docs.
 6. **Hand release assets to infra.** All consumer files leave the Hex publish job
    together as `release-assets`: the Hex tar, npm tgz, `verifier-<version>.tar.gz`,
    `certified-results.json`, `release-notes.md` from the dated CHANGELOG section,
-   and SHA256SUMS over the other files. Internal `verified-release` transport
-   carries inspected archives between jobs. No workflow creates a release or tag.
+   the inspected served `hex-docs-<version>.tar.gz`, and SHA256SUMS over those files.
+   Internal `verified-release` transport carries inspected archives between jobs. No workflow creates a release or tag.
 7. **Check installed consumers.** Publish's `smoke` and `livebooks` jobs need
    `verify` and `hex-publish`. They install the published packages and run their
    notebooks, doctests, snippets, TypeScript examples, and historical replay.
    The new tag is unnecessary; earlier release tags must remain available.
-8. **Infra creates the release.** After read-back and the new tag at the dispatched
-   SHA, infra compares the package archive with the registry and creates the
-   GitHub release `v<version>` using the complete release assets. It then dispatches
+8. **Infra creates the release.** After read-back, infra tags the published commit
+   printed from served docs, compares the package archive with the registry, and
+   creates the GitHub release `v<version>` using the complete release assets. It then dispatches
    Pages from the default branch. Pages uses its own `github-pages` environment;
    no tag push or workflow event deploys it.
 
@@ -82,9 +92,13 @@ GitHub-hosted Ubuntu; installed consumers run on Linux, macOS, and Windows.
 
 A second dispatch on the same commit finishes a held release, uploading only what
 is missing. Approve held npm uploads on npmjs.com or held Hex uploads on hex.pm,
-then dispatch Publish again on that same commit. Already served equal bytes
-succeed without uploading, including when all uploads are served: read-back,
-installed-package checks, and release assets still complete. An existing remote
-tag refuses a finished release. Differing bytes or retirement always refuse.
+then dispatch Publish again on that same commit. Matching served package bytes
+succeed without another package upload; served docs are kept regardless of how
+newly built docs render. Missing docs are uploaded only for a package Hex serves.
+Read-back inspects served docs provenance and preserves that exact archive in
+release-assets, including when all uploads were already served. An ancestor docs
+commit is accepted and becomes the published commit infra tags. An existing
+remote tag refuses a finished release. Differing package bytes, retirement, or
+invalid docs provenance always refuse.
 Upload errors leave accepted uploads intact; resolve the cause and redispatch.
 Consumer verification uses the permanent GitHub release, never expiring run storage.

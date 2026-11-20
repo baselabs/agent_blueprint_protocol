@@ -31,7 +31,7 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
 
       for {script, args} <- [
             {"publish_hex_artifacts.exs", args},
-            {"hex_release_state.exs", ["plan", "agent_blueprint_protocol", @version, "p", "d"]}
+            {"hex_release_state.exs", ["plan", "agent_blueprint_protocol", @version, "p"]}
           ] do
         {output, status} = hex(script, args, inside)
         assert status != 0
@@ -43,7 +43,7 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       assert output =~ "at least one archive is required"
 
       {output, status} =
-        hex("hex_release_state.exs", ["plan", "name", @version, "p", "d"], outside)
+        hex("hex_release_state.exs", ["plan", "name", @version, "p"], outside)
 
       assert status != 0
       assert output =~ "GITHUB_OUTPUT"
@@ -61,7 +61,7 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
             {"abp_release_probe_nonexistent_7e1d4cca8233", "has no package"}
           ] do
         {output, status} =
-          hex("hex_release_state.exs", ["plan", name, @version, "wrong", "wrong"], dir, env)
+          hex("hex_release_state.exs", ["plan", name, @version, "wrong"], dir, env)
 
         assert status != 0
         assert output =~ reason
@@ -71,7 +71,7 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
     end)
   end
 
-  test "real served Hex archives succeed without uploads and mismatched docs refuse immediately" do
+  test "real served Hex docs count as present but read-back refuses missing provenance" do
     AgentBlueprintProtocol.Scratch.with_dir("hex-state-served", fn dir ->
       # Fetch actual public registry bytes through the installed pinned Hex client.
       fetch = Path.join(dir, "fetch.exs")
@@ -93,15 +93,18 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       assert {_, 0} = hex_path(fetch, [], dir, [])
       output_file = Path.join(dir, "output")
       env = [{"GITHUB_OUTPUT", output_file}]
-      args = ["agent_blueprint_protocol", @version, "package", "docs"]
+      args = ["agent_blueprint_protocol", @version, "package"]
       assert {summary, 0} = hex("hex_release_state.exs", ["plan" | args], dir, env)
-      assert summary =~ "already served with these bytes; nothing will be uploaded"
+      assert summary =~ "package is already served with these bytes and its docs are served"
       assert File.read!(output_file) == "package=served\ndocs=served\n"
-      assert {_, 0} = hex("hex_release_state.exs", ["read-back" | args], dir)
-      File.write!(Path.join(dir, "docs"), "wrong docs")
-      {output, status} = hex("hex_release_state.exs", ["read-back" | args], dir)
+      {dispatched, 0} = System.cmd("git", ["rev-parse", "HEAD"])
+      served_docs = Path.join(dir, "served-docs.tar.gz")
+      read_back = ["read-back" | args ++ [served_docs, String.trim(dispatched), File.cwd!()]]
+      {output, status} = hex("hex_release_state.exs", read_back, dir)
       assert status != 0
-      assert output =~ "served docs bytes differ"
+      assert output =~ "docs archive is missing release.json"
+      refute output =~ "published commit:"
+      assert File.read!(served_docs) == File.read!(Path.join(dir, "docs"))
     end)
   end
 
@@ -137,6 +140,122 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       assert File.read!(output_file) == "npm=served\n"
       assert {_, 0} = System.cmd("node", [script, "read-back", @version, "package.tgz"], options)
     end)
+  end
+
+  test "local docs provenance checks real archives against a real Git history without registry access" do
+    AgentBlueprintProtocol.Scratch.with_dir("docs-provenance", fn dir ->
+      repository = Path.join(dir, "repository")
+      File.mkdir!(repository)
+      git!(repository, ["init", "--initial-branch=main"])
+      git!(repository, ["config", "user.name", "Release provenance test"])
+      git!(repository, ["config", "user.email", "release-probe@example.test"])
+      git!(repository, ["config", "core.hooksPath", "/dev/null"])
+      git!(repository, ["commit", "--allow-empty", "--no-gpg-sign", "-m", "Ancestor"])
+      ancestor = git!(repository, ["rev-parse", "HEAD"])
+      git!(repository, ["commit", "--allow-empty", "--no-gpg-sign", "-m", "Dispatched"])
+      dispatched = git!(repository, ["rev-parse", "HEAD"])
+      git!(repository, ["switch", "-c", "side", ancestor])
+      git!(repository, ["commit", "--allow-empty", "--no-gpg-sign", "-m", "Side branch"])
+      side = git!(repository, ["rev-parse", "HEAD"])
+      git!(repository, ["switch", "main"])
+      release = %{"package" => "agent_blueprint_protocol", "version" => @version}
+      index = {~c"./index.html", "<!doctype html><title>Release docs</title>"}
+
+      for commit <- [dispatched, ancestor] do
+        archive = Path.join(dir, commit <> ".tar.gz")
+        manifest = :json.encode(Map.put(release, "commit", commit)) |> IO.iodata_to_binary()
+
+        assert :ok =
+                 :erl_tar.create(
+                   String.to_charlist(archive),
+                   [index, {~c"./release.json", manifest}],
+                   [:compressed]
+                 )
+
+        args = [
+          "docs-provenance",
+          "agent_blueprint_protocol",
+          @version,
+          archive,
+          dispatched,
+          repository
+        ]
+
+        assert {output, 0} = hex("hex_release_state.exs", args, dir)
+        assert output =~ "published commit: #{commit}"
+      end
+
+      valid = Map.put(release, "commit", dispatched)
+
+      manifest = fn value ->
+        {~c"release.json", value |> :json.encode() |> IO.iodata_to_binary()}
+      end
+
+      for {label, files, reason} <- [
+            {"side", [index, manifest.(Map.put(valid, "commit", side))],
+             "not the dispatched commit or its ancestor"},
+            {"no-release", [index], "missing release.json"},
+            {"wrong-package", [index, manifest.(Map.put(valid, "package", "another_package"))],
+             "release.json package does not match"},
+            {"wrong-version", [index, manifest.(Map.put(valid, "version", "9999.0.0"))],
+             "release.json version does not match"},
+            {"no-index", [manifest.(valid)], "missing index.html"},
+            {"invalid-json", [index, {~c"release.json", "{"}],
+             "release.json is not a valid JSON object"},
+            {"invalid-commit", [index, manifest.(Map.put(valid, "commit", "--help"))],
+             "release.json commit is not a full Git SHA"},
+            {"unknown-commit",
+             [index, manifest.(Map.put(valid, "commit", String.duplicate("0", 40)))],
+             "could not confirm docs release.json commit ancestry"},
+            {"duplicate-release", [index, manifest.(valid), manifest.(valid)],
+             "multiple release.json entries"}
+          ] do
+        archive = Path.join(dir, label <> ".tar.gz")
+        assert :ok = :erl_tar.create(String.to_charlist(archive), files, [:compressed])
+
+        args = [
+          "docs-provenance",
+          "agent_blueprint_protocol",
+          @version,
+          archive,
+          dispatched,
+          repository
+        ]
+
+        {output, status} = hex("hex_release_state.exs", args, dir)
+        assert status != 0, label
+        assert output =~ reason, "#{label}: #{output}"
+        refute output =~ "published commit:"
+      end
+
+      for {label, bytes} <- [
+            {"not-gzip", "not gzip bytes"},
+            {"not-tar", :zlib.gzip("not a tar archive")}
+          ] do
+        archive = Path.join(dir, label <> ".tar.gz")
+        File.write!(archive, bytes)
+
+        args = [
+          "docs-provenance",
+          "agent_blueprint_protocol",
+          @version,
+          archive,
+          dispatched,
+          repository
+        ]
+
+        {output, status} = hex("hex_release_state.exs", args, dir)
+        assert status != 0
+        assert output =~ "not a readable gzip tar"
+        refute output =~ "published commit:"
+      end
+    end)
+  end
+
+  defp git!(repository, args) do
+    {output, status} = System.cmd("git", ["-C", repository | args], stderr_to_stdout: true)
+    assert status == 0, output
+    String.trim(output)
   end
 
   test "release notes extract exactly one dated section and refuse missing versions" do

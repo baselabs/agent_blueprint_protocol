@@ -99,24 +99,35 @@ already exist, and an existing remote tag refuses publication. Qualification on
 `kci/**`, with every job required by `qualified`, precedes landing.
 
 Publish verifies the source, builds and inspects both archives, and compares
-served bytes before uploading only missing packages or docs. ExDoc produces HTML
-and Markdown; EPUB is omitted because its zip entries carry build time. The docs
-tarball is deterministic so another dispatch can compare it byte for byte.
+served package bytes before uploading only missing packages or docs. The package
+is the release: a served version must match the built package checksum. ExDoc
+uses its default HTML, Markdown, and EPUB formatters. Docs are a rendering whose
+bytes can vary between builds, so served docs are kept and never compared with a
+rebuild. Planning checks only docs presence.
+
+After `mix docs`, Publish writes root `release.json` with the package, version,
+and dispatched commit before packing. Read-back requires a readable served gzip
+tar containing `index.html` and valid `release.json` for this package and version.
+Its commit must be the dispatched commit or an ancestor on the default branch,
+checked against full Git history. Invalid or missing provenance refuses publication;
+success prints the published commit from the served docs.
 
 npm uses staged trusted publishing with provenance in environment `publish`.
 Hex uses `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]`
 through the pinned client's API from a directory with no Mix project. The Hex key
 reaches only that upload step. A held upload stops explicitly: approve it on
 npmjs.com or hex.pm, then dispatch Publish again on the same commit. The next run
-uploads only what is missing. Served equal bytes succeed; differing bytes,
-retirement, and unknown state refuse. No upload replaces a package.
+uploads only what is missing. Missing docs are uploaded only for a package Hex
+serves. Matching served package bytes succeed; differing package bytes, retirement,
+and unknown state refuse. No upload replaces a package or served docs.
 
 After package and docs read-back, all consumer files leave together as
 `release-assets`, including both package archives, the standalone verifier,
-certified results, CHANGELOG release notes, and SHA256SUMS. Publish's separate
+certified results, CHANGELOG release notes, the inspected served
+`hex-docs-<version>.tar.gz`, and SHA256SUMS. Publish's separate
 published-package jobs run installed consumers on Linux, macOS, and Windows with
 historical tags, no key, and no environment. No workflow creates a release or tag.
-Infra reads packages back, tags the dispatched SHA, compares the package archive
+Infra reads packages back, tags the published docs commit, compares the package archive
 with the registry, creates the GitHub release `v<version>` from those assets, and
 dispatches Pages. Pages deploys only through an owner's default-branch dispatch.
 

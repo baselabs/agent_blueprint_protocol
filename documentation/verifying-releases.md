@@ -143,6 +143,29 @@ the same arguments and runs the four package gates alone. It loads nothing
 outside the package.
 See [Contributing](../CONTRIBUTING.md) for the build commands.
 
+## Verify served docs provenance
+
+The package is the release: its served checksum must match the built package.
+Docs are a rendering, and their bytes can vary between builds. Planning checks
+only presence; served docs are kept and never compared with a rebuild or replaced.
+Missing docs are uploaded only for a package Hex serves. ExDoc uses its default
+HTML, Markdown, and EPUB formatters.
+
+After `mix docs`, Publish writes root `release.json` with the package, version,
+and dispatched commit before packing. Read-back requires a readable served gzip
+tar containing `index.html` and valid `release.json` for this package and version.
+The manifest's commit must equal the dispatched commit or be its ancestor on the
+default branch, checked against full Git history with `git merge-base --is-ancestor`.
+Unreadable archives, missing files, wrong package or version, and invalid commit
+ancestry refuse publication. Success prints `published commit: <sha>`, and infra
+tags that commit, including when it is an ancestor of the dispatched commit.
+
+The `release-assets` handoff and permanent GitHub release include the inspected
+served archive as `hex-docs-<version>.tar.gz`, with its digest in SHA256SUMS.
+Verify that asset's checksum before inspecting its `release.json`; a rebuild is
+not a docs checksum reference. Equal package bytes alone do not identify the docs
+commit because the renderer and build state also affect documentation.
+
 ## Next steps
 
 - [Read the conformance guide](conformance.md)

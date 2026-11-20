@@ -1,59 +1,79 @@
-# Compare rebuilt archives with Hex's signed registry and stored docs, without a project or key.
-#   mix run --no-mix-exs PATH/hex_release_state.exs [--organization ORG] plan|read-back NAME VERSION PACKAGE_TAR DOCS_TAR
+# Check package identity, docs presence, and served docs provenance without a Mix project.
+#   mix run --no-mix-exs PATH/hex_release_state.exs [--organization ORG] plan NAME VERSION PACKAGE_TAR
+#   mix run --no-mix-exs PATH/hex_release_state.exs [--organization ORG] read-back NAME VERSION PACKAGE_TAR DOCS_OUTPUT DISPATCHED_SHA REPO_DIR
+#   mix run --no-mix-exs PATH/hex_release_state.exs docs-provenance NAME VERSION DOCS_ARCHIVE DISPATCHED_SHA REPO_DIR
 # Hex 2.7.0 vendors hex_core v0.21.1: Release has atom keys :version,
 # :outer_checksum (raw bytes), and an optional :retired map, omitted when active.
-# get_docs passes HTTP responses through unchanged; only HTTP 404 means absent.
+# Docs HTTP 200 means served, 404 means absent; planning never inspects docs bytes.
 defmodule HexReleaseState do
   @moduledoc false
   @attempts 6
   @delay 10_000
 
   def main(argv) do
-    case OptionParser.parse(argv, strict: [organization: :string]) do
-      {opts, [mode, name, version, package, docs], []} when mode in ["plan", "read-back"] ->
-        run(opts[:organization], mode, name, version, package, docs)
-
-      _ ->
-        raise "usage: hex_release_state.exs [--organization ORG] plan|read-back NAME VERSION PACKAGE_TAR DOCS_TAR"
-    end
-  end
-
-  defp run(organization, mode, name, version, package, docs) do
     if Mix.Project.get() do
       raise "a Mix project is loaded; run from a directory without mix.exs"
     end
 
-    output = if mode == "plan", do: System.fetch_env!("GITHUB_OUTPUT")
+    case OptionParser.parse(argv, strict: [organization: :string]) do
+      {opts, ["plan", name, version, package], []} ->
+        run(opts[:organization], name, version, package, :plan)
+
+      {opts, ["read-back", name, version, package, output, dispatched, repository], []} ->
+        run(
+          opts[:organization],
+          name,
+          version,
+          package,
+          {:read_back, output, dispatched, repository}
+        )
+
+      {[], ["docs-provenance", name, version, archive, dispatched, repository], []} ->
+        inspect_docs!(archive, name, version, dispatched, repository)
+
+      _ ->
+        raise "usage: hex_release_state.exs [--organization ORG] plan NAME VERSION PACKAGE_TAR | " <>
+                "[--organization ORG] read-back NAME VERSION PACKAGE_TAR DOCS_OUTPUT DISPATCHED_SHA REPO_DIR | " <>
+                "docs-provenance NAME VERSION DOCS_ARCHIVE DISPATCHED_SHA REPO_DIR"
+    end
+  end
+
+  defp run(organization, name, version, package, action) do
+    output = if action == :plan, do: System.fetch_env!("GITHUB_OUTPUT")
     if output == "", do: raise("GITHUB_OUTPUT is empty")
     checksum = :crypto.hash(:sha256, File.read!(package))
-    docs_bytes = File.read!(docs)
     Hex.start()
     Code.ensure_loaded!(Hex.Repo)
     repo = if organization, do: "hexpm:" <> organization, else: "hexpm"
 
-    if mode == "plan" do
-      {package_state, docs_state} = state(repo, name, version, checksum, docs_bytes)
-      File.write!(output, "package=#{package_state}\ndocs=#{docs_state}\n", [:append])
+    case action do
+      :plan ->
+        {package_state, docs_state, _response} = state(repo, name, version, checksum)
+        File.write!(output, "package=#{package_state}\ndocs=#{docs_state}\n", [:append])
 
-      if {package_state, docs_state} == {:served, :served} do
-        IO.puts("#{name} #{version} is already served with these bytes; nothing will be uploaded")
-      else
-        IO.puts("#{name} #{version}: package=#{package_state}, docs=#{docs_state}")
-      end
-    else
-      read_back(repo, name, version, checksum, docs_bytes, @attempts)
+        if {package_state, docs_state} == {:served, :served} do
+          IO.puts(
+            "#{name} #{version}: package is already served with these bytes and its docs are served; nothing will be uploaded"
+          )
+        else
+          IO.puts("#{name} #{version}: package=#{package_state}, docs=#{docs_state}")
+        end
+
+      {:read_back, output, dispatched, repository} ->
+        read_back(repo, name, version, checksum, output, dispatched, repository, @attempts)
     end
   end
 
-  defp state(repo, name, version, checksum, docs_bytes) do
+  defp state(repo, name, version, checksum) do
     package = package_state(Hex.Repo.get_package(repo, name, nil), name, version, checksum)
-    docs = docs_state(Hex.Repo.get_docs(repo, name, version), name, version, docs_bytes)
+    response = Hex.Repo.get_docs(repo, name, version)
+    docs = docs_state(response, name, version)
 
     if package == :upload and docs == :served do
       raise "#{name} #{version}: docs are served without the package; inconsistent registry state"
     end
 
-    {package, docs}
+    {package, docs, response}
   end
 
   defp package_state({:ok, {200, _headers, %{releases: releases}}}, name, version, checksum)
@@ -86,29 +106,92 @@ defmodule HexReleaseState do
     end
   end
 
-  defp docs_state({:ok, {200, _headers, bytes}}, _name, _version, bytes), do: :served
-  defp docs_state({:ok, {404, _headers, _body}}, _name, _version, _bytes), do: :upload
+  defp docs_state({:ok, {200, _headers, _body}}, _name, _version), do: :served
+  defp docs_state({:ok, {404, _headers, _body}}, _name, _version), do: :upload
 
-  defp docs_state({:ok, {200, _headers, _body}}, name, version, _bytes) do
-    raise "#{name} #{version}: served docs bytes differ; nothing was replaced"
-  end
-
-  defp docs_state(_result, name, version, _bytes) do
+  defp docs_state(_result, name, version) do
     raise "could not confirm Hex docs for #{name} #{version}; publication refused"
   end
 
-  defp read_back(repo, name, version, checksum, docs, attempts) do
-    case state(repo, name, version, checksum, docs) do
-      {:served, :served} ->
-        IO.puts("#{name} #{version}: package and docs are served with the built bytes")
+  defp read_back(repo, name, version, checksum, output, dispatched, repository, attempts) do
+    case state(repo, name, version, checksum) do
+      {:served, :served, {:ok, {200, _headers, bytes}}} ->
+        File.write!(output, bytes)
+        inspect_docs!(output, name, version, dispatched, repository)
+        IO.puts("#{name} #{version}: package is served with the built bytes and docs are served")
 
       _absent when attempts > 1 ->
         Process.sleep(@delay)
-        read_back(repo, name, version, checksum, docs, attempts - 1)
+        read_back(repo, name, version, checksum, output, dispatched, repository, attempts - 1)
 
       _absent ->
         raise "#{name} #{version} is not served yet: Hex holds it for approval or has not propagated it. Approve it on hex.pm, then dispatch Publish again on the same commit; the next run uploads only what is missing."
     end
+  end
+
+  defp inspect_docs!(archive, name, version, dispatched, repository) do
+    entries = docs_entries!(archive)
+    archive_file!(entries, "index.html")
+    release = entries |> archive_file!("release.json") |> decode_release!()
+
+    if release["package"] != name do
+      raise "docs release.json package does not match #{name}; publication refused"
+    end
+
+    if release["version"] != version do
+      raise "docs release.json version does not match #{version}; publication refused"
+    end
+
+    commit = release["commit"]
+
+    unless is_binary(commit) and Regex.match?(~r/\A[0-9a-f]{40}\z/, commit) do
+      raise "docs release.json commit is not a full Git SHA; publication refused"
+    end
+
+    unless Regex.match?(~r/\A[0-9a-f]{40}\z/, dispatched) do
+      raise "dispatched commit is not a full Git SHA; publication refused"
+    end
+
+    case System.cmd("git", ["-C", repository, "merge-base", "--is-ancestor", commit, dispatched],
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} ->
+        IO.puts("published commit: #{commit}")
+
+      {_output, 1} ->
+        raise "docs release.json commit is not the dispatched commit or its ancestor; publication refused"
+
+      _ ->
+        raise "could not confirm docs release.json commit ancestry; publication refused"
+    end
+  end
+
+  defp docs_entries!(archive) do
+    bytes = archive |> File.read!() |> :zlib.gunzip()
+
+    case :erl_tar.extract({:binary, bytes}, [:memory]) do
+      {:ok, entries} -> entries
+      _ -> raise "invalid tar"
+    end
+  rescue
+    _ -> raise "docs archive is not a readable gzip tar; publication refused"
+  end
+
+  defp archive_file!(entries, name) do
+    case Enum.filter(entries, fn {path, _bytes} -> to_string(path) in [name, "./" <> name] end) do
+      [{_path, bytes}] -> bytes
+      [] -> raise "docs archive is missing #{name}; publication refused"
+      _ -> raise "docs archive contains multiple #{name} entries; publication refused"
+    end
+  end
+
+  defp decode_release!(bytes) do
+    case :json.decode(bytes) do
+      release when is_map(release) -> release
+      _ -> raise "not an object"
+    end
+  rescue
+    _ -> raise "docs release.json is not a valid JSON object; publication refused"
   end
 end
 

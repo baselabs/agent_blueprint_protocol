@@ -1,8 +1,8 @@
 # Upload only missing, verified archives with Hex 2.7.0's API, package before docs.
 # From a directory without mix.exs (no project is loaded or compiled under the key):
 #   mix run --no-mix-exs PATH/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]
-# The read-only plan already compared served bytes. Never replace a version. A held
-# upload stops here; approve it, then dispatch Publish again on the same commit.
+# The read-only plan compared package bytes and kept served docs. Never replace a version.
+# A held upload stops here; approve it, then dispatch Publish again on the same commit.
 # HEX_API_KEY comes only from this step's env. No response body or key is printed.
 defmodule PublishHexArtifacts do
   @moduledoc false

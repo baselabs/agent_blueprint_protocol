@@ -6,7 +6,7 @@ name: Publish
 # npm uses trusted publishing with provenance in environment publish; no npm token.
 # HEX_API_KEY lives there and reaches only the no-project upload step.
 # No workflow creates a release or tag. release-assets is handed to infra, which
-# reads the packages back, tags the run's SHA, creates the GitHub release, and dispatches Pages.
+# reads the packages back, tags the published docs commit, creates the GitHub release, and dispatches Pages.
 
 on:
   workflow_dispatch:
@@ -152,10 +152,20 @@ jobs:
             "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
 
       - name: Prepare the verified documentation archive
+        env:
+          DISPATCHED_SHA: ${{ github.sha }}
         run: |
+          python3 - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          release = {"package": "agent_blueprint_protocol", "version": os.environ["VERSION"], "commit": os.environ["DISPATCHED_SHA"]}
+          Path("doc/release.json").write_text(json.dumps(release, separators=(",", ":")) + "\n", encoding="utf-8")
+          PYTHON
           SOURCE_DATE_EPOCH=$(git log -1 --format=%ct HEAD)
           tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
             -cf - -C doc . | gzip -n > verified-release/hex-docs.tar.gz
+          (cd verified-release && mix run --no-mix-exs ../scripts/hex_release_state.exs docs-provenance \
+            agent_blueprint_protocol "$VERSION" hex-docs.tar.gz "$DISPATCHED_SHA" "$GITHUB_WORKSPACE")
           echo "Docs checksum: $(sha256sum verified-release/hex-docs.tar.gz | cut -d' ' -f1)"
 
       - name: Plan the npm upload
@@ -169,7 +179,7 @@ jobs:
         working-directory: verified-release
         run: |
           mix run --no-mix-exs ../scripts/hex_release_state.exs plan \
-            agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar" hex-docs.tar.gz
+            agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar"
 
       - name: Refuse inconsistent registry state
         env:
@@ -383,6 +393,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Read the default toolchain
         id: versions
@@ -427,9 +438,13 @@ jobs:
 
       - name: Read back the served Hex package and docs
         working-directory: verified-release
+        env:
+          DISPATCHED_SHA: ${{ github.sha }}
         run: |
           mix run --no-mix-exs ../scripts/hex_release_state.exs read-back \
-            agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar" hex-docs.tar.gz
+            agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar" \
+            "release-assets/hex-docs-${VERSION}.tar.gz" "$DISPATCHED_SHA" "$GITHUB_WORKSPACE"
+          (cd release-assets && sha256sum -- "hex-docs-${VERSION}.tar.gz" >> SHA256SUMS)
 
       - name: Hand consumer release assets to infra
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
