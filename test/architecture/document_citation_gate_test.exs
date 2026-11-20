@@ -95,8 +95,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
     end
   end
 
-  # The published release's own text: every title and notes argument a
-  # workflow passes to `gh release`.
+  # The release notes are the dated CHANGELOG section, already checked above.
+  # Infra creates the release, so no workflow may pass its own title or notes.
   defp release_text do
     lines =
       for file <- Path.wildcard(".github/workflows/*.yml"),
@@ -104,7 +104,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentCitationGateTest do
           String.match?(line, ~r/--(?:title|notes)\b/),
           do: {file, line, number}
 
-    assert Enum.any?(lines, fn {_file, line, _number} -> line =~ "--title" end)
+    assert lines == [], "Publish creates no release; infra writes its title and notes"
     lines
   end
 

@@ -277,8 +277,8 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-24.04
-    # Split out of hex-publish, whose whole job including this check took 1.0 min in run
-    # 44085034568. Measured under 2.5 min, so 5.
+    # Split out of hex-publish; that whole job, including this check, bounds it.
+    # Twice the slowest green run, at least 5 min: 1.1 min, run 44085034568.
     timeout-minutes: 5
     env:
       NPM_PACKAGE: "@agent-blueprint-protocol/verifier"
