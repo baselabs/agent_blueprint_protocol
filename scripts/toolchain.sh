@@ -7,6 +7,8 @@
 
 self_test() (
     scratch=$(mktemp -d) || exit 1
+    # Standalone POSIX sh runs before Python exists; this flat, known-content
+    # scratch holds only files the reader writes, never read-only command trees.
     trap 'rm -rf "$scratch"' 0
     trap 'exit 1' HUP INT TERM
     passed=0
