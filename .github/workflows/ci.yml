@@ -32,7 +32,7 @@ jobs:
 
       - name: Read defaults and compatibility lanes
         id: versions
-        run: sh scripts/toolchain.sh >> "$GITHUB_OUTPUT"
+        run: scripts/toolchain.sh >> "$GITHUB_OUTPUT"
 
   workflow-syntax:
     needs: toolchain
@@ -57,7 +57,7 @@ jobs:
         shell: bash
         env:
           TOOLCHAIN_GOLANG: ${{ needs.toolchain.outputs.golang }}
-        run: sh scripts/toolchain.sh --installed golang="$TOOLCHAIN_GOLANG"
+        run: scripts/toolchain.sh --installed golang="$TOOLCHAIN_GOLANG"
 
       # actionlint pinned to its release commit for v1.7.12, verified first-hand
       # against the rhysd/actionlint tags API. `go run` fetches the module by
@@ -89,7 +89,7 @@ jobs:
         shell: bash
         env:
           TOOLCHAIN_GOLANG: ${{ needs.toolchain.outputs.golang }}
-        run: sh scripts/toolchain.sh --installed golang="$TOOLCHAIN_GOLANG"
+        run: scripts/toolchain.sh --installed golang="$TOOLCHAIN_GOLANG"
 
       # gitleaks pinned to its release commit for v8.30.1, verified first-hand
       # against the gitleaks/gitleaks tags API. `go run` fetches the module by
@@ -130,7 +130,7 @@ jobs:
         env:
           TOOLCHAIN_ELIXIR: ${{ needs.toolchain.outputs.elixir }}
           TOOLCHAIN_ERLANG: ${{ needs.toolchain.outputs.otp }}
-        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
+        run: scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
@@ -177,7 +177,7 @@ jobs:
         env:
           TOOLCHAIN_ELIXIR: ${{ matrix.elixir }}
           TOOLCHAIN_ERLANG: ${{ matrix.otp }}
-        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
+        run: scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
@@ -192,7 +192,7 @@ jobs:
         shell: bash
         env:
           TOOLCHAIN_NODEJS: ${{ needs.toolchain.outputs.nodejs }}
-        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+        run: scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
 
       - name: Install dependencies
         run: mix deps.get --check-locked
@@ -230,7 +230,7 @@ jobs:
         shell: bash
         env:
           TOOLCHAIN_NODEJS: ${{ needs.toolchain.outputs.nodejs }}
-        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+        run: scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
 
       # The default BEAM toolchain read from .tool-versions.
       - name: Set up BEAM
@@ -246,7 +246,7 @@ jobs:
         env:
           TOOLCHAIN_ELIXIR: ${{ needs.toolchain.outputs.elixir }}
           TOOLCHAIN_ERLANG: ${{ needs.toolchain.outputs.otp }}
-        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
+        run: scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       # Every landing enforces publication privacy independently of the build and tests.
       - name: Check public privacy over full history
@@ -303,7 +303,7 @@ jobs:
         shell: bash
         env:
           TOOLCHAIN_NODEJS: ${{ needs.toolchain.outputs.nodejs }}
-        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+        run: scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
 
       - name: Verify checkout bytes and paths
         run: node scripts/check_checkout.mjs
@@ -320,7 +320,7 @@ jobs:
         env:
           TOOLCHAIN_ELIXIR: ${{ needs.toolchain.outputs.elixir }}
           TOOLCHAIN_ERLANG: ${{ needs.toolchain.outputs.otp }}
-        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
+        run: scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
@@ -390,7 +390,7 @@ jobs:
         shell: bash
         env:
           TOOLCHAIN_NODEJS: ${{ matrix.node }}
-        run: sh scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
+        run: scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
 
       - name: Build the typed library and CLI
         run: |
@@ -411,7 +411,7 @@ jobs:
         env:
           TOOLCHAIN_ELIXIR: ${{ needs.toolchain.outputs.elixir }}
           TOOLCHAIN_ERLANG: ${{ needs.toolchain.outputs.otp }}
-        run: sh scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
+        run: scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force

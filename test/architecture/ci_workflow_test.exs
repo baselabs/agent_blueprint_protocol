@@ -33,7 +33,7 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
     ci = workflow("ci")
     jobs = Map.new(jobs(ci))
     reader = Map.fetch!(jobs, "toolchain")
-    assert reader =~ ~s|sh scripts/toolchain.sh >> "$GITHUB_OUTPUT"|
+    assert reader =~ ~s|run: scripts/toolchain.sh >> "$GITHUB_OUTPUT"|
 
     for output <- ~w(elixir otp nodejs golang beam_lanes nodejs_lanes) do
       assert reader =~ "#{output}: ${{ steps.versions.outputs.#{output} }}"
@@ -41,7 +41,7 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
 
     for {name, job} <- jobs, name not in ["toolchain", "qualified"] do
       assert job =~ "    needs: toolchain\n", name
-      refute job =~ ~s|sh scripts/toolchain.sh >> "$GITHUB_OUTPUT"|, name
+      refute job =~ ~s|scripts/toolchain.sh >> "$GITHUB_OUTPUT"|, name
     end
 
     assert jobs["compatibility"] =~
@@ -56,6 +56,7 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
       source = workflow(name)
       refute source =~ "read_release_inputs.py"
       refute source =~ "version-file:"
+      refute Regex.match?(~r/\b(?:ba)?sh scripts\/toolchain\.sh/, source), name
       refute Regex.match?(~r/^\s+(?:elixir|otp|node):\s*[\["'\d]/m, source)
 
       for {_name, job} <- jobs(source),
@@ -63,7 +64,7 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
           job =~ "uses: #{action}@" do
         if name != "ci" do
           assert job =~ "id: versions"
-          assert job =~ ~s|sh scripts/toolchain.sh >> "$GITHUB_OUTPUT"|
+          assert job =~ ~s|run: scripts/toolchain.sh >> "$GITHUB_OUTPUT"|
         end
       end
     end
@@ -106,7 +107,7 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
         end
 
       assert check =~
-               "run: sh scripts/toolchain.sh --installed " <> Enum.join(arguments, " ") <> "\n"
+               "run: scripts/toolchain.sh --installed " <> Enum.join(arguments, " ") <> "\n"
 
       assert length(Regex.scan(~r/^          TOOLCHAIN_[A-Z]+:/m, check)) == length(tools)
 

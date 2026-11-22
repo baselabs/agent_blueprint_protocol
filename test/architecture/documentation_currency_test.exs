@@ -509,7 +509,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   defp allowed_document_version?(_file, claim, version), do: claim == version
 
   defp configured_toolchain_versions do
-    {output, 0} = System.cmd("sh", ["scripts/toolchain.sh"])
+    {output, 0} = System.cmd("scripts/toolchain.sh", [])
 
     ~r/\b(\d+(?:\.\d+)+)(?:-otp-\d+)?/
     |> Regex.scan(output)

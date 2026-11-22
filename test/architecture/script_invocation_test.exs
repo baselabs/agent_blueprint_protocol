@@ -8,8 +8,8 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
   # The byte-shared toolchain reader has two fixed installed-version probes.
   # These exact, credential-free commands are its only inline exceptions.
   @installed_probes [
-    ~S|have=$(elixir -e 'IO.write(System.version() <> "-otp-" <> System.build_info()[:otp_release])') ;;|,
-    ~S|have=$(erl -noshell -eval '{ok, V} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:put_chars(string:trim(V)), halt().') ;;|
+    ~S|have=$(elixir -e 'IO.write(System.version() <> "-otp-" <> System.build_info()[:otp_release])') || { printf 'toolchain: %s version probe failed\n' "$tool" >&2; refused=1; continue; } ;;|,
+    ~S|have=$(erl -noshell -noinput -eval '{ok, V} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:put_chars(string:trim(V)), halt().') || { printf 'toolchain: %s version probe failed\n' "$tool" >&2; refused=1; continue; } ;;|
   ]
 
   test "workflows and scripts pass filenames instead of inline program arguments" do
