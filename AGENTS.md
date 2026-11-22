@@ -60,8 +60,9 @@ here.
   before `main` moves. The full suite runs in CI only.
 - A landing is done only when it is clean; cleanup is its last step, not a later task.
   `kimosabe-land` removes `kci/<sha>` and retires the landed source branches locally and on
-  origin; never delete a landed branch by hand. A branch it reports keeping is one it could not
-  prove landed or that a live worktree holds: settle why before reporting. `kimosabe-land`
+  origin; never delete a landed branch by hand. Its exit 4 means landed with cleanup incomplete:
+  run `kimosabe-land --repo . --sweep`, and settle anything it still reports before reporting
+  the landing. `kimosabe-land`
   clears its own evidence under `.kimosabe/work/`; never delete it by hand. Before reporting the
   landing: this checkout is on `main` at the landed head; no branch the change used remains;
   `git worktree list` shows only this checkout; and the change's outputs are gone (any
