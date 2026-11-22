@@ -1,10 +1,11 @@
 defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
   @moduledoc """
-  Repo-side citation gate: `lib/`, `test/`, `scripts/`, and the TypeScript
-  verifier tree (`verifier/`) stay free of internal tracker
-  citations — numerals, slug forms, planning shorthand, internal
-  review-process vocabulary, and internal tool names — so the public
-  repository inherits no remediation debt. The shipped Hex archive is
+  Repo-side citation gate: every tracked text file under `lib/`, `test/`,
+  `scripts/`, and the TypeScript verifier tree (`verifier/`), in any
+  language, stays free of internal tracker citations — numerals, slug
+  forms, planning shorthand, internal review-process vocabulary, and
+  internal tool names — so the public repository inherits no remediation
+  debt. The shipped Hex archive is
   already covered by the publish guard; this extends the same posture to
   the working tree's code files (design history lives under docs/design
   and the local planning directory, which are not scanned).
@@ -20,11 +21,10 @@ defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
   """
   use ExUnit.Case, async: true
 
-  @scan_roots ["lib", "test", "scripts"]
-  # The repo-side TypeScript verifier tree ships in the public repository;
-  # it is scanned for the same vocabulary (`.ts` files only — the JSON
-  # testdata beside it is data, not prose).
-  @ts_roots ["verifier"]
+  # Every tracked file under these roots is scanned whatever its language:
+  # shell, JavaScript and data files carry the same vocabulary risk as
+  # Elixir and TypeScript. Files that are not UTF-8 text are skipped.
+  @scan_roots ["lib", "test", "scripts", "verifier"]
   @exempt [
     "test/architecture/publish_guard_test.exs",
     "test/architecture/internal_citation_gate_test.exs"
@@ -67,22 +67,12 @@ defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
   end
 
   defp scan_files do
-    files =
-      (@scan_roots
-       |> Enum.flat_map(fn root ->
-         for relative <- :filelib.wildcard(~c"**/*.{ex,exs}", String.to_charlist(root)),
-             not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
-             do: Path.join(root, List.to_string(relative))
-       end)) ++
-        (@ts_roots
-         |> Enum.flat_map(fn root ->
-           for relative <- :filelib.wildcard(~c"**/*.ts", String.to_charlist(root)),
-               not Enum.any?(Path.split(List.to_string(relative)), &String.starts_with?(&1, ".")),
-               do: Path.join(root, List.to_string(relative))
-         end))
+    {listing, 0} = System.cmd("git", ["ls-files", "-z", "--" | @scan_roots])
 
-    files
+    listing
+    |> String.split(<<0>>, trim: true)
     |> Enum.reject(&(&1 in @exempt))
+    |> Enum.filter(&(File.regular?(&1) and String.valid?(File.read!(&1))))
     |> Enum.sort()
   end
 end
