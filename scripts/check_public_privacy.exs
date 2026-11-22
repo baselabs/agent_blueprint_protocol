@@ -4,9 +4,20 @@ defmodule PublicPrivacyScan do
   @moduledoc """
   Build-free publication guard for tracked files and full reachable Git history.
 
+  History is what a repository can publish: every branch, tag and
+  remote-tracking ref. Refs that local tools keep outside those namespaces,
+  such as editor checkpoints, are never pushed and are not scanned.
+
   Repository fingerprints and environment variable names come only from the
   supplied JSON configuration. Loading this file defines the module without
   running the command.
+
+  `forbidden_hmacs` hold for every surface across all reachable history. The
+  optional `recent` section adds fingerprints that hold for tracked files and
+  ref names, for history outside the ancestry of its `since` commit, and for the
+  message of every annotated tag except the tag objects listed in its
+  `published_tags`. Names ruled private after `since` was published are refused
+  in everything new while the published history before it stays as it is.
   """
 
   @git_env [
@@ -29,6 +40,16 @@ defmodule PublicPrivacyScan do
     config = load_config!(config_path)
     key = privacy_key!(config)
     result = scan_repo(repo, MapSet.new(config["forbidden_hmacs"]), key)
+
+    result =
+      case config["recent"] do
+        nil ->
+          result
+
+        %{"since" => since, "published_tags" => tags, "forbidden_hmacs" => recent_hmacs} ->
+          recent = scan_repo(repo, MapSet.new(recent_hmacs), key, {since, MapSet.new(tags)})
+          merge_results(result, recent)
+      end
 
     findings =
       [
@@ -57,21 +78,51 @@ defmodule PublicPrivacyScan do
       1
   end
 
+  @published_refs ["refs/heads", "refs/tags", "refs/remotes"]
+  @published_history ["--branches", "--tags", "--remotes"]
+
+  @config_keys [["forbidden_hmacs", "key_env"], ["forbidden_hmacs", "key_env", "recent"]]
+
   def load_config!(path) do
     config = path |> File.read!() |> JSON.decode!()
 
     valid? =
       is_map(config) and
-        Enum.sort(Map.keys(config)) == ["forbidden_hmacs", "key_env"] and
+        Enum.sort(Map.keys(config)) in @config_keys and
         is_binary(config["key_env"]) and
         Regex.match?(~r/\A[A-Za-z_][A-Za-z0-9_]*\z/, config["key_env"]) and
-        is_list(config["forbidden_hmacs"]) and config["forbidden_hmacs"] != [] and
-        Enum.all?(config["forbidden_hmacs"], fn digest ->
-          is_binary(digest) and Regex.match?(~r/\A[0-9a-f]{64}\z/, digest)
-        end)
+        digests?(config["forbidden_hmacs"]) and
+        (not Map.has_key?(config, "recent") or recent?(config["recent"]))
 
     unless valid?, do: raise("invalid privacy scan configuration")
     config
+  end
+
+  defp recent?(recent) do
+    is_map(recent) and
+      Enum.sort(Map.keys(recent)) == ["forbidden_hmacs", "published_tags", "since"] and
+      object_id?(recent["since"]) and is_list(recent["published_tags"]) and
+      Enum.all?(recent["published_tags"], &object_id?/1) and
+      digests?(recent["forbidden_hmacs"])
+  end
+
+  defp object_id?(id), do: is_binary(id) and Regex.match?(~r/\A[0-9a-f]{40}\z/, id)
+
+  defp digests?(digests) do
+    is_list(digests) and digests != [] and
+      Enum.all?(digests, &(is_binary(&1) and Regex.match?(~r/\A[0-9a-f]{64}\z/, &1)))
+  end
+
+  # A surface fails when either fingerprint set finds it.
+  defp merge_results(left, right) do
+    left
+    |> Tuple.to_list()
+    |> Enum.zip(Tuple.to_list(right))
+    |> Enum.map(fn
+      {left, right} when is_integer(left) -> left + right
+      {left, right} -> left or right
+    end)
+    |> List.to_tuple()
   end
 
   def privacy_key!(config) do
@@ -84,8 +135,11 @@ defmodule PublicPrivacyScan do
     key
   end
 
-  def scan_repo(repo, forbidden_hmacs, key) do
+  # `boundary` is nil for all reachable history, or `{since, published_tags}`.
+  def scan_repo(repo, forbidden_hmacs, key, boundary \\ nil) do
     assert_full_history!(repo)
+    {since, published_tags} = boundary || {nil, nil}
+    history = history_range!(repo, since)
 
     tracked_paths =
       repo
@@ -101,26 +155,29 @@ defmodule PublicPrivacyScan do
       end)
       |> Enum.count(& &1)
 
-    messages = git!(repo, ["log", "--all", "--format=fuller"])
+    messages = git!(repo, ["log" | history] ++ ["--format=fuller"])
 
     historical_paths =
-      git!(repo, ["log", "--all", "--format=", "--name-only", "--diff-merges=separate"])
+      git!(repo, ["log" | history] ++ ["--format=", "--name-only", "--diff-merges=separate"])
 
-    tag_messages = git!(repo, ["for-each-ref", "--format=%(contents)", "refs/tags"])
-    ref_names = git!(repo, ["for-each-ref", "--format=%(refname)"])
+    tag_messages = tag_messages!(repo, published_tags)
+    ref_names = git!(repo, ["for-each-ref", "--format=%(refname)" | @published_refs])
 
     {tracked_findings, forbidden?(messages, forbidden_hmacs, key),
      forbidden?(historical_paths, forbidden_hmacs, key),
-     historical_content_forbidden?(repo, forbidden_hmacs, key),
+     historical_content_forbidden?(repo, forbidden_hmacs, key, since),
      forbidden?(tag_messages, forbidden_hmacs, key), forbidden?(ref_names, forbidden_hmacs, key)}
   end
 
-  def historical_content_forbidden?(repo, forbidden_hmacs, key) do
+  def historical_content_forbidden?(repo, forbidden_hmacs, key, since \\ nil) do
+    history = history_range!(repo, since)
+
     # Git's own reachability walk lists every reachable object once, so each distinct
-    # file version is scanned once however many commits carry it.
+    # file version is scanned once however many commits carry it. With `since`, the
+    # objects reachable from it are excluded.
     ids =
       repo
-      |> git!(["rev-list", "--all", "--objects", "--no-object-names"])
+      |> git!(["rev-list" | history] ++ ["--objects", "--no-object-names"])
       |> String.split("\n", trim: true)
 
     repo
@@ -216,6 +273,44 @@ defmodule PublicPrivacyScan do
          ) do
       {output, 0} -> output
       {_output, status} -> raise "git plumbing failed with #{status}"
+    end
+  end
+
+  defp tag_messages!(repo, nil),
+    do: git!(repo, ["for-each-ref", "--format=%(contents)", "refs/tags"])
+
+  # Every annotated tag's message except the grandfathered tag objects.
+  defp tag_messages!(repo, published_tags) do
+    refs =
+      repo
+      |> git!(["for-each-ref", "--format=%(objectname) %(objecttype) %(refname)", "refs/tags"])
+      |> String.split("\n", trim: true)
+      |> Enum.flat_map(fn line ->
+        case String.split(line, " ", parts: 3) do
+          [id, "tag", ref] -> if MapSet.member?(published_tags, id), do: [], else: [ref]
+          _lightweight -> []
+        end
+      end)
+
+    case refs do
+      [] -> ""
+      refs -> git!(repo, ["for-each-ref", "--format=%(contents)" | refs])
+    end
+  end
+
+  # All reachable history, or the history no `since` ancestry contains. `since` must be
+  # a commit present here: a missing boundary refuses rather than scanning nothing.
+  defp history_range!(_repo, nil), do: @published_history
+
+  defp history_range!(repo, since) do
+    case AgentBlueprintProtocol.GateCommand.capture(
+           "git",
+           ["--no-replace-objects", "-C", repo, "cat-file", "-e", since <> "^{commit}"],
+           stderr_to_stdout: true,
+           env: @git_env
+         ) do
+      {_output, 0} -> @published_history ++ ["^" <> since]
+      {_output, _status} -> raise "the recent boundary commit is not in this repository"
     end
   end
 

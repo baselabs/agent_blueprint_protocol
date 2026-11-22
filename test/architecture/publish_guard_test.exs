@@ -15,13 +15,15 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
   Pattern classes:
 
-  - Byte patterns (any archive file, including binaries): `.kimosabe`,
-    `kimosabe/`, `.claude/`, `.serena`, `.mcp.json`, `/Users/`, `/home/`,
-    `baselabs.com`, and `com.baselabs`. These contain `.` or `/`, which the
-    base64url alphabet excludes, so none can false-positive inside a digest,
-    key, or signature token. The publication privacy command checks tracked
-    paths and history with keyed fingerprints; `PublicSurfacePrivacyTest`
-    exercises that command with a test key and canary.
+  - Byte patterns (any archive file, including binaries): `.claude/`,
+    `.serena`, `.mcp.json`, `/Users/`, `/home/`, `baselabs.com`, and
+    `com.baselabs`. These contain `.` or `/`, which the base64url alphabet
+    excludes, so none can false-positive inside a digest, key, or signature
+    token. Private project, tool and repository names are never spelled in
+    this public file: the publication privacy command refuses them in
+    tracked paths and contents with keyed fingerprints, and
+    `PublicSurfacePrivacyTest` exercises that command with a test key and
+    canary.
   - Reference patterns (text files only: `.md`, `.cheatmd`, `.ex`, `.exs`): tracker
     numerals `00NN` (word-bounded; quoted base64url digests are intact word
     tokens and the only shipped digest form is `sha-256:`-prefixed, so the
@@ -41,7 +43,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     digest-bound by `conformance.verify` (any edit reds the corpus hash),
     and byte patterns still apply to them.
 
-  Goes RED on: a `.kimosabe` path or reference planted in any archived file
+  Goes RED on: a private-tool path planted in any archived file
   (README, a lib module, a corpus member); a tracker numeral or slug added
   to a shipped text file; an internal design citation left in shipped
   docs; or any archive member absent from the tracked source tree. The
@@ -51,8 +53,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   use ExUnit.Case, async: true
 
   @byte_patterns [
-    ".kimosabe",
-    "kimosabe/",
     ".claude/",
     ".serena",
     ".mcp.json",
@@ -77,7 +77,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
         "\\b(handoffs|intents|scout|risks|designs|dogfood|issues|research|reviews|specs)/"
     ),
     # internal design-shorthand citations
-    ~r/\bkimosabe\b/i,
     ~r/\bbofn\b/i,
     ~r/\bspec D\d/,
     ~r/\bD1[0-9]\b/,

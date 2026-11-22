@@ -3,9 +3,11 @@ defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
   Repo-side citation gate: every tracked text file under `lib/`, `test/`,
   `scripts/`, and the TypeScript verifier tree (`verifier/`), in any
   language, stays free of internal tracker citations — numerals, slug
-  forms, planning shorthand, internal review-process vocabulary, and
-  internal tool names — so the public repository inherits no remediation
-  debt. The shipped Hex archive is
+  forms, planning shorthand, and internal review-process vocabulary — so
+  the public repository inherits no remediation debt. Private project, tool
+  and repository names are refused by the publication privacy command's
+  keyed fingerprints instead, so this public file never spells them. The
+  shipped Hex archive is
   already covered by the publish guard; this extends the same posture to
   the working tree's code files (design history lives under docs/design
   and the local planning directory, which are not scanned).
@@ -46,7 +48,7 @@ defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
     ~r/\b(this|that|the|owning|later|another|a) slice('s)?\b/i,
     # internal review-process vocabulary and finding identifiers
     ~r/\bP\d-\d\b/,
-    ~r/\b(security-lens|cross-vendor|review (round|fix|fold|pass)|codex|fable|opus|kimosabe)\b/i
+    ~r/\b(security-lens|cross-vendor|review (round|fix|fold|pass)|codex|fable|opus)\b/i
   ]
 
   test "no code file carries an internal tracker citation" do

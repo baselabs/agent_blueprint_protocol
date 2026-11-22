@@ -6,7 +6,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
   import PublicPrivacyScan,
     only: [
       scan_repo: 3,
+      scan_repo: 4,
       historical_content_forbidden?: 3,
+      load_config!: 1,
       forbidden?: 3,
       candidates: 1,
       fingerprint: 2,
@@ -303,6 +305,154 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
     end)
   end
 
+  test "recent fingerprints refuse new history and tracked files, not history before since" do
+    AgentBlueprintProtocol.Scratch.with_dir("public-privacy-recent", fn repo ->
+      AgentBlueprintProtocol.Scratch.init_git!(repo)
+      canary = @test_canary |> String.split(" ") |> Enum.join()
+
+      # Published before the boundary: a message, a path and a removed file version.
+      File.write!(Path.join(repo, canary <> ".txt"), canary <> "\n")
+      git!(repo, ["add", "."])
+      git!(repo, ["commit", "-m", "old " <> canary])
+      old = git!(repo, ["rev-parse", "HEAD"]) |> String.trim()
+      tag!(repo, "v-old", old, canary, "2000-01-01T00:00:00Z")
+      git!(repo, ["rm", canary <> ".txt"])
+      File.write!(Path.join(repo, "README.md"), "public protocol\n")
+      git!(repo, ["add", "README.md"])
+      git!(repo, ["commit", "-m", "clean boundary"])
+      since = git!(repo, ["rev-parse", "HEAD"]) |> String.trim()
+      published = MapSet.new([git!(repo, ["rev-parse", "v-old"]) |> String.trim()])
+      boundary = {since, published}
+      hmacs = test_hmacs()
+
+      assert scan_repo(repo, hmacs, @test_key) == {0, true, true, true, true, false}
+      assert scan_repo(repo, hmacs, @test_key, boundary) == {0, false, false, false, false, false}
+
+      # A local tool ref outside branches, tags and remote-tracking refs is never pushed.
+      File.write!(Path.join(repo, "checkpoint.txt"), canary <> "\n")
+      git!(repo, ["add", "checkpoint.txt"])
+      checkpoint_tree = git!(repo, ["write-tree"]) |> String.trim()
+      git!(repo, ["rm", "--cached", "--quiet", "checkpoint.txt"])
+      File.rm!(Path.join(repo, "checkpoint.txt"))
+
+      checkpoint =
+        git!(repo, ["commit-tree", checkpoint_tree, "-p", since, "-m", "checkpoint " <> canary])
+        |> String.trim()
+
+      git!(repo, ["update-ref", "refs/checkpoints/" <> canary, checkpoint])
+      assert scan_repo(repo, hmacs, @test_key, boundary) == {0, false, false, false, false, false}
+      git!(repo, ["update-ref", "-d", "refs/checkpoints/" <> canary])
+
+      # Only the listed tag objects are grandfathered: a new tag on a published commit
+      # is refused even when its tagger date is set before the boundary.
+      tag!(repo, "v-backdated", old, canary, "1999-01-01T00:00:00Z")
+      assert scan_repo(repo, hmacs, @test_key, boundary) == {0, false, false, false, true, false}
+      git!(repo, ["tag", "-d", "v-backdated"])
+
+      File.write!(Path.join(repo, "README.md"), canary <> "\n")
+      assert scan_repo(repo, hmacs, @test_key, boundary) == {1, false, false, false, false, false}
+
+      git!(repo, ["commit", "-am", "new " <> canary])
+      git!(repo, ["rm", "README.md"])
+      git!(repo, ["commit", "-m", "remove"])
+      assert scan_repo(repo, hmacs, @test_key, boundary) == {0, true, false, true, false, false}
+
+      tip = git!(repo, ["rev-parse", "HEAD"]) |> String.trim()
+      tag!(repo, "v-new", tip, canary, "2000-01-01T00:00:00Z")
+      assert scan_repo(repo, hmacs, @test_key, boundary) == {0, true, false, true, true, false}
+
+      assert_raise RuntimeError, ~r/boundary commit is not in this repository/, fn ->
+        scan_repo(repo, hmacs, @test_key, {String.duplicate("0", 40), published})
+      end
+    end)
+  end
+
+  test "the configuration admits only a well-formed recent section" do
+    AgentBlueprintProtocol.Scratch.with_dir("public-privacy-config", fn dir ->
+      digest = String.duplicate("a", 64)
+      base = %{"key_env" => "PUBLIC_PRIVACY_TEST_KEY", "forbidden_hmacs" => [digest]}
+
+      recent = %{
+        "since" => String.duplicate("b", 40),
+        "published_tags" => [String.duplicate("c", 40)],
+        "forbidden_hmacs" => [digest]
+      }
+
+      path = Path.join(dir, "privacy.json")
+
+      load = fn config ->
+        File.write!(path, JSON.encode!(config))
+        load_config!(path)
+      end
+
+      assert load.(base) == base
+      assert load.(Map.put(base, "recent", recent)) == Map.put(base, "recent", recent)
+
+      for bad <- [
+            Map.put(recent, "since", "HEAD"),
+            Map.put(recent, "forbidden_hmacs", []),
+            Map.put(recent, "forbidden_hmacs", ["not-a-digest"]),
+            Map.put(recent, "extra", true),
+            Map.delete(recent, "since"),
+            Map.delete(recent, "published_tags"),
+            Map.put(recent, "published_tags", ["v1.0.0"]),
+            [recent]
+          ] do
+        assert_raise RuntimeError, ~r/invalid privacy scan configuration/, fn ->
+          load.(Map.put(base, "recent", bad))
+        end
+      end
+    end)
+  end
+
+  test "the standalone command applies the recent section past its boundary" do
+    AgentBlueprintProtocol.Scratch.with_dir("public-privacy-recent-command", fn repo ->
+      AgentBlueprintProtocol.Scratch.init_git!(repo)
+      canary = @test_canary |> String.split(" ") |> Enum.join()
+      File.write!(Path.join(repo, "README.md"), "public protocol\n")
+      git!(repo, ["add", "README.md"])
+      git!(repo, ["commit", "-m", "old " <> canary])
+      since = git!(repo, ["rev-parse", "HEAD"]) |> String.trim()
+
+      config_path = Path.join(repo, "privacy.json")
+      unrelated = [fingerprint("unrelated protected term", @test_key)]
+
+      File.write!(
+        config_path,
+        JSON.encode!(
+          Map.merge(@test_config, %{
+            "forbidden_hmacs" => unrelated,
+            "recent" => %{
+              "since" => since,
+              "published_tags" => [],
+              "forbidden_hmacs" => MapSet.to_list(test_hmacs())
+            }
+          })
+        )
+      )
+
+      script = Path.expand("scripts/check_public_privacy.exs")
+      env = [{@test_config["key_env"], @test_key}]
+
+      run = fn ->
+        System.cmd("elixir", [script, config_path, repo], env: env, stderr_to_stdout: true)
+      end
+
+      assert {_output, 0} = run.()
+
+      File.write!(Path.join(repo, "NOTES.md"), "notes\n")
+      git!(repo, ["add", "NOTES.md"])
+      git!(repo, ["commit", "-m", "new " <> canary])
+
+      {output, status} = run.()
+      assert status != 0
+      assert output =~ "commit messages"
+      refute output =~ "tracked files"
+      refute output =~ @test_canary
+      refute output =~ @test_key
+    end)
+  end
+
   defp git!(repo, args) do
     {output, 0} =
       System.cmd("git", ["--no-replace-objects", "-C", repo | args],
@@ -311,6 +461,16 @@ defmodule AgentBlueprintProtocol.Architecture.PublicSurfacePrivacyTest do
       )
 
     output
+  end
+
+  defp tag!(repo, name, commit, message, date) do
+    {_output, 0} =
+      System.cmd("git", ["-C", repo, "tag", "-a", name, commit, "-m", message],
+        stderr_to_stdout: true,
+        env: [{"GIT_COMMITTER_DATE", date} | @git_env]
+      )
+
+    :ok
   end
 
   defp git_with_replacements!(repo, args) do

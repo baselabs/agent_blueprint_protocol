@@ -26,27 +26,28 @@ Requirements:
 
 ## CI/CD and releases
 
-What infra requires of every product is written once, in the infra repository:
-`baselabs/docs/ci.md`, section "What infra requires of every product", on its default branch
-(`git -C ~/Developer/infra fetch -q origin; git -C ~/Developer/infra show origin/main:baselabs/docs/ci.md`).
-Re-read it whenever you touch a workflow, Dockerfile, release script or secret. It is not copied
-here.
+What the infrastructure owner requires of every product is written once, in its CI
+requirements document; the local agent file under the git-excluded planning directory says where
+it is. Re-read it whenever you touch a workflow, Dockerfile, release script or secret. It is not
+copied here.
 
-- This session's part ends at the default branch. Land through `kimosabe-land` and nothing else.
-  Never release, deploy, publish, tag a version, dispatch a workflow, push an image by hand, or
-  handle a release, publish or CI key. When something should go out, send infra-1 one message:
-  repository, full commit, what goes out, and anything it needs.
+- This session's part ends at the default branch. Land through the landing tool and nothing
+  else. Never release, deploy, publish, tag a version, dispatch a workflow, push an image by hand,
+  or handle a release, publish or CI key. When something should go out, send the infrastructure
+  owner one message: repository, full commit, what goes out, and anything it needs.
 - Write your own workflow changes. Before landing any change to `.github/`, a Dockerfile, a
-  release script or anything that touches a secret, send infra-1 the branch and head and wait for
-  its review. Any CI/CD, runner, box or key problem goes to infra-1, not around it.
+  release script or anything that touches a secret, send the infrastructure owner the branch and
+  head and wait for its review. Any CI/CD, runner, build box or key problem goes to it, not
+  around it.
 - Nothing that compiles or tests runs on the owner's Mac. This public repository never uses
   the build box or an organization runner: its checks run only in CI on pinned GitHub-hosted
   runners.
 - Never list process arguments: no `ps` with `args` or `-f`, no `/proc/*/cmdline`; use
   `ps -eo pid,etimes,pcpu,comm`. A secret never appears on a command line, in a log or in a
-  message; if you see one exposed, tell infra-1 where it sits without copying the value.
-- Messages to infra-1: one message per result, complete enough to act on without a reply. No
-  acknowledgements and no status notes.
+  message; if you see one exposed, tell the infrastructure owner where it sits without copying
+  the value.
+- Messages to the infrastructure owner: one message per result, complete enough to act on
+  without a reply. No acknowledgements and no status notes.
 - Every brief to a child agent carries these rules.
 
 ## Build and test
@@ -56,15 +57,14 @@ here.
   `npm ci --ignore-scripts --no-audit --no-fund && npm run build` for the kit.
 - Covering tests: `mix test <test files for the changed modules and their direct callers>`.
 - Suite-wide changes (spec, corpus, registry, release metadata, workflows, shared test
-  support): land through `kimosabe-land`, whose push to `kci/<sha>` runs `ci.yml` in full
+  support): land through the landing tool, whose push to `kci/<sha>` runs `ci.yml` in full
   before `main` moves. The full suite runs in CI only.
 - A landing is done only when it is clean; cleanup is its last step, not a later task.
-  `kimosabe-land` removes `kci/<sha>` and retires the landed source branches locally and on
-  origin; never delete a landed branch by hand. Its exit 4 means landed with cleanup incomplete:
-  run `kimosabe-land --repo . --sweep`, and settle anything it still reports before reporting
-  the landing. `kimosabe-land`
-  clears its own evidence under `.kimosabe/work/`; never delete it by hand. Before reporting the
-  landing: this checkout is on `main` at the landed head; no branch the change used remains;
+  The landing tool removes `kci/<sha>` and retires the landed source branches locally and on
+  origin; never delete a landed branch by hand. When it reports the change landed with cleanup
+  incomplete, run its sweep and settle anything it still reports before reporting the landing.
+  It clears its own run evidence; never delete that by hand. Before reporting the landing:
+  this checkout is on `main` at the landed head; no branch the change used remains;
   `git worktree list` shows only this checkout; and the change's outputs are gone (any
   `cover/`, `doc/`, `dist/`, `tmp/`, `artifacts/` or `erl_crash.dump`).
   `git status --short --ignored` then shows nothing the change created beyond dependency caches
