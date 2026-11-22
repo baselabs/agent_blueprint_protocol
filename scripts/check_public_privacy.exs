@@ -305,7 +305,15 @@ defmodule PublicPrivacyScan do
   defp history_range!(repo, since) do
     case AgentBlueprintProtocol.GateCommand.capture(
            "git",
-           ["--no-replace-objects", "-C", repo, "cat-file", "-e", since <> "^{commit}"],
+           [
+             "--no-replace-objects",
+             "-C",
+             repo,
+             "rev-parse",
+             "--verify",
+             "--quiet",
+             since <> "^{commit}"
+           ],
            stderr_to_stdout: true,
            env: @git_env
          ) do
