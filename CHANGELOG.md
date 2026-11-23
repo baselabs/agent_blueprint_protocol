@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-23
+
+Promotes 1.1.1-rc.1 without changes. Published decision records now cover
+protocol and product design under numbered file names. The public roadmap is
+available in `docs/ROADMAP.md`.
+
+Library and verifier behavior, protocol revision 1, and verification semantics 4
+are unchanged from 1.1.0. The corpus contains 626 cases, digest
+`sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE`; the registry digest is
+`sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest
+is `sha-256:kr7Wtl2ZNdTpSBKqBk3xmE57saO9q_Y8T-kmn_S7PKc`.
+
 ## [1.1.1-rc.1] - 2026-11-23
 
 ### Changed
@@ -1160,7 +1172,8 @@ second-language verifier.
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
 
-[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1-rc.1...HEAD
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1-rc.1...v1.1.1
 [1.1.1-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0...v1.1.1-rc.1
 [1.1.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.5...v1.1.0
 [1.1.0-rc.5]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.4...v1.1.0-rc.5
