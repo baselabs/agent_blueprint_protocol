@@ -10,13 +10,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   @readme_path "README.md"
   @security_path "SECURITY.md"
 
-  test "release instructions describe dispatch, refusal, and DevOps-created tags" do
-    for path <- [
-          "AGENTS.md",
-          "CONTRIBUTING.md",
-          "docs/adr/0021-release-publication.md",
-          "docs/adr/0029-release-site.md"
-        ] do
+  test "contributor release instructions describe dispatch, refusal, and maintainer-created tags" do
+    for path <- ["AGENTS.md", "CONTRIBUTING.md"] do
       source = File.read!(path)
       assert source =~ "dispatch", path
       assert source =~ "publish", path
@@ -27,53 +22,49 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
       refute source =~ "DevOps owner", path
     end
 
-    publication = File.read!("docs/adr/0021-release-publication.md")
-    assert publication =~ "A second dispatch on the same commit finishes a held release"
-    assert publication =~ "new tag"
-    assert publication =~ "No workflow creates a release or tag"
-    assert publication =~ "`HEX_API_KEY` as an environment secret"
-    assert publication =~ "environment **`publish`**"
-    assert publication =~ "owner review and default-branch deployment"
+    contributing = File.read!("CONTRIBUTING.md")
 
-    site = File.read!("docs/adr/0029-release-site.md")
-    assert site =~ "Pages accepts only `workflow_dispatch`"
-    assert site =~ "No tag push or workflow event starts Pages"
-    refute site =~ "head_sha"
+    assert contributing =~
+             "A second dispatch with the same `release_commit` finishes a held release"
 
-    for path <- [
-          "CONTRIBUTING.md",
-          "docs/adr/0019-continuous-integration.md",
-          "docs/adr/0021-release-publication.md"
-        ] do
-      source = File.read!(path)
-      assert source =~ "kci/**", path
-      assert source =~ "qualified", path
-      assert source =~ "scripts/toolchain.sh", path
-    end
+    assert contributing =~ "new tag"
+    assert contributing =~ "No workflow creates a release or tag"
+    assert contributing =~ "`HEX_API_KEY` as an environment secret"
+    assert contributing =~ "environment `publish`"
+    assert contributing =~ "maintainer review and default-branch deployment"
+    assert contributing =~ "kci/**"
+    assert contributing =~ "qualified"
+    assert contributing =~ "scripts/toolchain.sh"
 
-    assert publication =~
+    assert contributing =~
              "scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]"
 
-    assert publication =~ "`github-pages` environment"
+    assert contributing =~ "`github-pages` environment"
+    assert contributing =~ "Pages accepts only `workflow_dispatch`"
+    assert contributing =~ "No tag push or workflow event starts Pages"
   end
 
-  test "release instructions identify a qualified release commit independently of dispatch head" do
-    for path <- [
-          "AGENTS.md",
-          "CONTRIBUTING.md",
-          "docs/adr/0019-continuous-integration.md",
-          "docs/adr/0021-release-publication.md",
-          "documentation/verifying-releases.md"
-        ] do
+  test "contributor release instructions identify a qualified commit independently of dispatch head" do
+    for path <- ["AGENTS.md", "CONTRIBUTING.md"] do
       source = File.read!(path)
       assert source =~ "release_commit", path
       assert source =~ "qualified", path
-      assert source =~ "landing head", path
       assert source =~ "same declared version and package bytes", path
       refute source =~ "without inputs", path
       refute source =~ "no inputs", path
       refute source =~ "does not re-check `qualified`", path
     end
+
+    assert File.read!("AGENTS.md") =~ "landing head"
+
+    verification = File.read!("documentation/verifying-releases.md")
+    assert verification =~ "qualified commit"
+    assert verification =~ "release.json"
+    assert verification =~ "GitHub release"
+    assert verification =~ "release_commit"
+    assert verification =~ "sha256sum --check SHA256SUMS"
+    refute verification =~ "landing head"
+    refute verification =~ "workflow_dispatch"
   end
 
   test "shipped document fences have at most a bare language info string" do
@@ -513,7 +504,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
        when file in [
               "documentation/stability.md",
               "documentation/typescript.md",
-              "docs/adr/0014-stability-policy.md",
+              "docs/adr/0013-stability-policy.md",
               "spec/protocol.md",
               "verifier/README.md"
             ] do

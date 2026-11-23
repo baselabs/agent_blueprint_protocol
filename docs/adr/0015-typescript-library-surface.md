@@ -1,4 +1,4 @@
-# 0016: TypeScript library surface
+# 0015: TypeScript library surface
 
 Status: Accepted
 

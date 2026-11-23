@@ -6,8 +6,8 @@ name: Publish
 # release_commit to finish a held release, uploading only what is missing.
 # npm uses trusted publishing with provenance in environment publish; no npm token.
 # HEX_API_KEY lives there and reaches only the no-project upload step.
-# No workflow creates a release or tag. release-assets is handed to infra, which
-# reads the packages back, tags the published docs commit, creates the GitHub release, and dispatches Pages.
+# No workflow creates a release or tag. release-assets is handed to maintainers, who
+# read the packages back, tag the published docs commit, create the GitHub release, and dispatch Pages.
 
 on:
   workflow_dispatch:
@@ -512,7 +512,7 @@ jobs:
             "release-assets/hex-docs-${VERSION}.tar.gz" "$RELEASE_COMMIT" "$GITHUB_WORKSPACE"
           (cd release-assets && sha256sum -- "hex-docs-${VERSION}.tar.gz" >> SHA256SUMS)
 
-      - name: Hand consumer release assets to infra
+      - name: Hand consumer release assets to maintainers
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets

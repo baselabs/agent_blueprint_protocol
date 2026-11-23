@@ -277,7 +277,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert read_back =~ ~s|sha256sum -- "hex-docs-${VERSION}.tar.gz" >> SHA256SUMS|
     assert_before(read_back, "hex_release_state.exs read-back", "sha256sum")
     assert_before(hex, "hex_release_state.exs read-back", "name: release-assets")
-    upload = step(hex, "Hand consumer release assets to infra")
+    upload = step(hex, "Hand consumer release assets to maintainers")
     assert upload =~ "path: verified-release/release-assets/"
     assert upload =~ "if-no-files-found: error"
   end
@@ -343,6 +343,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
   test "Pages stays an owner's default-branch dispatch" do
     pages = workflow("pages")
+    refute pages =~ "head_sha"
     [_, triggers] = String.split(pages, "\non:\n", parts: 2)
     [triggers | _] = String.split(triggers, "\npermissions:", parts: 2)
     assert String.trim(triggers) == "workflow_dispatch:"

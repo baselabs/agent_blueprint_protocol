@@ -136,7 +136,7 @@ Local mode verifies candidate bytes without requiring them to be published.
 Both modes read the checkout's release tags to replay historical censuses and
 the signed 0.8.x goldens under both installed packages. A missing tag history
 fails verification; fetch the historical release tags before running either
-mode. The version being verified does not need its own tag, so Publish runs its installed-package jobs before infra creates the new tag.
+mode. The version being verified does not need its own tag.
 
 Without a checkout, the Hex package's own `scripts/consumer_examples.exs` takes
 the same arguments and runs the four package gates alone. It loads nothing
@@ -145,38 +145,44 @@ See [Contributing](../CONTRIBUTING.md) for the build commands.
 
 ## Verify served docs provenance
 
-Publish takes exactly one required `release_commit`, a full 40-hex lowercase SHA, on an
-owner's default-branch dispatch. Its first job validates the SHA, proves its
-default-branch ancestry, requires a successful `qualified` check on that exact
-SHA through the GitHub API, compares its declared package versions, and refuses
-an existing release tag before building. Checkouts, builds, provenance, and
-read-back use that SHA. Redispatch with the same `release_commit` after a registry
-hold, regardless of the default branch's current head.
+Each release is built from one qualified commit. The published source commit is
+recorded as `commit` in the docs archive's root `release.json` and identified by
+the GitHub release's version tag. The manifest also names the package and version.
 
-Sessions keep the version commit landable as a landing head, or name a later
-`qualified` commit with the same declared version and package bytes. Send infra
-that SHA with the release request.
+The GitHub release includes the served docs archive as
+`hex-docs-<version>.tar.gz`, with its digest in SHA256SUMS. Verify that checksum
+using the recipe above before inspecting `release.json`. In a source checkout,
+fetch the release tag and compare its commit with the manifest:
 
-The package is the release: its served checksum must match the built package.
-Docs are a rendering, and their bytes can vary between builds. Planning checks
-only presence; served docs are kept and never compared with a rebuild or replaced.
-Missing docs are uploaded only for a package Hex serves. ExDoc uses its default
-HTML, Markdown, and EPUB formatters.
+```sh
+VERSION=1.1.0
+git fetch origin tag "v$VERSION"
+COMMIT=$(git rev-parse "v$VERSION^{commit}")
+mkdir hex-docs
+tar -xzf "hex-docs-$VERSION.tar.gz" -C hex-docs
+node --input-type=module -e '
+  import fs from "node:fs";
+  const [version, commit] = process.argv.slice(1);
+  const manifest = JSON.parse(fs.readFileSync("hex-docs/release.json", "utf8"));
+  if (manifest.package !== "agent_blueprint_protocol" || manifest.version !== version ||
+      !/^[0-9a-f]{40}$/.test(manifest.commit) || manifest.commit !== commit) {
+    throw new Error("Docs provenance does not match the release tag");
+  }
+  if (!fs.existsSync("hex-docs/index.html")) throw new Error("Docs index missing");
+  console.log("Verified docs provenance");
+' "$VERSION" "$COMMIT"
+```
 
-After `mix docs`, Publish writes root `release.json` with the package, version,
-and `release_commit` before packing. Read-back requires a readable served gzip
-tar containing `index.html` and valid `release.json` for this package and version.
-The manifest's commit must equal `release_commit` or be its ancestor on the
-default branch, checked against full Git history with `git merge-base --is-ancestor`.
-Unreadable archives, missing files, wrong package or version, and invalid commit
-ancestry refuse publication. Success prints `published commit: <sha>`, and infra
-tags that commit, including when it is an ancestor of `release_commit`.
+The command exits nonzero if the package, version, source commit, or docs index
+does not match. Remove the extracted `hex-docs` directory when finished.
 
-The `release-assets` handoff and permanent GitHub release include the inspected
-served archive as `hex-docs-<version>.tar.gz`, with its digest in SHA256SUMS.
-Verify that asset's checksum before inspecting its `release.json`; a rebuild is
-not a docs checksum reference. Equal package bytes alone do not identify the docs
-commit because the renderer and build state also affect documentation.
+Docs are a rendering whose bytes can vary between builds. Served docs are
+preserved, so compare the inspected archive with the GitHub release asset rather
+than with a rebuild. Equal package bytes alone do not identify the docs commit
+because the renderer and build state also affect documentation. The manifest's
+`commit` field records the qualified `release_commit` used to build those docs.
+Preserved docs can identify an earlier source commit with the same package bytes.
+The published version tag must identify that manifest commit.
 
 ## Next steps
 

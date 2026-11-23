@@ -17,7 +17,7 @@ Requirements:
   publishes only missing uploads through environment `publish`. Redispatch the same
   `release_commit` to finish a held release. DevOps reads packages back,
   tags the published commit printed from served docs provenance, creates the GitHub release
-  from `release-assets` including the served docs, and dispatches Pages, which deploys only by dispatch. See [release publication](docs/adr/0021-release-publication.md).
+  from `release-assets` including the served docs, and dispatches Pages, which deploys only by dispatch. See [contributor release instructions](CONTRIBUTING.md#releases).
 - Publication guards run at the point of publication: the pre-push hook
   and CI run the same command,
   `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`.
@@ -42,7 +42,7 @@ copied here.
   release script or anything that touches a secret, send the infrastructure owner the branch and
   head and wait for its review. Any CI/CD, runner, build box or key problem goes to it, not
   around it.
-- Nothing that compiles or tests runs on the owner's Mac. This public repository never uses
+- Nothing that compiles or tests runs on a local workstation. This public repository never uses
   the build box or an organization runner: its checks run only in CI on pinned GitHub-hosted
   runners.
 - Never list process arguments: no `ps` with `args` or `-f`, no `/proc/*/cmdline`; use

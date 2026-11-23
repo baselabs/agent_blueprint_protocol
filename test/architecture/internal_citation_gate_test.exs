@@ -59,7 +59,7 @@ defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
             AgentBlueprintProtocol.ArchitectureScan.public_record_text(
               content,
               path,
-              Path.wildcard("docs/adr/[0-9][0-9][0-9][0-9]-*.md")
+              Path.wildcard(Path.join("docs/adr", "[0-9][0-9][0-9][0-9]-*.md"))
             ),
           pattern <- @citation_patterns,
           Regex.scan(pattern, content) != [] do

@@ -1,4 +1,4 @@
-# 0018: artifacts carry requirements, hosts resolve them
+# 0017: artifacts carry requirements, hosts resolve them
 
 Status: Accepted
 

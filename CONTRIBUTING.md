@@ -21,12 +21,12 @@ A standalone `mix typescript.guide` check also requires the npm dependencies and
 
 ## CI and checks
 
-Qualification starts only on a push to `kci/**`. Landing moves the default
+Qualification starts only on a push to `kci/**`. A change reaches the default
 branch only after `qualified` has required every other job to succeed.
 Pull requests, default-branch pushes, tags, and dispatches do not start CI.
-This public repository uses pinned GitHub-hosted runners; builds and tests
-run only in CI, never on the owner's Mac or the build box. Workstation checks
-are limited to static inspection, actionlint, and the shell toolchain reader.
+This repository uses pinned GitHub-hosted runners for all builds and tests.
+Workstation checks are limited to static inspection, actionlint, and the shell
+toolchain reader.
 
 `scripts/toolchain.sh` is the only reader of `.tool-versions`. CI reads its
 defaults and compatibility lanes once in `toolchain`; runtime setup uses
@@ -92,8 +92,8 @@ Regenerate release metadata after specification, corpus, or registry changes wit
 ## Releases
 
 A release commit carries equal Hex and npm versions and current release metadata,
-install commands, documentation links, and notebook targets. DevOps dispatches
-**Publish** from the default branch as an owner with exactly one required input,
+install commands, documentation links, and notebook targets. Maintainers dispatch
+**Publish** from the default branch with exactly one required input,
 `release_commit`, a full 40-hex lowercase SHA. The first job validates it, proves ancestry
 from the default-branch head with full history, and requires a successful
 `qualified` check run on that exact SHA through the GitHub API. Every checkout,
@@ -101,11 +101,11 @@ build, release record, and read-back uses that SHA. The version reader compares
 `mix.exs`, `priv/release-metadata.json` (`package_version`), and `package.json`
 at that commit before building. Both package names must already exist, and an
 existing remote tag refuses publication. Qualification on `kci/**`, with every
-job required by `qualified`, precedes landing.
+job required by `qualified`, precedes acceptance on the default branch.
 
-Sessions keep the version commit landable as a landing head, or name a later
-`qualified` commit with the same declared version and package bytes. Send infra
-that SHA with the release request.
+Use a `qualified` release commit with the same declared version and package bytes
+when resuming publication. The release commit is independent of the default
+branch's current head.
 
 Publish verifies the source, builds and inspects both archives, and compares
 served package bytes before uploading only missing packages or docs. The package
@@ -125,8 +125,9 @@ npm uses staged trusted publishing with provenance in environment `publish`.
 Hex uses `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]`
 through the pinned client's API from a directory with no Mix project. The Hex key
 reaches only that upload step. A held upload stops explicitly: approve it on
-npmjs.com or hex.pm, then dispatch Publish from the default branch with the same
-`release_commit`, however far that branch has moved. The next run
+npmjs.com or hex.pm, then dispatch Publish from the default branch again.
+A second dispatch with the same `release_commit` finishes a held release,
+however far that branch has moved. The next run
 uploads only what is missing. Missing docs are uploaded only for a package Hex
 serves. Matching served package bytes succeed; differing package bytes, retirement,
 and unknown state refuse. No upload replaces a package or served docs.
@@ -137,14 +138,16 @@ certified results, CHANGELOG release notes, the inspected served
 `hex-docs-<version>.tar.gz`, and SHA256SUMS. Publish's separate
 published-package jobs run installed consumers on Linux, macOS, and Windows with
 historical tags, no key, and no environment. No workflow creates a release or tag.
-Infra reads packages back, tags the published docs commit, compares the package archive
-with the registry, creates the GitHub release `v<version>` from those assets, and
-dispatches Pages. Pages deploys only through an owner's default-branch dispatch.
+Maintainers verify the served packages and create the new tag at the published
+docs commit, compare the package archive with the registry, and create the GitHub
+release `v<version>` from those assets. Pages accepts only `workflow_dispatch`
+from the default branch and uses its own `github-pages` environment.
+No tag push or workflow event starts Pages.
 
-Before publication, the owner configures npm's trusted publisher for this
-repository, `publish.yml`, and environment `publish`; DevOps configures
-`HEX_API_KEY` as an environment secret and owner review and default-branch
-environment protection. See [release publication](docs/adr/0021-release-publication.md).
+Before publication, maintainers configure npm's trusted publisher for this
+repository, `publish.yml`, and environment `publish`, together with
+`HEX_API_KEY` as an environment secret and maintainer review and default-branch deployment
+protection. Publication credentials are available only to the upload steps.
 
 ## Next steps
 

@@ -9,8 +9,21 @@ defmodule AgentBlueprintProtocol.ArchitectureScan do
 
   @shipped_roots ["lib", "priv"]
 
-  @doc "Removes only public record numbers from known paths and a record's own heading."
+  @doc "Removes public record numbers from known paths, their headings, and the changelog range."
   def public_record_text(source, path, records) do
+    source =
+      if path == "CHANGELOG.md" and records != [] do
+        numbers = records |> Enum.sort() |> Enum.map(&(Path.basename(&1) |> String.slice(0, 4)))
+        range = "#{List.first(numbers)}–#{List.last(numbers)}"
+
+        declaration =
+          "Published decision records now cover protocol and product design, numbered "
+
+        String.replace(source, declaration <> range <> ";", declaration <> "ADR range;")
+      else
+        source
+      end
+
     Enum.reduce(records, source, fn record, text ->
       basename = Path.basename(record)
       [number, slug] = String.split(basename, "-", parts: 2)
@@ -20,7 +33,9 @@ defmodule AgentBlueprintProtocol.ArchitectureScan do
         Regex.replace(
           ~r{(?<![\w/-])(?:\.\.?/)*#{Regex.escape(record)}(?![\w./-])},
           text,
-          fn reference -> String.replace(reference, record, "docs/adr/" <> replacement) end
+          fn reference ->
+            String.replace(reference, record, Path.join(Path.dirname(record), replacement))
+          end
         )
 
       text =

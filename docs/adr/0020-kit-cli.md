@@ -1,4 +1,4 @@
-# 0028: Installed kit commands and corpus selection
+# 0020: Installed kit commands and corpus selection
 
 Status: Accepted
 

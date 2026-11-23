@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- ADR files now use chronological four-digit numbers; update links to their numbered paths.
+- Published decision records now cover protocol and product design, numbered 0001–0020;
+  update links to their numbered paths.
   The public roadmap is available in `docs/ROADMAP.md`.
 
 ## [1.1.0] - 2026-11-17
@@ -745,7 +746,7 @@ The conformance corpus is unchanged at 94 cases, digest
 ### Changed: documentation packaging (no code change)
 
 - The Hex archive and hexdocs now ship the seven architecture decision
-  records (`docs/adr/`), and `docs/federation-mapping.md` joins the
+  records (`docs/adr`), and `docs/federation-mapping.md` joins the
   hexdocs extras, matching the house packaging convention of the
   published `bounded_authority_protocol` package.
 - README restructured to the house convention: Installation directly
@@ -767,7 +768,7 @@ second-language verifier.
   compiled registry's first-release entries, the bounds algebra laws,
   the 74-code error vocabulary, the evidence contract, and the
   conformance corpus identity (88 cases at the recorded digest).
-- `docs/adr/` (repository-side decision records): the seven
+- `docs/adr` (repository-side decision records): the seven
   decisions of record:
   the non-authorizing boundary, the detached JWS envelope, the
   two-consumer amendment, deny-default protected-bound clamps, the

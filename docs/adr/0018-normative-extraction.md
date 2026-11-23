@@ -1,4 +1,4 @@
-# 0020: the normative tree extracts on its own
+# 0018: the normative tree extracts on its own
 
 Status: Accepted
 
