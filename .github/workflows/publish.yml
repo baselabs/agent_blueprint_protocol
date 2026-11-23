@@ -61,7 +61,7 @@ jobs:
             echo "::error::release_commit must be a full 40-hex SHA"
             exit 1
           fi
-          printf 'commit=%s\n' "${RELEASE_COMMIT,,}" >> "$GITHUB_OUTPUT"
+          printf 'commit=%s\n' "$(printf '%s' "$RELEASE_COMMIT" | tr 'A-F' 'a-f')" >> "$GITHUB_OUTPUT"
 
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

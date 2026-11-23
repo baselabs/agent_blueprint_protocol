@@ -45,7 +45,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert validation =~ "RELEASE_COMMIT: ${{ inputs.release_commit }}"
     assert validation =~ ~s|if [[ ! "$RELEASE_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]]; then|
     assert validation =~ "exit 1"
-    assert validation =~ ~s|printf 'commit=%s\\n' "${RELEASE_COMMIT,,}" >> "$GITHUB_OUTPUT"|
+
+    assert validation =~
+             ~s|printf 'commit=%s\\n' "$(printf '%s' "$RELEASE_COMMIT" \| tr 'A-F' 'a-f')" >> "$GITHUB_OUTPUT"|
+
     assert_before(verify, "Validate the release commit", "uses: actions/checkout@")
     assert verify =~ "release_commit: ${{ steps.release.outputs.commit }}"
     refute workflow =~ "github.sha"
