@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-23
+
 ### Changed
 
 - Published decision records now cover protocol and product design only, under
@@ -1158,7 +1160,8 @@ second-language verifier.
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
 
-[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.5...v1.1.0
 [1.1.0-rc.5]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.4...v1.1.0-rc.5
 [1.1.0-rc.4]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.3...v1.1.0-rc.4

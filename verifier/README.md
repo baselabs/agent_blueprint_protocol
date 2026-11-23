@@ -3,11 +3,11 @@
 A typed, non-authorizing verifier library and conformance CLI. Node 24 or
 newer; zero runtime dependencies. For Elixir, see
 [agent_blueprint_protocol](https://hex.pm/packages/agent_blueprint_protocol).
-The specification is [published with the project](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/spec/protocol.md).
+The specification is [published with the project](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.1/spec/protocol.md).
 
 ```sh
-npm install @agent-blueprint-protocol/verifier@1.1.0
-npx @agent-blueprint-protocol/verifier@1.1.0 --help
+npm install @agent-blueprint-protocol/verifier@1.1.1
+npx @agent-blueprint-protocol/verifier@1.1.1 --help
 ```
 
 The commands above install and run the exact package version. `npm view @agent-blueprint-protocol/verifier dist-tags` lists the published version for each npm tag.
@@ -19,7 +19,7 @@ deprecated federation registrations. Supply other namespaces through
 `Support.registry`, including criticality, lifecycle state, and `schemaDigest`;
 put held schema documents in `Support.schemas`. A host cannot change the
 criticality or schema pin of a compiled entry. See the
-[host registration examples](https://hexdocs.pm/agent_blueprint_protocol/1.1.0/extensions.html#register-a-namespace-with-the-host).
+[host registration examples](https://hexdocs.pm/agent_blueprint_protocol/1.1.1/extensions.html#register-a-namespace-with-the-host).
 
 The package is ESM-only; `require()` is not supported.
 Only the package root and `package.json` are exported. Import has no command
@@ -39,9 +39,9 @@ const result = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-bluepr
 console.log(result.ok ? "valid" : result.error.code); // valid
 ```
 
-Decoding checks canonical bytes, structure, portability, and digest. The example is unsigned; it establishes no cryptographic signature. For a source-checkout alternative, use the `v1.1.0` tag and its `priv/examples/` files.
+Decoding checks canonical bytes, structure, portability, and digest. The example is unsigned; it establishes no cryptographic signature. For a source-checkout alternative, use the `v1.1.1` tag and its `priv/examples/` files.
 
-The [complete TypeScript guide and package-root reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.0/typescript.html#package-root-reference) covers every root export, options, success and denial results, runnable pair reconciliation, signature checks, JSON evidence readers, and corpus workflows. It gives filenames and type-check/run commands for each TypeScript example.
+The [complete TypeScript guide and package-root reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.1/typescript.html#package-root-reference) covers every root export, options, success and denial results, runnable pair reconciliation, signature checks, JSON evidence readers, and corpus workflows. It gives filenames and type-check/run commands for each TypeScript example.
 
 Decoded views expose read-only JSON `value`, `canonicalBytes`, and
 `contentDigest` (null for a federation envelope, whose commitment is a
@@ -96,7 +96,7 @@ Runner exit codes: 0 for agreement, a valid artifact, help, or version; 1 for di
 ## External implementations and claims
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.1.0 conformance run --corpus ./conformance --results results.json -- ./example-adapter
+npx @agent-blueprint-protocol/verifier@1.1.1 conformance run --corpus ./conformance --results results.json -- ./example-adapter
 ```
 
 After a pass, add `--claim claim.json --implementation example-verifier
@@ -112,7 +112,7 @@ host behavior. The package includes the runner and execution contracts under
 
 ## Migrating from 0.8
 
-Deep imports from `dist/verifier/` no longer resolve; import from the package root. The [TypeScript guide](https://hexdocs.pm/agent_blueprint_protocol/1.1.0/typescript.html#import-migration) maps each previous import to its replacement.
+Deep imports from `dist/verifier/` no longer resolve; import from the package root. The [TypeScript guide](https://hexdocs.pm/agent_blueprint_protocol/1.1.1/typescript.html#import-migration) maps each previous import to its replacement.
 
 ## Compatibility within 1.x
 

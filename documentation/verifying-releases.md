@@ -4,14 +4,14 @@ This guide is for people checking installed or downloaded packages. You will com
 
 Use Node.js 24 or newer, npm, and Mix with Hex installed. These checks need no source checkout.
 
-Every recipe defaults to `VERSION=1.1.0`. To check another release, substitute its version consistently in every block and use the matching archives and installation. Expected checksums below are queried from the publishing service rather than copied from an older release.
+Every recipe defaults to `VERSION=1.1.1`. To check another release, substitute its version consistently in every block and use the matching archives and installation. Expected checksums below are queried from the publishing service rather than copied from an older release.
 
 ## Verify a Hex package
 
 Fetch the package archive, print the checksum from Hex's release API, then calculate the archive's SHA-256 value:
 
 ```sh
-VERSION=1.1.0
+VERSION=1.1.1
 mix hex.package fetch agent_blueprint_protocol "$VERSION"
 node --input-type=module -e '
   const version = process.argv[1];
@@ -36,7 +36,7 @@ npm audit signatures
 Check the published tarball integrity in the registry and in the packed archive:
 
 ```sh
-VERSION=1.1.0
+VERSION=1.1.1
 npm view "@agent-blueprint-protocol/verifier@$VERSION" dist.integrity
 npm pack "@agent-blueprint-protocol/verifier@$VERSION" --json
 ```
@@ -50,7 +50,7 @@ The package release metadata includes package_version and corpus_digest. The con
 For the Hex package, extract the package archive, then compare priv/release-metadata.json with priv/conformance/index.json:
 
 ```sh
-VERSION=1.1.0
+VERSION=1.1.1
 mkdir -p hex-wrapper hex-package
 tar -xf "agent_blueprint_protocol-$VERSION.tar" -C hex-wrapper
 tar -xzf hex-wrapper/contents.tar.gz -C hex-package
@@ -60,7 +60,7 @@ node --input-type=module -e 'import fs from "node:fs"; const [version, metadataP
 For the npm package, compare dist/release-metadata.json with dist/corpus/index.json after installing the exact version:
 
 ```sh
-VERSION=1.1.0
+VERSION=1.1.1
 node --input-type=module -e 'import fs from "node:fs"; const [version, metadataPath, indexPath] = process.argv.slice(1); const m = JSON.parse(fs.readFileSync(metadataPath, "utf8")); const i = JSON.parse(fs.readFileSync(indexPath, "utf8")); const p = JSON.parse(fs.readFileSync("node_modules/@agent-blueprint-protocol/verifier/package.json", "utf8")); if (p.version !== version || m.package_version !== version || m.corpus_digest !== i.corpus_digest) process.exit(1); console.log(m.package_version + " " + m.corpus_digest);' "$VERSION" node_modules/@agent-blueprint-protocol/verifier/dist/release-metadata.json node_modules/@agent-blueprint-protocol/verifier/dist/corpus/index.json
 ```
 
@@ -71,7 +71,7 @@ A mismatch in the installed package version or either corpus identity exits `1`.
 GitHub reports a SHA-256 digest for each release asset. This public-API recipe queries the expected digest, downloads the matching archive, compares the bytes, and saves the verified file. It requires no GitHub CLI session and refuses to overwrite an existing file:
 
 ```sh
-VERSION=1.1.0
+VERSION=1.1.1
 node --input-type=module -e '
   import { createHash } from "node:crypto";
   import { writeFileSync } from "node:fs";
@@ -100,7 +100,7 @@ For releases carrying SHA256SUMS, download all assets from the GitHub release
 `v<version>` into a fresh directory, using GitHub CLI or the release page:
 
 ```sh
-VERSION=1.1.0
+VERSION=1.1.1
 gh release download "v$VERSION" --repo baselabs/agent_blueprint_protocol
 sha256sum --check SHA256SUMS
 ```
@@ -124,7 +124,7 @@ verification on those platforms before publication. From a checkout with
 historical release tags available and Elixir and Node installed, run:
 
 ```sh
-elixir scripts/verify_release_packages.exs --registry 1.1.0
+elixir scripts/verify_release_packages.exs --registry 1.1.1
 ```
 
 The script verifies the Hex archive against the Hex API release checksum and
@@ -155,7 +155,7 @@ using the recipe above before inspecting `release.json`. In a source checkout,
 fetch the release tag and compare its commit with the manifest:
 
 ```sh
-VERSION=1.1.0
+VERSION=1.1.1
 git fetch origin tag "v$VERSION"
 COMMIT=$(git rev-parse "v$VERSION^{commit}")
 mkdir hex-docs
@@ -187,5 +187,5 @@ The published version tag must identify that manifest commit.
 ## Next steps
 
 - [Read the conformance guide](conformance.md)
-- [Inspect the release metadata](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.0/priv/release-metadata.json)
+- [Inspect the release metadata](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.1/priv/release-metadata.json)
 - [Read the stability policy](stability.md)
