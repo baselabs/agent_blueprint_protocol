@@ -9,7 +9,6 @@ defmodule AgentBlueprintProtocol.ArchitectureScan do
 
   @shipped_roots ["lib", "priv"]
 
-  @doc "Removes public record numbers from known paths, their headings, and the changelog range."
   @doc "Tracked public decision record paths, sorted; the directory stays outside the glob."
   def public_records do
     :filelib.wildcard(~c"[0-9][0-9][0-9][0-9]-*.md", ~c"docs/adr")
@@ -17,6 +16,7 @@ defmodule AgentBlueprintProtocol.ArchitectureScan do
     |> Enum.sort()
   end
 
+  @doc "Removes public record numbers from known paths and from each record's own heading."
   def public_record_text(source, path, records) do
     Enum.reduce(records, source, fn record, text ->
       basename = Path.basename(record)

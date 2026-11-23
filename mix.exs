@@ -416,7 +416,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "format --check-formatted",
         "compile --warnings-as-errors",
         "credo --strict",
-        "test --cover --seed 42",
+        "test --cover --seed 42 --warnings-as-errors",
         "conformance.verify",
         "conformance.mutations",
         "kit.build",

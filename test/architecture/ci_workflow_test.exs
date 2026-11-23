@@ -184,6 +184,12 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
     assert Map.new(jobs(workflow("ci")))["quality"] =~ "run: mix quality"
   end
 
+  test "the quality test run fails on any warning in test code" do
+    quality = Mix.Project.config()[:aliases][:quality]
+    assert "test --cover --seed 42 --warnings-as-errors" in quality
+    refute "test --cover --seed 42" in quality
+  end
+
   test "full checkouts belong only to jobs that inspect repository history" do
     readers = %{
       "secret-scan" => ["Run gitleaks over full history"],
