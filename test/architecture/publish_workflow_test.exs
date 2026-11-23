@@ -298,6 +298,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     assert npm =~ "npm stage publish"
     assert npm =~ "--ignore-scripts --access public --provenance"
+    assert npm =~ ~s|grep -ih 'oidc' "$HOME"/.npm/_logs/*-debug-0.log|
     assert npm =~ "node scripts/npm_release_state.mjs read-back"
     refute step(npm, "Read back the served npm version") =~ "if:"
     assert hex =~ "mix run --no-mix-exs ../scripts/hex_release_state.exs read-back"

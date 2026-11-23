@@ -335,6 +335,9 @@ jobs:
           if ! npm stage publish \
             "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" \
             --ignore-scripts --access public --provenance --tag "$NPM_TAG"; then
+            # npm logs why trusted publishing gave it no credential only in its
+            # debug log; print those lines (messages, never the token).
+            grep -ih 'oidc' "$HOME"/.npm/_logs/*-debug-0.log || echo "npm debug log has no OIDC lines"
             echo "::error::npm upload failed or staging slot occupied; approve staged bytes on npmjs.com if held, then dispatch Publish again with the same release_commit; the next run uploads only what is missing."
             exit 1
           fi
