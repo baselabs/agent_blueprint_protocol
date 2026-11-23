@@ -17,6 +17,9 @@ if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
     if(JSON.parse(readFileSync('package.json','utf8')).version!==version){
       throw new Error('mix.exs and package.json versions disagree');
     }
+    if(JSON.parse(readFileSync('priv/release-metadata.json','utf8')).package_version!==version){
+      throw new Error('mix.exs and release metadata package versions disagree');
+    }
     process.stdout.write(version);
   }else if(mode==='npm-integrity'&&file&&process.argv.length===4){
     process.stdout.write(npmIntegrity(file));

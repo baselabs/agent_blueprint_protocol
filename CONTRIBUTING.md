@@ -93,10 +93,19 @@ Regenerate release metadata after specification, corpus, or registry changes wit
 
 A release commit carries equal Hex and npm versions and current release metadata,
 install commands, documentation links, and notebook targets. DevOps dispatches
-**Publish** from the default branch as an owner, without inputs. The version is
-read by `scripts/release_artifact_info.mjs version`. Both package names must
-already exist, and an existing remote tag refuses publication. Qualification on
-`kci/**`, with every job required by `qualified`, precedes landing.
+**Publish** from the default branch as an owner with exactly one required input,
+`release_commit`, a full 40-hex SHA. The first job validates it, proves ancestry
+from the default-branch head with full history, and requires a successful
+`qualified` check run on that exact SHA through the GitHub API. Every checkout,
+build, release record, and read-back uses that SHA. The version reader compares
+`mix.exs`, `priv/release-metadata.json` (`package_version`), and `package.json`
+at that commit before building. Both package names must already exist, and an
+existing remote tag refuses publication. Qualification on `kci/**`, with every
+job required by `qualified`, precedes landing.
+
+Sessions keep the version commit landable as a landing head, or name a later
+`qualified` commit with the same declared version and package bytes. Send infra
+that SHA with the release request.
 
 Publish verifies the source, builds and inspects both archives, and compares
 served package bytes before uploading only missing packages or docs. The package
@@ -106,9 +115,9 @@ bytes can vary between builds, so served docs are kept and never compared with a
 rebuild. Planning checks only docs presence.
 
 After `mix docs`, Publish writes root `release.json` with the package, version,
-and dispatched commit before packing. Read-back requires a readable served gzip
+and `release_commit` before packing. Read-back requires a readable served gzip
 tar containing `index.html` and valid `release.json` for this package and version.
-Its commit must be the dispatched commit or an ancestor on the default branch,
+Its commit must be `release_commit` or an ancestor on the default branch,
 checked against full Git history. Invalid or missing provenance refuses publication;
 success prints the published commit from the served docs.
 
@@ -116,7 +125,8 @@ npm uses staged trusted publishing with provenance in environment `publish`.
 Hex uses `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]`
 through the pinned client's API from a directory with no Mix project. The Hex key
 reaches only that upload step. A held upload stops explicitly: approve it on
-npmjs.com or hex.pm, then dispatch Publish again on the same commit. The next run
+npmjs.com or hex.pm, then dispatch Publish from the default branch with the same
+`release_commit`, however far that branch has moved. The next run
 uploads only what is missing. Missing docs are uploaded only for a package Hex
 serves. Matching served package bytes succeed; differing package bytes, retirement,
 and unknown state refuse. No upload replaces a package or served docs.

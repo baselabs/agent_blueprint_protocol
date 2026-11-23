@@ -11,10 +11,11 @@ Requirements:
 
 - Install the toolchain in `.tool-versions`.
 - Keep historical release tags (`refs/tags/v*`) available for compatibility replay.
-- Publish is dispatched from the default branch without inputs, never by pushing a tag.
-  It refuses differing served package bytes and existing tags, keeps served docs, verifies
-  both archives, and publishes only missing uploads through environment `publish`.
-  A second dispatch on the same commit finishes a held release. DevOps reads packages back,
+- Publish is dispatched from the default branch with one required `release_commit`, a full
+  40-hex SHA reachable from that branch with a successful `qualified` check. It builds that
+  commit, refuses differing served package bytes and existing tags, keeps served docs, and
+  publishes only missing uploads through environment `publish`. Redispatch the same
+  `release_commit` to finish a held release. DevOps reads packages back,
   tags the published commit printed from served docs provenance, creates the GitHub release
   from `release-assets` including the served docs, and dispatches Pages, which deploys only by dispatch. See [release publication](docs/adr/0021-release-publication.md).
 - Publication guards run at the point of publication: the pre-push hook
@@ -34,7 +35,9 @@ copied here.
 - This session's part ends at the default branch. Land through the landing tool and nothing
   else. Never release, deploy, publish, tag a version, dispatch a workflow, push an image by hand,
   or handle a release, publish or CI key. When something should go out, send the infrastructure
-  owner one message: repository, full commit, what goes out, and anything it needs.
+  owner one message: repository, full `release_commit`, what goes out, and anything it needs.
+  Keep the version commit landable as a landing head, or name a later `qualified` commit with
+  the same declared version and package bytes; send that SHA with the release request.
 - Write your own workflow changes. Before landing any change to `.github/`, a Dockerfile, a
   release script or anything that touches a secret, send the infrastructure owner the branch and
   head and wait for its review. Any CI/CD, runner, build box or key problem goes to it, not

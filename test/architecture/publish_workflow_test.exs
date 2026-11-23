@@ -4,11 +4,21 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
   @owners ~s|contains(fromJSON('["corepay","palermo-git"]'), github.actor) && | <>
             ~s|contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)|
 
-  test "publication is input-free and serialized, with every job owner gated and default-ref guarded" do
+  test "publication takes one required release commit and serializes owner-gated default-ref jobs" do
     workflow = workflow("publish")
     [_, triggers] = String.split(workflow, "\non:\n", parts: 2)
     [triggers | _] = String.split(triggers, "\npermissions:", parts: 2)
-    assert String.trim(triggers) == "workflow_dispatch:"
+
+    expected = """
+    workflow_dispatch:
+        inputs:
+          release_commit:
+            description: Full 40-hex SHA of the qualified release commit
+            required: true
+            type: string
+    """
+
+    assert String.trim(triggers) == String.trim(expected)
     assert workflow =~ "group: publish\n  cancel-in-progress: false"
 
     assert Enum.map(jobs(workflow), &elem(&1, 0)) ==
@@ -26,6 +36,86 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     refute workflow =~ "contents: write"
     refute Regex.match?(~r/\bgh\s+release\b|^\s+git (?:push|tag)\b/m, workflow)
     refute File.exists?(".github/workflows/postpublish.yml")
+  end
+
+  test "the release SHA is validated before use and pins every publication checkout" do
+    workflow = workflow("publish")
+    verify = job(workflow, "verify")
+    validation = step(verify, "Validate the release commit")
+    assert validation =~ "RELEASE_COMMIT: ${{ inputs.release_commit }}"
+    assert validation =~ ~s|if [[ ! "$RELEASE_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]]; then|
+    assert validation =~ "exit 1"
+    assert validation =~ ~s|printf 'commit=%s\\n' "${RELEASE_COMMIT,,}" >> "$GITHUB_OUTPUT"|
+    assert_before(verify, "Validate the release commit", "uses: actions/checkout@")
+    assert verify =~ "release_commit: ${{ steps.release.outputs.commit }}"
+    refute workflow =~ "github.sha"
+    refute Regex.match?(~r/\bHEAD\b/, workflow)
+    assert length(Enum.filter(steps(workflow), &(&1 =~ "uses: actions/checkout@"))) == 6
+
+    for {name, job} <- jobs(workflow),
+        checkout <- steps(job),
+        checkout =~ "uses: actions/checkout@" do
+      reference =
+        if name == "verify",
+          do: "${{ steps.release.outputs.commit }}",
+          else: "${{ needs.verify.outputs.release_commit }}"
+
+      assert checkout =~ "ref: " <> reference
+    end
+  end
+
+  test "the first job checks ancestry, exact-commit qualification, versions and tag before building" do
+    verify = workflow("publish") |> job("verify")
+    assert step(verify, "Check out source") =~ "fetch-depth: 0"
+    ancestry = step(verify, "Require default-branch ancestry")
+    assert ancestry =~ "RELEASE_COMMIT: ${{ steps.release.outputs.commit }}"
+    assert ancestry =~ "DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}"
+
+    assert ancestry =~
+             ~s|git merge-base --is-ancestor "$RELEASE_COMMIT" "refs/remotes/origin/$DEFAULT_BRANCH"|
+
+    assert ancestry =~ "exit 1"
+    qualified = step(verify, "Require successful qualification of the release commit")
+    assert qualified =~ "RELEASE_COMMIT: ${{ steps.release.outputs.commit }}"
+    assert qualified =~ "GITHUB_TOKEN: ${{ github.token }}"
+    assert qualified =~ ~s|os.environ["GITHUB_TOKEN"]|
+
+    assert qualified =~
+             ~s|/commits/{commit}/check-runs?check_name=qualified&filter=all&per_page=100&page={page}|
+
+    assert qualified =~ ~s|check.get("name") == "qualified"|
+    assert qualified =~ ~s|check.get("head_sha") == commit|
+    assert qualified =~ ~s|check.get("conclusion") == "success"|
+    assert qualified =~ "page += 1"
+    assert qualified =~ "raise SystemExit"
+    refute qualified =~ "continue-on-error"
+
+    assert_before(verify, "Require default-branch ancestry", "Read the default toolchain")
+    assert_before(verify, "Require successful qualification", "Read the default toolchain")
+
+    assert_before(
+      verify,
+      "Read and compare the source package versions",
+      "bash scripts/check_publication.sh"
+    )
+
+    assert_before(verify, "bash scripts/check_publication.sh", "Install the pinned Hex client")
+    assert_before(verify, "bash scripts/check_publication.sh", "mix deps.get --check-locked")
+  end
+
+  test "only the qualification reader gets checks read permission" do
+    workflow = workflow("publish")
+    verify = job(workflow, "verify")
+    [_, permissions] = Regex.run(~r/^    permissions:\n((?:      [^\n]+\n)+)/m, verify)
+    assert permissions == "      contents: read\n      checks: read\n"
+    assert length(Regex.scan(~r/^\s+checks: read$/m, workflow)) == 1
+    refute workflow =~ "checks: write"
+    refute workflow =~ "actions: read"
+
+    for {name, job} <- jobs(workflow), name != "verify" do
+      refute job =~ "checks:"
+      refute job =~ "GITHUB_TOKEN:"
+    end
   end
 
   test "credential-free published-package checks need the upload and retain their measured platforms" do
@@ -140,7 +230,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
   test "docs provenance and release assets include every consumer file and checksum" do
     workflow = workflow("publish")
     verify = job(workflow, "verify")
-    assert verify =~ "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct HEAD)"
+    assert verify =~ ~s|SOURCE_DATE_EPOCH=$(git log -1 --format=%ct "$RELEASE_COMMIT")|
 
     assert verify =~
              ~s|tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner|
@@ -164,12 +254,12 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert assets =~ "sha256sum -- * > SHA256SUMS"
     refute assets =~ "hex-docs.tar.gz"
     archive = step(verify, "Prepare the verified documentation archive")
-    assert archive =~ "DISPATCHED_SHA: ${{ github.sha }}"
-    assert archive =~ ~s|os.environ["DISPATCHED_SHA"]|
+    assert archive =~ "RELEASE_COMMIT: ${{ steps.release.outputs.commit }}"
+    assert archive =~ ~s|os.environ["RELEASE_COMMIT"]|
     assert archive =~ "json.dumps(release"
     assert_before(archive, ~s|Path("doc/release.json").write_text|, "tar --sort=name")
     assert_before(archive, "tar --sort=name", "hex_release_state.exs docs-provenance")
-    assert archive =~ ~s|hex-docs.tar.gz "$DISPATCHED_SHA" "$GITHUB_WORKSPACE"|
+    assert archive =~ ~s|hex-docs.tar.gz "$RELEASE_COMMIT" "$GITHUB_WORKSPACE"|
     plan = step(verify, "Plan the Hex uploads")
 
     assert plan =~
@@ -179,10 +269,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     hex = job(workflow, "hex-publish")
     assert step(hex, "Check out source") =~ "fetch-depth: 0"
     read_back = step(hex, "Read back the served Hex package and docs")
-    assert read_back =~ "DISPATCHED_SHA: ${{ github.sha }}"
+    assert read_back =~ "RELEASE_COMMIT: ${{ needs.verify.outputs.release_commit }}"
 
     assert read_back =~
-             ~s|"release-assets/hex-docs-${VERSION}.tar.gz" "$DISPATCHED_SHA" "$GITHUB_WORKSPACE"|
+             ~s|"release-assets/hex-docs-${VERSION}.tar.gz" "$RELEASE_COMMIT" "$GITHUB_WORKSPACE"|
 
     assert read_back =~ ~s|sha256sum -- "hex-docs-${VERSION}.tar.gz" >> SHA256SUMS|
     assert_before(read_back, "hex_release_state.exs read-back", "sha256sum")
@@ -194,7 +284,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
   test "release notes rely on CHANGELOG.md shipping in the compared package" do
     assert "CHANGELOG.md" in Mix.Project.config()[:package][:files],
-           "release-notes.md comes from the dispatched head's CHANGELOG.md; read-back's package " <>
+           "release-notes.md comes from the release commit's CHANGELOG.md; read-back's package " <>
              "comparison makes it the published commit's only while CHANGELOG.md ships in the package"
   end
 
@@ -263,6 +353,49 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     end
 
     assert job(pages, "deploy") =~ "name: github-pages"
+    assert pages =~
+             "# This default-branch checkout deploys site/; it does not identify a package release."
+  end
+
+  @tag skip: match?({:win32, _}, :os.type())
+  test "the actual SHA guard refuses refs, malformed SHAs and shell text before use" do
+    validation = workflow("publish") |> job("verify") |> step("Validate the release commit")
+    [_, script] = String.split(validation, "        run: |\n", parts: 2)
+
+    AgentBlueprintProtocol.Scratch.with_dir("release-sha", fn dir ->
+      output = Path.join(dir, "output")
+      sha = String.duplicate("a1", 20)
+
+      for value <- [sha, String.upcase(sha)] do
+        assert {_, 0} =
+                 System.cmd("bash", ["-c", script],
+                   env: [{"RELEASE_COMMIT", value}, {"GITHUB_OUTPUT", output}]
+                 )
+
+        assert File.read!(output) == "commit=#{sha}\n"
+        File.rm!(output)
+      end
+
+      for value <- [
+            "",
+            "main",
+            "refs/heads/main",
+            String.duplicate("a", 39),
+            String.duplicate("a", 41),
+            String.duplicate("g", 40),
+            " #{sha}",
+            "#{sha}\n",
+            "#{sha}\n#{sha}",
+            "$(exit 0)"
+          ] do
+        assert {_, 1} =
+                 System.cmd("bash", ["-c", script],
+                   env: [{"RELEASE_COMMIT", value}, {"GITHUB_OUTPUT", output}]
+                 )
+
+        refute File.exists?(output)
+      end
+    end)
   end
 
   @tag skip: match?({:win32, _}, :os.type())

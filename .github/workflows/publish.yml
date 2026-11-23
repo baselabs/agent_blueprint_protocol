@@ -1,8 +1,9 @@
 name: Publish
 
-# Owner-dispatched from the default branch, without inputs. Refuse unknown package
-# names and an existing remote tag. A second dispatch on the same commit finishes
-# a held release (npm staged approval or Hex), uploading only what is missing.
+# Owner-dispatched from the default branch with one required release_commit SHA.
+# Require its default-branch ancestry and successful qualified check before building.
+# Refuse unknown package names and an existing remote tag. Redispatch the same
+# release_commit to finish a held release, uploading only what is missing.
 # npm uses trusted publishing with provenance in environment publish; no npm token.
 # HEX_API_KEY lives there and reaches only the no-project upload step.
 # No workflow creates a release or tag. release-assets is handed to infra, which
@@ -10,6 +11,11 @@ name: Publish
 
 on:
   workflow_dispatch:
+    inputs:
+      release_commit:
+        description: Full 40-hex SHA of the qualified release commit
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -20,13 +26,17 @@ concurrency:
 
 jobs:
   verify:
-    name: Verify the dispatched source
+    name: Verify the qualified release source
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     environment: publish
+    permissions:
+      contents: read
+      checks: read
     runs-on: ubuntu-24.04
     # Twice the slowest green run, at least 5 min: 8.6 min, run 44033341768.
     timeout-minutes: 18
     outputs:
+      release_commit: ${{ steps.release.outputs.commit }}
       version: ${{ steps.inputs.outputs.version }}
       npm: ${{ steps.npm.outputs.npm }}
       hex_package: ${{ steps.hex.outputs.package }}
@@ -42,11 +52,64 @@ jobs:
             exit 1
           fi
 
+      - name: Validate the release commit
+        id: release
+        env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+        run: |
+          if [[ ! "$RELEASE_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::release_commit must be a full 40-hex SHA"
+            exit 1
+          fi
+          printf 'commit=%s\n' "${RELEASE_COMMIT,,}" >> "$GITHUB_OUTPUT"
+
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ steps.release.outputs.commit }}
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Require default-branch ancestry
+        env:
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" "refs/remotes/origin/$DEFAULT_BRANCH"; then
+            echo "::error::release_commit must be reachable from the default branch"
+            exit 1
+          fi
+
+      - name: Require successful qualification of the release commit
+        env:
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, urllib.request
+          commit = os.environ["RELEASE_COMMIT"]
+          api = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          page = 1
+          try:
+              while True:
+                  request = urllib.request.Request(
+                      f"{api}/repos/{repository}/commits/{commit}/check-runs?check_name=qualified&filter=all&per_page=100&page={page}",
+                      headers={"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+                               "Accept": "application/vnd.github+json",
+                               "X-GitHub-Api-Version": "2026-03-10"})
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      checks = json.load(response)["check_runs"]
+                  if any(check.get("name") == "qualified"
+                         and check.get("head_sha") == commit
+                         and check.get("conclusion") == "success" for check in checks):
+                      break
+                  if len(checks) < 100:
+                      raise SystemExit("::error::release_commit has no successful qualified check")
+                  page += 1
+          except Exception:
+              raise SystemExit("::error::Could not read release commit qualification") from None
+          PYTHON
 
       - name: Read the default toolchain
         id: versions
@@ -117,7 +180,7 @@ jobs:
             mix release.promote --check "$CANDIDATE"
           fi
 
-      - name: Run the complete quality battery on the dispatched source
+      - name: Run the complete quality battery on the release commit
         run: mix quality
 
       - name: Prepare the verified release artifacts
@@ -153,19 +216,19 @@ jobs:
 
       - name: Prepare the verified documentation archive
         env:
-          DISPATCHED_SHA: ${{ github.sha }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
         run: |
           python3 - <<'PYTHON'
           import json, os
           from pathlib import Path
-          release = {"package": "agent_blueprint_protocol", "version": os.environ["VERSION"], "commit": os.environ["DISPATCHED_SHA"]}
+          release = {"package": "agent_blueprint_protocol", "version": os.environ["VERSION"], "commit": os.environ["RELEASE_COMMIT"]}
           Path("doc/release.json").write_text(json.dumps(release, separators=(",", ":")) + "\n", encoding="utf-8")
           PYTHON
-          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct HEAD)
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct "$RELEASE_COMMIT")
           tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
             -cf - -C doc . | gzip -n > verified-release/hex-docs.tar.gz
           (cd verified-release && mix run --no-mix-exs ../scripts/hex_release_state.exs docs-provenance \
-            agent_blueprint_protocol "$VERSION" hex-docs.tar.gz "$DISPATCHED_SHA" "$GITHUB_WORKSPACE")
+            agent_blueprint_protocol "$VERSION" hex-docs.tar.gz "$RELEASE_COMMIT" "$GITHUB_WORKSPACE")
           echo "Docs checksum: $(sha256sum verified-release/hex-docs.tar.gz | cut -d' ' -f1)"
 
       - name: Plan the npm upload
@@ -237,6 +300,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.verify.outputs.release_commit }}
           persist-credentials: false
 
       - name: Read the default toolchain
@@ -271,7 +335,7 @@ jobs:
           if ! npm stage publish \
             "./verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" \
             --ignore-scripts --access public --provenance --tag "$NPM_TAG"; then
-            echo "::error::npm upload failed or staging slot occupied; approve staged bytes on npmjs.com if held, then dispatch Publish again on the same commit; the next run uploads only what is missing."
+            echo "::error::npm upload failed or staging slot occupied; approve staged bytes on npmjs.com if held, then dispatch Publish again with the same release_commit; the next run uploads only what is missing."
             exit 1
           fi
 
@@ -307,6 +371,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.verify.outputs.release_commit }}
           persist-credentials: false
 
       - name: Read the default toolchain
@@ -392,6 +457,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.verify.outputs.release_commit }}
           persist-credentials: false
           fetch-depth: 0
 
@@ -439,11 +505,11 @@ jobs:
       - name: Read back the served Hex package and docs
         working-directory: verified-release
         env:
-          DISPATCHED_SHA: ${{ github.sha }}
+          RELEASE_COMMIT: ${{ needs.verify.outputs.release_commit }}
         run: |
           mix run --no-mix-exs ../scripts/hex_release_state.exs read-back \
             agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar" \
-            "release-assets/hex-docs-${VERSION}.tar.gz" "$DISPATCHED_SHA" "$GITHUB_WORKSPACE"
+            "release-assets/hex-docs-${VERSION}.tar.gz" "$RELEASE_COMMIT" "$GITHUB_WORKSPACE"
           (cd release-assets && sha256sum -- "hex-docs-${VERSION}.tar.gz" >> SHA256SUMS)
 
       - name: Hand consumer release assets to infra
@@ -482,6 +548,7 @@ jobs:
       - name: Check out smoke script
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.verify.outputs.release_commit }}
           persist-credentials: false
       - name: Read the default toolchain
         id: versions
@@ -531,11 +598,12 @@ jobs:
             exit 1
           fi
 
-      # Publish uses the dispatched commit.
+      # Publish uses the qualified release_commit.
       # Full history supplies the earlier censuses and signed 0.8.x goldens.
       - name: Check out the consumer driver
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.verify.outputs.release_commit }}
           persist-credentials: false
           fetch-depth: 0
       - name: Read the default toolchain

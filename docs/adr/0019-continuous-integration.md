@@ -27,3 +27,14 @@ and tests run only in CI, never on the owner's Mac or the build box.
 ## Consequences
 
 Every candidate receives the same CI jobs, including documentation and package checks. The passing result belongs to the candidate commit before it reaches `main`.
+
+Publish is an owner's default-branch dispatch with one required `release_commit`,
+a full 40-hex SHA. Before building it, the first job proves default-branch ancestry,
+re-checks a successful `qualified` check on that exact SHA through the GitHub API
+with `checks: read`, compares its declared package versions, and refuses an existing
+release tag. Every checkout and release record uses that SHA, so redispatch after
+a registry hold is independent of the default branch's current head.
+
+Sessions keep the version commit landable as a landing head, or name a later
+`qualified` commit with the same declared version and package bytes. Send infra
+that SHA with the release request.

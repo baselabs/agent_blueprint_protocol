@@ -310,7 +310,9 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       File.cp!(".tool-versions", Path.join(dir, ".tool-versions"))
       script = Path.expand("scripts/release_artifact_info.mjs")
 
-      for file <- ["mix.exs", "package.json"] do
+      File.mkdir_p!(Path.join(dir, "priv"))
+
+      for file <- ["mix.exs", "package.json", "priv/release-metadata.json"] do
         File.cp!(file, Path.join(dir, file))
       end
 
@@ -328,6 +330,20 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
                )
 
       File.cp!("package.json", Path.join(dir, "package.json"))
+
+      metadata = :json.decode(File.read!("priv/release-metadata.json"))
+
+      for mismatched <- [
+            Map.put(metadata, "package_version", "0.0.0"),
+            Map.delete(metadata, "package_version")
+          ] do
+        File.write!(Path.join(dir, "priv/release-metadata.json"), :json.encode(mismatched))
+
+        assert {_, 1} =
+                 System.cmd("node", [script, "version"], cd: dir, stderr_to_stdout: true)
+      end
+
+      File.cp!("priv/release-metadata.json", Path.join(dir, "priv/release-metadata.json"))
 
       for invalid <- ["", ~s|@version "1.0.0"\n@version "1.0.0"|, ~s|@version "main"|] do
         File.write!(Path.join(dir, "mix.exs"), invalid)

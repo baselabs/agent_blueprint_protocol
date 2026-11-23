@@ -57,6 +57,25 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert publication =~ "`github-pages` environment"
   end
 
+  test "release instructions identify a qualified release commit independently of dispatch head" do
+    for path <- [
+          "AGENTS.md",
+          "CONTRIBUTING.md",
+          "docs/adr/0019-continuous-integration.md",
+          "docs/adr/0021-release-publication.md",
+          "documentation/verifying-releases.md"
+        ] do
+      source = File.read!(path)
+      assert source =~ "release_commit", path
+      assert source =~ "qualified", path
+      assert source =~ "landing head", path
+      assert source =~ "same declared version and package bytes", path
+      refute source =~ "without inputs", path
+      refute source =~ "no inputs", path
+      refute source =~ "does not re-check `qualified`", path
+    end
+  end
+
   test "shipped document fences have at most a bare language info string" do
     offenders =
       for file <- shipped_markdown(),

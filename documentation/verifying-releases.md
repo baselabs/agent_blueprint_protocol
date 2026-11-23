@@ -145,6 +145,18 @@ See [Contributing](../CONTRIBUTING.md) for the build commands.
 
 ## Verify served docs provenance
 
+Publish takes exactly one required `release_commit`, a full 40-hex SHA, on an
+owner's default-branch dispatch. Its first job validates the SHA, proves its
+default-branch ancestry, requires a successful `qualified` check on that exact
+SHA through the GitHub API, compares its declared package versions, and refuses
+an existing release tag before building. Checkouts, builds, provenance, and
+read-back use that SHA. Redispatch with the same `release_commit` after a registry
+hold, regardless of the default branch's current head.
+
+Sessions keep the version commit landable as a landing head, or name a later
+`qualified` commit with the same declared version and package bytes. Send infra
+that SHA with the release request.
+
 The package is the release: its served checksum must match the built package.
 Docs are a rendering, and their bytes can vary between builds. Planning checks
 only presence; served docs are kept and never compared with a rebuild or replaced.
@@ -152,13 +164,13 @@ Missing docs are uploaded only for a package Hex serves. ExDoc uses its default
 HTML, Markdown, and EPUB formatters.
 
 After `mix docs`, Publish writes root `release.json` with the package, version,
-and dispatched commit before packing. Read-back requires a readable served gzip
+and `release_commit` before packing. Read-back requires a readable served gzip
 tar containing `index.html` and valid `release.json` for this package and version.
-The manifest's commit must equal the dispatched commit or be its ancestor on the
+The manifest's commit must equal `release_commit` or be its ancestor on the
 default branch, checked against full Git history with `git merge-base --is-ancestor`.
 Unreadable archives, missing files, wrong package or version, and invalid commit
 ancestry refuse publication. Success prints `published commit: <sha>`, and infra
-tags that commit, including when it is an ancestor of the dispatched commit.
+tags that commit, including when it is an ancestor of `release_commit`.
 
 The `release-assets` handoff and permanent GitHub release include the inspected
 served archive as `hex-docs-<version>.tar.gz`, with its digest in SHA256SUMS.
