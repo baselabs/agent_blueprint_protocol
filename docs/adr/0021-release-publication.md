@@ -1,4 +1,6 @@
-# ADR: release publication
+# 0021: release publication
+
+Status: Accepted
 
 ## Context
 
@@ -7,8 +9,8 @@ certified results, package archives, release notes, and SHA256SUMS for the GitHu
 release. Registries can hold uploads for approval. Upload acceptance alone does not
 prove publication or establish that served package bytes match the verified archives.
 
-The [release identity](release-identity-semantics.md) and
-[no-versioning](no-versioning-rule.md) records govern release identity.
+The [release identity](0011-release-identity-semantics.md) and
+[no-versioning](0005-no-versioning-rule.md) records govern release identity.
 
 ## Decision
 

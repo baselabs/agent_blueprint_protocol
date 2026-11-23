@@ -1,4 +1,6 @@
-# ADR: Pinned CI actions and toolchains
+# 0024: Pinned CI actions and toolchains
+
+Status: Accepted
 
 ## Context
 

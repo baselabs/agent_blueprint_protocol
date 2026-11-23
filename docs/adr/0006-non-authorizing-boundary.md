@@ -1,4 +1,6 @@
-# ADR: the non-authorizing boundary
+# 0006: the non-authorizing boundary
+
+Status: Accepted
 
 ## Context
 

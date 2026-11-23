@@ -1,4 +1,6 @@
-# ADR: Complete measured coverage
+# 0026: Complete measured coverage
+
+Status: Accepted
 
 ## Context
 

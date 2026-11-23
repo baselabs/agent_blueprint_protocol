@@ -1,4 +1,6 @@
-# ADR: two-consumer rule amendment
+# 0007: two-consumer rule amendment
+
+Status: Accepted
 
 ## Context
 

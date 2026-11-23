@@ -1,4 +1,6 @@
-# ADR: producer surface policy
+# 0008: producer surface policy
+
+Status: Accepted
 
 ## Decision
 

@@ -1,4 +1,6 @@
-# ADR: Stability policy
+# 0014: Stability policy
+
+Status: Accepted
 
 ## Context
 

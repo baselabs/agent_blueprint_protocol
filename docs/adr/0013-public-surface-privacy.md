@@ -1,4 +1,6 @@
-# ADR: Public surface privacy
+# 0013: Public surface privacy
+
+Status: Accepted
 
 ## Context
 

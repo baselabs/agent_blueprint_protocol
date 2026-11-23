@@ -1,4 +1,6 @@
-# ADR: Conformance mutation checks
+# 0025: Conformance mutation checks
+
+Status: Accepted
 
 ## Context
 

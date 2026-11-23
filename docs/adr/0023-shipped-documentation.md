@@ -1,4 +1,6 @@
-# ADR: shipped documentation is executed from the package
+# 0023: shipped documentation is executed from the package
+
+Status: Accepted
 
 ## Context
 

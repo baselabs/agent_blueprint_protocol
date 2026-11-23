@@ -1,4 +1,6 @@
-# ADR: the supported OTP set
+# 0010: the supported OTP set
+
+Status: Accepted
 
 ## Decision
 

@@ -42,6 +42,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   - Corpus `.json` files carry the text-pattern-exempt class: they are
     digest-bound by `conformance.verify` (any edit reds the corpus hash),
     and byte patterns still apply to them.
+  - Public decision records retain their numbers in known ADR paths and
+    their own first heading. Other numbered references remain scanned.
 
   Goes RED on: a private-tool path planted in any archived file
   (README, a lib module, a corpus member); a tracker numeral or slug added
@@ -141,8 +143,14 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     offenders =
       for path <- archive_files(),
           text_file?(path),
-          pattern <- @text_patterns,
           content = File.read!(path),
+          content =
+            AgentBlueprintProtocol.ArchitectureScan.public_record_text(
+              content,
+              path,
+              Path.wildcard("docs/adr/[0-9][0-9][0-9][0-9]-*.md")
+            ),
+          pattern <- @text_patterns,
           Regex.scan(pattern, content) != [] do
         {path, Regex.source(pattern), Enum.take(Regex.scan(pattern, content), 3)}
       end
@@ -195,6 +203,30 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
     assert hits != [],
            "exemption-pin calibration is vacuous: a pattern that targets " <>
              "owner data found no fixture: registry_fixtures/ is empty or broken"
+  end
+
+  test "only known public decision record paths and their own headings spare numbers" do
+    records = Path.wildcard("docs/adr/[0-9][0-9][0-9][0-9]-*.md")
+    [path | _] = records
+    basename = Path.basename(path)
+    [number | _] = String.split(basename, "-", parts: 2)
+    source = "# #{number}: Public record\n\n[record](#{basename})\n#{path}\n../#{path}"
+
+    text = AgentBlueprintProtocol.ArchitectureScan.public_record_text(source, path, records)
+    assert Enum.filter(@text_patterns, &Regex.match?(&1, text)) == []
+
+    for source <- [
+          "#{number}",
+          "#{number}-internal.md",
+          "docs/adr/#{number}-unknown.md",
+          "#{path}.bak",
+          "issues/#{basename}",
+          "# #{number}: Unrelated heading"
+        ] do
+      text =
+        AgentBlueprintProtocol.ArchitectureScan.public_record_text(source, "README.md", records)
+      assert Enum.any?(@text_patterns, &Regex.match?(&1, text)), source
+    end
   end
 
   test "repository routes are spared and planning directories still red (exemption pin)" do

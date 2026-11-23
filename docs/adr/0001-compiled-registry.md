@@ -1,4 +1,6 @@
-# ADR: compiled-in extension registry
+# 0001: compiled-in extension registry
+
+Status: Accepted
 
 ## Decision
 

@@ -16,7 +16,7 @@ Requirements:
   both archives, and publishes only missing uploads through environment `publish`.
   A second dispatch on the same commit finishes a held release. DevOps reads packages back,
   tags the published commit printed from served docs provenance, creates the GitHub release
-  from `release-assets` including the served docs, and dispatches Pages, which deploys only by dispatch. See [release publication](docs/adr/release-publication.md).
+  from `release-assets` including the served docs, and dispatches Pages, which deploys only by dispatch. See [release publication](docs/adr/0021-release-publication.md).
 - Publication guards run at the point of publication: the pre-push hook
   and CI run the same command,
   `elixir scripts/check_public_privacy.exs scripts/public_privacy.json`.

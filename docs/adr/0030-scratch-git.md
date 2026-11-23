@@ -1,4 +1,6 @@
-# ADR: Scratch Git maintenance
+# 0030: Scratch Git maintenance
+
+Status: Accepted
 
 ## Context
 

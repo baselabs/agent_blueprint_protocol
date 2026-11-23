@@ -1,4 +1,6 @@
-# ADR: host-supplied extension registrations
+# 0009: host-supplied extension registrations
+
+Status: Accepted
 
 ## Decision
 

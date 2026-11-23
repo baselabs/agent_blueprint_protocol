@@ -9,6 +9,7 @@ const hash=bytes=>createHash('sha1').update('blob '+bytes.length+'\0').update(by
 const paths=()=>git(['ls-files','--cached','--others','--exclude-standard','-z']).toString().split('\0').filter(Boolean);
 // The final release adds its own dated entry directly above the candidate's
 // entry; every earlier entry, the candidate's included, stays byte-identical.
+// Only the Unreleased comparison and the new final comparison change at the foot.
 function changelogPromotes(a,b,rc,final){
   const headings=[...a.matchAll(/^## \[(?!Unreleased\])[^\n]+/gm),...b.matchAll(/^## \[(?!Unreleased\])[^\n]+/gm)];
   if(headings.some(([heading])=>!/^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}$/.test(heading)))return false;
@@ -16,7 +17,11 @@ function changelogPromotes(a,b,rc,final){
   const entry=b.match(new RegExp('^## \\['+escape(final)+'\\] - \\d{4}-\\d{2}-\\d{2}\\n[\\s\\S]*?(?=^## \\[)','m'));
   if(!entry)return false;
   const at=b.indexOf(entry[0]);
-  return b.slice(0,at)+b.slice(at+entry[0].length)===a&&b.indexOf('## ['+rc+']')===at+entry[0].length;
+  const comparison='https://github.com/baselabs/agent_blueprint_protocol/compare/';
+  const prior='[Unreleased]: '+comparison+'v'+rc+'...HEAD';
+  if(!a.includes(prior))return false;
+  const promoted=a.replace(prior,'[Unreleased]: '+comparison+'v'+final+'...HEAD\n['+final+']: '+comparison+'v'+rc+'...v'+final);
+  return b.slice(0,at)+b.slice(at+entry[0].length)===promoted&&b.indexOf('## ['+rc+']')===at+entry[0].length;
 }
 // This classifier owns both the promotion diff policy and the candidate
 // tree check. A frozen file cannot shed a candidate version at promotion.
@@ -92,9 +97,12 @@ function selfTest(){
   const finalReadme=Buffer.from(readme.toString().replaceAll(rc,final));
   const finalSecurity=Buffer.from(security.toString().replace('| '+rc+' | yes |\n',''));
   const rcHeading='## ['+rc+']';
-  const changelog='# Changelog\n\n'+rcHeading+' - 2026-11-11\n\nCandidate package.\n\n## [0.8.4] - 2026-10-01\n\nEarlier package.\n';
-  const finalChangelog=changelog.replace(rcHeading,'## ['+final+'] - 2026-12-01\n\nPromotes '+rc+' unchanged.\n\n'+rcHeading);
+  const comparison='https://github.com/baselabs/agent_blueprint_protocol/compare/';
+  const changelog='# Changelog\n\n## [Unreleased]\n\n'+rcHeading+' - 2026-11-11\n\nCandidate package.\n\n## [0.8.4] - 2026-10-01\n\nEarlier package.\n\n[Unreleased]: '+comparison+'v'+rc+'...HEAD\n['+rc+']: '+comparison+'v0.8.4...v'+rc+'\n[0.8.4]: https://github.com/baselabs/agent_blueprint_protocol/releases/tag/v0.8.4\n';
+  const finalChangelog=changelog.replace(rcHeading,'## ['+final+'] - 2026-12-01\n\nPromotes '+rc+' unchanged.\n\n'+rcHeading).replace('[Unreleased]: '+comparison+'v'+rc+'...HEAD','[Unreleased]: '+comparison+'v'+final+'...HEAD\n['+final+']: '+comparison+'v'+rc+'...v'+final);
   check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog)]],rc,final);
+  assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog.replace('v'+final+'...HEAD','v'+rc+'...HEAD'))]],rc,final),/forbidden differences/);
+  assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog.replace('v'+rc+'...v'+final,'v0.8.4...v'+final))]],rc,final),/forbidden differences/);
   for(const separator of [' \u2014 ',' \u2013 ',' '])assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog.replaceAll(' - ',separator)),Buffer.from(finalChangelog.replaceAll(' - ',separator))]],rc,final),/forbidden differences/);
   assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(changelog.replace(rcHeading,'## ['+final+']'))]],rc,final),/forbidden differences/);
   assert.throws(()=>check([['CHANGELOG.md',Buffer.from(changelog),Buffer.from(finalChangelog+'edited released text\n')]],rc,final),/forbidden differences/);

@@ -1,4 +1,6 @@
-# ADR: site publication after dispatched release
+# 0029: site publication after dispatched release
+
+Status: Accepted
 
 ## Context
 

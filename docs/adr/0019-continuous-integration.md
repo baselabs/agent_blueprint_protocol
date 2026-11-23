@@ -1,4 +1,6 @@
-# ADR: Unified continuous integration
+# 0019: Unified continuous integration
+
+Status: Accepted
 
 ## Context
 

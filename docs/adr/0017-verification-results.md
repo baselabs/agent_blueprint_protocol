@@ -1,4 +1,6 @@
-# ADR: Failure records and evidence
+# 0017: Failure records and evidence
+
+Status: Accepted
 
 ## Context
 

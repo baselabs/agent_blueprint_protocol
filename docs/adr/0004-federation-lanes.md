@@ -1,4 +1,6 @@
-# ADR: federation lanes: A2A primary, MCP draft-tracking
+# 0004: federation lanes: A2A primary, MCP draft-tracking
+
+Status: Accepted
 
 ## Context
 

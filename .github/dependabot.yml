@@ -1,4 +1,6 @@
 version: 2
+# Pull requests signal available updates. The landing tool qualifies every
+# update on kci/<sha> before main moves; these requests are never merged directly.
 updates:
   - package-ecosystem: mix
     directory: /

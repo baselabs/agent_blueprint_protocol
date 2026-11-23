@@ -1,4 +1,6 @@
-# ADR: runtime boundary
+# 0022: runtime boundary
+
+Status: Accepted
 
 ## Context
 
@@ -34,4 +36,4 @@ rules over the compiled code, so an aliased or indirect call cannot hide.
 - A host can call any public function from any process without starting the
   package or granting it file or network access.
 - Producing and signing artifacts is host work, described in the
-  [producer surface](producer-surface.md) record.
+  [producer surface](0008-producer-surface.md) record.

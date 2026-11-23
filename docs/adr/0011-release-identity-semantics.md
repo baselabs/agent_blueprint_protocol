@@ -1,4 +1,6 @@
-# ADR: the release-identity semantics/census split
+# 0011: the release-identity semantics/census split
+
+Status: Accepted
 
 ## Decision
 

@@ -1,4 +1,6 @@
-# ADR: no version tokens in identifiers
+# 0005: no version tokens in identifiers
+
+Status: Accepted
 
 ## npm distribution axis
 
@@ -23,7 +25,7 @@ inventory and states the precedence rules:
    manifest's SHAPE: a public-contract field, additive-only within a
    version. Every release before this contract is implicitly version 1.
 2. **`verification_semantics_version`** is the semantics/census split's
-   equivalence-class label (see `release-identity-semantics.md`): an
+   equivalence-class label (see `0011-release-identity-semantics.md`): an
    integer, never gate-derived, changed only when verdicts for
    previously-certified inputs change.
 3. **The verifier-kit identity** (`verifier_kit`: name, registry,

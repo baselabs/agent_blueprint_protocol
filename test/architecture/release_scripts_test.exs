@@ -97,9 +97,13 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       assert {summary, 0} = hex("hex_release_state.exs", ["plan" | args], dir, env)
       assert summary =~ "package is already served with these bytes and its docs are served"
       assert File.read!(output_file) == "package=served\ndocs=served\n"
-      {dispatched, 0} = System.cmd("git", ["rev-parse", "HEAD"])
+      repository = Path.join(dir, "repository")
+      File.mkdir!(repository)
+      AgentBlueprintProtocol.Scratch.init_git!(repository)
+      git!(repository, ["commit", "--allow-empty", "--no-gpg-sign", "-m", "Dispatched"])
+      dispatched = git!(repository, ["rev-parse", "HEAD"])
       served_docs = Path.join(dir, "served-docs.tar.gz")
-      read_back = ["read-back" | args ++ [served_docs, String.trim(dispatched), File.cwd!()]]
+      read_back = ["read-back" | args ++ [served_docs, dispatched, repository]]
       {output, status} = hex("hex_release_state.exs", read_back, dir)
       assert status != 0
       assert output =~ "docs archive is missing release.json"
@@ -278,12 +282,19 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       ## [9.8.6] - 2026-11-17
 
       Earlier release.
+
+      [Unreleased]: https://example.invalid/compare/v9.8.7-rc.1...HEAD
+      [9.8.7-rc.1]: https://example.invalid/compare/v9.8.6...v9.8.7-rc.1
+      [9.8.6]: https://example.invalid/releases/tag/v9.8.6
       """)
 
       assert {_, 0} = System.cmd("elixir", [script, "9.8.7-rc.1", "notes"], cd: dir)
 
       assert File.read!(Path.join(dir, "notes")) ==
                "Current release.\n\n### Details\n\n- Complete notes.\n"
+
+      assert {_, 0} = System.cmd("elixir", [script, "9.8.6", "earlier-notes"], cd: dir)
+      assert File.read!(Path.join(dir, "earlier-notes")) == "Earlier release.\n"
 
       {output, status} =
         System.cmd("elixir", [script, "9.8.7", "missing"], cd: dir, stderr_to_stdout: true)

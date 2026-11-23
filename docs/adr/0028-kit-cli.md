@@ -1,4 +1,6 @@
-# ADR: Installed kit commands and corpus selection
+# 0028: Installed kit commands and corpus selection
+
+Status: Accepted
 
 ## Context
 

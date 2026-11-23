@@ -1,4 +1,6 @@
-# ADR: the normative tree extracts on its own
+# 0020: the normative tree extracts on its own
+
+Status: Accepted
 
 ## Context
 

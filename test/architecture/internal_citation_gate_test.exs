@@ -55,6 +55,12 @@ defmodule AgentBlueprintProtocol.Architecture.InternalCitationGateTest do
     offenders =
       for path <- scan_files(),
           content = File.read!(path),
+          content =
+            AgentBlueprintProtocol.ArchitectureScan.public_record_text(
+              content,
+              path,
+              Path.wildcard("docs/adr/[0-9][0-9][0-9][0-9]-*.md")
+            ),
           pattern <- @citation_patterns,
           Regex.scan(pattern, content) != [] do
         {path, Regex.source(pattern), Enum.take(Regex.scan(pattern, content), 3)}

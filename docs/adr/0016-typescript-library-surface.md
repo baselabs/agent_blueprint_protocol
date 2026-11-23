@@ -1,4 +1,6 @@
-# ADR: TypeScript library surface
+# 0016: TypeScript library surface
+
+Status: Accepted
 
 ## Context
 

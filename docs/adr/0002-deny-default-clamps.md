@@ -1,4 +1,6 @@
-# ADR: deny-default protected-bound clamps
+# 0002: deny-default protected-bound clamps
+
+Status: Accepted
 
 ## Context
 

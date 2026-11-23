@@ -1,4 +1,6 @@
-# ADR: Conformance product
+# 0012: Conformance product
+
+Status: Accepted
 
 ## Context
 

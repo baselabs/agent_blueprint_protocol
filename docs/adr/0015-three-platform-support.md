@@ -1,4 +1,6 @@
-# ADR: Three-platform support
+# 0015: Three-platform support
+
+Status: Accepted
 
 ## Context
 

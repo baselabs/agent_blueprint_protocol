@@ -1,6 +1,16 @@
 # Changelog
 
-All notable public changes to `agent_blueprint_protocol` are documented here.
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+
+- ADR files now use chronological four-digit numbers; update links to their numbered paths.
+  The public roadmap is available in `docs/ROADMAP.md`.
 
 ## [1.1.0] - 2026-11-17
 
@@ -694,7 +704,7 @@ The conformance corpus is unchanged at 94 cases, digest
   `materialization_count_within`; composites `and`/`or` n-ary, `not` unary),
   hand-tiered as uniform-depth strict tiers because the bounded dialect denies
   `$ref` cycles; portable condition depth is three composite tiers
-  (metered complexity 417/512; the single free-form string (`definition.name`) is bounded to 128 bytes by the schema itself, the bound on the authored channel's unscanned surface). See `docs/adr/product-extension-registration.md`.
+  (metered complexity 417/512; the single free-form string (`definition.name`) is bounded to 128 bytes by the schema itself, the bound on the authored channel's unscanned surface). See `docs/adr/0009-product-extension-registration.md`.
 - The schema document ships as corpus data; the library records its canonical
   schema digest pin.
 - The conformance corpus grows 88 → 94 cases: the validated-channel cells
@@ -705,7 +715,7 @@ The conformance corpus is unchanged at 94 cases, digest
   90 required cells. Corpus digest
   `sha-256:sg6Fo7p8nZpJDzxFn4dXHBWgbGvEvtOk-7t3m7OT7Yo`; registry digest
   `sha-256:FG2f38K0hba8tTP7iUaw7vHjgcnN_5F5Mp0v4G6UDVs`.
-- `docs/adr/producer-surface.md` records the producer-surface disposition: the
+- `docs/adr/0008-producer-surface.md` records the producer-surface disposition: the
   documented per-artifact constructors ARE the intended producer surface for
   hosts; the facade stays a verification facade.
 
@@ -757,7 +767,7 @@ second-language verifier.
   compiled registry's first-release entries, the bounds algebra laws,
   the 74-code error vocabulary, the evidence contract, and the
   conformance corpus identity (88 cases at the recorded digest).
-- `docs/adr/` (repository-side, slug-only filenames): the seven
+- `docs/adr/` (repository-side decision records): the seven
   decisions of record:
   the non-authorizing boundary, the detached JWS envelope, the
   two-consumer amendment, deny-default protected-bound clamps, the
@@ -1146,3 +1156,33 @@ second-language verifier.
   `validate_instance/3` are total; malformed tagged shapes deny, never
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
+
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.5...v1.1.0
+[1.1.0-rc.5]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.4...v1.1.0-rc.5
+[1.1.0-rc.4]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.3...v1.1.0-rc.4
+[1.1.0-rc.3]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.2...v1.1.0-rc.3
+[1.1.0-rc.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.1...v1.1.0-rc.2
+[1.1.0-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.0.1...v1.1.0-rc.1
+[1.0.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.0.1-rc.1...v1.0.1
+[1.0.1-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.0.0...v1.0.1-rc.1
+[1.0.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.0.0-rc.3...v1.0.0
+[1.0.0-rc.3]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.0.0-rc.2...v1.0.0-rc.3
+[1.0.0-rc.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.0.0-rc.1...v1.0.0-rc.2
+[1.0.0-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.8.4...v1.0.0-rc.1
+[0.8.4]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.8.3...v0.8.4
+[0.8.3]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.8.2...v0.8.3
+[0.8.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.7.1...v0.8.0
+[0.7.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/baselabs/agent_blueprint_protocol/releases/tag/v0.1.0

@@ -134,10 +134,11 @@ dispatches Pages. Pages deploys only through an owner's default-branch dispatch.
 Before publication, the owner configures npm's trusted publisher for this
 repository, `publish.yml`, and environment `publish`; DevOps configures
 `HEX_API_KEY` as an environment secret and owner review and default-branch
-environment protection. See [release publication](docs/adr/release-publication.md).
+environment protection. See [release publication](docs/adr/0021-release-publication.md).
 
 ## Next steps
 
+- [Roadmap](docs/ROADMAP.md)
 - [Quickstart](documentation/quickstart.md)
 - [TypeScript guide](documentation/typescript.md)
 - [Conformance guide](documentation/conformance.md)

@@ -1,4 +1,6 @@
-# ADR: detached JWS signature envelope
+# 0003: detached JWS signature envelope
+
+Status: Accepted
 
 ## Context
 

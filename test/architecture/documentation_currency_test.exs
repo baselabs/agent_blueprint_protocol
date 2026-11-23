@@ -14,8 +14,8 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     for path <- [
           "AGENTS.md",
           "CONTRIBUTING.md",
-          "docs/adr/release-publication.md",
-          "docs/adr/release-site.md"
+          "docs/adr/0021-release-publication.md",
+          "docs/adr/0029-release-site.md"
         ] do
       source = File.read!(path)
       assert source =~ "dispatch", path
@@ -27,7 +27,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
       refute source =~ "DevOps owner", path
     end
 
-    publication = File.read!("docs/adr/release-publication.md")
+    publication = File.read!("docs/adr/0021-release-publication.md")
     assert publication =~ "A second dispatch on the same commit finishes a held release"
     assert publication =~ "new tag"
     assert publication =~ "No workflow creates a release or tag"
@@ -35,15 +35,15 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert publication =~ "environment **`publish`**"
     assert publication =~ "owner review and default-branch deployment"
 
-    site = File.read!("docs/adr/release-site.md")
+    site = File.read!("docs/adr/0029-release-site.md")
     assert site =~ "Pages accepts only `workflow_dispatch`"
     assert site =~ "No tag push or workflow event starts Pages"
     refute site =~ "head_sha"
 
     for path <- [
           "CONTRIBUTING.md",
-          "docs/adr/continuous-integration.md",
-          "docs/adr/release-publication.md"
+          "docs/adr/0019-continuous-integration.md",
+          "docs/adr/0021-release-publication.md"
         ] do
       source = File.read!(path)
       assert source =~ "kci/**", path
@@ -494,7 +494,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
        when file in [
               "documentation/stability.md",
               "documentation/typescript.md",
-              "docs/adr/stability-policy.md",
+              "docs/adr/0014-stability-policy.md",
               "spec/protocol.md",
               "verifier/README.md"
             ] do

@@ -9,6 +9,37 @@ defmodule AgentBlueprintProtocol.ArchitectureScan do
 
   @shipped_roots ["lib", "priv"]
 
+  @doc "Removes only public record numbers from known paths and a record's own heading."
+  def public_record_text(source, path, records) do
+    Enum.reduce(records, source, fn record, text ->
+      basename = Path.basename(record)
+      [number, slug] = String.split(basename, "-", parts: 2)
+      replacement = "ADR-" <> slug
+
+      text =
+        Regex.replace(
+          ~r{(?<![\w/-])(?:\.\.?/)*#{Regex.escape(record)}(?![\w./-])},
+          text,
+          fn reference -> String.replace(reference, record, "docs/adr/" <> replacement) end
+        )
+
+      text =
+        if Path.dirname(path) == "docs/adr" do
+          Regex.replace(
+            ~r{(?<![\w/-])#{Regex.escape(basename)}(?![\w./-])},
+            text,
+            replacement
+          )
+        else
+          text
+        end
+
+      if path == record,
+        do: String.replace_prefix(text, "# #{number}: ", "# ADR: "),
+        else: text
+    end)
+  end
+
   @doc "Source files (*.ex/*.exs) under the shipped-surface roots that exist."
   def source_files(roots \\ @shipped_roots) do
     roots

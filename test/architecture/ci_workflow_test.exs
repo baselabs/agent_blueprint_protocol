@@ -184,6 +184,27 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
     assert Map.new(jobs(workflow("ci")))["quality"] =~ "run: mix quality"
   end
 
+  test "full checkouts belong only to jobs that inspect repository history" do
+    readers = %{
+      "secret-scan" => ["Run gitleaks over full history"],
+      "spec-extraction" => ["Extract the standalone specification tree"],
+      "quality" => ["Check public privacy over full history", "Run complete quality gate"]
+    }
+
+    for {name, job} <- jobs(workflow("ci")) do
+      if Map.has_key?(readers, name) do
+        assert job =~ "fetch-depth: 0", name
+
+        for step <- Map.fetch!(readers, name) do
+          assert job =~ "      - name: #{step}\n", name
+          assert job =~ "# History: #{step}", name
+        end
+      else
+        refute job =~ "fetch-depth:", name
+      end
+    end
+  end
+
   defp workflow(name), do: File.read!(".github/workflows/#{name}.yml")
 
   defp jobs(workflow) do

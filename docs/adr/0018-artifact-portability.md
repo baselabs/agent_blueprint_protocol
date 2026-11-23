@@ -1,4 +1,6 @@
-# ADR: artifacts carry requirements, hosts resolve them
+# 0018: artifacts carry requirements, hosts resolve them
+
+Status: Accepted
 
 ## Context
 
