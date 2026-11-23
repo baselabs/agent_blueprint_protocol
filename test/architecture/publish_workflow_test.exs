@@ -353,6 +353,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     end
 
     assert job(pages, "deploy") =~ "name: github-pages"
+
     assert pages =~
              "# This default-branch checkout deploys site/; it does not identify a package release."
   end
