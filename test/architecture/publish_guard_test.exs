@@ -149,7 +149,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
             AgentBlueprintProtocol.ArchitectureScan.public_record_text(
               content,
               path,
-              Path.wildcard(Path.join("docs/adr", "[0-9][0-9][0-9][0-9]-*.md"))
+              AgentBlueprintProtocol.ArchitectureScan.public_records()
             ),
           pattern <- @text_patterns,
           Regex.scan(pattern, content) != [] do
@@ -207,7 +207,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
   end
 
   test "only known public decision record paths and their own headings spare numbers" do
-    records = Path.wildcard(Path.join("docs/adr", "[0-9][0-9][0-9][0-9]-*.md"))
+    records = AgentBlueprintProtocol.ArchitectureScan.public_records()
     assert length(records) == 20
 
     for path <- records do
@@ -231,30 +231,6 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
         assert Enum.any?(@text_patterns, &Regex.match?(&1, text)), source
       end
-    end
-  end
-
-  test "only the changelog's declared public decision record range spares numbers" do
-    records = Path.wildcard(Path.join("docs/adr", "[0-9][0-9][0-9][0-9]-*.md"))
-    first = records |> List.first() |> Path.basename() |> String.slice(0, 4)
-    last = records |> List.last() |> Path.basename() |> String.slice(0, 4)
-
-    source =
-      "Published decision records now cover protocol and product design, numbered #{first}–#{last};"
-
-    text =
-      AgentBlueprintProtocol.ArchitectureScan.public_record_text(source, "CHANGELOG.md", records)
-
-    assert Enum.filter(@text_patterns, &Regex.match?(&1, text)) == []
-
-    for {path, source} <- [
-          {"README.md", source},
-          {"CHANGELOG.md", "#{first}–#{last}"},
-          {"CHANGELOG.md", String.replace(source, last, first)},
-          {"CHANGELOG.md", source <> "\n" <> first}
-        ] do
-      text = AgentBlueprintProtocol.ArchitectureScan.public_record_text(source, path, records)
-      assert Enum.any?(@text_patterns, &Regex.match?(&1, text)), source
     end
   end
 

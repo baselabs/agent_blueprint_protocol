@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Published decision records now cover protocol and product design, numbered 0001–0020;
-  update links to their numbered paths.
+- Published decision records now cover protocol and product design only, under
+  numbered file names; update links to their new paths.
   The public roadmap is available in `docs/ROADMAP.md`.
 
 ## [1.1.0] - 2026-11-17
