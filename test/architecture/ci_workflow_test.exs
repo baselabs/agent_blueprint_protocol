@@ -188,7 +188,8 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
     readers = %{
       "secret-scan" => ["Run gitleaks over full history"],
       "spec-extraction" => ["Extract the standalone specification tree"],
-      "quality" => ["Check public privacy over full history", "Run complete quality gate"]
+      "quality" => ["Check public privacy over full history", "Run complete quality gate"],
+      "platforms" => ["Build and verify both consumer packages before publication"]
     }
 
     for {name, job} <- jobs(workflow("ci")) do

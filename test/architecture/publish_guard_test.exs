@@ -225,6 +225,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
         ] do
       text =
         AgentBlueprintProtocol.ArchitectureScan.public_record_text(source, "README.md", records)
+
       assert Enum.any?(@text_patterns, &Regex.match?(&1, text)), source
     end
   end
