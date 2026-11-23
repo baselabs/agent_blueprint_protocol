@@ -94,7 +94,7 @@ Regenerate release metadata after specification, corpus, or registry changes wit
 A release commit carries equal Hex and npm versions and current release metadata,
 install commands, documentation links, and notebook targets. DevOps dispatches
 **Publish** from the default branch as an owner with exactly one required input,
-`release_commit`, a full 40-hex SHA. The first job validates it, proves ancestry
+`release_commit`, a full 40-hex lowercase SHA. The first job validates it, proves ancestry
 from the default-branch head with full history, and requires a successful
 `qualified` check run on that exact SHA through the GitHub API. Every checkout,
 build, release record, and read-back uses that SHA. The version reader compares

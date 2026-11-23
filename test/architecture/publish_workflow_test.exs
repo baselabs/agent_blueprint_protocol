@@ -13,7 +13,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     workflow_dispatch:
         inputs:
           release_commit:
-            description: Full 40-hex SHA of the qualified release commit
+            description: Full 40-hex lowercase SHA of the qualified release commit
             required: true
             type: string
     """
@@ -43,12 +43,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     verify = job(workflow, "verify")
     validation = step(verify, "Validate the release commit")
     assert validation =~ "RELEASE_COMMIT: ${{ inputs.release_commit }}"
-    assert validation =~ ~s|if [[ ! "$RELEASE_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]]; then|
+    assert validation =~ ~s|if [[ ! "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then|
     assert validation =~ "exit 1"
-
-    assert validation =~
-             ~s|printf 'commit=%s\\n' "$(printf '%s' "$RELEASE_COMMIT" \| tr 'A-F' 'a-f')" >> "$GITHUB_OUTPUT"|
-
+    assert validation =~ ~s|printf 'commit=%s\\n' "$RELEASE_COMMIT" >> "$GITHUB_OUTPUT"|
     assert_before(verify, "Validate the release commit", "uses: actions/checkout@")
     assert verify =~ "release_commit: ${{ steps.release.outputs.commit }}"
     refute workflow =~ "github.sha"
@@ -370,18 +367,17 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
       output = Path.join(dir, "output")
       sha = String.duplicate("a1", 20)
 
-      for value <- [sha, String.upcase(sha)] do
-        assert {_, 0} =
-                 System.cmd("bash", ["-c", script],
-                   env: [{"RELEASE_COMMIT", value}, {"GITHUB_OUTPUT", output}]
-                 )
+      assert {_, 0} =
+               System.cmd("bash", ["-c", script],
+                 env: [{"RELEASE_COMMIT", sha}, {"GITHUB_OUTPUT", output}]
+               )
 
-        assert File.read!(output) == "commit=#{sha}\n"
-        File.rm!(output)
-      end
+      assert File.read!(output) == "commit=#{sha}\n"
+      File.rm!(output)
 
       for value <- [
             "",
+            String.upcase(sha),
             "main",
             "refs/heads/main",
             String.duplicate("a", 39),

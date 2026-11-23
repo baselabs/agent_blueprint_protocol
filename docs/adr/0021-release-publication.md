@@ -15,7 +15,7 @@ The [release identity](0011-release-identity-semantics.md) and
 ## Decision
 
 Publish accepts only an owner's `workflow_dispatch` from the default branch, with
-exactly one required input, `release_commit`: a full 40-hex SHA, validated before
+exactly one required input, `release_commit`: a full 40-hex lowercase SHA, validated before
 use. The workflow definition comes from the default branch; all source checkouts,
 builds, provenance, and read-back use `release_commit`, independently of that
 branch's head at dispatch. Both actor and triggering actor must be `corepay` or `palermo-git`.

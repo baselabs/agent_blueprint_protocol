@@ -145,7 +145,7 @@ See [Contributing](../CONTRIBUTING.md) for the build commands.
 
 ## Verify served docs provenance
 
-Publish takes exactly one required `release_commit`, a full 40-hex SHA, on an
+Publish takes exactly one required `release_commit`, a full 40-hex lowercase SHA, on an
 owner's default-branch dispatch. Its first job validates the SHA, proves its
 default-branch ancestry, requires a successful `qualified` check on that exact
 SHA through the GitHub API, compares its declared package versions, and refuses

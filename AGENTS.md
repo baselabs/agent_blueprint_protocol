@@ -12,7 +12,7 @@ Requirements:
 - Install the toolchain in `.tool-versions`.
 - Keep historical release tags (`refs/tags/v*`) available for compatibility replay.
 - Publish is dispatched from the default branch with one required `release_commit`, a full
-  40-hex SHA reachable from that branch with a successful `qualified` check. It builds that
+  40-hex lowercase SHA reachable from that branch with a successful `qualified` check. It builds that
   commit, refuses differing served package bytes and existing tags, keeps served docs, and
   publishes only missing uploads through environment `publish`. Redispatch the same
   `release_commit` to finish a held release. DevOps reads packages back,
