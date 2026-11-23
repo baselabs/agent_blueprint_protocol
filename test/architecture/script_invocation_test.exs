@@ -5,11 +5,13 @@ defmodule AgentBlueprintProtocol.Architecture.ScriptInvocationTest do
   # lines and evaluated environment values must never enter failure diagnostics.
   @inline ~r/(?:^|[\s"',\[])(?:--eval|--execute|--print|-[Cc]ommand|-eval|-e|-c)(?=$|[\s"',\]=])|(?:\bnode(?:\.exe)?\b|process\.execPath)[\s"',\[]+-p(?=$|[\s"',\]])/m
   @toolchain ~r/["'`](?:[^"'`\r\n]*[\x2f\\])?(?:elixir|mix)(?:\.(?:bat|cmd))?["'`]/i
-  # The byte-shared toolchain reader has two fixed installed-version probes.
+  # The byte-shared toolchain reader has four fixed installed-version probes.
   # These exact, credential-free commands are its only inline exceptions.
   @installed_probes [
     ~S/have=$(elixir -e 'IO.write(System.version() <> "-otp-" <> System.build_info()[:otp_release])') || { printf 'toolchain: %s version probe failed\n' "$tool" >&2; refused=1; continue; } ;;/,
-    ~S/have=$(erl -noshell -noinput -eval '{ok, V} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:put_chars(string:trim(V)), halt().') || { printf 'toolchain: %s version probe failed\n' "$tool" >&2; refused=1; continue; } ;;/
+    ~S/have=$(erl -noshell -noinput -eval '{ok, V} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:put_chars(string:trim(V)), halt().') || { printf 'toolchain: %s version probe failed\n' "$tool" >&2; refused=1; continue; } ;;/,
+    ~S/have=$(python3 -c 'import platform; print(platform.python_version())') || { printf 'toolchain: %s version probe failed\n' "$tool" >&2; refused=1; continue; } ;;/,
+    ~S/have=$(ruby -e 'print RUBY_VERSION') || { printf 'toolchain: %s version probe failed\n' "$tool" >&2; refused=1; continue; } ;;/
   ]
 
   test "workflows and scripts pass filenames instead of inline program arguments" do
