@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-11-24
+
+Promotes 1.1.2-rc.3 without changes. The specification cites the IETF SCITT
+architecture and the first adopted Internet-Draft on dialog management from the
+IETF agentproto working group. The [ARD mapping](docs/ard-mapping.md) pins AI
+Catalog v0.9.0. The final-release promotion check lets only inert repository
+metadata differ between a candidate and its final release, and every artifact
+the release workflows upload sets its own retention.
+
+Library and verifier behavior, protocol revision 1, and verification semantics 4
+are unchanged from 1.1.1. The corpus contains 626 cases, digest
+`sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE`; the registry digest is
+`sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk`; the specification digest
+is `sha-256:abHJVFEUdUJqDEXhMAPRqd7UzYulY3kgvxRbOlSHKVY`.
+
 ## [1.1.2-rc.3] - 2026-11-24
 
 ### Fixed
@@ -1209,7 +1224,8 @@ second-language verifier.
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
 
-[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.3...HEAD
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.3...v1.1.2
 [1.1.2-rc.3]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.2...v1.1.2-rc.3
 [1.1.2-rc.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.1...v1.1.2-rc.2
 [1.1.2-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1...v1.1.2-rc.1
