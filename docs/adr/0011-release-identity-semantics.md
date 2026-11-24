@@ -36,6 +36,8 @@ dated CHANGELOG entry added directly above the candidate's unchanged entry,
 install pins, the security table's candidate row and the site. The promotion check
 rejects every other byte change, including library and verifier sources,
 public API census, specification, corpus, registry and semantics version.
+Repository automation under `.github/` may differ: no package carries it, and
+Publish runs workflows from the default branch, never from the release commit.
 Final publication compares against the highest candidate tag for that exact
 final version; an absent candidate refuses publication. A source correction
 requires another candidate.
