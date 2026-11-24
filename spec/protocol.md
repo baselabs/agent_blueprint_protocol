@@ -1149,7 +1149,12 @@ WIMSE is IETF work on workload identity across systems; ABP accepts supplied
 keys and never establishes a workload identity. AuthZEN is OpenID Foundation
 work on authorization interoperability; ABP produces non-authorizing evidence.
 AP2 is an open agent payments protocol; ABP's money bound is a magnitude
-constraint and carries no payment authority. These are positioning statements,
+constraint and carries no payment authority. The IETF agentproto working group,
+chartered under `charter-ietf-agentproto-01` (approved October 8, 2026), works on
+dialog management for agent interactions, with
+`draft-ietf-agentproto-usecases-requirements-00` (November 20, 2026) as its first
+adopted document. ABP defines a portable contract and evidence layer that is
+independent of dialog management. These are positioning statements,
 not mappings or conformance claims about those projects.
 
 ## 20. Registry considerations
@@ -1234,5 +1239,6 @@ is failure. These rules add no host authorization or execution requirement.
 ### Informative references
 
 - [A2A v1.1.0-rc](https://github.com/a2aproject/A2A/tree/v1.1.0-rc), an informative candidate reference; candidates are not the released baseline.
-- [SCITT](https://datatracker.ietf.org/wg/scitt/about/), [in-toto](https://in-toto.io/), and [SLSA v1.2](https://slsa.dev/spec/v1.2/).
+- [RFC 9943](https://www.rfc-editor.org/rfc/rfc9943.html), An Architecture for Trustworthy and Transparent Digital Supply Chains (IETF Proposed Standard, June 2026). See also [SCITT](https://datatracker.ietf.org/wg/scitt/about/), [in-toto](https://in-toto.io/), and [SLSA v1.2](https://slsa.dev/spec/v1.2/).
+- [IETF agentproto working group](https://datatracker.ietf.org/wg/agentproto/about/) and [draft-ietf-agentproto-usecases-requirements-00](https://datatracker.ietf.org/doc/draft-ietf-agentproto-usecases-requirements/00/), Agentic AI Use Cases and Requirements (November 2026, work in progress).
 - [OASF](https://github.com/agntcy/oasf), [WIMSE](https://datatracker.ietf.org/wg/wimse/about/), [AuthZEN](https://openid.net/wg/authzen/), and [AP2](https://ap2-protocol.org/).

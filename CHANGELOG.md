@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2-rc.1] - 2026-11-23
+
+- Cite RFC 9943, the IETF SCITT architecture, in the informative references.
+- Describe the IETF agentproto working group's dialog management work and cite
+  its first adopted Internet-Draft.
+- Pin AI Catalog v0.9.0 in the [ARD mapping](docs/ard-mapping.md).
+
+Library and verifier behavior, protocol revision 1, verification semantics 4,
+and the corpus and registry digests are unchanged from 1.1.1. The
+specification digest is `sha-256:abHJVFEUdUJqDEXhMAPRqd7UzYulY3kgvxRbOlSHKVY`.
+
 ## [1.1.1] - 2026-11-23
 
 Promotes 1.1.1-rc.1 without changes. Published decision records now cover
@@ -1172,7 +1183,8 @@ second-language verifier.
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
 
-[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.1...HEAD
+[1.1.2-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1...v1.1.2-rc.1
 [1.1.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1-rc.1...v1.1.1
 [1.1.1-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0...v1.1.1-rc.1
 [1.1.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0-rc.5...v1.1.0
