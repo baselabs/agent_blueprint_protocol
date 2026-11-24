@@ -342,6 +342,14 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     end
   end
 
+  test "publication executes no repository automation from the release commit" do
+    # ADR 0011 lets .github/ differ between candidate and final because Publish
+    # never runs a release-commit file from it.
+    source = workflow("publish")
+    refute Regex.match?(~r/^\s+uses:\s*\.\//m, source)
+    refute source =~ ".github/"
+  end
+
   test "Pages stays an owner's default-branch dispatch" do
     pages = workflow("pages")
     refute pages =~ "head_sha"

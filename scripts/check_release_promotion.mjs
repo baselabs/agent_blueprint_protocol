@@ -32,9 +32,10 @@ function changelogPromotes(a,b,rc,final){
 // This classifier owns both the promotion diff policy and the candidate
 // tree check. A frozen file cannot shed a candidate version at promotion.
 function promotionRule(path){
-  // Repository automation never enters a package and Publish runs it from the
-  // default branch, never from the release commit, so it may move between
-  // candidate and final.
+  // Repository automation under .github/ may differ. No package carries it.
+  // Publish runs from the default branch and executes no file from the release
+  // commit's .github/. The release commit's own qualification runs that
+  // commit's workflows, and landing review governs them.
   if(path.startsWith('.github/'))return 'repository';
   // Namespace pages also carry release-pinned documentation links.
   if(path.startsWith('site/extensions/'))return 'version';
