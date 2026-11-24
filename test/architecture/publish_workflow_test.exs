@@ -350,6 +350,25 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     refute source =~ ".github/"
   end
 
+  test "every uploaded artifact expires after one day in-run or seven days for maintainers" do
+    retention =
+      for name <- ~w(ci pages publish),
+          step <- steps(workflow(name)),
+          Regex.match?(~r/uses: actions\/upload-(pages-)?artifact@/, step) do
+        artifact =
+          case Regex.run(~r/^\s+name: (\S+)$/m, step) do
+            [_, artifact] -> artifact
+            nil -> "#{name}:pages"
+          end
+
+        [_, days] = Regex.run(~r/^\s+retention-days: (\d+)$/m, step) || [nil, nil]
+        {artifact, days}
+      end
+
+    assert Enum.sort(retention) ==
+             [{"pages:pages", "1"}, {"release-assets", "7"}, {"verified-release", "1"}]
+  end
+
   test "Pages stays an owner's default-branch dispatch" do
     pages = workflow("pages")
     refute pages =~ "head_sha"

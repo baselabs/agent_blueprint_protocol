@@ -271,6 +271,7 @@ jobs:
           name: verified-release
           path: verified-release/
           if-no-files-found: error
+          retention-days: 1
 
   npm-publish:
     name: Stage the npm package
@@ -521,6 +522,7 @@ jobs:
           name: release-assets
           path: verified-release/release-assets/
           if-no-files-found: error
+          retention-days: 7
 
   smoke:
     needs: [verify, hex-publish]
