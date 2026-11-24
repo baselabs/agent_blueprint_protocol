@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "1.1.2-rc.2"
+  @version "1.1.2-rc.3"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do

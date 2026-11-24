@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2-rc.3] - 2026-11-24
+
+### Fixed
+
+- Every artifact the Publish and Pages workflows upload now sets its own
+  retention: one day for artifacts handed to a later job in the same run, and
+  seven days for the consumer release assets read after the run. None falls
+  back to the repository default.
+
+Library, verifier, specification, corpus, and registry bytes are unchanged
+from 1.1.2-rc.2.
+
 ## [1.1.2-rc.2] - 2026-11-24
 
 ### Fixed
@@ -1197,7 +1209,8 @@ second-language verifier.
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
 
-[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.2...HEAD
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.3...HEAD
+[1.1.2-rc.3]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.2...v1.1.2-rc.3
 [1.1.2-rc.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.1...v1.1.2-rc.2
 [1.1.2-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1...v1.1.2-rc.1
 [1.1.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1-rc.1...v1.1.1
