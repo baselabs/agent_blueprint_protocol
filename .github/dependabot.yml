@@ -16,8 +16,3 @@ updates:
       # Node typings follow package.json's engines floor; a major moves with that floor.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
