@@ -343,8 +343,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
   end
 
   test "publication executes no repository automation from the release commit" do
-    # ADR 0011 lets .github/ differ between candidate and final because Publish
-    # never runs a release-commit file from it.
+    # Promotion lets repository metadata under .github/ differ between candidate
+    # and final only because Publish never runs a release-commit file from it.
     source = workflow("publish")
     refute Regex.match?(~r/^\s+uses:\s*\.\//m, source)
     refute source =~ ".github/"

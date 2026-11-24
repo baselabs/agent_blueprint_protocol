@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The final-release promotion check now lets the repository metadata
   `.github/dependabot.yml` and `.github/ISSUE_TEMPLATE/` differ between a
-  candidate and its final release. Workflows stay frozen. See
-  [ADR 0011](docs/adr/0011-release-identity-semantics.md#candidate-promotion).
+  candidate and its final release. Workflows stay frozen. The release identity
+  decision record states the boundary.
 - The Publish workflow test rejects local actions and references to `.github/`
   paths.
 
