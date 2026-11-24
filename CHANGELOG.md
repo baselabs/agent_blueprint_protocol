@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2-rc.2] - 2026-11-24
+
+### Fixed
+
+- The final-release promotion check now lets the repository metadata
+  `.github/dependabot.yml` and `.github/ISSUE_TEMPLATE/` differ between a
+  candidate and its final release. Workflows stay frozen. See
+  [ADR 0011](docs/adr/0011-release-identity-semantics.md#candidate-promotion).
+- The Publish workflow test rejects local actions and references to `.github/`
+  paths.
+
+Library, verifier, specification, corpus, and registry bytes are unchanged
+from 1.1.2-rc.1.
+
 ## [1.1.2-rc.1] - 2026-11-23
 
 - Cite RFC 9943, the IETF SCITT architecture, in the informative references.
@@ -1183,7 +1197,8 @@ second-language verifier.
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
 
-[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.1...HEAD
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.2...HEAD
+[1.1.2-rc.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.1...v1.1.2-rc.2
 [1.1.2-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1...v1.1.2-rc.1
 [1.1.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.1-rc.1...v1.1.1
 [1.1.1-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.0...v1.1.1-rc.1
