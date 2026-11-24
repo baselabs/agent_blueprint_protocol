@@ -32,11 +32,10 @@ function changelogPromotes(a,b,rc,final){
 // This classifier owns both the promotion diff policy and the candidate
 // tree check. A frozen file cannot shed a candidate version at promotion.
 function promotionRule(path){
-  // Repository automation under .github/ may differ. No package carries it.
-  // Publish runs from the default branch and executes no file from the release
-  // commit's .github/. The release commit's own qualification runs that
-  // commit's workflows, and landing review governs them.
-  if(path.startsWith('.github/'))return 'repository';
+  // Repository metadata that no package carries and no release gate executes
+  // may differ. Workflows stay frozen: the release commit's own workflows
+  // produce the qualification Publish requires.
+  if(path==='.github/dependabot.yml'||path.startsWith('.github/ISSUE_TEMPLATE/'))return 'repository';
   // Namespace pages also carry release-pinned documentation links.
   if(path.startsWith('site/extensions/'))return 'version';
   if(['mix.exs','package.json','package-lock.json','README.md','verifier/README.md'].includes(path)||['documentation/','docs/','site/'].some(dir=>path.startsWith(dir)))return 'version';
@@ -49,7 +48,6 @@ function promotionRule(path){
 function check(changes,rc,final){
   const denied=[];
   for(const [path,before,after] of changes){
-    if(promotionRule(path)==='repository')continue;
     if(before===null||after===null){denied.push(path);continue;}
     const a=before.toString(),b=after.toString();
     switch(promotionRule(path)){
@@ -85,7 +83,7 @@ function checkTree(entries,version){
 }
 function checkCurrentTree(){
   const version=readFileSync('mix.exs','utf8').match(/@version\s+"([^"]+)"/)[1];
-  checkTree(paths().filter(path=>existsSync(path)).map(path=>[path,readFileSync(path)]),version);
+  checkTree(paths().filter(path=>promotionRule(path)==='frozen'&&existsSync(path)).map(path=>[path,readFileSync(path)]),version);
 }
 function seeded(){
   const scratch=mkdtempSync(join(tmpdir(),'abp-promotion-'));
@@ -127,12 +125,15 @@ function selfTest(){
   for(const [path,before,after] of [['README.md',readme,Buffer.from(finalReadme.toString().replaceAll(final,rc))],['README.md',readme,Buffer.from(finalReadme.toString().replaceAll('@agent-blueprint-protocol/verifier@'+final,'@agent-blueprint-protocol/verifier'))],['SECURITY.md',security,Buffer.from(finalSecurity.toString().replace('| 1.0.x | yes |\n',''))]])assert.throws(()=>check([[path,before,after]],rc,final),/forbidden differences/);
   for(const [path,before,after] of [['README.md',readme,finalReadme],['SECURITY.md',security,finalSecurity]])assert.throws(()=>check([[path,before,Buffer.concat([after,Buffer.from('extra text')])]],rc,final),/forbidden differences/);
   assert.throws(()=>check([seeded()],rc,final),/forbidden differences/);
-  check([['.github/dependabot.yml',Buffer.from('version: 2\n'),Buffer.from('version: 2\nupdates: []\n')],['.github/workflows/new.yml',null,Buffer.from('on: push\n')],['.github/ISSUE_TEMPLATE/old.yml',Buffer.from('name: old\n'),null]],rc,final);
-  for(const path of ['scripts/check_release_promotion.mjs','github/dependabot.yml','docs/.github/x.yml'])assert.throws(()=>check([[path,Buffer.from('a'),Buffer.from('b')]],rc,final),/forbidden differences/);
+  for(const path of ['.github/dependabot.yml','.github/ISSUE_TEMPLATE/bug_report.yml','.github/ISSUE_TEMPLATE/new/form.yml'])assert.equal(promotionRule(path),'repository');
+  for(const path of ['.github/workflows/ci.yml','.github/workflows/publish.yml','.github/actions/local/action.yml','.github/CODEOWNERS','.github/dependabot.yaml','.github/ISSUE_TEMPLATE','scripts/check_release_promotion.mjs','github/dependabot.yml'])assert.equal(promotionRule(path),'frozen');
+  assert.equal(promotionRule('docs/.github/dependabot.yml'),'version');
+  for(const path of ['.github/workflows/ci.yml','.github/actions/local/action.yml'])assert.throws(()=>check([[path,Buffer.from('a'),Buffer.from('b')]],rc,final),/forbidden differences/);
+  assert.throws(()=>check([['.github/actions/local/action.yml',null,Buffer.from('runs: {}\n')]],rc,final),/forbidden differences/);
   assert.throws(()=>checkTree([['lib/frozen.ex',Buffer.from(rc)]],rc),/frozen files name candidate/);
   checkTree([['documentation/allowed.md',Buffer.from(rc)]],rc);
   checkTree([['test/old_fixture.exs',Buffer.from('0.9.0-rc.1')]],rc);
-  console.log('release promotion: permitted version and repository automation changes passed; seeded library change rejected');
+  console.log('release promotion: permitted version changes and repository metadata passed; workflow and library changes rejected; seeded library change rejected');
 }
 try {
   const args=process.argv.slice(2);
@@ -149,11 +150,12 @@ try {
     const tree=git(['ls-tree','-rz',tag]).toString().split('\0').filter(Boolean).map(x=>{const [entry,path]=x.split('\t');return [path,entry.split(' ')[2]];});
     const baseline=new Map(tree),current=new Set(paths()),changes=[];
     for(const path of new Set([...baseline.keys(),...current])){
+      if(promotionRule(path)==='repository')continue;
       const after=current.has(path)&&existsSync(path)?readFileSync(path):null;
       if(after&&hash(after)===baseline.get(path))continue;
       const before=baseline.has(path)?git(['show',tag+':'+path]):null;changes.push([path,before,after]);
     }
     if(JSON.parse(readFileSync('package.json')).version!==final)throw Error('release promotion: candidate tree does not name the final version');
-    check(changes,rc,final);console.log('release promotion: candidate differs only in permitted release identity and install pins');
+    check(changes,rc,final);console.log('release promotion: candidate differs only in permitted release identity, install pins and repository metadata');
   }
 }catch(error){console.error(error.message);process.exitCode=1;}

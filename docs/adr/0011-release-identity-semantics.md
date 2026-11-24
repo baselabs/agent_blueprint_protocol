@@ -33,13 +33,15 @@ The manifest and upgrading guide state this boundary.
 A final tree differs from its candidate only in package versions, the
 manifest's bound package and kit versions, an appended history row, a new
 dated CHANGELOG entry added directly above the candidate's unchanged entry,
-install pins, the security table's candidate row and the site. The promotion check
-rejects every other byte change, including library and verifier sources,
-public API census, specification, corpus, registry and semantics version.
-Repository automation under `.github/` may differ. No package carries it.
-Publish runs from the default branch and executes no file from the release
-commit's `.github/`. The release commit's own qualification runs that commit's
-workflows, and landing review governs them.
+install pins, the security table's candidate row, the site, and the repository
+metadata `.github/dependabot.yml` and `.github/ISSUE_TEMPLATE/`. The promotion
+check rejects every other byte change, including library and verifier sources,
+public API census, specification, corpus, registry, semantics version and
+workflows. No package or uploaded release asset carries that repository
+metadata, and no release gate executes it; source archives and the exact
+release SHA in HexDocs still record it, and qualification and the privacy and
+quality gates still cover it. Workflows stay frozen because the release
+commit's own workflows produce the qualification that Publish requires.
 Final publication compares against the highest candidate tag for that exact
 final version; an absent candidate refuses publication. A source correction
 requires another candidate.
