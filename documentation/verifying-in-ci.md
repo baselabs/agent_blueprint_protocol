@@ -10,16 +10,14 @@ with your build inputs. The contents check then runs offline. Run it from a
 trusted verifier installation when inspecting a package you suspect has
 changed. [Release asset verification](verifying-releases.md#verify-sha256sums-and-registry-bytes)
 
-For a Hex dependency, pass the source root named by
-`Mix.Project.deps_paths()[:agent_blueprint_protocol]` in the consuming project.
-Save this as `verify-package.exs` and run it with
-`mix run verify-package.exs /path/to/release-manifest.json`.
+For a Hex dependency, use the installed package directory that contains its
+`mix.exs` and `priv/` files. Save this as `verify-package.exs` and run it with
+`mix run verify-package.exs /path/to/release-manifest.json /path/to/agent_blueprint_protocol`.
 
 <!-- fragment -->
 ```elixir
-[manifest_path] = System.argv()
+[manifest_path, root] = System.argv()
 manifest = manifest_path |> File.read!() |> :json.decode()
-root = Map.fetch!(Mix.Project.deps_paths(), :agent_blueprint_protocol)
 expected = get_in(manifest, ["package_checksums", "hex"])
 :ok = AgentBlueprintProtocol.PackageContents.verify(root, :hex, expected)
 ```

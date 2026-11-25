@@ -21,8 +21,8 @@ that binds the distribution. Omit the embedded release records from
 the file set and define the Hex installer records outside it. A verifier
 receives an explicit installation root and a checksum authenticated by
 the caller. The package contents entry point can traverse and read that
-root. Artifact verification and registry loading retain the runtime
-boundary in [ADR 0019](0019-runtime-boundary.md).
+root. Artifact verification still consumes caller-supplied bytes, and
+the registry is embedded at build time.
 
 ## Consequences
 

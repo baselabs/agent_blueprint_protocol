@@ -4,7 +4,8 @@ defmodule AgentBlueprintProtocol.PackageContents do
 
   Pass the installation root and the matching entry in `package_checksums`
   from a trusted copy of the release's `release-manifest.json`. Verification
-  reads the specified installation on demand.
+  reads the specified installation on demand. The checksum establishes file
+  equality with the supplied manifest. This module never authorizes operations.
   """
 
   alias AgentBlueprintProtocol.{Error, FramedFiles}
@@ -65,26 +66,28 @@ defmodule AgentBlueprintProtocol.PackageContents do
           raise File.Error, reason: reason, action: "list directory", path: directory
       end
 
-    Enum.flat_map(names, fn entry ->
-      name = IO.chardata_to_string(entry)
+    Enum.flat_map(names, &entry_paths!(&1, root, relative, exclusions))
+  end
 
-      unless String.valid?(name) and not String.contains?(name, "\\"),
-        do: raise(File.Error, reason: :einval, action: "read package entry", path: root)
+  defp entry_paths!(entry, root, relative, exclusions) do
+    name = IO.chardata_to_string(entry)
 
-      path = relative <> name
-      absolute = Path.join(root, path)
+    unless String.valid?(name) and not String.contains?(name, "\\"),
+      do: raise(File.Error, reason: :einval, action: "read package entry", path: root)
 
-      case File.lstat!(absolute).type do
-        :directory ->
-          paths!(root, path <> "/", exclusions)
+    path = relative <> name
+    absolute = Path.join(root, path)
 
-        :regular ->
-          if path in exclusions, do: [], else: [path]
+    case File.lstat!(absolute).type do
+      :directory ->
+        paths!(root, path <> "/", exclusions)
 
-        _ ->
-          raise File.Error, reason: :einval, action: "read package entry", path: absolute
-      end
-    end)
+      :regular ->
+        if path in exclusions, do: [], else: [path]
+
+      _ ->
+        raise File.Error, reason: :einval, action: "read package entry", path: absolute
+    end
   end
 
   defp denial(code, distribution) do

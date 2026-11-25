@@ -3,9 +3,12 @@
 # needs this checkout's release tags and scripts. The examples run from the
 # extracted packages.
 Code.require_file("consumer_examples.exs", __DIR__)
-Code.require_file("../lib/agent_blueprint_protocol/error.ex", __DIR__)
-Code.require_file("../lib/agent_blueprint_protocol/framed_files.ex", __DIR__)
-Code.require_file("../lib/agent_blueprint_protocol/package_contents.ex", __DIR__)
+
+unless Code.ensure_loaded?(AgentBlueprintProtocol.PackageContents) do
+  Code.require_file("../lib/agent_blueprint_protocol/error.ex", __DIR__)
+  Code.require_file("../lib/agent_blueprint_protocol/framed_files.ex", __DIR__)
+  Code.require_file("../lib/agent_blueprint_protocol/package_contents.ex", __DIR__)
+end
 
 defmodule VerifyReleasePackages do
   @moduledoc false
@@ -73,7 +76,6 @@ defmodule VerifyReleasePackages do
       []
     )
 
-    kit = Path.join(npm, "dist/kit/cli.mjs")
     consumers = Path.join(scratch, "consumers")
     File.mkdir!(consumers)
     consumer = Path.join(consumers, "replay")
@@ -98,19 +100,7 @@ defmodule VerifyReleasePackages do
 
       ConsumerExamples.command!("mix", ["deps.get"], options)
 
-      ConsumerExamples.command!(
-        "mix",
-        [
-          "run",
-          "--no-start",
-          Path.join(__DIR__, "check_installed_package_contents.exs"),
-          manifest_path,
-          package,
-          npm
-        ],
-        options
-      )
-
+      # A second Mix run would try to recreate the dependency's priv link on Windows.
       ConsumerExamples.command!(
         "mix",
         [
@@ -118,7 +108,8 @@ defmodule VerifyReleasePackages do
           Path.join(__DIR__, "check_compatibility_replay.exs"),
           "--installed",
           repository,
-          kit
+          manifest_path,
+          npm
         ],
         options
       )

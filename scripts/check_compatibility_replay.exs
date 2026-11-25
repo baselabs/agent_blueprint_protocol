@@ -67,7 +67,7 @@ Code.require_file("release_identity.exs", __DIR__)
 Code.require_file("gate_node.exs", __DIR__)
 
 defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
-  alias AgentBlueprintProtocol.Scratch
+  alias AgentBlueprintProtocol.{PackageContents, Scratch}
 
   alias AgentBlueprintProtocol.Conformance.{Corpus, Report, Runner}
 
@@ -118,8 +118,10 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
 
   # The installed package supplies every verifier module and its registry. Git
   # supplies only the released inputs, through the same census reader as run/0.
-  def run_installed(repository, kit) do
+  def run_installed(repository, contents_manifest, npm) do
     package = Mix.Project.deps_paths() |> Map.fetch!(:agent_blueprint_protocol)
+    verify_installed_contents!(contents_manifest, package, npm)
+    kit = Path.join(npm, "dist/kit/cli.mjs")
 
     manifest =
       package |> Path.join("priv/release-metadata.json") |> File.read!() |> :json.decode()
@@ -158,6 +160,19 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
         "installed compatibility replay: ok (#{length(tags)} tags, #{length(censuses)} censuses, Hex and npm)"
       )
     end)
+  end
+
+  defp verify_installed_contents!(manifest, hex, npm) do
+    %{"package_checksums" => checksums} = manifest |> File.read!() |> :json.decode()
+
+    for {distribution, root} <- [hex: hex, npm: npm] do
+      :ok =
+        PackageContents.verify(
+          root,
+          distribution,
+          Map.fetch!(checksums, Atom.to_string(distribution))
+        )
+    end
   end
 
   defp decode_json(bytes) do
@@ -847,8 +862,8 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
 end
 
 case System.argv() do
-  ["--installed", repository, kit] ->
-    AgentBlueprintProtocol.CompatibilityReplayGate.run_installed(repository, kit)
+  ["--installed", repository, manifest, npm] ->
+    AgentBlueprintProtocol.CompatibilityReplayGate.run_installed(repository, manifest, npm)
 
   _ ->
     AgentBlueprintProtocol.CompatibilityReplayGate.run()
