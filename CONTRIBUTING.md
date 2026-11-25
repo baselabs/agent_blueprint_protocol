@@ -141,7 +141,11 @@ current run, it checks that the approval checksum is still the one from the
 package receipt. It then confirms the release is still unpublished as its final
 request before posting docs. Hex must confirm that the docs joined the matching
 release stage. Hex's stage response omits docs presence for an existing release
-stage. Approve the existing stage and dispatch again to fill any missing docs.
+stage, so the uploader attaches nothing to it and the run ends as a hold: approve
+the stage, then dispatch Publish again with the same `release_commit` so missing
+docs upload live. In that case the docs can go out after the package. A live docs
+write must answer 201 with an empty body; a held write must name the matching
+stage. Any other answer stops the run.
 
 The docs POST is unconditional.
 Another publisher can change the release or write docs between the check and the

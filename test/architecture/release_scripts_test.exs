@@ -170,6 +170,41 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
     end
   end
 
+  test "docs receipts accept only an empty live 201 or the matching stage",
+       %{uploader: uploader} do
+    target = %{name: "name", version: @version, checksum: @checksum}
+
+    staged = %{
+      "name" => "name",
+      "version" => @version,
+      "checksum" => @checksum,
+      "status" => "staged",
+      "kind" => "docs"
+    }
+
+    assert uploader.docs_receipt({201, nil}, target, "docs") == :live
+    assert uploader.docs_receipt({201, ""}, target, "docs") == :live
+    assert uploader.docs_receipt({201, staged}, target, "docs") == :staged
+
+    assert uploader.docs_receipt({200, %{staged | "kind" => "release"}}, target, "release") ==
+             :staged
+
+    for invalid <- [
+          {200, nil},
+          {200, ""},
+          {204, nil},
+          {201, %{}},
+          {201, %{"status" => "ok"}},
+          {201, %{staged | "kind" => "release"}},
+          {201, %{staged | "name" => "other"}},
+          {201, %{staged | "version" => "0.0.0"}},
+          {201, %{staged | "checksum" => String.duplicate("b", 64)}},
+          {201, %{staged | "status" => "approved"}}
+        ] do
+      assert uploader.docs_receipt(invalid, target, "docs") == :invalid
+    end
+  end
+
   test "both upload gates read stages before their final release GET" do
     script = File.read!("scripts/publish_hex_artifacts.exs")
 
@@ -209,7 +244,7 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
     assert script =~ "Hex.API.Release.publish(target.repo, archive, target.upload_auth,"
 
     assert script =~
-             "Hex.API.ReleaseDocs.publish(target.repo, target.name, target.version, docs, target.upload_auth)"
+             ~r/Hex\.API\.ReleaseDocs\.publish\(\s*target\.repo,\s*target\.name,\s*target\.version,\s*docs,\s*target\.upload_auth\s*\)/
   end
 
   test "organization uploads fail before any request when their API-read key is absent or blank" do

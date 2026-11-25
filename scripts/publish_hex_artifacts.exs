@@ -219,15 +219,8 @@ defmodule PublishHexArtifacts do
     # Approval can serve the release while its stage still exists.
     case docs_action(release_stage, docs_stage, served_release!(target), package_result) do
       :attach ->
-        case upload_docs!(target, docs) do
-          %{
-            "name" => name,
-            "version" => version,
-            "status" => "staged",
-            "kind" => "release",
-            "checksum" => checksum
-          }
-          when name == target.name and version == target.version and checksum == target.checksum ->
+        case upload_docs!(target, docs) |> docs_receipt(target, "release") do
+          :staged ->
             IO.puts("Hex package and docs: staged together for approval")
             :held
 
@@ -236,17 +229,23 @@ defmodule PublishHexArtifacts do
         end
 
       :upload ->
-        case upload_docs!(target, docs) do
-          %{"status" => "staged"} ->
+        case upload_docs!(target, docs) |> docs_receipt(target, "docs") do
+          :live ->
+            IO.puts("Hex docs: archive accepted")
+
+          :staged ->
             IO.puts("Hex docs: staged for approval")
             :held
 
-          _ ->
-            IO.puts("Hex docs: archive accepted")
+          :invalid ->
+            raise "Hex did not confirm the docs upload for the inspected release. Check the served release and docs stage before retrying."
         end
 
       :keep ->
-        IO.puts("Hex stage kept. Approve it, then dispatch again to fill any missing docs.")
+        IO.puts(
+          "Hex stage kept. Approve the stage, then dispatch Publish again with the same release_commit so missing docs upload live."
+        )
+
         :held
 
       :skip ->
@@ -341,7 +340,35 @@ defmodule PublishHexArtifacts do
       docs,
       target.upload_auth
     )
-    |> upload_body!(target, "docs")
+    |> upload_response!(target, "docs")
+  end
+
+  # A live docs write answers 201 with an empty body (hexpm docs_controller.ex:79-119).
+  # A held write answers with the stage it joined. Anything else is refused.
+  def docs_receipt({201, body}, _target, _kind) when body in [nil, ""], do: :live
+
+  def docs_receipt(
+        {code,
+         %{
+           "name" => name,
+           "version" => version,
+           "status" => "staged",
+           "kind" => kind,
+           "checksum" => checksum
+         }},
+        %{name: name, version: version, checksum: checksum},
+        kind
+      )
+      when code in 200..299,
+      do: :staged
+
+  def docs_receipt(_response, _target, _kind), do: :invalid
+
+  defp upload_response!({:ok, {code, _headers, body}}, _target, _kind) when code in 200..299,
+    do: {code, body}
+
+  defp upload_response!(_result, target, kind) do
+    raise "#{target.name} #{target.version} #{kind} upload failed. Resolve the cause and dispatch Publish again on the same commit."
   end
 
   defp upload_body!({:ok, {code, _headers, body}}, _target, _kind) when code in 200..299, do: body
