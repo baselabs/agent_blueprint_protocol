@@ -224,9 +224,11 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
              ~r/defp publish_package!.*?require_org_package!\(target\).*?pending_stages!\(target\)\s+case package_action\(served_release!\(target\), release_stage, docs_stage\) do.*?:upload ->\s+body =\s+Hex.API.Release.publish/s
 
     assert script =~
-             ~r/defp publish_docs!.*?require_org_package!\(target\).*?pending_stages!\(target\).*?case docs_action\(release_stage, docs_stage, served_release!\(target\), package_result\) do\s+:attach ->\s+case upload_docs!/s
+             ~r/defp publish_docs!.*?require_org_package!\(target\).*?pending_stages!\(target\).*?case docs_action\(release_stage, docs_stage, served_release!\(target\), package_result\) do\s+:attach ->\s+case upload_docs!\(target, docs\) \|> docs_receipt\(target, "release"\) do/s
 
-    assert script =~ "case upload_docs!(target, docs) do"
+    assert script =~
+             ~r/:upload ->\s+case upload_docs!\(target, docs\) \|> docs_receipt\(target, "docs"\) do/
+
     assert script =~ ~s|"status" => "staged",|
     assert script =~ ~s|"kind" => "release",|
     assert length(:binary.matches(script, "Hex.API.ReleaseDocs.publish(")) == 1

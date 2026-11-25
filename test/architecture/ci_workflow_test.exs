@@ -2,6 +2,7 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
   use ExUnit.Case, async: true
 
   @workflows ~w(ci publish pages)
+  @publish_upload_jobs ~w(npm-publish hex-publish)
   @runtimes [
     {"erlef/setup-beam", [{"elixir", "elixir-version"}, {"erlang", "otp-version"}]},
     {"actions/setup-node", [{"nodejs", "node-version"}]},
@@ -52,6 +53,12 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
 
     refute File.exists?("scripts/read_release_inputs.py")
 
+    publish_verify = workflow("publish") |> jobs() |> Map.new() |> Map.fetch!("verify")
+
+    for output <- ~w(nodejs elixir otp) do
+      assert publish_verify =~ "#{output}: ${{ steps.versions.outputs.#{output} }}"
+    end
+
     for name <- @workflows do
       source = workflow(name)
       refute source =~ "read_release_inputs.py"
@@ -59,12 +66,20 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
       refute Regex.match?(~r/\b(?:ba)?sh scripts\/toolchain\.sh/, source), name
       refute Regex.match?(~r/^\s+(?:elixir|otp|node):\s*[\["'\d]/m, source)
 
-      for {_name, job} <- jobs(source),
+      for {job_name, job} <- jobs(source),
           {action, _tools} <- @runtimes,
           job =~ "uses: #{action}@" do
-        if name != "ci" do
-          assert job =~ "id: versions"
-          assert job =~ ~s|run: scripts/toolchain.sh >> "$GITHUB_OUTPUT"|
+        cond do
+          name == "ci" ->
+            :ok
+
+          name == "publish" and job_name in @publish_upload_jobs ->
+            refute job =~ "id: versions", job_name
+            refute job =~ "scripts/toolchain.sh", job_name
+
+          true ->
+            assert job =~ "id: versions", "#{name}/#{job_name}"
+            assert job =~ ~s|run: scripts/toolchain.sh >> "$GITHUB_OUTPUT"|, "#{name}/#{job_name}"
         end
       end
     end
@@ -78,7 +93,7 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
         setup =~ "uses: #{action}@" do
       check = Enum.at(steps(job), index + 1)
       assert is_binary(check), "#{name}/#{job_name}: missing installed check"
-      assert check =~ "shell: bash"
+      assert check =~ "shell: bash", "#{name}/#{job_name}: check must follow setup"
 
       arguments =
         for {tool, input} <- tools do
@@ -93,11 +108,23 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
 
           expected =
             case {name, job_name, tool} do
-              {"ci", "compatibility", "elixir"} -> "${{ matrix.elixir }}"
-              {"ci", "compatibility", "erlang"} -> "${{ matrix.otp }}"
-              {"ci", "typescript-consumers", "nodejs"} -> "${{ matrix.node }}"
-              {"ci", _, _} -> "${{ needs.toolchain.outputs.#{default[tool]} }}"
-              _ -> "${{ steps.versions.outputs.#{default[tool]} }}"
+              {"ci", "compatibility", "elixir"} ->
+                "${{ matrix.elixir }}"
+
+              {"ci", "compatibility", "erlang"} ->
+                "${{ matrix.otp }}"
+
+              {"ci", "typescript-consumers", "nodejs"} ->
+                "${{ matrix.node }}"
+
+              {"ci", _, _} ->
+                "${{ needs.toolchain.outputs.#{default[tool]} }}"
+
+              {"publish", upload, _} when upload in @publish_upload_jobs ->
+                "${{ needs.verify.outputs.#{default[tool]} }}"
+
+              _ ->
+                "${{ steps.versions.outputs.#{default[tool]} }}"
             end
 
           assert version == expected, "#{name}/#{job_name}: #{input}"
@@ -106,8 +133,28 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
           tool <> ~s|="$#{variable}"|
         end
 
-      assert check =~
-               "run: scripts/toolchain.sh --installed " <> Enum.join(arguments, " ") <> "\n"
+      case {name, job_name} do
+        {"publish", "npm-publish"} ->
+          assert check =~ ~s|installed_node=$(node --version)|
+          assert check =~ ~s|if [[ "$installed_node" != "v$TOOLCHAIN_NODEJS" ]]; then|
+          assert check =~ "\n            exit 1\n"
+
+        {"publish", "hex-publish"} ->
+          assert check =~
+                   ~s|installed_elixir=$(elixir -e 'IO.write(System.version() <> "-otp-" <> System.build_info()[:otp_release])')|
+
+          assert check =~
+                   ~s|installed_erlang=$(erl -noshell -noinput -eval '{ok, V} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:put_chars(string:trim(V)), halt().')|
+
+          assert check =~
+                   ~s(if [[ "$installed_elixir" != "$TOOLCHAIN_ELIXIR" || "$installed_erlang" != "$TOOLCHAIN_ERLANG" ]]; then)
+
+          assert check =~ "\n            exit 1\n"
+
+        _ ->
+          assert check =~
+                   "run: scripts/toolchain.sh --installed " <> Enum.join(arguments, " ") <> "\n"
+      end
 
       assert length(Regex.scan(~r/^          TOOLCHAIN_[A-Z]+:/m, check)) == length(tools)
 
