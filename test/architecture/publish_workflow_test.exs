@@ -3,6 +3,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
   @owners ~s|contains(fromJSON('["corepay","palermo-git"]'), github.actor) && | <>
             ~s|contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)|
+  @changelog_stamp "Refuse a package whose changelog is not stamped for its version"
+  @changelog_stamp_sha256 "2a912ae3e07700555d8827da491b8875207341808b4a6c1137c07129f0cbfa30"
 
   test "publication takes one required release commit and serializes owner-gated default-ref jobs" do
     workflow = workflow("publish")
@@ -288,6 +290,100 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
              "comparison makes it the published commit's only while CHANGELOG.md ships in the package"
   end
 
+  test "both packages get the verbatim changelog gate before upload planning or publication" do
+    workflow = workflow("publish")
+    verify = job(workflow, "verify")
+    stamps = changelog_steps(verify)
+    assert stamps == changelog_steps(workflow)
+    assert length(stamps) == 2
+
+    archives = [
+      "verified-release/agent_blueprint_protocol-${VERSION}.tar",
+      "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
+    ]
+
+    for {stamp, archive} <- Enum.zip(stamps, archives) do
+      assert stamp =~ ~s|python3 -I - #{archive} "$VERSION" <<'PY'|
+
+      normalized =
+        ("- name: " <> String.trim_trailing(stamp, "\n") <> "\n")
+        |> String.replace(~r/^ {6}/m, "")
+        |> String.replace(archive, "path/to/package-archive", global: false)
+
+      assert Base.encode16(:crypto.hash(:sha256, normalized), case: :lower) ==
+               @changelog_stamp_sha256
+
+      assert_before(verify, "Verify both built release packages", stamp)
+      assert_before(verify, ~s|printf 'VERSION=%s\\n' "$VERSION" >> "$GITHUB_ENV"|, stamp)
+
+      for later <- [
+            "Plan the npm upload",
+            "Plan the Hex uploads",
+            "uses: actions/upload-artifact@",
+            "npm stage publish",
+            "mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs"
+          ] do
+        assert_before(workflow, stamp, later)
+      end
+    end
+  end
+
+  @tag skip: match?({:win32, _}, :os.type())
+  test "the actual changelog gates accept stamped archives and refuse Unreleased entries" do
+    [hex_stamp, npm_stamp] = changelog_steps(workflow("publish"))
+    version = Mix.Project.config()[:version]
+    changelog = File.read!("CHANGELOG.md")
+
+    unreleased =
+      String.replace(changelog, "## [Unreleased]\n", "## [Unreleased]\n\n- Unshipped entry.\n",
+        global: false
+      )
+
+    AgentBlueprintProtocol.Scratch.with_dir("changelog-stamp", fn dir ->
+      script_path = Path.join(dir, "check.py")
+      hex = Path.join(dir, "package.tar")
+      contents = Path.join(dir, "contents.tar.gz")
+      npm = Path.join(dir, "package.tgz")
+
+      for {text, expected_status, message} <- [
+            {changelog, 0, "the packaged CHANGELOG is stamped for #{version}"},
+            {unreleased, 1, ~s|entries above #{version}, under "[Unreleased]"|}
+          ] do
+        assert :ok =
+                 :erl_tar.create(
+                   String.to_charlist(contents),
+                   [{~c"CHANGELOG.md", text}],
+                   [:compressed]
+                 )
+
+        assert :ok =
+                 :erl_tar.create(
+                   String.to_charlist(hex),
+                   [{~c"contents.tar.gz", File.read!(contents)}],
+                   []
+                 )
+
+        assert :ok =
+                 :erl_tar.create(
+                   String.to_charlist(npm),
+                   [{~c"package/CHANGELOG.md", text}],
+                   [:compressed]
+                 )
+
+        for {stamp, archive} <- [{hex_stamp, hex}, {npm_stamp, npm}] do
+          [_, script] = Regex.run(~r/<<'PY'\n(.*?)^ {10}PY$/ms, stamp)
+          File.write!(script_path, String.replace(script, ~r/^ {10}/m, ""))
+
+          {output, status} =
+            System.cmd("python3", ["-I", script_path, archive, version], stderr_to_stdout: true)
+
+          assert status == expected_status, output
+          assert output =~ message
+        end
+      end
+    end)
+  end
+
   test "served plans skip upload only and always complete registry read-back" do
     workflow = workflow("publish")
     npm = job(workflow, "npm-publish")
@@ -478,6 +574,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
   end
 
   defp step(job, name), do: Enum.find(steps(job), &String.starts_with?(&1, name <> "\n"))
+
+  defp changelog_steps(source) do
+    Enum.filter(steps(source), &String.starts_with?(&1, @changelog_stamp <> "\n"))
+  end
 
   defp assert_default_branch_first(job) do
     [guard | _] = steps(job)
