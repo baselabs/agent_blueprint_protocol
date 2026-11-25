@@ -219,7 +219,7 @@ defmodule PublishHexArtifacts do
     # Approval can serve the release while its stage still exists.
     case docs_action(release_stage, docs_stage, served_release!(target), package_result) do
       :attach ->
-        case upload_docs!(target, docs) |> docs_receipt(target, "release") do
+        case upload_docs!(target, docs) |> docs_receipt(target, "release", target.checksum) do
           :staged ->
             IO.puts("Hex package and docs: staged together for approval")
             :held
@@ -229,7 +229,7 @@ defmodule PublishHexArtifacts do
         end
 
       :upload ->
-        case upload_docs!(target, docs) |> docs_receipt(target, "docs") do
+        case upload_docs!(target, docs) |> docs_receipt(target, "docs", digest(docs)) do
           :live ->
             IO.puts("Hex docs: archive accepted")
 
@@ -345,7 +345,9 @@ defmodule PublishHexArtifacts do
 
   # A live docs write answers 201 with an empty body (hexpm docs_controller.ex:79-119).
   # A held write answers with the stage it joined. Anything else is refused.
-  def docs_receipt({201, body}, _target, _kind) when body in [nil, ""], do: :live
+  # A release stage reports the package checksum; a docs-only stage reports the
+  # docs archive checksum (hexpm staged_release_view.ex:12), so the caller names it.
+  def docs_receipt({201, body}, _target, _kind, _checksum) when body in [nil, ""], do: :live
 
   def docs_receipt(
         {code,
@@ -356,13 +358,14 @@ defmodule PublishHexArtifacts do
            "kind" => kind,
            "checksum" => checksum
          }},
-        %{name: name, version: version, checksum: checksum},
-        kind
+        %{name: name, version: version},
+        kind,
+        checksum
       )
       when code in 200..299,
       do: :staged
 
-  def docs_receipt(_response, _target, _kind), do: :invalid
+  def docs_receipt(_response, _target, _kind, _checksum), do: :invalid
 
   defp upload_response!({:ok, {code, _headers, body}}, _target, _kind) when code in 200..299,
     do: {code, body}

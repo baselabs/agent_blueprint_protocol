@@ -173,20 +173,23 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
   test "docs receipts accept only an empty live 201 or the matching stage",
        %{uploader: uploader} do
     target = %{name: "name", version: @version, checksum: @checksum}
+    docs_checksum = String.duplicate("d", 64)
 
-    staged = %{
+    docs_stage = %{
       "name" => "name",
       "version" => @version,
-      "checksum" => @checksum,
+      "checksum" => docs_checksum,
       "status" => "staged",
       "kind" => "docs"
     }
 
-    assert uploader.docs_receipt({201, nil}, target, "docs") == :live
-    assert uploader.docs_receipt({201, ""}, target, "docs") == :live
-    assert uploader.docs_receipt({201, staged}, target, "docs") == :staged
+    release_stage = %{docs_stage | "kind" => "release", "checksum" => @checksum}
 
-    assert uploader.docs_receipt({200, %{staged | "kind" => "release"}}, target, "release") ==
+    assert uploader.docs_receipt({201, nil}, target, "docs", docs_checksum) == :live
+    assert uploader.docs_receipt({201, ""}, target, "docs", docs_checksum) == :live
+    assert uploader.docs_receipt({201, docs_stage}, target, "docs", docs_checksum) == :staged
+
+    assert uploader.docs_receipt({200, release_stage}, target, "release", @checksum) ==
              :staged
 
     for invalid <- [
@@ -195,13 +198,22 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
           {204, nil},
           {201, %{}},
           {201, %{"status" => "ok"}},
-          {201, %{staged | "kind" => "release"}},
-          {201, %{staged | "name" => "other"}},
-          {201, %{staged | "version" => "0.0.0"}},
-          {201, %{staged | "checksum" => String.duplicate("b", 64)}},
-          {201, %{staged | "status" => "approved"}}
+          {201, %{docs_stage | "kind" => "release"}},
+          {201, %{docs_stage | "name" => "other"}},
+          {201, %{docs_stage | "version" => "0.0.0"}},
+          {201, %{docs_stage | "checksum" => @checksum}},
+          {201, %{docs_stage | "checksum" => String.duplicate("b", 64)}},
+          {201, %{docs_stage | "status" => "approved"}}
         ] do
-      assert uploader.docs_receipt(invalid, target, "docs") == :invalid
+      assert uploader.docs_receipt(invalid, target, "docs", docs_checksum) == :invalid
+    end
+
+    for invalid <- [
+          {201, docs_stage},
+          {201, %{release_stage | "checksum" => docs_checksum}},
+          {201, %{release_stage | "status" => "approved"}}
+        ] do
+      assert uploader.docs_receipt(invalid, target, "release", @checksum) == :invalid
     end
   end
 
@@ -224,10 +236,10 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
              ~r/defp publish_package!.*?require_org_package!\(target\).*?pending_stages!\(target\)\s+case package_action\(served_release!\(target\), release_stage, docs_stage\) do.*?:upload ->\s+body =\s+Hex.API.Release.publish/s
 
     assert script =~
-             ~r/defp publish_docs!.*?require_org_package!\(target\).*?pending_stages!\(target\).*?case docs_action\(release_stage, docs_stage, served_release!\(target\), package_result\) do\s+:attach ->\s+case upload_docs!\(target, docs\) \|> docs_receipt\(target, "release"\) do/s
+             ~r/defp publish_docs!.*?require_org_package!\(target\).*?pending_stages!\(target\).*?case docs_action\(release_stage, docs_stage, served_release!\(target\), package_result\) do\s+:attach ->\s+case upload_docs!\(target, docs\) \|> docs_receipt\(target, "release", target.checksum\) do/s
 
     assert script =~
-             ~r/:upload ->\s+case upload_docs!\(target, docs\) \|> docs_receipt\(target, "docs"\) do/
+             ~r/:upload ->\s+case upload_docs!\(target, docs\) \|> docs_receipt\(target, "docs", digest\(docs\)\) do/
 
     assert script =~ ~s|"status" => "staged",|
     assert script =~ ~s|"kind" => "release",|
