@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-25
+
 ### Added
 
 - Expose a canonical digest of the federation mapping rows in Elixir and
@@ -1232,7 +1234,8 @@ second-language verifier.
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
 
-[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.3...v1.1.2
 [1.1.2-rc.3]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.2...v1.1.2-rc.3
 [1.1.2-rc.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.1...v1.1.2-rc.2
