@@ -298,8 +298,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert length(stamps) == 2
 
     archives = [
-      "verified-release/agent_blueprint_protocol-${VERSION}.tar",
-      "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
+      ~s|"verified-release/agent_blueprint_protocol-${VERSION}.tar"|,
+      ~s|"verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"|
     ]
 
     for {stamp, archive} <- Enum.zip(stamps, archives) do

@@ -217,7 +217,7 @@ jobs:
       - name: Refuse a package whose changelog is not stamped for its version
         shell: bash
         run: |
-          python3 -I - verified-release/agent_blueprint_protocol-${VERSION}.tar "$VERSION" <<'PY'
+          python3 -I - "verified-release/agent_blueprint_protocol-${VERSION}.tar" "$VERSION" <<'PY'
           import io, re, sys, tarfile
           archive, version = sys.argv[1], sys.argv[2]
           def refuse(message):
@@ -261,7 +261,7 @@ jobs:
       - name: Refuse a package whose changelog is not stamped for its version
         shell: bash
         run: |
-          python3 -I - verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz "$VERSION" <<'PY'
+          python3 -I - "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" "$VERSION" <<'PY'
           import io, re, sys, tarfile
           archive, version = sys.argv[1], sys.argv[2]
           def refuse(message):
