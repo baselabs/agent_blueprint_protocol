@@ -673,8 +673,8 @@ defmodule AgentBlueprintProtocol.Procedure do
         else: :ok
 
     case validation do
-      {:error, reason} ->
-        error(:invalid_constraint, path ++ reason.subject)
+      {:error, _reason} ->
+        error(:invalid_constraint, path)
 
       :ok ->
         doc = plain(document)

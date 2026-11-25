@@ -168,7 +168,7 @@ function documentsCheck(body:any,documents:Readonly<Record<string,Value>>):void 
       const doc=plain(documents[d]!);requireCheck(doc.type==='agent-blueprint-protocol/procedure-'+type,'invalid_constraint',[...path,'type']);
       if(type==='principal-enrollment')continue;
       const role=roles.get(i.role);
-      if(Object.hasOwn(role,'schema')){const r=schemaValidator.validateInstance(tagged(role.schema),documents[d]!,schemaValidator.dialect());if(!r.ok)throw new Denial('invalid_constraint',[...path,...(r.subject??[])]);}
+      if(Object.hasOwn(role,'schema')){const r=schemaValidator.validateInstance(tagged(role.schema),documents[d]!,schemaValidator.dialect());if(!r.ok)throw new Denial('invalid_constraint',path);}
       for(const name of role.exact??[])requireCheck(compatibility.exact({version:doc[name]}),'invalid_constraint',[...path,name]);
     }
   }
