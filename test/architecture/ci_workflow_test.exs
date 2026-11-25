@@ -75,7 +75,8 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
 
           name == "publish" and job_name in @publish_upload_jobs ->
             refute job =~ "id: versions", job_name
-            refute job =~ "scripts/toolchain.sh", job_name
+            refute job =~ ~s|scripts/toolchain.sh >> "$GITHUB_OUTPUT"|, job_name
+            assert_workflow_reader(job, job_name)
 
           true ->
             assert job =~ "id: versions", "#{name}/#{job_name}"
@@ -133,28 +134,15 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
           tool <> ~s|="$#{variable}"|
         end
 
-      case {name, job_name} do
-        {"publish", "npm-publish"} ->
-          assert check =~ ~s|installed_node=$(node --version)|
-          assert check =~ ~s|if [[ "$installed_node" != "v$TOOLCHAIN_NODEJS" ]]; then|
-          assert check =~ "\n            exit 1\n"
+      reader =
+        if name == "publish" and job_name in @publish_upload_jobs do
+          assert_workflow_reader(job, job_name)
+          "workflow-tools/scripts/toolchain.sh"
+        else
+          "scripts/toolchain.sh"
+        end
 
-        {"publish", "hex-publish"} ->
-          assert check =~
-                   ~s|installed_elixir=$(elixir -e 'IO.write(System.version() <> "-otp-" <> System.build_info()[:otp_release])')|
-
-          assert check =~
-                   ~s|installed_erlang=$(erl -noshell -noinput -eval '{ok, V} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:put_chars(string:trim(V)), halt().')|
-
-          assert check =~
-                   ~s(if [[ "$installed_elixir" != "$TOOLCHAIN_ELIXIR" || "$installed_erlang" != "$TOOLCHAIN_ERLANG" ]]; then)
-
-          assert check =~ "\n            exit 1\n"
-
-        _ ->
-          assert check =~
-                   "run: scripts/toolchain.sh --installed " <> Enum.join(arguments, " ") <> "\n"
-      end
+      assert check =~ "run: #{reader} --installed " <> Enum.join(arguments, " ") <> "\n"
 
       assert length(Regex.scan(~r/^          TOOLCHAIN_[A-Z]+:/m, check)) == length(tools)
 
@@ -167,6 +155,36 @@ defmodule AgentBlueprintProtocol.Architecture.CIWorkflowTest do
         assert setup =~ "actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0"
       end
     end
+  end
+
+  test "the jobs in the publish environment are exactly the upload jobs" do
+    credential_jobs =
+      for {job_name, job} <- jobs(workflow("publish")),
+          job =~ "    environment: publish\n",
+          do: job_name
+
+    assert Enum.sort(credential_jobs) == Enum.sort(@publish_upload_jobs)
+  end
+
+  # A credential job runs no release_commit code: its toolchain reader is the
+  # workflow revision's byte copy, checked out alone before any artifact arrives.
+  defp assert_workflow_reader(job, job_name) do
+    [checkout] =
+      job
+      |> steps()
+      |> Enum.filter(&(&1 =~ "path: workflow-tools\n"))
+
+    assert checkout =~ "ref: ${{ github.sha }}\n", job_name
+    assert checkout =~ "persist-credentials: false\n", job_name
+
+    assert checkout =~
+             ~r{sparse-checkout: (?:\|\n(?: +/scripts/[a-z_.]+\n)*? +)?/scripts/toolchain\.sh\n},
+           job_name
+
+    refute job =~ ~r{(?<!workflow-tools/)scripts/toolchain\.sh --installed}, job_name
+    {reader_at, _} = :binary.match(job, "path: workflow-tools\n")
+    {artifacts_at, _} = :binary.match(job, "actions/download-artifact@")
+    assert reader_at < artifacts_at, job_name
   end
 
   test "every runner job has twice its measured green duration with a five-minute floor" do

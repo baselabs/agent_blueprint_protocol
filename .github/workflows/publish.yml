@@ -403,6 +403,15 @@ jobs:
             exit 1
           fi
 
+      - name: Check out the workflow's toolchain reader
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: workflow-tools
+          persist-credentials: false
+          sparse-checkout: /scripts/toolchain.sh
+          sparse-checkout-cone-mode: false
+
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -413,12 +422,7 @@ jobs:
         shell: bash
         env:
           TOOLCHAIN_NODEJS: ${{ needs.verify.outputs.nodejs }}
-        run: |
-          installed_node=$(node --version)
-          if [[ "$installed_node" != "v$TOOLCHAIN_NODEJS" ]]; then
-            printf '::error::Node is %s, expected v%s\n' "$installed_node" "$TOOLCHAIN_NODEJS"
-            exit 1
-          fi
+        run: workflow-tools/scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
 
       - name: Download the verified release artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -564,7 +568,9 @@ jobs:
           ref: ${{ github.sha }}
           path: workflow-tools
           persist-credentials: false
-          sparse-checkout: /scripts/publish_hex_artifacts.exs
+          sparse-checkout: |
+            /scripts/publish_hex_artifacts.exs
+            /scripts/toolchain.sh
           sparse-checkout-cone-mode: false
 
       - name: Set up BEAM
@@ -580,14 +586,7 @@ jobs:
         env:
           TOOLCHAIN_ELIXIR: ${{ needs.verify.outputs.elixir }}
           TOOLCHAIN_ERLANG: ${{ needs.verify.outputs.otp }}
-        run: |
-          installed_elixir=$(elixir -e 'IO.write(System.version() <> "-otp-" <> System.build_info()[:otp_release])')
-          installed_erlang=$(erl -noshell -noinput -eval '{ok, V} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:put_chars(string:trim(V)), halt().')
-          if [[ "$installed_elixir" != "$TOOLCHAIN_ELIXIR" || "$installed_erlang" != "$TOOLCHAIN_ERLANG" ]]; then
-            printf '::error::Elixir is %s, expected %s. Erlang/OTP is %s, expected %s.\n' \
-              "$installed_elixir" "$TOOLCHAIN_ELIXIR" "$installed_erlang" "$TOOLCHAIN_ERLANG"
-            exit 1
-          fi
+        run: workflow-tools/scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force

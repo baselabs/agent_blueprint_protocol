@@ -157,7 +157,9 @@ A second dispatch with the same `release_commit` finishes a held release,
 however far that branch has moved. The next run uploads only what is missing.
 
 The npm and Hex upload jobs use the verified toolchain and archives in fresh
-workspaces. Registry read-back runs in `npm-kit` and `hex-read-back` without
+workspaces. They run no release-commit code: each checks out only the workflow
+revision's `scripts/toolchain.sh` (and, for Hex, its uploader) and verifies
+the installed runtimes with that reader's `--installed`. Registry read-back runs in `npm-kit` and `hex-read-back` without
 publishing credentials. After package and docs read-back, all consumer files
 leave together as `release-assets`, including both package archives, the standalone verifier,
 certified results, CHANGELOG release notes, the inspected served

@@ -51,7 +51,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert_before(verify, "Validate the release commit", "uses: actions/checkout@")
     assert verify =~ "release_commit: ${{ steps.release.outputs.commit }}"
     refute Regex.match?(~r/\bHEAD\b/, workflow)
-    assert length(Enum.filter(steps(workflow), &(&1 =~ "uses: actions/checkout@"))) == 7
+    assert length(Enum.filter(steps(workflow), &(&1 =~ "uses: actions/checkout@"))) == 8
 
     for {name, job} <- jobs(workflow), name not in ~w(npm-publish hex-publish) do
       [checkout] =
@@ -94,7 +94,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert_before(verify, plan_checkout, "Plan the Hex uploads")
 
     upload_checkout = step(hex, "Check out the workflow's Hex tool")
-    assert upload_checkout =~ "sparse-checkout: /scripts/publish_hex_artifacts.exs"
+
+    assert upload_checkout =~
+             "sparse-checkout: |\n            /scripts/publish_hex_artifacts.exs\n            /scripts/toolchain.sh\n"
+
     download = step(hex, "Download the verified release artifacts")
     assert download =~ "name: verified-release"
     assert download =~ "path: verified-release"
@@ -255,16 +258,28 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert npm =~ "node-version: ${{ needs.verify.outputs.nodejs }}"
     assert hex =~ "elixir-version: ${{ needs.verify.outputs.elixir }}"
     assert hex =~ "otp-version: ${{ needs.verify.outputs.otp }}"
-    refute npm =~ "actions/checkout@"
-    refute npm =~ "scripts/"
+    assert length(Regex.scan(~r/uses: actions\/checkout@/, npm)) == 1
+    assert npm =~ "sparse-checkout: /scripts/toolchain.sh\n"
+
+    assert Regex.scan(~r/scripts\/[^\s]+/, npm) == [
+             ["scripts/toolchain.sh"],
+             ["scripts/toolchain.sh"]
+           ]
+
     assert length(Regex.scan(~r/uses: actions\/checkout@/, hex)) == 1
 
     assert Regex.scan(~r/scripts\/[^\s]+/, hex) ==
-             [["scripts/publish_hex_artifacts.exs"], ["scripts/publish_hex_artifacts.exs"]]
+             [
+               ["scripts/publish_hex_artifacts.exs"],
+               ["scripts/toolchain.sh"],
+               ["scripts/toolchain.sh"],
+               ["scripts/publish_hex_artifacts.exs"]
+             ]
 
     for job <- [npm, hex] do
       refute job =~ "needs.verify.outputs.release_commit"
-      refute job =~ "scripts/toolchain.sh"
+      refute job =~ ~s|scripts/toolchain.sh >> "$GITHUB_OUTPUT"|
+      refute Regex.match?(~r/run: (?:\.\.\/)?scripts\//, job)
       refute job =~ "Read back"
     end
 
