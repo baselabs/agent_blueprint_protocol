@@ -4,8 +4,12 @@
 # Check the live release and, when held, its stage immediately before posting docs.
 # Public release reads are anonymous. Organization release reads use a separate API-read key.
 # Credentials come only from this step's env. No response body or key is printed.
+# Exit status: 0 when every requested archive is served, 75 (EX_TEMPFAIL) when Hex
+# holds the release or docs for approval, 1 on any other failure.
 defmodule PublishHexArtifacts do
   @moduledoc false
+
+  @held 75
 
   def main(argv) do
     case OptionParser.parse(argv,
@@ -60,9 +64,24 @@ defmodule PublishHexArtifacts do
     package_result = if archive, do: publish_package!(target, archive), else: :skipped
     docs_result = if docs, do: publish_docs!(target, docs, package_result)
 
-    if package_result == :held or match?({:staged, _}, package_result) or docs_result == :held do
-      raise "Hex holds #{name} #{version} for approval. Approve it on hex.pm, then dispatch Publish again on the same commit."
+    case exit_status(package_result, docs_result) do
+      @held ->
+        IO.puts(
+          :stderr,
+          "Hex holds #{name} #{version} for approval. Approve it on hex.pm, then dispatch Publish again on the same commit."
+        )
+
+        @held
+
+      status ->
+        status
     end
+  end
+
+  def exit_status(package_result, docs_result) do
+    if package_result == :held or match?({:staged, _}, package_result) or docs_result == :held,
+      do: @held,
+      else: 0
   end
 
   defp release_read_auth!(nil), do: []
@@ -384,4 +403,4 @@ defmodule PublishHexArtifacts do
   defp digest(bytes), do: :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
 end
 
-PublishHexArtifacts.main(System.argv())
+System.halt(PublishHexArtifacts.main(System.argv()))

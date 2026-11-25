@@ -217,6 +217,31 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
     end
   end
 
+  test "a hold for approval exits 75 and every served result exits 0",
+       %{uploader: uploader} do
+    for {package, docs} <- [
+          {:skipped, nil},
+          {:live, nil},
+          {:skipped, :ok},
+          {:live, :ok}
+        ] do
+      assert uploader.exit_status(package, docs) == 0
+    end
+
+    for {package, docs} <- [
+          {:held, nil},
+          {{:staged, @checksum}, nil},
+          {:skipped, :held},
+          {:live, :held}
+        ] do
+      assert uploader.exit_status(package, docs) == 75
+    end
+
+    script = File.read!("scripts/publish_hex_artifacts.exs")
+    assert String.ends_with?(script, "\nSystem.halt(PublishHexArtifacts.main(System.argv()))\n")
+    assert script =~ ~r/@held ->\s+IO.puts\(\s+:stderr,\s+"Hex holds/
+  end
+
   test "both upload gates read stages before their final release GET" do
     script = File.read!("scripts/publish_hex_artifacts.exs")
 
