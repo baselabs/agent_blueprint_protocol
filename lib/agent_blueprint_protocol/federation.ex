@@ -617,22 +617,18 @@ defmodule AgentBlueprintProtocol.Federation do
 
   defp mapping_compare(_references, nil), do: :ok
 
-  defp mapping_compare(references, pin) do
-    if mapping_match?(references, pin) do
+  # compatibility_reference is a required non-empty array of {name, identity}
+  # objects (table/0), and binding_check pinned it to the decoded bytes; an
+  # impossible shape raises loudly on a forged intermediate.
+  defp mapping_compare({:array, references}, pin) do
+    if Enum.any?(references, fn {:object, row} ->
+         List.keyfind(row, "identity", 0) == {"identity", {:string, pin}}
+       end) do
       :ok
     else
       {:error, %Error{code: :compatibility_entry_missing, subject: ["compatibility_reference"]}}
     end
   end
-
-  defp mapping_match?({:array, references}, pin) when is_binary(pin) do
-    Enum.any?(references, fn
-      {:object, row} -> List.keyfind(row, "identity", 0) == {"identity", {:string, pin}}
-      _ -> false
-    end)
-  end
-
-  defp mapping_match?(_, _), do: false
 
   defp conflict_check(members, commitment, context) do
     # Both members passed string_member in verify_commitment's with-chain;

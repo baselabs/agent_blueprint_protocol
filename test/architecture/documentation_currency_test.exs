@@ -91,20 +91,32 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     metadata = Jason.decode!(File.read!("priv/release-metadata.json"))
     history = Jason.decode!(File.read!("priv/release-history.json"))
     historic = Enum.find(history["rows"], &(&1["package_version"] == "1.0.0"))
+    current = metadata["verification_semantics_version"]
+
+    # The first final release that carries the current verification semantics.
+    since =
+      history["rows"]
+      |> Enum.find(
+        &(&1["verification_semantics_version"] == current and
+            not String.contains?(&1["package_version"], "-"))
+      )
+      |> Map.fetch!("package_version")
+      |> String.split(".")
+      |> Enum.take(2)
+      |> Enum.join(".")
 
     checklist =
       File.read!("documentation/migrating-to-1.0.md")
       |> String.split("## Migration checklist")
       |> List.last()
 
-    line = current_version() |> String.split(".") |> Enum.take(2) |> Enum.join(".")
+    assert checklist =~
+             "verification semantics is `#{historic["verification_semantics_version"]}` at 1.0 and `#{current}` from #{since}",
+           "migration checklist must distinguish 1.0 semantics from current release semantics #{current}"
 
     assert checklist =~
-             "verification semantics is `#{historic["verification_semantics_version"]}` at 1.0 and `#{metadata["verification_semantics_version"]}` as of #{line}",
-           "migration checklist must distinguish 1.0 semantics from current release semantics #{metadata["verification_semantics_version"]}"
-
-    assert checklist =~ "[1.1 changes](upgrading.md#changes-in-11)",
-           "migration checklist must link the current upgrade instructions"
+             "[#{since} changes](upgrading.md#changes-in-#{String.replace(since, ".", "-")})",
+           "migration checklist must link the upgrade instructions that introduced the current semantics"
   end
 
   test "TypeScript import tables map aggregate reports separately from per-case results" do
