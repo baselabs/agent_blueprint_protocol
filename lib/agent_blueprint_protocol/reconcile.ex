@@ -80,7 +80,7 @@ defmodule AgentBlueprintProtocol.Reconcile do
     """
     @moduledoc since: "1.0.0"
 
-    defstruct [:host_bounds, :support, :keys, :protected_clamp, :observations]
+    defstruct [:host_bounds, :support, :keys, :protected_clamp, :observations, :procedure]
 
     @typedoc """
     The public data type for AgentBlueprintProtocol.Reconcile.Inputs.
@@ -90,7 +90,8 @@ defmodule AgentBlueprintProtocol.Reconcile do
             support: Support.t(),
             keys: [PublicKey.t()],
             protected_clamp: :deny | :acknowledge,
-            observations: Observations.t()
+            observations: Observations.t(),
+            procedure: AgentBlueprintProtocol.Procedure.Inputs.t() | nil
           }
   end
 
@@ -169,7 +170,8 @@ defmodule AgentBlueprintProtocol.Reconcile do
          {:ok, portability} <- stage_portability(blueprint, deployment, bp_outcome, dep_outcome),
          {:ok, signatures} <-
            stage_signatures(blueprint, deployment, inputs.keys, bp_digest, dep_digest),
-         {:ok, bind} <- stage_bind(deployment, blueprint, inputs.observations),
+         {:ok, bind, procedure_unverified} <-
+           stage_bind(deployment, blueprint, inputs.observations, inputs.procedure),
          {:ok, bounds, effective, clamps} <- stage_bounds(blueprint, deployment, inputs) do
       Evidence.build(
         protocol_revision: revision_of(blueprint),
@@ -178,6 +180,7 @@ defmodule AgentBlueprintProtocol.Reconcile do
         checks:
           canonical ++
             digest ++ negotiation ++ structure ++ portability ++ signatures ++ bind ++ bounds,
+        not_verified: procedure_unverified,
         effective_bounds: effective,
         clamps: clamps,
         optional_extensions_retained:
@@ -526,7 +529,35 @@ defmodule AgentBlueprintProtocol.Reconcile do
   defp signature_error(reason, index, side),
     do: %{reason | subject: [side, "signatures", index] ++ reason.subject}
 
-  defp stage_bind(deployment, blueprint, observations) do
+  defp stage_bind(deployment, blueprint, observations, procedure) do
+    with {:ok, binding} <- stage_binding(deployment, blueprint, observations) do
+      present =
+        MapSet.member?(
+          Extension.critical_namespaces(elem(Deployment.to_value(deployment), 1)),
+          "io.github.baselabs/procedure"
+        )
+
+      cond do
+        not present ->
+          {:ok, binding, []}
+
+        procedure == nil ->
+          {:error, %Error{code: :binding_incomplete, subject: ["deployment", "procedure"]}}
+
+        true ->
+          procedure_binding(deployment, procedure, binding)
+      end
+    end
+  end
+
+  defp procedure_binding(deployment, procedure, binding) do
+    case AgentBlueprintProtocol.Procedure.verify(deployment, procedure) do
+      {:ok, evidence} -> {:ok, binding ++ evidence.checks, evidence.not_verified}
+      error -> typed(error, "deployment")
+    end
+  end
+
+  defp stage_binding(deployment, blueprint, observations) do
     case Deployment.verify_binding(deployment, blueprint, observations) do
       :ok ->
         {:object, members} = Deployment.to_value(deployment)

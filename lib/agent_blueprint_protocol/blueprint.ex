@@ -949,7 +949,7 @@ defmodule AgentBlueprintProtocol.Blueprint do
   defp scan_open_regions(members, validated_ns) do
     {_validated_bodies, strict_bodies} =
       Enum.split_with(Extension.bodies(members), fn {ns, _body} ->
-        MapSet.member?(validated_ns, ns)
+        ns != "io.github.baselabs/procedure" and MapSet.member?(validated_ns, ns)
       end)
 
     scans =

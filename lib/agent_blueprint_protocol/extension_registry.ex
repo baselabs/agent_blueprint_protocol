@@ -2,7 +2,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   @moduledoc """
   This module exposes registered extension namespaces and their lifecycle data.
 
-  Use it when inspecting the registry or its federation schema.
+  Use it when inspecting the registry or its protocol-owned schemas.
 
   This module does not authorize operations.
 
@@ -95,8 +95,13 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
      ]}
   end
 
-  defp tagged_federation_digest do
-    {:ok, jcs} = Canonicalization.encode(federation_schema())
+  @doc "Returns the shipped procedure identity schema."
+  @doc since: "1.2.0"
+  @spec procedure_schema() :: Json.value()
+  def procedure_schema, do: AgentBlueprintProtocol.Procedure.schema()
+
+  defp tagged_schema_digest(schema) do
+    {:ok, jcs} = Canonicalization.encode(schema)
     Digest.to_tagged(Digest.hash(:extension_schema, jcs))
   end
 
@@ -110,7 +115,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
         owner: "Agent Blueprint Protocol",
         criticality: :critical,
         state: :deprecated,
-        schema_digest: tagged_federation_digest(),
+        schema_digest: tagged_schema_digest(federation_schema()),
         a2a_uri: "https://example.com/extensions/federation",
         promoted_at_revision: nil
       },
@@ -119,8 +124,17 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
         owner: "Agent Blueprint Protocol",
         criticality: :critical,
         state: :active,
-        schema_digest: tagged_federation_digest(),
+        schema_digest: tagged_schema_digest(federation_schema()),
         a2a_uri: "https://baselabs.github.io/agent_blueprint_protocol/extensions/federation",
+        promoted_at_revision: nil
+      },
+      %__MODULE__{
+        namespace: "io.github.baselabs/procedure",
+        owner: "Agent Blueprint Protocol",
+        criticality: :critical,
+        state: :active,
+        schema_digest: tagged_schema_digest(procedure_schema()),
+        a2a_uri: "https://baselabs.github.io/agent_blueprint_protocol/extensions/procedure",
         promoted_at_revision: nil
       }
     ]

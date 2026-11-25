@@ -67,6 +67,21 @@ defmodule AgentBlueprintProtocol.Evidence do
     @type t :: %__MODULE__{checked: [atom()], not_verified: [atom()]}
   end
 
+  defmodule Procedure do
+    @moduledoc false
+    defstruct [
+      :profile_digest,
+      :attempt,
+      :execution_boundary,
+      :phase,
+      :basis,
+      :assurance,
+      :validity,
+      :deployment_digest,
+      checked: []
+    ]
+  end
+
   @host_owned ~w(tenancy live_policy authority effect_ownership execution billing evaluation_truth signature_created_at lifecycle_state signature_time_validity)a
 
   defstruct [
@@ -234,6 +249,12 @@ defmodule AgentBlueprintProtocol.Evidence do
 
   defp detail_ok?(%BoundsAlgebra.ClampEvidence{}), do: true
   defp detail_ok?(%Digest{}), do: true
+
+  defp detail_ok?(%Procedure{} = detail) do
+    detail.phase in [nil, :before_send, :returned] and
+      detail.assurance in [nil, :measured, :attested, :configured, :observed, :asserted] and
+      Enum.all?(detail.checked, &is_atom/1)
+  end
 
   defp detail_ok?(%Signatures{key_ids: ids}) when is_list(ids),
     do: ids != [] and Enum.all?(ids, &is_binary/1) and length(ids) == length(Enum.uniq(ids))

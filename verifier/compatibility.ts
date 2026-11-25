@@ -27,7 +27,8 @@ export interface Observed {
   identities: ObservedIdentity[];
 }
 
-type VResult = { ok: true } | { ok: false; e: string };
+export interface Check {surface:"compatibility";subject:(string|number)[];verified:true;detail:string}
+type VResult = { ok: true; checks:Check[] } | { ok: false; e: string; subject?: (string|number)[] };
 
 interface Identity {
   kind: string;
@@ -40,7 +41,7 @@ const IDENTITY_KEYS = ["kind", "name", "version", "digest"] as const;
 const EXACT_CHARSET = /^[A-Za-z0-9.+-]+$/;
 
 export function verify(deployment: Deployment, observed: Observed): VResult {
-  if (!deployment || !isValue(deployment.value) || !observed || !Array.isArray(observed.identities)) return { ok: false, e: "invalid_type" };
+  if (!deployment || !isValue(deployment.value) || !observed || !Array.isArray(observed.identities)) return { ok: false, e: "invalid_type",subject:["observed"] };
   const manifest = manifestIdentities(deployment);
   if (!manifest.ok) return manifest;
   const validated = validatedObserved(observed.identities);
@@ -68,17 +69,17 @@ export function exact(identity: { version: string | null }): boolean {
 
 // The manifest side: read build_identities with member indices. Absent
 // member, non-array member, empty array, or a malformed entry denies typed.
-function manifestIdentities(deployment: Deployment): { ok: true; v: Identity[] } | { ok: false; e: string } {
-  if (deployment.value.t !== "obj") return { ok: false, e: "invalid_type" };
+function manifestIdentities(deployment: Deployment): { ok: true; v: Identity[] } | { ok: false; e: string;subject?: (string|number)[] } {
+  if (deployment.value.t !== "obj") return { ok: false, e: "invalid_type",subject:["build_identities"] };
   const found = keyfind(deployment.value.v, "build_identities");
-  if (found === null) return { ok: false, e: "missing_required_field" };
-  if (found.t !== "arr") return { ok: false, e: "invalid_type" };
-  if (found.v.length === 0) return { ok: false, e: "invalid_cardinality" };
+  if (found === null) return { ok: false, e: "missing_required_field",subject:["build_identities"] };
+  if (found.t !== "arr") return { ok: false, e: "invalid_type",subject:["build_identities"] };
+  if (found.v.length === 0) return { ok: false, e: "invalid_cardinality",subject:["build_identities"] };
 
   const out: Identity[] = [];
-  for (const entry of found.v) {
+  for (const [index,entry] of found.v.entries()) {
     const identity = identityOf(entry);
-    if (identity === null) return { ok: false, e: "invalid_type" };
+    if (identity === null) return { ok: false, e: "invalid_type",subject:["build_identities",index] };
     out.push(identity);
   }
   return { ok: true, v: out };
@@ -97,18 +98,18 @@ function identityOf(entry: Value): Identity | null {
 }
 
 // The observed side: host-built, so every shape is checked here.
-function validatedObserved(identities: ObservedIdentity[]): { ok: true; v: Identity[] } | { ok: false; e: string } {
+function validatedObserved(identities: ObservedIdentity[]): { ok: true; v: Identity[] } | { ok: false; e: string;subject?: (string|number)[] } {
   const out: Identity[] = [];
-  for (const identity of identities) {
+  for (const [index,identity] of identities.entries()) {
     const record = identity as unknown as Record<string, unknown>;
     const wellFormed =
       typeof record === "object" &&
       record !== null &&
       Object.keys(record).length === 4 &&
       IDENTITY_KEYS.every((key) => Object.hasOwn(record, key) && typeof record[key] === "string");
-    if (!wellFormed) return { ok: false, e: "invalid_type" };
+    if (!wellFormed) return { ok: false, e: "invalid_type",subject:["identities",index] };
     const shaped = identity as unknown as Identity;
-    if (!exact(shaped)) return { ok: false, e: "compatibility_identity_inexact" };
+    if (!exact(shaped)) return { ok: false, e: "compatibility_identity_inexact",subject:["identities",index] };
     out.push(shaped);
   }
   return { ok: true, v: out };
@@ -120,19 +121,21 @@ function validatedObserved(identities: ObservedIdentity[]): { ok: true; v: Ident
 // the parsed observed digest.
 function matchManifest(manifest: Identity[], observed: Identity[]): VResult {
   const seen = new Set<string>();
-  for (const identity of manifest) {
-    if (!exact(identity)) return { ok: false, e: "compatibility_identity_inexact" };
-    if (seen.has(identity.name)) return { ok: false, e: "compatibility_duplicate_entry" };
+  const checks:Check[]=[];
+  for (const [index,identity] of manifest.entries()) {
+    if (!exact(identity)) return { ok: false, e: "compatibility_identity_inexact",subject:["build_identities",index] };
+    if (seen.has(identity.name)) return { ok: false, e: "compatibility_duplicate_entry",subject:["build_identities",index] };
 
     const candidates = observed.filter((o) => matches(identity, o));
-    if (candidates.length === 0) return { ok: false, e: "compatibility_entry_missing" };
-    if (candidates.length > 1) return { ok: false, e: "compatibility_duplicate_entry" };
+    if (candidates.length === 0) return { ok: false, e: "compatibility_entry_missing",subject:["build_identities",index] };
+    if (candidates.length > 1) return { ok: false, e: "compatibility_duplicate_entry",subject:["build_identities",index] };
 
     const parsed = digest.fromTagged(candidates[0]!.digest);
-    if (!parsed.ok) return parsed;
+    if (!parsed.ok) return {...parsed,subject:["build_identities",index]};
+    checks.push({surface:"compatibility",subject:["build_identities",index],verified:true,detail:digest.toTagged(parsed.v)});
     seen.add(identity.name);
   }
-  return { ok: true };
+  return { ok: true,checks };
 }
 
 function matches(identity: Identity, observed: Identity): boolean {

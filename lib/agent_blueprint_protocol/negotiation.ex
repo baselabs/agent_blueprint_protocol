@@ -359,7 +359,8 @@ defmodule AgentBlueprintProtocol.Negotiation do
   defp extensions_check(value, support) do
     case member_of(value, "extensions") do
       {:object, regions} ->
-        with :ok <- regions_well_formed(regions) do
+        with :ok <- regions_well_formed(regions),
+             :ok <- procedure_carrier_check(value, regions) do
           critical = region_namespaces(regions, "critical")
           optional = region_namespaces(regions, "optional")
           extensions_flow(regions, critical, optional, support)
@@ -370,6 +371,20 @@ defmodule AgentBlueprintProtocol.Negotiation do
 
       _malformed ->
         {:error, %AgentBlueprintProtocol.Error{code: :invalid_type}}
+    end
+  end
+
+  # Procedure meaning is enforced only by Deployment binding, never Blueprint.
+  # Check both regions before lifecycle or criticality can accept or reclassify it.
+  defp procedure_carrier_check(value, regions) do
+    namespaces = region_namespaces(regions, "critical") ++ region_namespaces(regions, "optional")
+
+    if tagged_string?(member_of(value, "content_digest")) and
+         "io.github.baselabs/procedure" in namespaces do
+      {:error,
+       %AgentBlueprintProtocol.Error{code: :extension_payload_forbidden, subject: ["extensions"]}}
+    else
+      :ok
     end
   end
 

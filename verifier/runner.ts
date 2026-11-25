@@ -1,6 +1,7 @@
+import * as procedure from "./procedure.ts";
 import * as reconcile from "./reconcile.ts";
 import * as predicate from "./predicate.ts";
-import { plain, jsonValue } from "./plain.ts";
+import { plain, jsonValue, tagged } from "./plain.ts";
 import * as canonical from "./canonical.ts";
 import { isValue } from "./value.ts";
 // The case executor, the mirror of AgentBlueprintProtocol.Conformance.Runner:
@@ -32,6 +33,18 @@ import * as signature from "./signature.ts";
 export interface CaseResult {
   caseId: string;
   agree: boolean;
+}
+
+function procedureInputs(host: any): procedure.ProcedureInputs {
+  if (!host || typeof host !== "object" || Array.isArray(host)) return host;
+  const documents = Object.hasOwn(host, "documents") ? host.documents : {};
+  return {
+    ...host,
+    children: Object.hasOwn(host, "children") ? host.children : [],
+    documents: documents && typeof documents === "object" && !Array.isArray(documents)
+      ? Object.fromEntries(Object.entries(documents).map(([digest, doc]) => [digest, tagged(doc)]))
+      : documents,
+  };
 }
 
 export function run(corpus: LoadedCorpus): CaseResult[][];
@@ -247,7 +260,7 @@ function dispatch(
       const keys=buildKeys({t:"obj",v:[["keys",member(host,"keys")??{t:"arr",v:[]}]]});if(!keys.ok)return keys;
       const now=raw.observations?.now??null;
       if(now!==null&&(typeof now!=="string"||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(now)||deployment.parseTimestamp(now)===null))return {ok:false,e:"invalid_type",subject:["now"]};
-      const result=reconcile.reconcile({value:bp.v},{value:dep.v},{hostBounds:hostBounds.v,support:support.v,keys:keys.v,protectedClamp:raw.protected_clamp==="acknowledge"?"acknowledge":"deny",observations:{now,maxAttestationAgeMs:raw.observations?.max_attestation_age_ms??null,observed:raw.observations&&Object.hasOwn(raw.observations,"observed")?raw.observations.observed:{}}});
+      const result=reconcile.reconcile({value:bp.v},{value:dep.v},{hostBounds:hostBounds.v,support:support.v,keys:keys.v,procedure:procedureInputs(raw.procedure),protectedClamp:raw.protected_clamp==="acknowledge"?"acknowledge":"deny",observations:{now,maxAttestationAgeMs:raw.observations?.max_attestation_age_ms??null,observed:raw.observations&&Object.hasOwn(raw.observations,"observed")?raw.observations.observed:{}}});
       return result.ok?{ok:true,v:{evidence:result.v}}:result;
     }
     case "predicate": {
@@ -374,6 +387,14 @@ function dispatch(
       const scanned = portability.scan(decoded.v);
       if (!scanned.ok) return scanned;
       return { ok: true, v: { clean: true } };
+    }
+    case "procedure.verify": {
+      const bytes=inputBytes(input,raws);if(!bytes.ok)return bytes;
+      const decoded=deployment.decode(bytes.v);if(!decoded.ok)return decoded;
+      const supplied=member(input,'inputs');
+      const options=procedureInputs(supplied===null?undefined:plain(supplied));
+      const verified=procedure.verify(decoded.v,options);if(!verified.ok)return verified;
+      return {ok:true,v:{verified:true,evidence:verified.v}};
     }
     case "compatibility.verify": {
       const bytes = inputBytes(input, raws);
@@ -849,7 +870,8 @@ export { str, int, float, nil };
 export function project(caseObj:CaseObj,data:Map<string,Value>,raws:Map<string,Buffer>):Record<string,unknown> {
   if(!caseObj||typeof caseObj.surface!=="string"||!isValue(caseObj.input)||!isValue(caseObj.expected)||!(data instanceof Map)||!(raws instanceof Map))return {verdict:"invalid",code:"invalid_type"};
   const result=execute(caseObj,data,raws).actual;
-  const output:Record<string,unknown>=result.ok?{verdict:'valid',...jsonValue(result.v)}:{verdict:'invalid',code:result.e,...(caseObj.surface==='reconcile'?{subject:result.subject??[]}: {})};
+  const includeSubject=['reconcile','procedure.verify'].includes(caseObj.surface)||(!result.ok&&result.e==='extension_payload_forbidden'&&['negotiation.negotiate','extension.resolve'].includes(caseObj.surface)&&(result.subject?.length??0)>0);
+  const output:Record<string,unknown>=result.ok?{verdict:'valid',...jsonValue(result.v)}:{verdict:'invalid',code:result.e,...(includeSubject?{subject:result.subject??[]}: {})};
   if(result.ok && caseObj.surface==='federation.decode' && typeof result.v.canonical==='string')output.canonical=Buffer.from(result.v.canonical).toString('base64url');
   if(result.ok && caseObj.surface==='canonicalization.encode')output.encoded=Buffer.from(result.v.encoded as string).toString('base64url');
   if(caseObj.surface==='signature.verify') {

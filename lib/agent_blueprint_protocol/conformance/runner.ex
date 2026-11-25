@@ -38,6 +38,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     Negotiation,
     Portability,
     Predicate,
+    Procedure,
     Reconcile,
     Schema,
     Signature
@@ -241,11 +242,76 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
 
   defp project_result({:ok, fields}, _surface), do: Map.put(fields, "verdict", "valid")
 
-  defp project_result({:error, %Error{} = error}, "reconcile"),
-    do: %{"verdict" => "invalid", "code" => project_code(error), "subject" => error.subject}
+  defp project_result({:error, %Error{} = error}, surface)
+       when surface in ["reconcile", "procedure.verify"],
+       do: %{"verdict" => "invalid", "code" => project_code(error), "subject" => error.subject}
+
+  defp project_result(
+         {:error, %Error{code: :extension_payload_forbidden, subject: [_ | _]} = error},
+         surface
+       )
+       when surface in ["negotiation.negotiate", "extension.resolve"],
+       do: %{"verdict" => "invalid", "code" => project_code(error), "subject" => error.subject}
 
   defp project_result({:error, error}, _surface),
     do: %{"verdict" => "invalid", "code" => project_code(error)}
+
+  defp procedure_inputs(host) when is_map(host) do
+    inventory = host["inventory"]
+    inventory = procedure_builds(inventory)
+
+    phase =
+      case host["phase"] do
+        "before_send" -> :before_send
+        "returned" -> :returned
+        other -> other
+      end
+
+    %Procedure.Inputs{
+      inventory: inventory,
+      accepted_profiles: host["accepted_profiles"],
+      attempt: host["attempt"],
+      execution_boundary: host["execution_boundary"],
+      phase: phase,
+      children: Map.get(host, "children", []),
+      documents: procedure_documents(Map.get(host, "documents", %{}))
+    }
+  end
+
+  defp procedure_inputs(other), do: other
+
+  defp procedure_documents(documents) when is_map(documents) and not is_struct(documents) do
+    Map.new(documents, fn {k, v} ->
+      {:ok, value} = v |> :json.encode() |> IO.iodata_to_binary() |> Json.decode()
+      {k, value}
+    end)
+  end
+
+  defp procedure_documents(other), do: other
+
+  defp procedure_builds(%{"builds" => builds} = inventory) when is_list(builds),
+    do: Map.put(inventory, "builds", Enum.map(builds, &procedure_build/1))
+
+  defp procedure_builds(other), do: other
+
+  defp procedure_build(%{"kind" => _, "name" => _, "version" => _, "digest" => _} = entry)
+       when map_size(entry) == 4,
+       do: %{
+         kind: entry["kind"],
+         name: entry["name"],
+         version: entry["version"],
+         digest: entry["digest"]
+       }
+
+  defp procedure_build(other), do: other
+
+  defp dispatch_procedure(input, raws) do
+    with {:ok, text} <- input_bytes(input, raws),
+         {:ok, deployment} <- Deployment.decode(text),
+         {:ok, evidence} <- Procedure.verify(deployment, procedure_inputs(input["inputs"])) do
+      {:ok, %{"verified" => true, "evidence" => evidence_plain(evidence)}}
+    end
+  end
 
   defp dispatch_predicate(input) do
     with {:ok, predicate} <- tagged_field(input, "predicate"),
@@ -292,7 +358,8 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
         support: support,
         keys: keys,
         protected_clamp: clamp_posture(host),
-        observations: obs
+        observations: obs,
+        procedure: procedure_inputs(host["procedure"])
       }
 
       with {:ok, evidence} <-
@@ -403,6 +470,8 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
                    ~w(public internal confidential restricted none local_policy external_authority_required human_required separated_human_required ordinary money authority secret summary detail full pci phi)a,
                    &{Atom.to_string(&1), &1}
                  )
+
+  defp dispatch("procedure.verify", input, _data, raws), do: dispatch_procedure(input, raws)
 
   defp dispatch(surface, input, data, raws) do
     cond do

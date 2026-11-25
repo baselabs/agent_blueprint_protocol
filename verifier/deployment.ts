@@ -822,7 +822,7 @@ export function scan(value: Value, authoredNs: Set<string>): VResult {
 // Open regions: extension bodies (strict) and eligibility expressions (names
 // strict, values under the authored exemption).
 function scanOpenRegions(members: [string, Value][], validatedNs: Set<string>): VResult {
-  const strictBodies = extension.bodies(members).filter(([ns]) => !validatedNs.has(ns));
+  const strictBodies = extension.bodies(members).filter(([ns]) => ns === "io.github.baselabs/procedure" || !validatedNs.has(ns));
   const eligibility = members.find(([name]) => name === "eligibility");
   const eligibilityValues: Value[] = [];
   if (eligibility !== undefined && eligibility[1].t === "obj") {

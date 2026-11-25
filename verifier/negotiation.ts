@@ -123,7 +123,7 @@ const RESERVED_NAMES = new Set([
   "maxtokens",
 ]);
 
-export function negotiate(artifact: Value, support: Support): { ok: true; v: Outcome } | { ok: false; e: string } {
+export function negotiate(artifact: Value, support: Support): { ok: true; v: Outcome } | { ok: false; e: string; subject?: (string | number)[] } {
   if (!isValue(artifact) || !support || !(support.revisions instanceof Set) || !(support.coreFields instanceof Set) ||
       !support.registry || typeof support.registry !== "object" || Array.isArray(support.registry) ||
       Object.values(support.registry).some((entry) => !entry || typeof entry !== "object") ||
@@ -214,7 +214,7 @@ interface ExtensionFlow {
   optionalRetained: string[];
 }
 
-function extensionsCheck(value: Value, support: Support): { ok: true; v: ExtensionFlow } | { ok: false; e: string } {
+function extensionsCheck(value: Value, support: Support): { ok: true; v: ExtensionFlow } | { ok: false; e: string; subject?: (string | number)[] } {
   const found = memberOf(value, "extensions");
   if (found === null) return { ok: false, e: "missing_required_field" };
   if (found.t !== "obj") return { ok: false, e: "invalid_type" };
@@ -227,11 +227,17 @@ function extensionsCheck(value: Value, support: Support): { ok: true; v: Extensi
     return { ok: false, e: "invalid_type" };
   }
 
-  const reserved = reservedSemanticsCheck(regions);
-  if (!reserved.ok) return reserved;
-
   const critical = regionNamespaces(regions, "critical");
   const optional = regionNamespaces(regions, "optional");
+
+  // Procedure meaning is enforced only by Deployment binding. Deny either
+  // Blueprint region before lifecycle and criticality judgments.
+  if (memberOf(value, "content_digest")?.t === "str" && [...critical, ...optional].includes("io.github.baselabs/procedure")) {
+    return { ok: false, e: "extension_payload_forbidden", subject: ["extensions"] };
+  }
+
+  const reserved = reservedSemanticsCheck(regions);
+  if (!reserved.ok) return reserved;
 
   const flow: ExtensionFlow = { critical: [], quarantined: [], notices: [], optionalRetained: [] };
 

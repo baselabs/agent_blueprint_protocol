@@ -1,3 +1,5 @@
+import { criticalNamespaces } from './extension.ts';
+import * as procedure from './procedure.ts';
 import * as blueprint from './blueprint.ts';
 import * as deployment from './deployment.ts';
 import * as negotiation from './negotiation.ts';
@@ -16,6 +18,7 @@ export interface Inputs {
   keys:signature.PublicKey[];
   protectedClamp:'deny'|'acknowledge';
   observations:deployment.Observations;
+  procedure?:procedure.ProcedureInputs;
 }
 export interface Check {surface:string;subject:(string|number)[];verified:boolean;detail:unknown}
 export interface Evidence {
@@ -43,6 +46,7 @@ export function reconcile(bp:blueprint.Blueprint,dep:deployment.Deployment,input
   for(let i=0;i<inputs.keys.length;i++)if(!inputs.keys[i]||typeof inputs.keys[i]!=='object')return failure('invalid_type',['inputs','keys',i]);
   if(!['deny','acknowledge'].includes(inputs.protectedClamp))return failure('invalid_type',['inputs','protected_clamp']);
   const checks:Check[]=[];
+  let procedureUnverified:string[]=[];
   const checked=(surface:string,subject:string,verified=true,detail:unknown=null)=>checks.push({surface,subject:[subject],verified,detail});
   const artifacts=[['blueprint',bp,blueprint],['deployment',dep,deployment]] as const;
   // Stage order is part of the verification contract.
@@ -60,7 +64,7 @@ export function reconcile(bp:blueprint.Blueprint,dep:deployment.Deployment,input
   const outcomes:negotiation.Outcome[]=[];
   for(const [name,artifact] of artifacts) {
     const result=negotiation.negotiate(artifact.value,inputs.support); // stage: negotiation
-    if(!result.ok)return failure(result.e,[name,...(result.e==='protocol_revision_unsupported'?['protocol_revision']:result.e==='required_core_field_unsupported'||result.e==='required_core_field_not_digest_covered'?['required_core_fields']:[])]);
+    if(!result.ok)return failure(result.e,[name,...(result.subject??(result.e==='protocol_revision_unsupported'?['protocol_revision']:result.e==='required_core_field_unsupported'||result.e==='required_core_field_not_digest_covered'?['required_core_fields']:[]))]);
     outcomes.push(result.v);checked('negotiation',name);
   }
   for(const outcome of outcomes) {
@@ -97,6 +101,12 @@ export function reconcile(bp:blueprint.Blueprint,dep:deployment.Deployment,input
   const extra=[['binding_staleness',staleness],['binding_descriptors',descriptors]] as const;
   const skipped=extra.filter(x=>!x[1]).map(x=>x[0]);
   checked('bind','deployment',skipped.length===0,{checked:['release_binding','binding_completeness','effect_recovery',...extra.filter(x=>x[1]).map(x=>x[0])],not_verified:skipped});
+  if(criticalNamespaces((dep.value as Value & {t:'obj'}).v).has(procedure.NAMESPACE)){
+    if(inputs.procedure==null)return failure('binding_incomplete',['deployment','procedure']);
+    const result=procedure.verify(dep,inputs.procedure);
+    if(!result.ok)return failure(result.e,['deployment',...result.subject]);
+    checks.push(...result.v.checks);procedureUnverified=result.v.not_verified;
+  }
   const depBounds=plain(member(dep.value,'host_bounds')!);
   depBounds.classification_ceiling={ordinal:depBounds.classification_ceiling,markers:[]};
   const bounds=algebra.intersect(lift(bp),depBounds,inputs.hostBounds,inputs.protectedClamp); // stage: bounds
@@ -104,5 +114,5 @@ export function reconcile(bp:blueprint.Blueprint,dep:deployment.Deployment,input
   checked('bounds','bounds');
   const clamps=jsonValue(bounds.v.clamps.map(c=>({field:c.field,class:c.cls,unit:c.cls==='protected'?'ordinal':c.field==='max_cost'?'money':c.field==='max_elapsed_ms'?'millisecond':c.field==='max_tokens'?'token':'count',requested:c.requested,effective:c.effective,source:c.source,acknowledged:c.acknowledged}))).map((c:any)=>{delete c.cls;return c;});
   for(const clamp of clamps)checked('bounds',clamp.field,true,clamp);
-  return {ok:true,v:{protocol_revision:plain(member(bp.value,'protocol_revision')!),blueprint_digest:blueprint.contentDigest(bp) as string,deployment_digest:deployment.contentDigest(dep) as string,checks,effective_bounds:bounds.v.effective,clamps,optional_extensions_retained:[...new Set(outcomes.flatMap(o=>o.optionalRetained))],not_verified:[...new Set([...HOST_OWNED,...checks.flatMap(c=>c.verified?[]:[c.surface]),...skipped])]}};
+  return {ok:true,v:{protocol_revision:plain(member(bp.value,'protocol_revision')!),blueprint_digest:blueprint.contentDigest(bp) as string,deployment_digest:deployment.contentDigest(dep) as string,checks,effective_bounds:bounds.v.effective,clamps,optional_extensions_retained:[...new Set(outcomes.flatMap(o=>o.optionalRetained))],not_verified:[...new Set([...HOST_OWNED,...procedureUnverified,...checks.flatMap(c=>c.verified?[]:[c.surface]),...skipped])]}};
 }

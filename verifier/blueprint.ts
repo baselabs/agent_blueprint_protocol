@@ -605,7 +605,7 @@ export function scan(value: Value, authoredNs: Set<string>): VResult {
 // critical namespaces. Schema documents and predicate operands: names +
 // exempting values.
 function scanOpenRegions(members: [string, Value][], validatedNs: Set<string>): VResult {
-  const strictBodies = extension.bodies(members).filter(([ns]) => !validatedNs.has(ns));
+  const strictBodies = extension.bodies(members).filter(([ns]) => ns === "io.github.baselabs/procedure" || !validatedNs.has(ns));
 
   const scans: VResult[] = [
     ...strictBodies.map(([, body]) => portability.scan(body)),

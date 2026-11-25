@@ -1,4 +1,5 @@
 import type { ErrorCode } from './errors.ts';
+import * as procedure from './procedure.ts';
 import * as bp from './blueprint.ts';
 import * as dep from './deployment.ts';
 import * as fed from './federation.ts';
@@ -20,7 +21,7 @@ export const KNOWN_NOTICES=Object.freeze({clamp_applied:'clamp_applied',extensio
 export type KnownNotice=typeof KNOWN_NOTICES[keyof typeof KNOWN_NOTICES];
 export type Notice=KnownNotice|(string & {});
 /** Known evidence surfaces, never an exhaustive proof checklist. */
-export const KNOWN_EVIDENCE_SURFACES=Object.freeze({canonical:'canonical',digest:'digest',negotiation:'negotiation',structure:'structure',portability:'portability',signatures:'signatures',extensions:'extensions',bind:'bind',bounds:'bounds',compatibility:'compatibility',tenancy:'tenancy',live_policy:'live_policy',authority:'authority',effect_ownership:'effect_ownership',execution:'execution',billing:'billing',evaluation_truth:'evaluation_truth',signature_created_at:'signature_created_at',lifecycle_state:'lifecycle_state',signature_time_validity:'signature_time_validity',binding_descriptors:'binding_descriptors',binding_staleness:'binding_staleness'} as const);
+export const KNOWN_EVIDENCE_SURFACES=Object.freeze({canonical:'canonical',digest:'digest',negotiation:'negotiation',structure:'structure',portability:'portability',signatures:'signatures',extensions:'extensions',bind:'bind',bounds:'bounds',compatibility:'compatibility',tenancy:'tenancy',live_policy:'live_policy',authority:'authority',effect_ownership:'effect_ownership',execution:'execution',billing:'billing',evaluation_truth:'evaluation_truth',signature_created_at:'signature_created_at',lifecycle_state:'lifecycle_state',signature_time_validity:'signature_time_validity',binding_descriptors:'binding_descriptors',binding_staleness:'binding_staleness',procedure:'procedure',identity_validity:'identity_validity',observer_trust:'observer_trust',measurement_freshness:'measurement_freshness',evidence_authenticity:'evidence_authenticity',holder_assertion_truth:'holder_assertion_truth',configuration_execution:'configuration_execution',service_implementation:'service_implementation'} as const);
 export type KnownEvidenceSurface=typeof KNOWN_EVIDENCE_SURFACES[keyof typeof KNOWN_EVIDENCE_SURFACES];
 export type EvidenceSurface=KnownEvidenceSurface|(string & {});
 /** Known binding check kinds; unknown kinds establish no familiar check. */
@@ -68,10 +69,40 @@ export interface BoundSet {readonly max_attempts?:number;readonly max_concurrenc
 export interface Sources {readonly blueprint:BoundSet;readonly deployment:BoundSet;readonly host:BoundSet;readonly protectedClamp?:'deny'|'acknowledge'}
 /** Descriptor and freshness observations; null leaves a check unverified. */
 export interface Observations {readonly now:string|null;readonly maxAttestationAgeMs:number|null;readonly observed:Readonly<Record<string,string>>}
+/** Host inputs for one procedure import. Documents retain the nonce used for their commitment. */
+export interface ProcedureInputs {
+  readonly inventory: {
+    readonly builds: Observed['identities'];
+    readonly instances: readonly Readonly<Record<string,JsonValue>>[];
+    readonly manifest_digest: string;
+    readonly attempt: string;
+  };
+  readonly accepted_profiles: readonly string[];
+  readonly attempt: string;
+  readonly execution_boundary: string;
+  readonly phase: 'before_send'|'returned';
+  readonly children: readonly (Deployment|string)[];
+  readonly documents: Readonly<Record<string,JsonValue>>;
+}
+function procedureInputs(value: ProcedureInputs): procedure.ProcedureInputs {
+  if (!value || typeof value !== 'object') return value as unknown as procedure.ProcedureInputs;
+  const documents = value.documents;
+  if (!documents || typeof documents !== 'object' ||
+      ![Object.prototype,null].includes(Object.getPrototypeOf(documents))) {
+    return {...value, documents: undefined} as unknown as procedure.ProcedureInputs;
+  }
+  return {...value, documents: Object.fromEntries(Object.entries(documents).map(([digest,doc])=>[digest,tagged(doc)]))};
+}
+/** The shipped procedure schema for negotiation support. */
+export function procedureSchema():Result<JsonValue>{return guarded(()=>plain(procedure.schema()));}
+/** Hash a typed host document with its 256-bit nonce using SHA-256 over JCS. */
+export function procedureDocumentCommitment(document:JsonValue):Result<string>{return guarded(()=>procedure.documentCommitment(tagged(document)));}
+/** Run the procedure binding stage. A denial halts this per-attempt import. */
+export function verifyProcedure(value:Deployment,inputs:ProcedureInputs):Result<Evidence>{return guarded(()=>procedure.verify({value:tagged(value.value)},procedureInputs(inputs)));}
 /** Exact observed build identities. */
 export interface Observed {readonly identities:readonly {readonly kind:string;readonly name:string;readonly version:string;readonly digest:string}[]}
 /** The inputs for the eight-stage non-authorizing import pass. */
-export interface Inputs {readonly hostBounds:BoundSet;readonly support:Support;readonly keys:readonly PublicKey[];readonly protectedClamp:'deny'|'acknowledge';readonly observations:Observations}
+export interface Inputs {readonly hostBounds:BoundSet;readonly support:Support;readonly keys:readonly PublicKey[];readonly protectedClamp:'deny'|'acknowledge';readonly observations:Observations;readonly procedure?:ProcedureInputs}
 /** Verified signed attributes, including the digest and purpose. */
 export interface SignedAttributes {readonly algorithm:SignatureAlgorithm;readonly contentDigest:string;readonly createdAt:string;readonly keyId:string;readonly purpose:SignaturePurpose}
 /** Negotiated extension facts. */
@@ -122,12 +153,11 @@ export function intersect(options:Sources):Result<Intersection>{return guarded((
 /** Verify exact observed build identities against a Deployment. */
 export function verifyCompatibility(value:Deployment,observed:Observed):Result<Evidence>{return guarded(()=>{
   const result=compat.verify({value:tagged(value.value)},observed as any);
-  if(!result.ok)return result;
-  const entries=value.value.build_identities as readonly {readonly digest:string}[];
-  return {ok:true,v:{protocol_revision:value.value.protocol_revision,blueprint_digest:null,deployment_digest:null,effective_bounds:null,clamps:[],optional_extensions_retained:[],checks:entries.map((entry,index)=>({surface:'compatibility',subject:['build_identities',index],verified:true,detail:entry.digest})),not_verified:[...imports.HOST_OWNED]}};
+  if(!result.ok)return {ok:false,e:result.e};
+  return {ok:true,v:{protocol_revision:value.value.protocol_revision,blueprint_digest:null,deployment_digest:null,effective_bounds:null,clamps:[],optional_extensions_retained:[],checks:result.checks,not_verified:[...imports.HOST_OWNED]}};
 });}
 /** Run the eight-stage import pass and return non-authorizing evidence. */
-export function reconcile(blueprint:Blueprint,deployment:Deployment,options:Inputs):Result<Evidence>{return guarded(()=>{if(options.observations.now!==null&&dep.parseTimestamp(options.observations.now)===null)return {ok:false,e:"invalid_type"};return imports.reconcile({value:tagged(blueprint.value)},{value:tagged(deployment.value)},{...options,hostBounds:options.hostBounds as any,support:support(options.support),keys:options.keys.map(key=>({keyId:key.keyId,key:key.algorithm==='ed25519'?key.key:new Uint8Array()})),observations:options.observations as dep.Observations});});}
+export function reconcile(blueprint:Blueprint,deployment:Deployment,options:Inputs):Result<Evidence>{return guarded(()=>{if(options.observations.now!==null&&dep.parseTimestamp(options.observations.now)===null)return {ok:false,e:"invalid_type"};return imports.reconcile({value:tagged(blueprint.value)},{value:tagged(deployment.value)},{...options,procedure:options.procedure==null?undefined:procedureInputs(options.procedure),hostBounds:options.hostBounds as any,support:support(options.support),keys:options.keys.map(key=>({keyId:key.keyId,key:key.algorithm==='ed25519'?key.key:new Uint8Array()})),observations:options.observations as dep.Observations});});}
 /** Return the 23 transport mapping rows as data. */
 export function federationMapping():Result<readonly MappingRow[]>{return guarded(()=>rows.map(row=>({...row})));}
 /** Return the tagged digest of the canonical transport mapping rows (since 1.2.0). */

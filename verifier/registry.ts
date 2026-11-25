@@ -1,4 +1,4 @@
-// The protocol-owned federation registry and schema. Hosts supply other
+// The protocol-owned registry and schemas. Hosts supply other
 // registrations through negotiation support. The corpus binds both runtimes
 // to the same registry content digest.
 
@@ -6,6 +6,8 @@ import * as digest from "./digest.ts";
 import { encode } from "./canonical.ts";
 import type { Value } from "./value.ts";
 import { bool, int, nil, obj, str } from "./value.ts";
+import { tagged } from "./plain.ts";
+import { PROCEDURE_SCHEMA } from "./procedure_schema.ts";
 
 export type Criticality = "critical" | "optional";
 export type RegState = "reserved" | "active" | "deprecated" | "retired";
@@ -37,9 +39,9 @@ export function federationSchema(): Value {
   ]);
 }
 
-function taggedFederationDigest(): string {
-  const jcs = encode(federationSchema());
-  if (!jcs.ok) throw new Error("federation schema must encode");
+function taggedSchemaDigest(schema: Value): string {
+  const jcs = encode(schema);
+  if (!jcs.ok) throw new Error("registered schema must encode");
   return digest.toTagged(digest.hash("extension_schema", Buffer.from(jcs.v, "utf8")));
 }
 
@@ -50,7 +52,7 @@ function entries(): RegistryEntry[] {
       owner: "Agent Blueprint Protocol",
       criticality: "critical",
       state: "deprecated",
-      schema_digest: taggedFederationDigest(),
+      schema_digest: taggedSchemaDigest(federationSchema()),
       a2a_uri: "https://example.com/extensions/federation",
       promoted_at_revision: null,
     },
@@ -59,8 +61,17 @@ function entries(): RegistryEntry[] {
       owner: "Agent Blueprint Protocol",
       criticality: "critical",
       state: "active",
-      schema_digest: taggedFederationDigest(),
+      schema_digest: taggedSchemaDigest(federationSchema()),
       a2a_uri: "https://baselabs.github.io/agent_blueprint_protocol/extensions/federation",
+      promoted_at_revision: null,
+    },
+    {
+      namespace: "io.github.baselabs/procedure",
+      owner: "Agent Blueprint Protocol",
+      criticality: "critical",
+      state: "active",
+      schema_digest: taggedSchemaDigest(tagged(PROCEDURE_SCHEMA)),
+      a2a_uri: "https://baselabs.github.io/agent_blueprint_protocol/extensions/procedure",
       promoted_at_revision: null,
     },
   ];

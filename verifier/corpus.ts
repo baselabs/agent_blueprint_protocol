@@ -45,6 +45,7 @@ export const SURFACES = [
   "bounds_algebra.intersect",
   "portability.scan",
   "compatibility.verify",
+  "procedure.verify",
   "federation.decode",
   "federation.verify_commitment",
 ] as const;
@@ -83,9 +84,10 @@ export const CLASSES = [
   "terminal_equivocation",
 ] as const;
 
-// The pinned 18×31 floor: per surface, required classes + the falsifiable
+// The pinned 19×31 floor: per surface, required classes + the falsifiable
 // n_a reason covering its complement.
 const FLOOR: Record<string, { required: string[]; n_a: string }> = {
+  "procedure.verify":{required:['valid','exact_bound','maximum_plus_one','invalid_encoding','invalid_duplicate','invalid_type','invalid_constraint','invalid_cardinality','unknown_member','digest_mismatch','forbidden_portable_value'],n_a:'byte codecs, negotiation, signatures, core revisions and bounds have their own surfaces'},
   reconcile: {required:["valid","invalid_type","digest_mismatch","revision_above_max","unknown_member","forbidden_portable_value","signature_invalid","binding_stale","bound_widening_protected"],n_a:"byte codecs, schema and federation checks have their own surfaces"},
   predicate: {required:["valid","invalid_type","invalid_constraint","invalid_cardinality","maximum_plus_one","exact_bound"],n_a:"artifact, signature, bounds and federation checks do not reach predicates"},
   "json.decode": {

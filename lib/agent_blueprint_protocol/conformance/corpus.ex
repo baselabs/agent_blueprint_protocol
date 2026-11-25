@@ -34,7 +34,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   """
   @type t :: %__MODULE__{}
 
-  # --- the pinned floor (spec: Corpus applicability floor, 18 x 31) ----------
+  # --- the pinned floor (spec: Corpus applicability floor, 19 x 31) ----------
 
   @surfaces [
     "reconcile",
@@ -53,6 +53,7 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
     "bounds_algebra.intersect",
     "portability.scan",
     "compatibility.verify",
+    "procedure.verify",
     "federation.decode",
     "federation.verify_commitment"
   ]
@@ -92,6 +93,12 @@ defmodule AgentBlueprintProtocol.Conformance.Corpus do
   ]
 
   @floor %{
+    "procedure.verify" => %{
+      required:
+        ~w(valid exact_bound maximum_plus_one invalid_encoding invalid_duplicate invalid_type invalid_constraint invalid_cardinality unknown_member digest_mismatch forbidden_portable_value),
+      n_a:
+        "byte codecs, negotiation, signatures, core revisions and bounds have their own surfaces"
+    },
     "reconcile" => %{
       required:
         ~w(valid invalid_type digest_mismatch revision_above_max unknown_member forbidden_portable_value signature_invalid binding_stale bound_widening_protected),
