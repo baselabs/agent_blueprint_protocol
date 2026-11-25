@@ -74,7 +74,7 @@ members that must satisfy `Compatibility.exact?/1`. A document that fails its
 schema or exactness denies `invalid_constraint` with a document subject.
 Missing or incorrectly keyed documents deny `binding_incomplete`.
 
-## Inventory and import phases
+## Inventory and import points
 
 Build one execution-scoped inventory for every attempt. Its string-keyed map
 contains `builds`, `instances`
@@ -104,7 +104,7 @@ Covered instances remain attributed through `part_of` and compared transitively;
 coverage never exempts an instance from declaration or comparison.
 
 Supply `%Procedure.Inputs{}` with `inventory`, `documents`, `children`,
-`accepted_profiles`, `attempt`, `execution_boundary` and `phase`.
+`accepted_profiles`, `attempt`, `execution_boundary` and `import_point`.
 `Procedure.verify/2` is the per-attempt import stage. A denial halts that import.
 Pass the same inputs in `Reconcile.Inputs.procedure`; reconcile requires them
 when the namespace is critical and runs this stage during binding.
@@ -112,8 +112,8 @@ TypeScript uses `verifyProcedure(deployment, inputs)` and `Inputs.procedure`;
 its document values are ordinary JSON and its children are Deployment views or
 canonical Deployment strings.
 
-Run phase `:before_send` immediately before sending, using observations from
-the selected execution boundary. Run phase `:returned` when importing the
+Set `import_point` to `:before_send` immediately before sending, using observations from
+the selected execution boundary. Set it to `:returned` when importing the
 returned run. Rebuild each document from the run's reported values, retaining
 the original nonce, and recollect the observations. Bind both inventories to
 their actual attempt and Deployment. An inventory copied from another attempt
@@ -132,7 +132,7 @@ composition has at most 64 members. Every child verifies its own Deployment
 digest and conforms to an accepted member profile. Import each member attempt
 against its actual member manifest and retain the root as execution provenance.
 
-Evidence records the profile digest, attempt, execution boundary and phase,
+Evidence records the profile digest, attempt, execution boundary and import point,
 per-instance basis and assurance, validity statements, and child digests. It
 contains no host-document contents. Identity validity, observer trust,
 measurement freshness, evidence authenticity, holder assertion truth,

@@ -28,7 +28,7 @@ export interface ProcedureInputs {
   readonly accepted_profiles:readonly string[];
   readonly attempt:string;
   readonly execution_boundary:string;
-  readonly phase:'before_send'|'returned';
+  readonly import_point:'before_send'|'returned';
   readonly children:readonly (string|{readonly value:unknown})[];
   readonly documents:Readonly<Record<string,Value>>;
 }
@@ -239,7 +239,7 @@ function instanceChecked(inst:any,body:any):string[]{
   const relations=(role.relations??[]).length>0||(inst.binds??[]).length>0||body.profile.roles.some((r:any)=>(r.covers??[]).includes(inst.role));
   return ['declaration',...(documents?['documents']:[]),'pairing',...(relations?['relations']:[])];
 }
-function check(subject:(string|number)[],detail:any):ProcedureCheck{return {surface:'procedure',subject,verified:true,detail:{profile_digest:null,attempt:null,execution_boundary:null,phase:null,basis:null,assurance:null,validity:null,deployment_digest:null,checked:[],...detail}};}
+function check(subject:(string|number)[],detail:any):ProcedureCheck{return {surface:'procedure',subject,verified:true,detail:{profile_digest:null,attempt:null,execution_boundary:null,import_point:null,basis:null,assurance:null,validity:null,deployment_digest:null,checked:[],...detail}};}
 export function verify(dep:deployment.Deployment,inputs:ProcedureInputs):Result<ProcedureEvidence>{
   try {
     requireCheck(dep && isValue(dep.value) && inputs && typeof inputs==='object','invalid_type');
@@ -254,7 +254,7 @@ export function verify(dep:deployment.Deployment,inputs:ProcedureInputs):Result<
       Array.isArray(inputs.accepted_profiles) && inputs.accepted_profiles.length<=256 &&
       Array.from(inputs.accepted_profiles).every(digestOk) &&
       [inputs.attempt,inputs.execution_boundary,inventory.manifest_digest,inventory.attempt].every(digestOk) &&
-      ['before_send','returned'].includes(inputs.phase),
+      ['before_send','returned'].includes(inputs.import_point),
       'invalid_type',['inputs']
     );
     checked(deployment.verifyContentDigest(dep));
@@ -290,7 +290,7 @@ export function verify(dep:deployment.Deployment,inputs:ProcedureInputs):Result<
       profile_digest:hash(body.profile),
       attempt:inputs.attempt,
       execution_boundary:inputs.execution_boundary,
-      phase:inputs.phase,
+      import_point:inputs.import_point,
     });
     return {ok:true,v:{
       protocol_revision:1,

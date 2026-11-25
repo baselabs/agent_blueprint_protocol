@@ -73,7 +73,7 @@ defmodule AgentBlueprintProtocol.Evidence do
       :profile_digest,
       :attempt,
       :execution_boundary,
-      :phase,
+      :import_point,
       :basis,
       :assurance,
       :validity,
@@ -251,7 +251,7 @@ defmodule AgentBlueprintProtocol.Evidence do
   defp detail_ok?(%Digest{}), do: true
 
   defp detail_ok?(%Procedure{} = detail) do
-    detail.phase in [nil, :before_send, :returned] and
+    detail.import_point in [nil, :before_send, :returned] and
       detail.assurance in [nil, :measured, :attested, :configured, :observed, :asserted] and
       Enum.all?(detail.checked, &is_atom/1)
   end

@@ -3,7 +3,7 @@
 Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:2WOmWAgEXiA3-m6-mAoAFOGBOeod5e8SdrURdax-G5g`, 741 cases) are
+`sha-256:5_rJalJcCX__ZWU0AyO5YVakqvtRLLBN8R96j3gChoA`, 741 cases) are
 certified against this document at every release through the release
 identity chain: the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -567,8 +567,8 @@ entries after it was produced; hosts wanting pinning SHOULD use
 
 `io.github.baselabs/procedure` is owned by Agent Blueprint Protocol. It is
 critical and active, with `promoted_at_revision: null`. Its schema pin is
-the extension-schema digest of the [derived schema](grammar/derived/procedure.schema.json).
-The [CDDL grammar](grammar/procedure.cddl) defines the closed body. The typed
+the extension-schema digest of `spec/grammar/derived/procedure.schema.json`.
+The CDDL grammar in `spec/grammar/procedure.cddl` defines the closed body. The typed
 decoder applies unknown member, missing member, type, constraint, cardinality,
 nested and cross-field checks in that order. This body always receives the
 strict portability scan, even when authored or validated as a critical extension.
@@ -649,10 +649,10 @@ are ignored; referenced children are decoded and validated once per digest.
 Composition hashes literal child references, constructed child-first. Shared
 children are allowed; a digest repeated on a path denies.
 
-The stage runs for `before_send` and `returned` imports. For returned runs the
+The `import_point` input identifies a `before_send` or `returned` import. For returned runs the
 host rebuilds documents using reported values and the same nonce. Evidence
 records the profile digest, attempt commitment, execution-boundary commitment,
-phase, per-instance basis and assurance, validity statements and member digests.
+import point, per-instance basis and assurance, validity statements and member digests.
 Validity is decoded and digest-covered without comparison to a clock.
 `identity_validity`, `observer_trust`, `measurement_freshness`,
 `evidence_authenticity`, `holder_assertion_truth`, `configuration_execution` and
@@ -1071,7 +1071,7 @@ The package ships a portable conformance corpus (`priv/conformance/`):
 741 cases covering every required cell of the 19-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:2WOmWAgEXiA3-m6-mAoAFOGBOeod5e8SdrURdax-G5g`. Corpus identity
+`sha-256:5_rJalJcCX__ZWU0AyO5YVakqvtRLLBN8R96j3gChoA`. Corpus identity
 is the digest of the domain-separated index, versioned by digest, not
 by name. The loader is pure over an in-memory path-to-bytes map and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,

@@ -82,7 +82,7 @@ defmodule AgentBlueprintProtocol.ProcedureTest do
       accepted_profiles: [hash(body["profile"])],
       attempt: hash("attempt"),
       execution_boundary: hash("boundary"),
-      phase: :before_send,
+      import_point: :before_send,
       inventory: %{
         "builds" => builds,
         "instances" => body["instances"],
@@ -138,7 +138,7 @@ defmodule AgentBlueprintProtocol.ProcedureTest do
   test "honest artifact observations produce measured, attempt-bound evidence" do
     assert {:ok, evidence} = verify(body())
     assert [%{surface: :procedure, verified: true, detail: detail} | _] = evidence.checks
-    assert detail.phase == :before_send
+    assert detail.import_point == :before_send
     assert detail.attempt == hash("attempt")
     assert :identity_validity in evidence.not_verified
     assert :observer_trust in evidence.not_verified
@@ -382,7 +382,7 @@ defmodule AgentBlueprintProtocol.ProcedureTest do
           put_in(base["inputs"]["inventory"]["builds"], [false]),
           put_in(base["inputs"]["inventory"]["builds"], [%{}]),
           put_in(base["inputs"]["documents"], false),
-          put_in(base["inputs"]["phase"], "unknown")
+          put_in(base["inputs"]["import_point"], "unknown")
         ] do
       row = %{
         "surface" => "procedure.verify",

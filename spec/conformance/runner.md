@@ -133,11 +133,11 @@ are null, `retained`, or `quarantined`, or procedure-specific detail.
 
 The `procedure.verify` inputs and reconcile’s optional `inputs.procedure`
 carry `inventory`, `documents`, `children`, `accepted_profiles`, `attempt`,
-`execution_boundary` and `phase` as defined by the procedure identity namespace.
+`execution_boundary` and `import_point` as defined by the procedure identity namespace.
 Inventory builds and instances use JSON records. Documents are JSON values
 keyed by commitment. Children are canonical Deployment bytes as text.
-`phase` is `before_send` or `returned`. Procedure evidence projects the
-profile, attempt and execution-boundary commitments, phase, provenance basis,
+`import_point` is `before_send` or `returned`. Procedure evidence projects the
+profile, attempt and execution-boundary commitments, import point, provenance basis,
 assurance, validity, child Deployment digests and checked bindings.
 
 ## Agreement and output

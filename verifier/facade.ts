@@ -82,7 +82,7 @@ export interface ProcedureInputs {
   readonly accepted_profiles: readonly string[];
   readonly attempt: string;
   readonly execution_boundary: string;
-  readonly phase: 'before_send'|'returned';
+  readonly import_point: 'before_send'|'returned';
   readonly children: readonly (Deployment|string)[];
   readonly documents: Readonly<Record<string,JsonValue>>;
 }

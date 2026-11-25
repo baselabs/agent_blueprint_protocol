@@ -47,7 +47,7 @@ defmodule AgentBlueprintProtocol.Procedure do
       :accepted_profiles,
       :attempt,
       :execution_boundary,
-      :phase,
+      :import_point,
       children: [],
       documents: %{}
     ]
@@ -57,7 +57,7 @@ defmodule AgentBlueprintProtocol.Procedure do
             accepted_profiles: [binary()],
             attempt: binary(),
             execution_boundary: binary(),
-            phase: :before_send | :returned,
+            import_point: :before_send | :returned,
             children: [Deployment.t() | binary()],
             documents: %{binary() => Json.value()}
           }
@@ -138,7 +138,7 @@ defmodule AgentBlueprintProtocol.Procedure do
               profile_digest: commitment(body["profile"]),
               attempt: inputs.attempt,
               execution_boundary: inputs.execution_boundary,
-              phase: inputs.phase
+              import_point: inputs.import_point
             })
           ] ++
             instance_checks(body) ++ members ++ compatibility.checks,
@@ -153,7 +153,7 @@ defmodule AgentBlueprintProtocol.Procedure do
     valid =
       inventory_shape?(i.inventory) and input_collections?(i) and
         digest?(i.attempt) and digest?(i.execution_boundary) and
-        i.phase in [:before_send, :returned]
+        i.import_point in [:before_send, :returned]
 
     ensure(valid, :invalid_type, ["inputs"])
   end

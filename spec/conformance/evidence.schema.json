@@ -99,7 +99,7 @@
                       "null"
                     ]
                   },
-                  "phase": {
+                  "import_point": {
                     "type": [
                       "string",
                       "null"
@@ -156,7 +156,7 @@
                   "profile_digest",
                   "attempt",
                   "execution_boundary",
-                  "phase",
+                  "import_point",
                   "basis",
                   "assurance",
                   "deployment_digest",

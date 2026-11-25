@@ -260,8 +260,8 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
     inventory = host["inventory"]
     inventory = procedure_builds(inventory)
 
-    phase =
-      case host["phase"] do
+    import_point =
+      case host["import_point"] do
         "before_send" -> :before_send
         "returned" -> :returned
         other -> other
@@ -272,7 +272,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
       accepted_profiles: host["accepted_profiles"],
       attempt: host["attempt"],
       execution_boundary: host["execution_boundary"],
-      phase: phase,
+      import_point: import_point,
       children: Map.get(host, "children", []),
       documents: procedure_documents(Map.get(host, "documents", %{}))
     }

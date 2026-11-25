@@ -106,8 +106,8 @@ case_response =
 
 ```
 %{
-  handshake_request: "{\"corpus_digest\":\"sha-256:2WOmWAgEXiA3-m6-mAoAFOGBOeod5e8SdrURdax-G5g\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI\",\"version\":1}",
-  handshake_response: "{\"corpus_digest\":\"sha-256:2WOmWAgEXiA3-m6-mAoAFOGBOeod5e8SdrURdax-G5g\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI\",\"version\":1}",
+  handshake_request: "{\"corpus_digest\":\"sha-256:5_rJalJcCX__ZWU0AyO5YVakqvtRLLBN8R96j3gChoA\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI\",\"version\":1}",
+  handshake_response: "{\"corpus_digest\":\"sha-256:5_rJalJcCX__ZWU0AyO5YVakqvtRLLBN8R96j3gChoA\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI\",\"version\":1}",
   case_request: "{\"id\":\"base64url-decode-valid\",\"input\":{\"base64url\":\"-_8\"},\"surface\":\"base64url.decode\"}",
   case_response: "{\"id\":\"base64url-decode-valid\",\"result\":{\"decoded\":\"-_8\",\"verdict\":\"valid\"}}"
 }

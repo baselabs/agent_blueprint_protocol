@@ -204,7 +204,7 @@ Supply `procedureSchema()` in negotiation support for the critical
 `ProcedureInputs` as `options.procedure` to reconcile. Use
 `procedureDocumentCommitment(document)` to compute the key for each typed
 host document. The [procedure identity guide](procedure-identity.md) defines
-the inventory, profile acceptance and execution phases.
+the inventory, profile acceptance and import points.
 
 ## Verify a signature
 

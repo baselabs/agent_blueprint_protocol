@@ -47,7 +47,7 @@ try {
     "// @ts-expect-error negotiation input lifecycle states remain strict\nconst state:Support['registry'][string]['state']='future_state';\n"+
     "import {procedureSchema,procedureDocumentCommitment,verifyProcedure,type ProcedureInputs,type Deployment,type Evidence} from '@agent-blueprint-protocol/verifier';\n"+
     "declare const procedureDeployment:Deployment;declare const procedureInputs:ProcedureInputs;const procedureResult:Result<Evidence>=verifyProcedure(procedureDeployment,procedureInputs);const procedureCommitment:Result<string>=procedureDocumentCommitment({type:'example.document',nonce:'0'.repeat(64)});procedureSchema();\n"+
-    "// @ts-expect-error procedure import phases remain strict\nconst phase:ProcedureInputs['phase']='future_phase';\n"+
+    "// @ts-expect-error procedure import points remain strict\nconst import_point:ProcedureInputs['import_point']='future_import_point';\n"+
     "import {verifyPackageContents,type PackageDistribution} from '@agent-blueprint-protocol/verifier';\n"+
     "const distribution:PackageDistribution='npm';const contentsResult:Result<true>=verifyPackageContents('.',distribution,'checksum');\n"+
     "export function inspectNotice(value:Notice):boolean {switch(value){case KNOWN_NOTICES.extension_deprecated:return true;default:return false;}}\n";

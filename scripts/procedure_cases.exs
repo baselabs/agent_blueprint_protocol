@@ -72,7 +72,7 @@ defmodule AgentBlueprintProtocol.ProcedureCases do
         "accepted_profiles" => [hash(body["profile"])],
         "attempt" => hash("attempt"),
         "execution_boundary" => hash("boundary"),
-        "phase" => "before_send"
+        "import_point" => "before_send"
       }
     }
   end
@@ -187,7 +187,7 @@ defmodule AgentBlueprintProtocol.ProcedureCases do
 
     detail =
       Map.new(
-        ~w(profile_digest attempt execution_boundary phase basis assurance validity deployment_digest),
+        ~w(profile_digest attempt execution_boundary import_point basis assurance validity deployment_digest),
         &{&1, nil}
       )
       |> Map.put("checked", [])
@@ -206,7 +206,7 @@ defmodule AgentBlueprintProtocol.ProcedureCases do
         "profile_digest" => hash(body["profile"]),
         "attempt" => opts["attempt"],
         "execution_boundary" => opts["execution_boundary"],
-        "phase" => opts["phase"]
+        "import_point" => opts["import_point"]
       })
 
     assurances = %{
@@ -338,7 +338,7 @@ defmodule AgentBlueprintProtocol.ProcedureCases do
        ]), "invalid_constraint", "binding_incomplete"},
       {"profile-mutated", put_in(base, ["inputs", "accepted_profiles"], [hash("other")]),
        "invalid_constraint", "invalid_constraint"},
-      {"input-shape", put_in(base, ["inputs", "phase"], "unknown"), "invalid_type",
+      {"input-shape", put_in(base, ["inputs", "import_point"], "unknown"), "invalid_type",
        "invalid_type"},
       {"build-compatibility", put_in(base, ["inputs", "inventory", "builds"], []),
        "invalid_constraint", "compatibility_entry_missing"}
@@ -394,7 +394,7 @@ defmodule AgentBlueprintProtocol.ProcedureCases do
 
     [
       row("valid", base, "valid"),
-      row("returned", put_in(base, ["inputs", "phase"], "returned"), "valid"),
+      row("returned", put_in(base, ["inputs", "import_point"], "returned"), "valid"),
       row("holder-asserted", input(asserted), "valid"),
       row("max-instances", input(max_body), "exact_bound")
     ] ++
