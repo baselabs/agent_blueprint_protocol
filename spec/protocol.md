@@ -1251,7 +1251,7 @@ corpus does not carry.
 | Protocol downgrade | an older/newer revision forced on a consumer | `revision_above_max` `revision_below_min` | explicit revision SETs, both directions deny `protocol_revision_unsupported` |
 | Extension rug-pull via registry | unknown/retired namespace forced critical | `extension_unknown_critical` | registry-state table; deny with typed codes |
 | Schema-pin evasion | critical body validated against a different schema | `extension_schema_unavailable` | digest-pinned schemas; `extension_schema_digest_mismatch` |
-| Tool rug-pull | a bound tool's descriptor replaced out-of-band | `binding_descriptor_mismatch` | binding verification: descriptor-digest equality + attestation freshness + identity-exact entries |
+| Tool rug-pull | a bound tool's descriptor replaced out-of-band | `binding_stale` `compatibility_range_rejected` | binding verification: descriptor-digest equality + attestation freshness + identity-exact entries |
 | Ceiling widening | a bound or ceiling raised after the fact | `bound_widening_operational` `bound_widening_protected` | bounds may narrow only; protected narrowing denies by default; effective bounds never widen host policy |
 | Quarantined-content laundering | unscanned payload smuggled into a claim | `extension_unknown_optional_roundtrip` `forbidden_portable_value` | quarantine is typed unscanned; portability claims attach only to schema-validated content |
 | Receipt equivocation | two diverging terminal receipts for one task | `terminal_equivocation` `federation_terminal_conflict` | Terminal Commitment over seven components; ANY divergence denies |
