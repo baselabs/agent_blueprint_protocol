@@ -214,7 +214,8 @@ jobs:
         run: |
           elixir scripts/verify_release_packages.exs --local \
             "verified-release/agent_blueprint_protocol-${VERSION}.tar" \
-            "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
+            "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" \
+            --write-manifest verified-release/release-manifest.json
 
       - name: Refuse a package whose changelog is not stamped for its version
         shell: bash
@@ -366,7 +367,8 @@ jobs:
           cp "verified-release/agent_blueprint_protocol-${VERSION}.tar" \
             "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz" \
             "verified-release/verifier-${VERSION}.tar.gz" \
-            verified-release/certified-results.json verified-release/release-assets/
+            verified-release/certified-results.json verified-release/release-manifest.json \
+            verified-release/release-assets/
           elixir scripts/release_notes.exs "$VERSION" verified-release/release-assets/release-notes.md
           (cd verified-release/release-assets && sha256sum -- * > SHA256SUMS)
 

@@ -54,6 +54,8 @@ function check(changes,rc,final){
       case 'version':
         if(a.replaceAll(rc,final)!==b)denied.push(path);break;
       case 'metadata':{
+        // The published manifest derives package checksums from the promoted
+        // archives. The source metadata allows only the version fields to move.
         const old=JSON.parse(a),next=JSON.parse(b);old.package_version=final;old.verifier_kit.version=final;
         if(JSON.stringify(old)!==JSON.stringify(next))denied.push(path);break;
       }
@@ -97,6 +99,9 @@ function selfTest(){
   const promotedMetadata={...metadata,package_version:final,verifier_kit:{version:final}};
   check([['priv/release-metadata.json',Buffer.from(JSON.stringify(metadata)),Buffer.from(JSON.stringify(promotedMetadata))]],rc,final);
   assert.throws(()=>check([['priv/release-metadata.json',Buffer.from(JSON.stringify(metadata)),Buffer.from(JSON.stringify({...promotedMetadata,corpus_digest:'changed'}))]],rc,final),/forbidden differences/);
+  const checksum='sha-256:'+'A'.repeat(43);
+  const contaminated={...promotedMetadata,package_checksums:{hex:checksum,npm:checksum}};
+  assert.throws(()=>check([['priv/release-metadata.json',Buffer.from(JSON.stringify(metadata)),Buffer.from(JSON.stringify(contaminated))]],rc,final),/forbidden differences/);
   check([['verifier/README.md',Buffer.from('npm install @agent-blueprint-protocol/verifier@'+rc),Buffer.from('npm install @agent-blueprint-protocol/verifier@'+final)]],rc,final);
   checkTree([['verifier/README.md',Buffer.from(rc)]],rc);
   assert.equal(promotionRule('site/extensions/example/index.html'),'version');

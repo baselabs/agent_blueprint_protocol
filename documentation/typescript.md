@@ -312,6 +312,7 @@ All functions below return `Result<T>`. On denial, read `error.code` and the val
 | `federationMapping()` → `readonly MappingRow[]` | No arguments. Returns 23 inert mapping rows inside a `Result`; does not perform carrier conversion. |
 | `federationMappingIdentity()` → `string` | No arguments. Returns the tagged SHA-256 of the canonical mapping rows in index order. |
 | `verifySignature(entry: JsonValue, keys: readonly PublicKey[])` → `SignedAttributes` | Detached entry and caller-trusted raw Ed25519 public keys. Returns verified algorithm, digest, time, key ID, and purpose. Missing key or failed verification denies. |
+| `verifyPackageContents(root: string, distribution: PackageDistribution, expected: unknown)` → `true` | Installed package root, `"hex"` or `"npm"`, and the corresponding checksum from the trusted release manifest. Checks covered file paths and bytes. |
 | `loadCorpus(files: ReadonlyMap<string, Uint8Array>, options: {priorCensus?: boolean} = {})` → `Corpus` | Paths relative to corpus root, including index/data/cases. Integrity-checks the set. `priorCensus` defaults to `false`; `true` permits an earlier census, without establishing release certification. Returns an in-memory handle. |
 | `runCorpus(value: Corpus)` → `readonly (readonly CaseResult[])[]` | Handle returned by this package instance's loader. Nested arrays group file results; flatten them for per-case `caseId`/`agree`. |
 | `buildReport(value: Corpus, results: readonly (readonly CaseResult[])[])` → `Report` | Same handle plus run results. Returns aggregate totals, `agreement`, and `exit_status`. A disagreement is a successful report value with `agreement: false`. |
@@ -449,6 +450,55 @@ console.log(summaries[1]?.[1] === "not verified" && allDetails[4] === "unknown")
 ```
 
 This fixture shows a mixed signed/unsigned pair. The global `signatures` entry in `not_verified` means at least one relevant subject remains unverified. Preserve both `surface` and `subject` when looking up canonical, digest, structure, portability, or negotiation checks too.
+
+### Check an installed package
+
+Save this as `verify-package.mts` and run
+`node verify-package.mts /path/to/release-manifest.json`. Use the manifest from
+the GitHub release for the intended version and authenticate it before the
+offline check. To inspect an untrusted installation, load the verifier from
+a separate trusted installation and pass the root of the package under
+inspection explicitly. [Release asset verification](verifying-releases.md#verify-sha256sums-and-registry-bytes)
+
+<!-- fragment -->
+```ts
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { verifyPackageContents } from "@agent-blueprint-protocol/verifier";
+
+const manifestPath = process.argv[2];
+if (!manifestPath) throw new Error("Pass the trusted release manifest");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const root = fileURLToPath(new URL(".", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json")));
+const result = verifyPackageContents(root, "npm", manifest.package_checksums.npm);
+if (!result.ok) throw new Error(result.error.code);
+```
+
+The check reads the root only when called. It covers the npm payload,
+including compiled JavaScript, declarations, and corpus files. The embedded
+release metadata and history are excluded. A covered file change, addition
+or removal returns `digest_mismatch` with subject
+`["package_checksums", "npm"]`.
+
+This one-file example uses a fixed checksum. The packaged examples gate
+runs it through the installed npm verifier.
+
+```ts
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { verifyPackageContents } from "@agent-blueprint-protocol/verifier";
+
+const root = mkdtempSync(join(tmpdir(), "abp-contents-"));
+try {
+  writeFileSync(join(root, "example.txt"), "ABP\n");
+  const expected = "sha-256:M4cGieBSz1jxNLFK8lcDpx_hSwJjNav2eROx5_fXG60";
+  const result = verifyPackageContents(root, "npm", expected);
+  if (!result.ok) throw new Error(result.error.code);
+} finally {
+  rmSync(root, { recursive: true, force: true });
+}
+```
 
 ### Load and run a corpus in memory
 

@@ -299,6 +299,14 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert_before(verify, "run: mix quality", "npm pack ./dist/package --ignore-scripts")
     assert_before(verify, "mix hex.build --output", "verify_release_packages.exs --local")
     assert_before(verify, "verify_release_packages.exs --local", "id: npm")
+    assert verify =~ "--write-manifest verified-release/release-manifest.json"
+
+    assert_before(
+      verify,
+      "verified-release/certified-results.json verified-release/release-manifest.json",
+      "sha256sum -- * > SHA256SUMS"
+    )
+
     assert_before(verify, "Docs checksum:", "id: hex")
     assert verify =~ "VERSION=$(node scripts/release_artifact_info.mjs version)"
     assert verify =~ "version: ${{ steps.inputs.outputs.version }}"

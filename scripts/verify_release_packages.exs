@@ -1,25 +1,62 @@
-# Release verification with historical tags available: the shipped consumer driver's
-# package gates, then the installed compatibility replay. The replay runs every
-# earlier release census and the signed 0.8.x goldens through the installed
-# Hex and npm verifiers, so it needs this checkout's release tags and scripts;
-# the shipped driver never loads a checkout file.
+# Derive the contents manifest from both archives, verify the packages in
+# consumer projects, and run the packaged examples. Compatibility replay
+# needs this checkout's release tags and scripts. The examples run from the
+# extracted packages.
 Code.require_file("consumer_examples.exs", __DIR__)
+Code.require_file("../lib/agent_blueprint_protocol/error.ex", __DIR__)
+Code.require_file("../lib/agent_blueprint_protocol/framed_files.ex", __DIR__)
+Code.require_file("../lib/agent_blueprint_protocol/package_contents.ex", __DIR__)
 
 defmodule VerifyReleasePackages do
   @moduledoc false
 
-  def main(args) do
+  alias AgentBlueprintProtocol.PackageContents
+
+  def main(["--local", hex, npm, "--write-manifest", output]),
+    do: verify(["--local", hex, npm], output)
+
+  def main(args), do: verify(args, nil)
+
+  defp verify(args, output) do
     ConsumerExamples.with_packages("verify_release_packages.exs", args, fn packages ->
-      replay!(packages)
+      manifest = contents_manifest!(packages)
+      manifest_path = Path.join(packages.scratch, "release-manifest.json")
+      bytes = IO.iodata_to_binary(:json.encode(manifest)) <> "\n"
+      File.write!(manifest_path, bytes)
+
+      verify_installed!(packages, manifest_path)
       ConsumerExamples.run_gates!(packages)
-      IO.puts("release packages: installed compatibility replay and package gates passed")
+      if output, do: File.write!(output, bytes)
+
+      IO.puts(
+        "release packages: installed contents, compatibility replay and package gates passed"
+      )
     end)
+  end
+
+  defp contents_manifest!(%{package: hex, installed: installed}) do
+    npm = Path.join(installed, "package")
+    metadata = File.read!(Path.join(hex, "priv/release-metadata.json"))
+    ^metadata = File.read!(Path.join(npm, "dist/release-metadata.json"))
+    manifest = :json.decode(metadata)
+
+    %{"version" => version} = :json.decode(File.read!(Path.join(npm, "package.json")))
+    ^version = Map.fetch!(manifest, "package_version")
+    ^version = get_in(manifest, ["verifier_kit", "version"])
+
+    Map.put(manifest, "package_checksums", %{
+      "hex" => PackageContents.checksum!(hex, :hex),
+      "npm" => PackageContents.checksum!(npm, :npm)
+    })
   end
 
   # Consumers live inside the driver's scratch directory and are removed before
   # it: a consumer's build links its priv directory into the unpacked package,
   # and Windows cannot remove that link once the package is gone.
-  def replay!(%{package: package, tarball: tarball, installed: installed, scratch: scratch}) do
+  defp verify_installed!(
+         %{package: package, tarball: tarball, installed: installed, scratch: scratch},
+         manifest_path
+       ) do
     repository = File.cwd!()
 
     ConsumerExamples.command!(
@@ -28,7 +65,15 @@ defmodule VerifyReleasePackages do
       []
     )
 
-    kit = Path.join(installed, "node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs")
+    npm = Path.join(installed, "node_modules/@agent-blueprint-protocol/verifier")
+
+    ConsumerExamples.command!(
+      ConsumerExamples.node_executable(),
+      [Path.join(__DIR__, "check_installed_package_contents.mjs"), manifest_path, package, npm],
+      []
+    )
+
+    kit = Path.join(npm, "dist/kit/cli.mjs")
     consumers = Path.join(scratch, "consumers")
     File.mkdir!(consumers)
     consumer = Path.join(consumers, "replay")
@@ -52,6 +97,19 @@ defmodule VerifyReleasePackages do
       ]
 
       ConsumerExamples.command!("mix", ["deps.get"], options)
+
+      ConsumerExamples.command!(
+        "mix",
+        [
+          "run",
+          "--no-start",
+          Path.join(__DIR__, "check_installed_package_contents.exs"),
+          manifest_path,
+          package,
+          npm
+        ],
+        options
+      )
 
       ConsumerExamples.command!(
         "mix",

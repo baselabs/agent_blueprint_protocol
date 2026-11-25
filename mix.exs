@@ -98,6 +98,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/0020-kit-cli.md",
         "docs/adr/0021-federation-mapping-identity.md",
         "docs/adr/0022-procedure-identity.md",
+        "docs/adr/0023-package-contents-identity.md",
         "spec/protocol.md",
         "spec/README.md",
         "spec/LICENSE",
@@ -165,6 +166,7 @@ defmodule AgentBlueprintProtocol.MixProject do
           AgentBlueprintProtocol.Signature.Attributes,
           AgentBlueprintProtocol.Signature.PublicKey,
           AgentBlueprintProtocol.Digest,
+          AgentBlueprintProtocol.PackageContents,
           AgentBlueprintProtocol.Reconcile,
           AgentBlueprintProtocol.Reconcile.Inputs,
           AgentBlueprintProtocol.Evidence,
@@ -279,7 +281,8 @@ defmodule AgentBlueprintProtocol.MixProject do
           "docs/adr/0019-runtime-boundary.md",
           "docs/adr/0020-kit-cli.md",
           "docs/adr/0021-federation-mapping-identity.md",
-          "docs/adr/0022-procedure-identity.md"
+          "docs/adr/0022-procedure-identity.md",
+          "docs/adr/0023-package-contents-identity.md"
         ],
         Governance: [
           "spec/IPR.md",
@@ -358,6 +361,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/0020-kit-cli.md",
         "docs/adr/0021-federation-mapping-identity.md",
         "docs/adr/0022-procedure-identity.md",
+        "docs/adr/0023-package-contents-identity.md",
         "CONTRIBUTING.md",
         "SUPPORT.md",
         "CODE_OF_CONDUCT.md",

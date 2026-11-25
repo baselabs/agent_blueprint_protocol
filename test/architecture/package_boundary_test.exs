@@ -47,6 +47,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/0020-kit-cli.md
     docs/adr/0021-federation-mapping-identity.md
     docs/adr/0022-procedure-identity.md
+    docs/adr/0023-package-contents-identity.md
     priv/release-metadata.json
     priv/release-history.json
     spec/protocol.md
@@ -117,6 +118,8 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     lib/agent_blueprint_protocol/deployment.ex
     lib/agent_blueprint_protocol/evidence.ex
     lib/agent_blueprint_protocol/federation.ex
+    lib/agent_blueprint_protocol/framed_files.ex
+    lib/agent_blueprint_protocol/package_contents.ex
     lib/agent_blueprint_protocol/negotiation.ex
     lib/agent_blueprint_protocol/digest.ex
     lib/agent_blueprint_protocol/error.ex
@@ -207,6 +210,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/0020-kit-cli.md
     docs/adr/0021-federation-mapping-identity.md
     docs/adr/0022-procedure-identity.md
+    docs/adr/0023-package-contents-identity.md
     spec/protocol.md
     spec/README.md
     spec/LICENSE

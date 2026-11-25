@@ -85,17 +85,10 @@ defmodule AgentBlueprintProtocol.ReleaseIdentity do
 
   @spec spec_digest() :: String.t()
   def spec_digest do
-    framed =
-      "spec/**/*"
-      |> Path.wildcard(match_dot: true)
-      |> Enum.reject(fn path -> macos_artifact?(path) or File.dir?(path) end)
-      |> Enum.sort()
-      |> Enum.map_join(fn path ->
-        bytes = File.read!(path)
-        <<byte_size(path)::unsigned-64>> <> path <> <<byte_size(bytes)::unsigned-64>> <> bytes
-      end)
-
-    "sha-256:" <> Base.url_encode64(:crypto.hash(:sha256, framed), padding: false)
+    "spec/**/*"
+    |> Path.wildcard(match_dot: true)
+    |> Enum.reject(fn path -> macos_artifact?(path) or File.dir?(path) end)
+    |> AgentBlueprintProtocol.FramedFiles.digest(&File.read!/1, "")
   end
 
   @spec expected_metadata() :: %{optional(String.t()) => term()}

@@ -96,6 +96,11 @@ The command prints the matching digest and exits `0`; a missing asset, failed do
 
 ## Verify SHA256SUMS and registry bytes
 
+Starting with 1.2.0, the release also publishes `release-manifest.json` with the contents
+checksums for the Hex and npm packages. It is covered by `SHA256SUMS`.
+After authenticating that asset, keep it with your build inputs to check
+an installed package without the archives. [Elixir example](verifying-in-ci.md#check-an-installed-package) · [TypeScript example](typescript.md#check-an-installed-package)
+
 For releases carrying SHA256SUMS, download all assets from the GitHub release
 `v<version>` into a fresh directory, using GitHub CLI or the release page:
 

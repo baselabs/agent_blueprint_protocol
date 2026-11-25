@@ -20,6 +20,8 @@ try {
   if(mappingIndex>=0)writeFileSync(join(scratch,'expected-mapping.json'),process.argv[mappingIndex+1]);
   cpSync('test/typescript/consumer.mjs',join(scratch,'consumer.mjs'));
   command(process.execPath,['consumer.mjs',root]);
+  cpSync('test/typescript/package_contents.mjs',join(scratch,'package_contents.mjs'));
+  command(process.execPath,['package_contents.mjs']);
   const guide=readFileSync('documentation/typescript.md','utf8');
   const sample=guide.match(/```js\n([\s\S]*?)```/)[1];
   const claimed=sample.match(/console\.log\(.*\); \/\/ (\S+)\n/)[1];
@@ -46,6 +48,8 @@ try {
     "import {procedureSchema,procedureDocumentCommitment,verifyProcedure,type ProcedureInputs,type Deployment,type Evidence} from '@agent-blueprint-protocol/verifier';\n"+
     "declare const procedureDeployment:Deployment;declare const procedureInputs:ProcedureInputs;const procedureResult:Result<Evidence>=verifyProcedure(procedureDeployment,procedureInputs);const procedureCommitment:Result<string>=procedureDocumentCommitment({type:'example.document',nonce:'0'.repeat(64)});procedureSchema();\n"+
     "// @ts-expect-error procedure import phases remain strict\nconst phase:ProcedureInputs['phase']='future_phase';\n"+
+    "import {verifyPackageContents,type PackageDistribution} from '@agent-blueprint-protocol/verifier';\n"+
+    "const distribution:PackageDistribution='npm';const contentsResult:Result<true>=verifyPackageContents('.',distribution,'checksum');\n"+
     "export function inspectNotice(value:Notice):boolean {switch(value){case KNOWN_NOTICES.extension_deprecated:return true;default:return false;}}\n";
   writeFileSync(join(scratch,'consumer.ts'),source+forward);
   writeFileSync(join(scratch,'tsconfig.json'),JSON.stringify({compilerOptions:{module:'nodenext',moduleResolution:'nodenext',target:'es2022',lib:['es2022'],types:[],strict:true,skipLibCheck:false,noEmit:true},files:['consumer.ts']}));

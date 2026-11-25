@@ -162,6 +162,7 @@ revision's `scripts/toolchain.sh` (and, for Hex, its uploader) and verifies
 the installed runtimes with that reader's `--installed`. Registry read-back runs in `npm-kit` and `hex-read-back` without
 publishing credentials. After package and docs read-back, all consumer files
 leave together as `release-assets`, including both package archives, the standalone verifier,
+the installed contents checksums in `release-manifest.json`,
 certified results, CHANGELOG release notes, the inspected served
 `hex-docs-<version>.tar.gz`, and SHA256SUMS. Publish's separate
 published-package jobs run installed consumers on Linux, macOS, and Windows with

@@ -40,6 +40,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicApiCensusTest do
       verify: 2
     ],
     AgentBlueprintProtocol.Procedure.Inputs => [],
+    AgentBlueprintProtocol.PackageContents => [verify: 3],
     AgentBlueprintProtocol.Error => [ceiling_keys: 0, codes: 0, declared?: 1],
     AgentBlueprintProtocol.Portability => [
       scan: 1,

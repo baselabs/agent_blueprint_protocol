@@ -1199,6 +1199,41 @@ version), and the archive-authorization stance. The companion
 release: the retroactive mapping a consumer binds when upgrading
 between pins.
 
+### Installed package contents identity (normative for the reference releases)
+
+Starting with release 1.2.0, the published `release-manifest.json` MUST
+contain the release metadata and a `package_checksums` object with one
+tagged SHA-256 digest each under `hex` and `npm`. Each checksum MUST be
+derived from the corresponding published archive. The Hex file set is
+the payload of `contents.tar.gz`. The npm file set is the payload below
+the tarball's `package/` directory. Archive headers, file metadata and
+directory entries are outside the checksum.
+
+The preimage starts with the UTF-8 bytes of
+`agent-blueprint-protocol/package-contents`, a zero byte, the ASCII
+distribution name (`hex` or `npm`), and a zero byte. Append the same
+file frames used for the specification digest. Each frame is the path
+byte length as an unsigned 64-bit big-endian integer, the UTF-8 path,
+the file byte length in the same integer encoding, and the exact file
+bytes. Paths are relative to the installation root, use `/` separators
+without a leading slash, and sort lexicographically by unsigned UTF-8
+bytes. Path components MUST be valid UTF-8 without backslashes. The
+result is `sha-256:` followed by unpadded base64url.
+
+The checksum MUST omit `priv/release-metadata.json` and
+`priv/release-history.json` for Hex, and `dist/release-metadata.json`
+and `dist/release-history.json` for npm. From an installed Hex root,
+also omit the installer records `.hex` and `hex_metadata.config`.
+All other regular files, including dotfiles, MUST participate. An
+unreadable tree or a non-directory entry other than a regular file
+MUST fail verification. The verification result MUST report
+`digest_mismatch` when the computed and published digests differ.
+
+Consumers MUST use the checksum from a trusted copy of the manifest
+for the intended release and distribution. The check establishes
+covered file identity. Historical compatibility replay evaluates
+verification semantics and does not compare package checksums.
+
 ## 17. Security considerations (normative)
 
 The threat model is not invented for this section: every threat below is

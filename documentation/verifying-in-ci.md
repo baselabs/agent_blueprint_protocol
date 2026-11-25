@@ -1,6 +1,50 @@
 # Verify in CI
 
-This guide has two paths: producers check their own files; implementers check corpus agreement. A corpus pass does not inspect your project's artifacts.
+Check installed release files, artifacts produced by your project, or agreement with the conformance corpus.
+
+## Check an installed package
+
+Get `release-manifest.json` from the GitHub release for the installed version
+and authenticate it as part of your release verification. Keep that copy
+with your build inputs. The contents check then runs offline. Run it from a
+trusted verifier installation when inspecting a package you suspect has
+changed. [Release asset verification](verifying-releases.md#verify-sha256sums-and-registry-bytes)
+
+For a Hex dependency, pass the source root named by
+`Mix.Project.deps_paths()[:agent_blueprint_protocol]` in the consuming project.
+Save this as `verify-package.exs` and run it with
+`mix run verify-package.exs /path/to/release-manifest.json`.
+
+<!-- fragment -->
+```elixir
+[manifest_path] = System.argv()
+manifest = manifest_path |> File.read!() |> :json.decode()
+root = Map.fetch!(Mix.Project.deps_paths(), :agent_blueprint_protocol)
+expected = get_in(manifest, ["package_checksums", "hex"])
+:ok = AgentBlueprintProtocol.PackageContents.verify(root, :hex, expected)
+```
+
+The checksum covers the paths and bytes shipped in the package payload.
+The embedded release metadata, release history, and Hex installation
+records are excluded. A covered file change, addition or removal returns
+`:digest_mismatch` with subject `["package_checksums", "hex"]`. The subject
+names the checksum field and registry, so CI can report the failing check
+without printing a local path. [npm example](typescript.md#check-an-installed-package)
+
+The example below uses a one-file tree and its fixed checksum. The
+packaged examples gate runs it through the installed Elixir verifier.
+
+```elixir
+root = Path.join(System.tmp_dir!(), "abp-contents-#{Base.encode16(:crypto.strong_rand_bytes(8))}")
+File.mkdir!(root)
+try do
+  File.write!(Path.join(root, "example.txt"), "ABP\n")
+  expected = "sha-256:e22NQGKEnrCgPgF93zZGvNy1eqJHta3Ztv3QYqfSomk"
+  :ok = AgentBlueprintProtocol.PackageContents.verify(root, :hex, expected)
+after
+  File.rm_rf!(root)
+end
+```
 
 ## Check artifacts produced by your project
 

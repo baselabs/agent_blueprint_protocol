@@ -24,6 +24,7 @@ defmodule AgentBlueprintProtocol.Architecture.DecisionRecordsTest do
     kit-cli
     federation-mapping-identity
     procedure-identity
+    package-contents-identity
   )
 
   test "tracked decision records have contiguous numbers, matching headings, and one status" do

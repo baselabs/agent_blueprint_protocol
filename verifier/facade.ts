@@ -1,4 +1,6 @@
 import type { ErrorCode } from './errors.ts';
+import { packageChecksum, type PackageDistribution } from './package_contents.ts';
+export type { PackageDistribution } from './package_contents.ts';
 import * as procedure from './procedure.ts';
 import * as bp from './blueprint.ts';
 import * as dep from './deployment.ts';
@@ -172,3 +174,24 @@ export function runCorpus(value:Corpus):Result<readonly (readonly CaseResult[])[
 export function buildReport(value:Corpus,results:readonly (readonly CaseResult[])[]):Result<Report>{return guarded(()=>{const r=report.toBytes(value.identity,results as any);return typeof r==='string'?JSON.parse(r):r;});}
 /** Build canonical, identity-free per-case results from the implementation. */
 export function buildResultsDocument(value:Corpus):Result<ResultsDocument>{return guarded(()=>resultsDocument(handles.get(value)!));}
+
+
+/** Check the installed root against the distribution's checksum in a trusted release manifest. */
+export function verifyPackageContents(
+  root: string, distribution: PackageDistribution, expected: unknown,
+): Result<true> {
+  const subject = ['package_checksums', distribution];
+  if (typeof expected !== 'string' || !/^sha-256:[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048](?![\s\S])/.test(expected)) {
+    return {ok: false, error: {code: 'digest_encoding_invalid', subject}};
+  }
+
+  let actual: string;
+  try {
+    actual = packageChecksum(root, distribution);
+  } catch {
+    return {ok: false, error: {code: 'invalid_constraint', subject}};
+  }
+  return actual === expected
+    ? {ok: true, value: true}
+    : {ok: false, error: {code: 'digest_mismatch', subject}};
+}

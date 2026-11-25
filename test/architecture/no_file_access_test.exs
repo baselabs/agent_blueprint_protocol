@@ -1,25 +1,12 @@
 defmodule AgentBlueprintProtocol.Architecture.NoFileAccessTest do
   @moduledoc """
-  The registry-drift gate (the registry acceptance line: "test asserts no
-  runtime registry file read exists"): no shipped module touches the
-  filesystem AT ALL — the compiled-in registry is data, and nothing in the
-  package has any business reading files.
+  Shipped modules that verify in-memory artifacts and corpus data have no
+  filesystem access. The registry is compiled in.
 
-  Enforced at the BEAM level via `ArchitectureScan.beam_remote_calls/1`:
-  aliases are expanded at compile time, so a renamed `File` cannot hide —
-  and the census covers the ERLANG filesystem modules too (`:file`,
-  `:filelib`, `:prim_file`), not just Elixir's `File` (the
-  `module == File` filter passed `:file.read_file/1` green).
-  Planted-red proven: a reachable `File.read!` call reds this gate.
-
-  The conformance carve-out: the conformance CLI is the package's one legitimate
-  filesystem consumer (reading the corpus directory the user points it at
-  — the "only Conformance.Cli.Main touches the filesystem" rule
-  posture, split here across the Cli + Cli.Main beams). The carve-out is
-  keyed EXACTLY to those two beams: the test asserts they exist (deleting
-  the CLI while keeping the carve-out reds) and no other module may join
-  it — widening the exclusion to any other conformance module (the loader,
-  the runner) reds the gate.
+  The conformance CLI and package contents check read the roots supplied by
+  their callers. Their filesystem calls are limited to the exact read-side
+  functions listed here. BEAM inspection resolves aliases and covers both
+  Elixir and Erlang filesystem modules.
   """
 
   use ExUnit.Case, async: true
@@ -33,26 +20,40 @@ defmodule AgentBlueprintProtocol.Architecture.NoFileAccessTest do
     "Elixir.AgentBlueprintProtocol.Conformance.Cli.Main.beam"
   ]
 
-  test "the carve-out modules exist (a deleted CLI with a kept carve-out reds)" do
+  @contents_beam "Elixir.AgentBlueprintProtocol.PackageContents.beam"
+  @contents_calls [{File, :ls!}, {File, :lstat!}, {File, :read!}]
+
+  test "the read-side modules exist" do
     names = Enum.map(@lib_beams, &Path.basename/1)
 
-    for beam <- @carve_out_beams do
+    for beam <- [@contents_beam | @carve_out_beams] do
       assert beam in names, "expected #{beam} to exist — the carve-out must track reality"
     end
   end
 
-  test "no shipped beam outside the CLI carve-out makes any File remote call" do
+  test "only the named read-side modules make filesystem calls" do
     assert match?([_ | _], @lib_beams)
 
     offenders =
       for beam <- @lib_beams,
-          Path.basename(beam) not in @carve_out_beams,
+          Path.basename(beam) not in [@contents_beam | @carve_out_beams],
           {module, fun} <- ArchitectureScan.beam_remote_calls(beam),
           module in [File, :file, :filelib, :prim_file],
           do: {Path.basename(beam), module, fun}
 
     assert offenders == [],
-           "shipped modules must never touch the filesystem: #{inspect(offenders)}"
+           "unexpected filesystem calls: #{inspect(offenders)}"
+  end
+
+  test "the package contents check uses only read-side filesystem calls" do
+    calls =
+      for beam <- @lib_beams,
+          Path.basename(beam) == @contents_beam,
+          {module, fun} <- ArchitectureScan.beam_remote_calls(beam),
+          module in [File, :file, :filelib, :prim_file],
+          do: {module, fun}
+
+    assert Enum.sort(Enum.uniq(calls)) == Enum.sort(@contents_calls)
   end
 
   test "the CLI carve-out contains no filesystem calls BEYOND read-side traversal" do

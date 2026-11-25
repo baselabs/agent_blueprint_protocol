@@ -35,8 +35,9 @@ Code.require_file("gate_command.exs", __DIR__)
 #    manifest-era tag has a row, both directions. The CURRENT release's
 #    row is verified against the live manifest by the release-candidate
 #    check (its tag exists only after release; the row gains its tag
-#    verification at the next release). The committed history must be a
-#    PREFIX of the working-tree history (append-only).
+#    verification at the next release). Published package checksums cover
+#    the built archives and are outside census replay. The committed history
+#    must be a PREFIX of the working-tree history (append-only).
 # 5. Kit replay: the TS verifier replays each PRIOR census through
 #    --prior-corpus; its report must byte-equal the Elixir side's and its
 #    exit must equal the report's own exit_status. (The current census's
@@ -565,16 +566,9 @@ defmodule AgentBlueprintProtocol.CompatibilityReplayGate do
   # ReleaseIdentity.spec_digest (u64 len path, path, u64 len bytes, bytes;
   # path-sorted; tagged sha-256), read from git instead of the working tree.
   def spec_digest_at(tag) do
-    framed =
-      git!(["ls-tree", "-r", "--name-only", tag, "--", "spec/"])
-      |> String.split("\n", trim: true)
-      |> Enum.sort()
-      |> Enum.map_join(fn path ->
-        bytes = git!(["show", "#{tag}:#{path}"])
-        <<byte_size(path)::unsigned-64>> <> path <> <<byte_size(bytes)::unsigned-64>> <> bytes
-      end)
-
-    "sha-256:" <> Base.url_encode64(:crypto.hash(:sha256, framed), padding: false)
+    git!(["ls-tree", "-r", "--name-only", tag, "--", "spec/"])
+    |> String.split("\n", trim: true)
+    |> AgentBlueprintProtocol.FramedFiles.digest(&git!(["show", "#{tag}:#{&1}"]), "")
   end
 
   # ---- kit replay ---------------------------------------------------------------------

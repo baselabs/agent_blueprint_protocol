@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   against the signed compatibility references.
 - Add four signed conformance cases covering mapping pin agreement, a
   different digest, legacy verification, and an absent mapping reference.
+- Publish Hex and npm contents checksums in the release manifest. Both
+  verifiers check an installed package offline against its published checksum.
 
 ## [1.1.2] - 2026-11-24
 
