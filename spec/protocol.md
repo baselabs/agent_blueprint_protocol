@@ -3,7 +3,7 @@
 Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:5_rJalJcCX__ZWU0AyO5YVakqvtRLLBN8R96j3gChoA`, 741 cases) are
+`sha-256:4y6KXOJ0d5mnjGt1xLpjniB049qFK_z1i_Nz_3B6EwA`, 747 cases) are
 certified against this document at every release through the release
 identity chain: the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -770,7 +770,7 @@ duplicate denies (`compatibility_identity_inexact`,
 Binding verification is a pinned deny-ordered check including
 attestation freshness (`binding_attestation_stale`) and
 descriptor-digest equality (`binding_descriptor_mismatch`: the tool
-rug-pull case).
+rug-pull case). Corpus reference is `reconcile-descriptor-replaced`.
 
 ## 11. Federation profile
 
@@ -1038,6 +1038,8 @@ and both `now` and a maximum attestation age are supplied; a future-date
 check alone does not establish staleness verification. Those skipped surfaces and every false
 check surface join `not_verified`. Canonical checks on structs establish
 encodability; they do not establish equality to unavailable received bytes.
+The cases `reconcile-descriptors-absent`, `reconcile-descriptors-partial`,
+and `reconcile-descriptor-other-operation` exercise descriptor coverage.
 `signature_created_at`, `lifecycle_state`, and `signature_time_validity` MUST
 appear in `not_verified`, in that order after the other host-owned facts.
 The signature timestamp is signed and format-checked but never judged;
@@ -1068,10 +1070,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-741 cases covering every required cell of the 19-surface × 31-class
+747 cases covering every required cell of the 19-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:5_rJalJcCX__ZWU0AyO5YVakqvtRLLBN8R96j3gChoA`. Corpus identity
+`sha-256:4y6KXOJ0d5mnjGt1xLpjniB049qFK_z1i_Nz_3B6EwA`. Corpus identity
 is the digest of the domain-separated index, versioned by digest, not
 by name. The loader is pure over an in-memory path-to-bytes map and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,
@@ -1249,7 +1251,7 @@ corpus does not carry.
 | Protocol downgrade | an older/newer revision forced on a consumer | `revision_above_max` `revision_below_min` | explicit revision SETs, both directions deny `protocol_revision_unsupported` |
 | Extension rug-pull via registry | unknown/retired namespace forced critical | `extension_unknown_critical` | registry-state table; deny with typed codes |
 | Schema-pin evasion | critical body validated against a different schema | `extension_schema_unavailable` | digest-pinned schemas; `extension_schema_digest_mismatch` |
-| Tool rug-pull | a bound tool's descriptor replaced out-of-band | `binding_stale` `compatibility_range_rejected` | binding verification: descriptor-digest equality + attestation freshness + identity-exact entries |
+| Tool rug-pull | a bound tool's descriptor replaced out-of-band | `binding_descriptor_mismatch` | binding verification: descriptor-digest equality + attestation freshness + identity-exact entries |
 | Ceiling widening | a bound or ceiling raised after the fact | `bound_widening_operational` `bound_widening_protected` | bounds may narrow only; protected narrowing denies by default; effective bounds never widen host policy |
 | Quarantined-content laundering | unscanned payload smuggled into a claim | `extension_unknown_optional_roundtrip` `forbidden_portable_value` | quarantine is typed unscanned; portability claims attach only to schema-validated content |
 | Receipt equivocation | two diverging terminal receipts for one task | `terminal_equivocation` `federation_terminal_conflict` | Terminal Commitment over seven components; ANY divergence denies |

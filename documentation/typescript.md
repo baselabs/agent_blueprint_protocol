@@ -145,9 +145,11 @@ console.log(describeError(denied.error.code)); // "unknown_member"
 
 ## Reconcile the shipped examples
 
-Save this as `reconcile.mts`, then type-check it and run `node reconcile.mts`. It reads the two packaged samples and prints `true`. These explicit bounds are example host configuration; real hosts supply their own limits. See [host inputs](host-integration.md) for their sources and observation types.
+Save this as `reconcile.mts`, then type-check it and run `node reconcile.mts`. It reads the two packaged samples, checks descriptor coverage and replacement, and prints `true`. The example copies pins into a fixture inventory. Real hosts observe tools independently and supply their own limits. See the [host integration guide](host-integration.md#compare-observations-and-freshness).
 
 ```ts
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
   decodeBlueprint,
@@ -159,7 +161,8 @@ import {
 } from "@agent-blueprint-protocol/verifier";
 
 const blueprint = decodeBlueprint(readFileSync(new URL("./dist/examples/echo-blueprint.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
-const deployment = decodeDeployment(readFileSync(new URL("./dist/examples/echo-deployment.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json"))));
+const deploymentBytes = readFileSync(new URL("./dist/examples/echo-deployment.json", import.meta.resolve("@agent-blueprint-protocol/verifier/package.json")));
+const deployment = decodeDeployment(deploymentBytes);
 if (!blueprint.ok) throw new Error(blueprint.error.code);
 if (!deployment.ok) throw new Error(deployment.error.code);
 
@@ -193,6 +196,32 @@ const inputs: Inputs = {
 };
 const result = reconcile(blueprint.value, deployment.value, inputs);
 if (!result.ok) throw new Error(result.error.code);
+
+const manifest: { tool_bindings: { logical_operation: string; descriptor_digest: string }[] } =
+  JSON.parse(deploymentBytes.toString("utf8"));
+const [first] = manifest.tool_bindings;
+if (!first) throw new Error("Expected a tool binding in the fixture");
+const inventory = Object.fromEntries(
+  manifest.tool_bindings.map(binding => [binding.logical_operation, binding.descriptor_digest])
+);
+const fresh = { now: "2026-08-20T00:00:01Z", maxAttestationAgeMs: 1000 };
+for (const observed of [{}, { [first.logical_operation]: first.descriptor_digest }]) {
+  const partial = reconcile(blueprint.value, deployment.value, {
+    ...inputs, observations: { ...fresh, observed },
+  });
+  if (!partial.ok) throw new Error(partial.error.code);
+  const binding = partial.value.checks.find(check => check.surface === "bind");
+  assert.equal(binding?.verified, false);
+  assert.ok(partial.value.not_verified.includes("binding_descriptors"));
+}
+
+const replacement = "sha-256:" + createHash("sha256").update("replacement descriptor").digest("base64url");
+const replaced = reconcile(blueprint.value, deployment.value, {
+  ...inputs, observations: {
+    ...fresh, observed: { ...inventory, [first.logical_operation]: replacement },
+  },
+});
+assert.equal(replaced.ok ? "valid" : replaced.error.code, "binding_descriptor_mismatch");
 console.log(result.value.not_verified.includes("signature_time_validity")); // true
 ```
 
@@ -502,9 +531,10 @@ try {
 
 ### Load and run a corpus in memory
 
-Save as `corpus.mts`, type-check it, and run `node corpus.mts`. It reads the installed package's corpus and prints `true true`. All file I/O here is explicit caller code; importing the library does no I/O.
+Save as `corpus.mts`, type-check it, and run `node corpus.mts`. It reads the installed package's corpus and prints `true true`. The argument mismatch comes from the [host invocation example](host-integration.md#check-invocation-arguments-alongside-authorization). All file I/O here is explicit caller code.
 
 ```ts
+import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -528,6 +558,8 @@ const report = buildReport(loaded.value, run.value);
 if (!report.ok) throw new Error(report.error.code);
 const document = buildResultsDocument(loaded.value);
 if (!document.ok) throw new Error(document.error.code);
+const mismatch = document.value.results.find(row => row.id === "schema-validate-binding-arguments-mismatch");
+assert.deepEqual(mismatch?.result, {verdict: "invalid", code: "invalid_type"});
 console.log(report.value.agreement, document.value.results.length === run.value.flat().length);
 ```
 

@@ -157,6 +157,53 @@ true = binding.verified
 
 In TypeScript the corresponding fresh observation is `{observed: inventory, now: "2026-08-20T00:00:01Z", maxAttestationAgeMs: 1000}`. Use `null` for omitted clock/age inputs; Elixir uses `nil`. The deterministic time above fits the example's fixed binding timestamps. A real host supplies its current clock and chosen age limit.
 
+Keep the fresh clock and remove one or all descriptor observations. The result records a passing staleness check and an unverified descriptor check in both cases:
+
+```elixir
+for observed <- [%{}, Map.delete(fresh.observed, operation)] do
+  {:ok, evidence} =
+    AgentBlueprintProtocol.reconcile(blueprint, deployment, %{
+      inputs
+      | observations: %{fresh | observed: observed}
+    })
+
+  binding = Enum.find(evidence.checks, &(&1.surface == :bind))
+  false = binding.verified
+  true = :binding_staleness in binding.detail.checked
+  [:binding_descriptors] = binding.detail.not_verified
+  true = :binding_descriptors in evidence.not_verified
+end
+```
+
+The shared cases `reconcile-descriptor-replaced`, `reconcile-descriptors-absent`, and `reconcile-descriptors-partial` replay these outcomes in both verifiers.
+
+## Check invocation arguments alongside authorization
+
+ABP reconciles the manifest's declared operations against the Blueprint and compares descriptor observations by exact logical operation. An observation for an unbound operation leaves any missing bound observation unverified, even if the digests match. Reconcile validates the Blueprint's `argument_schema` as a schema document and the manifest's `schema_digest` as a tagged digest. The host supplies the invocation arguments to the instance validator and compares schema bytes using its own digest convention.
+
+The Bounded Authority Protocol's [loopback HTTP fixture](https://github.com/baselabs/bounded_authority_protocol/blob/v1.1.0/priv/conformance/application-profiles/local-loopback-http/v1/profile.json) has operation `read_record` and cast arguments `{"record_id":"record-1"}`. Its [`local-ipv4-valid` case](https://github.com/baselabs/bounded_authority_protocol/blob/v1.1.0/priv/conformance/application-profiles/local-loopback-http/v1/proof-cases.json) records a successful envelope check for that request. The [draft MCP capability-authorization extension](https://github.com/baselabs/bounded_authority_protocol/blob/v1.1.0/docs/extensions/mcp-sep-capability-authorization.md) describes the corresponding authorization mechanism for MCP.
+
+In ABP's `reconcile-descriptor-other-operation` case, the binding for `example.demo.read_shape` has an integer `record_id` argument schema. The inventory reports that binding's digest under `read_record`. Reconcile returns `verified: false` for the bind check and lists `binding_descriptors` in `not_verified`. The host's instance validation rejects the HTTP fixture's arguments against the read-shape schema:
+
+```elixir
+alias AgentBlueprintProtocol.{Json, Schema}
+
+{:ok, argument_schema} =
+  Json.decode(
+    ~s({"type":"object","required":["record_id"],"properties":{"record_id":{"type":"integer"}},"additionalProperties":false})
+  )
+
+{:ok, matching_arguments} = Json.decode(~s({"record_id":1}))
+{:ok, proof_arguments} = Json.decode(~s({"record_id":"record-1"}))
+
+:ok = Schema.validate_instance(argument_schema, matching_arguments, Schema.dialect())
+
+{:error, %AgentBlueprintProtocol.Error{code: :invalid_type}} =
+  Schema.validate_instance(argument_schema, proof_arguments, Schema.dialect())
+```
+
+The cases `schema-validate-binding-arguments-match` and `schema-validate-binding-arguments-mismatch` exercise the same instance checks in both runtimes. The host evaluates transport proofs independently. ABP evidence always leaves authority and execution in `not_verified`.
+
 ## Read evidence and preserve host boundaries
 
 Read both artifact subjects, effective bounds, every clamp, retained extensions, and the nonempty `not_verified` list. Signature creation time, lifecycle state, and the validity periods of the signing key and signature remain unverified by reconciliation as `signature_created_at`, `lifecycle_state`, and `signature_time_validity`. Tenancy, live policy, authority, effect ownership, execution, billing, and evaluation truth remain host-owned. Protocol evidence does not make those local decisions.

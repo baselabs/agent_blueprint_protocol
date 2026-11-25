@@ -71,7 +71,7 @@ console.log(result.ok ? "valid" : result.error.code); // valid
 
 `npm view @agent-blueprint-protocol/verifier dist-tags` lists the published version for each npm tag.
 
-The conformance corpus contains 741 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
+The conformance corpus contains 747 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
 
 ## Documentation
 

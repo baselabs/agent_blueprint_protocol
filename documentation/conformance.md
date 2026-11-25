@@ -45,13 +45,13 @@ An [execution adapter](glossary.md#execution-adapter) reads one JSON object per 
 The following transcript was captured while the npm package's harness ran its own `--serve` adapter over its shipped corpus. The handshake request was:
 
 ```json
-{"corpus_digest":"sha-256:5_rJalJcCX__ZWU0AyO5YVakqvtRLLBN8R96j3gChoA","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI","version":1}
+{"corpus_digest":"sha-256:4y6KXOJ0d5mnjGt1xLpjniB049qFK_z1i_Nz_3B6EwA","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI","version":1}
 ```
 
 The adapter answered:
 
 ```json
-{"corpus_digest":"sha-256:5_rJalJcCX__ZWU0AyO5YVakqvtRLLBN8R96j3gChoA","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI","version":1}
+{"corpus_digest":"sha-256:4y6KXOJ0d5mnjGt1xLpjniB049qFK_z1i_Nz_3B6EwA","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI","version":1}
 ```
 
 The first case request was:
@@ -80,7 +80,7 @@ node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.rea
 
 The adapter command after `--` is started directly without a shell. A Windows `.cmd` or `.bat` launcher must be run through its interpreter, such as `cmd.exe /c`. The installed package command above uses `node` so the same adapter command runs on Linux, macOS, and Windows. If the adapter cannot be started, the harness names the startup failure and exits `18` (`early_exit`).
 
-The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 741` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
+The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 747` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
 
 Rerun with all claim metadata to produce an unsigned claim. These generic labels describe this demonstration; replace them with your implementation's actual source revision, version, platform, and run date when making your own claim:
 

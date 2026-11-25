@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Ship descriptor-pinning examples and cross-runtime conformance cases for
+  replaced descriptors, missing observations, and invocation argument checks
+  alongside authorization proofs.
 - Expose a canonical digest of the federation mapping rows in Elixir and
   TypeScript. Terminal receipt verification accepts an optional receiver pin
   against the signed compatibility references.

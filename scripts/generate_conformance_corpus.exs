@@ -3001,6 +3001,13 @@ all_cases = all_cases ++ artifact_purpose_cases ++ receipt_purpose_cases ++ clos
 defmodule ImportCases do
   alias AgentBlueprintProtocol.{BlueprintFixture, DeploymentFixture, Digest}
 
+  @record_arguments %{
+    "type" => "object",
+    "required" => ["record_id"],
+    "properties" => %{"record_id" => %{"type" => "integer"}},
+    "additionalProperties" => false
+  }
+
   def redigest(map, domain, field) do
     input = Map.drop(map, [field, "signatures", "attestations"])
     Map.put(map, field, CorpusGen.tagged_digest(domain, CorpusGen.json_text!(input)))
@@ -3191,6 +3198,41 @@ defmodule ImportCases do
           Map.new(dep["tool_bindings"], &{&1["logical_operation"], &1["descriptor_digest"]})
       })
 
+    [read_binding | _] = dep["tool_bindings"]
+    read_operation = read_binding["logical_operation"]
+    all_descriptors = full_host["observations"]["observed"]
+    replacement = Digest.to_tagged(Digest.of("replacement descriptor"))
+
+    replacement_host =
+      put_in(full_host, ["observations", "observed", read_operation], replacement)
+
+    absent_descriptors_host = put_in(full_host, ["observations", "observed"], %{})
+
+    partial_descriptors_host =
+      put_in(full_host, ["observations", "observed"], Map.take(all_descriptors, [read_operation]))
+
+    record_bp =
+      put_in(bp, ["capability_requirements", Access.at(0), "argument_schema"], @record_arguments)
+      |> honest.()
+
+    # The fixture host pins the SHA-256 of the canonical argument schema.
+    schema_pin = Digest.to_tagged(Digest.of(CorpusGen.json_text!(@record_arguments)))
+
+    record_dep =
+      dep
+      |> put_in(["blueprint_release", "content_digest"], record_bp["content_digest"])
+      |> put_in(["tool_bindings", Access.at(0), "schema_digest"], schema_pin)
+      |> redigest(:deployment_content, "deployment_digest")
+
+    wrong_operation_host =
+      put_in(
+        full_host,
+        ["observations", "observed"],
+        all_descriptors
+        |> Map.delete(read_operation)
+        |> Map.put("read_record", read_binding["descriptor_digest"])
+      )
+
     clamped =
       put_in(dep, ["host_bounds", "disclosure_ceiling"], "summary")
       |> redigest(:deployment_content, "deployment_digest")
@@ -3254,6 +3296,38 @@ defmodule ImportCases do
         expectation(bp, dep, partial_host)
       ),
       row.("observed", "valid", bp, dep, full_host, expectation(bp, dep, full_host)),
+      row.(
+        "descriptor-replaced",
+        "invalid_constraint",
+        bp,
+        dep,
+        replacement_host,
+        deny.("binding_descriptor_mismatch", ["deployment"])
+      ),
+      row.(
+        "descriptors-absent",
+        "valid",
+        bp,
+        dep,
+        absent_descriptors_host,
+        expectation(bp, dep, absent_descriptors_host)
+      ),
+      row.(
+        "descriptors-partial",
+        "valid",
+        bp,
+        dep,
+        partial_descriptors_host,
+        expectation(bp, dep, partial_descriptors_host)
+      ),
+      row.(
+        "descriptor-other-operation",
+        "valid",
+        record_bp,
+        record_dep,
+        wrong_operation_host,
+        expectation(record_bp, record_dep, wrong_operation_host)
+      ),
       row.("root", "invalid_type", nil, dep, host, deny.("invalid_type", ["blueprint"])),
       row.(
         "digest",
@@ -3583,8 +3657,25 @@ defmodule ImportCases do
     }
 
     cases ++
+      argument_cases() ++
       signed ++
       [deprecated, notice, retired_notice] ++ unknown_optional ++ timestamps ++ signature_cases
+  end
+
+  defp argument_cases do
+    for {name, record_id, class, expected} <- [
+          {"match", 1, "valid", %{"verdict" => "valid", "valid" => true}},
+          {"mismatch", "record-1", "invalid_type",
+           %{"verdict" => "invalid", "code" => "invalid_type"}}
+        ] do
+      %{
+        "id" => "schema-validate-binding-arguments-" <> name,
+        "surface" => "schema.validate_instance",
+        "class" => class,
+        "input" => %{"schema" => @record_arguments, "instance" => %{"record_id" => record_id}},
+        "expected" => expected
+      }
+    end
   end
 end
 
