@@ -178,7 +178,6 @@ reference implementation's to enforce.
 
 | Member | Card. | Type | Constraints |
 |---|---|---|---|
-| `authority_requirement` | 1 | object{ adapter_identity:string; profile_identity:string } | - |
 | `blueprint_release` | 1 | object{ blueprint_id:string; release_number:integer; content_digest:string } | - |
 | `build_identities` | 1 | array<object{ kind:enum(adapter\|build\|extension\|package); name:string; version:string; digest:string }> | max 128, min 1, unique by name |
 | `data_bindings` | 1 | array<object{ logical_dataset:string; classification_ceiling:enum(confidential\|internal\|public\|restricted); as_of:object{ mode:enum(none\|required); max_age_ms:custom } }> | max 64, unique by logical_dataset |
@@ -197,6 +196,9 @@ reference implementation's to enforce.
 | `signatures` | 0..1 | array<custom> | max 16 |
 | `attestations` | 0..1 | array<any> | max 16 |
 | `deployment_digest` | 1 | string | value: tagged digest |
+| `authority_requirement` | 1 | object{ adapter_identity:string; profile_identity:string } | - |
+
+ABP assigns no meaning to `adapter_identity` or `profile_identity`; a host resolves them, and ABP evaluates neither an agreement nor an authorization decision.
 
 Every `max_cost.amount`, including Blueprint `ceilings`, Deployment
 `host_bounds`, and `model_policy`, is an integer count of millionths
