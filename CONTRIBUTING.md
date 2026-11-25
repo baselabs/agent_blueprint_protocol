@@ -123,17 +123,32 @@ checked against full Git history. Invalid or missing provenance refuses publicat
 success prints the published commit from the served docs.
 
 npm uses staged trusted publishing with provenance in environment `publish`.
-Hex uses `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION --checksum SHA256 [--package ARCHIVE] [--docs DOCS]`
-through the pinned client's API from a directory with no Mix project. The upload
-step uses `HEX_API_KEY` for both POSTs and the staged-status GET. Release API
-GETs for public packages are anonymous. With `--organization`, the uploader
-requires a non-empty `HEX_ORG_KEY_PUBLISH_API_READ` key scoped to `api:read`.
-An organization workflow gives that key only to its upload step. Before checking
-for a missing organization release, the uploader confirms access with an uncached
-package GET that returns the expected package and repository. A docs-only retry
-carries the verified package checksum from the plan. Immediately before a live
-docs POST, the uploader rereads the release API and requires an unretired release
-with that checksum and `has_docs: false`.
+Hex runs `mix run --no-mix-exs` from a directory with no Mix project and uses the
+pinned client's API.
+
+```text
+scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION
+  --counterpart-repository REPO --counterpart-package NAME [--counterpart-package NAME ...]
+  --checksum SHA256 [--package ARCHIVE] [--docs DOCS]
+```
+
+Before uploading either archive, the uploader checks the version in the
+counterpart repository for every named package, including historical names
+for the same OTP application. For public uploads, `REPO` names the counterpart
+organization. For organization uploads, use `hexpm`. Release API GETs for public
+packages are anonymous. For an organization counterpart, the same key must first
+read the organization itself; only then does a missing release count as absent.
+The counterpart check refuses redirects and any result that fails to establish
+that the version is absent.
+
+The upload step uses `HEX_API_KEY` for both POSTs and the staged-status GET. Any
+organization release read requires a non-empty `HEX_ORG_KEY_PUBLISH_API_READ`
+key scoped to `api:read`. The workflow gives that key only to its upload step.
+For uploads to an organization, the uploader confirms access to the destination
+package with an uncached GET that returns the expected package and repository.
+A docs-only retry carries the verified package checksum from the plan.
+Immediately before a live docs POST, the uploader rereads the release API and
+requires an unretired release with that checksum and `has_docs: false`.
 
 Before either POST, the uploader checks for pending release and docs stages. It
 keeps a matching release stage and any pending docs. For a stage created in the
@@ -175,8 +190,9 @@ No tag push or workflow event starts Pages.
 
 Before publication, maintainers configure npm's trusted publisher for this
 repository, `publish.yml`, and environment `publish`, together with
-`HEX_API_KEY` as an environment secret and maintainer review and default-branch deployment
-protection. Publication credentials are available only to the upload steps.
+`HEX_API_KEY` as an environment secret, `HEX_ORG_KEY_PUBLISH_API_READ` as an
+environment secret, and maintainer review and default-branch deployment protection.
+Publication credentials are available only to the upload steps.
 
 ## Next steps
 

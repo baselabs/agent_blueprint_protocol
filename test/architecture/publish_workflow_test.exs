@@ -206,7 +206,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     refute hex =~ "npx"
   end
 
-  test "only npm gets OIDC and only the conditional no-project Hex upload gets the key" do
+  test "only npm gets OIDC and only the conditional no-project Hex upload gets the keys" do
     workflow = workflow("publish")
     npm = job(workflow, "npm-publish")
     hex = job(workflow, "hex-publish")
@@ -225,6 +225,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert key_step =~ "HEX_CHECKSUM: ${{ needs.verify.outputs.hex_checksum }}"
     assert key_step =~ "HEX_API_KEY: ${{ secrets.HEX_API_KEY }}"
 
+    assert key_step =~
+             "HEX_ORG_KEY_PUBLISH_API_READ: ${{ secrets.HEX_ORG_KEY_PUBLISH_API_READ }}"
+
     assert_before(
       key_step,
       ~s|set -- agent_blueprint_protocol "$VERSION" --checksum "$HEX_CHECKSUM"|,
@@ -233,6 +236,12 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     assert key_step =~ ~s|if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package|
     assert key_step =~ ~s|if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs|
+    assert key_step =~ "--counterpart-repository baselabs"
+
+    assert Regex.scan(~r/--counterpart-package ([a-z_]+)/, key_step, capture: :all_but_first) == [
+             ["agent_blueprint_protocol"]
+           ]
+
     assert key_step =~ ~s|--package "../verified-release/agent_blueprint_protocol-${VERSION}.tar"|
     assert key_step =~ "--docs ../verified-release/hex-docs.tar.gz"
 
@@ -240,7 +249,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
              ~s|mix run --no-mix-exs scripts/publish_hex_artifacts.exs "$@"|
 
     refute key_step =~ "--organization"
-    refute workflow =~ "HEX_ORG_KEY_PUBLISH_API_READ"
+    assert length(Regex.scan(~r/^ +HEX_ORG_KEY_PUBLISH_API_READ:/m, workflow)) == 1
     assert length(Enum.filter(steps(workflow), &(&1 =~ "HEX_API_KEY"))) == 1
     refute npm =~ "HEX_API_KEY"
   end

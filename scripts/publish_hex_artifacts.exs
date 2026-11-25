@@ -1,6 +1,6 @@
 # Upload only missing, verified archives with Hex 2.7.0's API, package before docs.
 # From a directory without mix.exs (no project is loaded or compiled under the key):
-#   mix run --no-mix-exs PATH/publish_hex_artifacts.exs [--organization ORG] NAME VERSION --checksum SHA256 [--package ARCHIVE] [--docs DOCS]
+#   mix run --no-mix-exs PATH/publish_hex_artifacts.exs [--organization ORG] NAME VERSION --counterpart-repository REPO --counterpart-package NAME [--counterpart-package NAME ...] --checksum SHA256 [--package ARCHIVE] [--docs DOCS]
 # Check the live release and, when held, its stage immediately before posting docs.
 # Public release reads are anonymous. Organization release reads use a separate API-read key.
 # Credentials come only from this step's env. No response body or key is printed.
@@ -10,10 +10,20 @@ defmodule PublishHexArtifacts do
   @moduledoc false
 
   @held 75
+  @usage "usage: publish_hex_artifacts.exs [--organization ORG] NAME VERSION " <>
+           "--counterpart-repository REPO --counterpart-package NAME [--counterpart-package NAME ...] " <>
+           "--checksum SHA256 [--package ARCHIVE] [--docs DOCS]"
 
   def main(argv) do
     case OptionParser.parse(argv,
-           strict: [organization: :string, checksum: :string, package: :string, docs: :string]
+           strict: [
+             organization: :string,
+             counterpart_repository: :string,
+             counterpart_package: :keep,
+             checksum: :string,
+             package: :string,
+             docs: :string
+           ]
          ) do
       {opts, [name, version], []} ->
         if is_nil(opts[:package]) and is_nil(opts[:docs]),
@@ -25,14 +35,48 @@ defmodule PublishHexArtifacts do
           raise "--checksum must be a full lowercase SHA-256 of the verified package archive"
         end
 
-        publish(opts[:organization], name, version, opts[:package], opts[:docs], checksum)
+        repo = if repo = opts[:organization], do: String.trim(repo)
+        counterpart_option = String.trim(opts[:counterpart_repository] || "")
+        counterpart_repo = counterpart_repository!(repo, counterpart_option)
+        counterpart_packages = Keyword.get_values(opts, :counterpart_package)
+
+        if counterpart_packages == [] or Enum.any?(counterpart_packages, &(String.trim(&1) == "")) do
+          Mix.raise("at least one non-empty --counterpart-package is required")
+        end
+
+        publish(
+          {repo, counterpart_repo, counterpart_packages},
+          name,
+          version,
+          opts[:package],
+          opts[:docs],
+          checksum
+        )
 
       _ ->
-        raise "usage: publish_hex_artifacts.exs [--organization ORG] NAME VERSION --checksum SHA256 [--package ARCHIVE] [--docs DOCS]"
+        Mix.raise(@usage)
     end
   end
 
-  defp publish(repo, name, version, archive, docs, checksum) do
+  defp counterpart_repository!(nil, repo) when repo not in ["", "hexpm"], do: repo
+
+  defp counterpart_repository!(repo, "hexpm") when is_binary(repo) and repo not in ["", "hexpm"],
+    do: nil
+
+  defp counterpart_repository!(_repo, _counterpart) do
+    Mix.raise(
+      "--counterpart-repository must name an organization for a public upload or hexpm for an organization upload"
+    )
+  end
+
+  defp publish(
+         {repo, counterpart_repo, counterpart_packages},
+         name,
+         version,
+         archive,
+         docs,
+         checksum
+       ) do
     if Mix.Project.get() do
       raise "a Mix project is loaded; run from a directory without mix.exs"
     end
@@ -60,6 +104,8 @@ defmodule PublishHexArtifacts do
       upload_config: uncached_config(repo, upload_auth),
       upload_auth: upload_auth
     }
+
+    check_counterpart!(counterpart_repo, counterpart_packages, version)
 
     package_result = if archive, do: publish_package!(target, archive), else: :skipped
     docs_result = if docs, do: publish_docs!(target, docs, package_result)
@@ -99,7 +145,57 @@ defmodule PublishHexArtifacts do
   # Use Hex's repository routing and ask the API to revalidate cached responses.
   defp uncached_config(repo, auth) do
     Hex.API.Client.build_config(repo, auth)
+    |> no_cache()
+  end
+
+  defp no_cache(config) do
+    config
     |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
+  end
+
+  def check_counterpart!(repo, packages, version) do
+    auth = release_read_auth!(repo)
+
+    # Hex.HTTP follows redirects and can read netrc. Use hex_core's bundled adapter
+    # directly for this check, with the default HTTPS API and only explicit auth.
+    config =
+      %{
+        :mix_hex_core.default_config()
+        | api_repository: repo || :undefined,
+          api_key: auth[:key] || :undefined,
+          http_adapter:
+            {:mix_hex_http_httpc, %{http_options: [autoredirect: false, timeout: 15_000]}}
+      }
+      |> no_cache()
+
+    # hexpm answers 404 for a missing release and also for a key without access to
+    # the organization, so an organization 404 proves absence only after the same
+    # key reads the organization itself (hexpm repository_controller.ex:4-37).
+    if repo, do: counterpart_access!(:mix_hex_api.get(config, ["repos", repo]), repo, version)
+
+    packages
+    |> Stream.map(&:mix_hex_api_release.get(config, &1, version))
+    |> check_counterpart_responses!(version)
+  end
+
+  def counterpart_access!({:ok, {200, _headers, %{"name" => repo}}}, repo, _version), do: :ok
+
+  def counterpart_access!(_response, _repo, version),
+    do: Mix.raise("Hex counterpart check refused version #{version}: registry result unknown")
+
+  def check_counterpart_responses!(responses, version) do
+    Enum.each(responses, fn
+      {:ok, {404, _headers, _body}} ->
+        :ok
+
+      {:ok, {200, _headers, %{"version" => ^version}}} ->
+        Mix.raise("Hex counterpart check refused version #{version}: already listed")
+
+      _response ->
+        Mix.raise("Hex counterpart check refused version #{version}: registry result unknown")
+    end)
+
+    IO.puts("Hex counterpart check passed")
   end
 
   defp require_org_package!(%{repo: repo, name: name, release_config: release_config}) do

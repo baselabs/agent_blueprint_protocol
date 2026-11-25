@@ -37,12 +37,13 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert contributing =~ "scripts/toolchain.sh"
 
     assert contributing =~
-             "scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION --checksum SHA256 [--package ARCHIVE] [--docs DOCS]"
-
-    assert contributing =~ "GETs for public packages are anonymous"
+             "scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION"
 
     assert contributing =~
-             "requires a non-empty `HEX_ORG_KEY_PUBLISH_API_READ` key scoped to `api:read`"
+             "--counterpart-repository REPO --counterpart-package NAME [--counterpart-package NAME ...]"
+
+    assert contributing =~ "packages are anonymous"
+    assert contributing =~ "`HEX_ORG_KEY_PUBLISH_API_READ` as an\nenvironment secret"
 
     assert contributing =~ "come from the revision that supplied the dispatched workflow"
 

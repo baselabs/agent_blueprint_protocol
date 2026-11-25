@@ -1,9 +1,12 @@
 defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureIO
 
   @moduletag timeout: 180_000
   @version "1.1.0"
   @checksum String.duplicate("a", 64)
+  @org_counterpart ~w(--counterpart-repository example-org --counterpart-package name)
+  @public_counterpart ~w(--counterpart-repository hexpm --counterpart-package name)
 
   setup_all do
     path = "scripts/publish_hex_artifacts.exs"
@@ -245,9 +248,6 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
   test "both upload gates read stages before their final release GET" do
     script = File.read!("scripts/publish_hex_artifacts.exs")
 
-    assert script =~
-             "publish(opts[:organization], name, version, opts[:package], opts[:docs], checksum)"
-
     assert script =~ "release_config = uncached_config(repo, release_read_auth!(repo))"
     assert script =~ ~s|Map.put(&1, "cache-control", "no-cache")|
     assert script =~ "if target.repo, do: require_org_package!(target)"
@@ -271,6 +271,154 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
     assert length(:binary.matches(script, "Hex.API.ReleaseDocs.publish(")) == 1
   end
 
+  test "the counterpart check precedes both upload paths on every invocation" do
+    script = File.read!("scripts/publish_hex_artifacts.exs")
+
+    assert script =~
+             ~r/check_counterpart!\(counterpart_repo, counterpart_packages, version\)\s+package_result = if archive, do: publish_package!\(target, archive\), else: :skipped\s+docs_result = if docs, do: publish_docs!\(target, docs, package_result\)/
+  end
+
+  test "the uploader requires an explicit opposite registry and at least one twin name",
+       %{uploader: uploader} do
+    args = ["name", @version, "--checksum", @checksum, "--docs", "docs"]
+
+    for opts <- [
+          [],
+          ~w(--counterpart-repository hexpm --counterpart-package name),
+          ~w(--organization example-org --counterpart-repository example-org --counterpart-package name),
+          ~w(--organization example-org --counterpart-package name),
+          ["--counterpart-repository", "  ", "--counterpart-package", "name"]
+        ] do
+      assert_raise Mix.Error, ~r/--counterpart-repository must name an organization/, fn ->
+        uploader.main(opts ++ args)
+      end
+    end
+
+    for opts <- [
+          ~w(--counterpart-repository example-org),
+          ["--counterpart-package", "  " | @org_counterpart]
+        ] do
+      assert_raise Mix.Error, "at least one non-empty --counterpart-package is required", fn ->
+        uploader.main(opts ++ args)
+      end
+    end
+
+    assert_raise Mix.Error, ~r/\Ausage: publish_hex_artifacts.exs/, fn ->
+      uploader.main(args ++ ["--counterpart-package"])
+    end
+  end
+
+  test "the counterpart check passes only after all names return 404", %{uploader: uploader} do
+    missing = {:ok, {404, %{}, %{"message" => "counterpart response body"}}}
+
+    listed =
+      {:ok,
+       {200, %{},
+        %{"version" => @version, "retirement" => %{"reason" => "counterpart response body"}}}}
+
+    assert capture_io(fn ->
+             uploader.check_counterpart_responses!([missing, missing], @version)
+           end) == "Hex counterpart check passed\n"
+
+    assert_raise Mix.Error,
+                 "Hex counterpart check refused version #{@version}: already listed",
+                 fn ->
+                   uploader.check_counterpart_responses!([missing, listed], @version)
+                 end
+  end
+
+  test "unexpected counterpart results refuse without printing any response data",
+       %{uploader: uploader} do
+    body = %{"version" => "9.9.9", "message" => "counterpart response body"}
+    redirect = %{"location" => "https://example.org/"}
+
+    responses = [
+      {:ok, {200, %{}, body}},
+      {:ok, {200, %{}, nil}},
+      {:ok, {302, redirect, body}},
+      {:ok, {401, %{}, body}},
+      {:ok, {403, %{}, body}},
+      {:ok, {429, %{}, body}},
+      {:ok, {500, %{}, body}},
+      {:error, {:transport, body}}
+    ]
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert capture_io(fn ->
+                 for response <- responses do
+                   assert_raise Mix.Error,
+                                "Hex counterpart check refused version #{@version}: registry result unknown",
+                                fn ->
+                                  uploader.check_counterpart_responses!([response], @version)
+                                end
+                 end
+               end) == ""
+      end)
+
+    refute stderr =~ body["message"]
+    refute stderr =~ redirect["location"]
+  end
+
+  test "an organization counterpart counts a 404 only after the key reads the organization",
+       %{uploader: uploader} do
+    body = %{"name" => "other-org", "message" => "counterpart response body"}
+
+    assert uploader.counterpart_access!(
+             {:ok, {200, %{}, %{"name" => "example-org"}}},
+             "example-org",
+             @version
+           ) == :ok
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert capture_io(fn ->
+                 for response <- [
+                       {:ok, {404, %{}, body}},
+                       {:ok, {200, %{}, body}},
+                       {:ok, {200, %{}, nil}},
+                       {:ok, {401, %{}, body}},
+                       {:ok, {403, %{}, body}},
+                       {:error, {:transport, body}}
+                     ] do
+                   assert_raise Mix.Error,
+                                "Hex counterpart check refused version #{@version}: registry result unknown",
+                                fn ->
+                                  uploader.counterpart_access!(response, "example-org", @version)
+                                end
+                 end
+               end) == ""
+      end)
+
+    refute stderr =~ body["message"]
+
+    script = File.read!("scripts/publish_hex_artifacts.exs")
+
+    assert script =~
+             ~r/if repo, do: counterpart_access!\(:mix_hex_api.get\(config, \["repos", repo\]\), repo, version\)\s+packages\s+\|> Stream.map\(&:mix_hex_api_release.get\(config, &1, version\)\)/
+  end
+
+  test "the real anonymous counterpart API detects a listed version after a missing twin",
+       %{uploader: uploader} do
+    Application.ensure_all_started!(:ssl)
+    Application.ensure_all_started!(:inets)
+    missing = "abp_release_probe_nonexistent_7e1d4cca8233"
+
+    assert capture_io(fn ->
+             uploader.check_counterpart!(nil, [missing], @version)
+           end) == "Hex counterpart check passed\n"
+
+    assert_raise Mix.Error,
+                 "Hex counterpart check refused version #{@version}: already listed",
+                 fn ->
+                   uploader.check_counterpart!(
+                     nil,
+                     [missing, "agent_blueprint_protocol"],
+                     @version
+                   )
+                 end
+  end
+
   test "release reads use anonymous public access or a separate organization API-read key" do
     script = File.read!("scripts/publish_hex_artifacts.exs")
     assert script =~ "defp release_read_auth!(nil), do: []"
@@ -288,16 +436,17 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
 
   test "organization uploads fail before any request when their API-read key is absent or blank" do
     AgentBlueprintProtocol.Scratch.with_dir("hex-org-read-key", fn dir ->
-      args = [
-        "--organization",
-        "example-org",
-        "name",
-        @version,
-        "--checksum",
-        @checksum,
-        "--docs",
-        "docs"
-      ]
+      args =
+        [
+          "--organization",
+          "example-org",
+          "name",
+          @version,
+          "--checksum",
+          @checksum,
+          "--docs",
+          "docs"
+        ] ++ @public_counterpart
 
       for value <- [nil, "", "  "] do
         {output, status} =
@@ -324,14 +473,15 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       end
       """)
 
-      args = [
-        "agent_blueprint_protocol",
-        @version,
-        "--checksum",
-        @checksum,
-        "--docs",
-        "docs.tar.gz"
-      ]
+      args =
+        [
+          "agent_blueprint_protocol",
+          @version,
+          "--checksum",
+          @checksum,
+          "--docs",
+          "docs.tar.gz"
+        ] ++ @org_counterpart
 
       {output, status} = hex("publish_hex_artifacts.exs", args, outside)
       assert status != 0

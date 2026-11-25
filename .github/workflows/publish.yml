@@ -5,7 +5,7 @@ name: Publish
 # Refuse unknown package names and an existing remote tag. Redispatch the same
 # release_commit to finish a held release, uploading only what is missing.
 # npm uses trusted publishing with provenance in environment publish; no npm token.
-# HEX_API_KEY lives there and reaches only the no-project upload step.
+# Both Hex keys live there and reach only the no-project upload step.
 # No workflow creates a release or tag. release-assets is handed to maintainers, who
 # read the packages back, tag the published docs commit, create the GitHub release, and dispatch Pages.
 
@@ -607,8 +607,11 @@ jobs:
           HEX_DOCS: ${{ needs.verify.outputs.hex_docs }}
           HEX_CHECKSUM: ${{ needs.verify.outputs.hex_checksum }}
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+          HEX_ORG_KEY_PUBLISH_API_READ: ${{ secrets.HEX_ORG_KEY_PUBLISH_API_READ }}
         run: |
-          set -- agent_blueprint_protocol "$VERSION" --checksum "$HEX_CHECKSUM"
+          set -- agent_blueprint_protocol "$VERSION" --checksum "$HEX_CHECKSUM" \
+            --counterpart-repository baselabs \
+            --counterpart-package agent_blueprint_protocol
           if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package "../verified-release/agent_blueprint_protocol-${VERSION}.tar"; fi
           if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs ../verified-release/hex-docs.tar.gz; fi
           mix run --no-mix-exs scripts/publish_hex_artifacts.exs "$@"
