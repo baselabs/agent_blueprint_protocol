@@ -53,10 +53,21 @@ defmodule AgentBlueprintProtocol.PackageContents do
   end
 
   defp paths!(root, relative, exclusions) do
-    root
-    |> Path.join(relative)
-    |> File.ls!()
-    |> Enum.flat_map(fn name ->
+    directory = Path.join(root, relative)
+
+    # Raw names must reach the path check so they cannot disappear from the digest.
+    names =
+      case :file.list_dir_all(directory) do
+        {:ok, names} ->
+          names
+
+        {:error, reason} ->
+          raise File.Error, reason: reason, action: "list directory", path: directory
+      end
+
+    Enum.flat_map(names, fn entry ->
+      name = IO.chardata_to_string(entry)
+
       unless String.valid?(name) and not String.contains?(name, "\\"),
         do: raise(File.Error, reason: :einval, action: "read package entry", path: root)
 

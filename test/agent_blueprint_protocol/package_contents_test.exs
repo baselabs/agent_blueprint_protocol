@@ -95,6 +95,17 @@ defmodule AgentBlueprintProtocol.PackageContentsTest do
     end
   end
 
+  if :os.type() == {:unix, :linux} do
+    test "a raw filename makes the package tree unverifiable", %{root: root} do
+      path = root <> "/" <> <<255>>
+      :ok = :file.write_file(path, "")
+      on_exit(fn -> :file.delete(path) end)
+
+      assert PackageContents.verify(root, :hex, @hex) ==
+               {:error, %Error{code: :invalid_constraint, subject: ["package_checksums", "hex"]}}
+    end
+  end
+
   defp mismatch(distribution),
     do: {:error, %Error{code: :digest_mismatch, subject: ["package_checksums", distribution]}}
 end

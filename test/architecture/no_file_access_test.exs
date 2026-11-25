@@ -21,7 +21,7 @@ defmodule AgentBlueprintProtocol.Architecture.NoFileAccessTest do
   ]
 
   @contents_beam "Elixir.AgentBlueprintProtocol.PackageContents.beam"
-  @contents_calls [{File, :ls!}, {File, :lstat!}, {File, :read!}]
+  @contents_calls [{:file, :list_dir_all}, {File, :lstat!}, {File, :read!}]
 
   test "the read-side modules exist" do
     names = Enum.map(@lib_beams, &Path.basename/1)

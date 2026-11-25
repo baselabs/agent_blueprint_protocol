@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { verifyPackageContents } from '@agent-blueprint-protocol/verifier';
@@ -37,6 +37,15 @@ try {
   writeFileSync(join(contents, '.extra'), '');
   assert.deepEqual(verifyPackageContents(contents, 'npm', npm), denial('digest_mismatch'));
   rmSync(join(contents, '.extra'));
+  if (process.platform === 'linux') {
+    const raw = Buffer.concat([Buffer.from(contents + '/'), Buffer.from([255])]);
+    writeFileSync(raw, '');
+    try {
+      assert.deepEqual(verifyPackageContents(contents, 'npm', npm), denial('invalid_constraint'));
+    } finally {
+      unlinkSync(raw);
+    }
+  }
   if (process.platform !== 'win32') {
     symlinkSync(file, join(contents, 'linked'));
     assert.deepEqual(verifyPackageContents(contents, 'npm', npm), denial('invalid_constraint'));
