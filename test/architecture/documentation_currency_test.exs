@@ -37,7 +37,7 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     assert contributing =~ "scripts/toolchain.sh"
 
     assert contributing =~
-             "scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]"
+             "scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION --checksum SHA256 [--package ARCHIVE] [--docs DOCS]"
 
     assert contributing =~ "`github-pages` environment"
     assert contributing =~ "Pages accepts only `workflow_dispatch`"

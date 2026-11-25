@@ -105,7 +105,7 @@ job required by `qualified`, precedes acceptance on the default branch.
 
 Use a `qualified` release commit with the same declared version and package bytes
 when resuming publication. The release commit is independent of the default
-branch's current head.
+branch's current head and must include the checksum-aware Hex plan and uploader.
 
 Publish verifies the source, builds and inspects both archives, and compares
 served package bytes before uploading only missing packages or docs. The package
@@ -122,15 +122,24 @@ checked against full Git history. Invalid or missing provenance refuses publicat
 success prints the published commit from the served docs.
 
 npm uses staged trusted publishing with provenance in environment `publish`.
-Hex uses `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION [--package ARCHIVE] [--docs DOCS]`
+Hex uses `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION --checksum SHA256 [--package ARCHIVE] [--docs DOCS]`
 through the pinned client's API from a directory with no Mix project. The Hex key
-reaches only that upload step. A held upload stops explicitly: approve it on
-npmjs.com or hex.pm, then dispatch Publish from the default branch again.
+reaches only that upload step. A docs-only retry carries the verified package
+checksum from the plan. Immediately before a live docs POST, the uploader rereads
+the release API and requires an unretired release with that checksum and
+`has_docs: false`.
+
+If Hex stages the package, the uploader uses the same credential to confirm the
+release is still unpublished and the stage still matches the verified checksum.
+It posts docs in the same run and requires Hex to confirm that they joined that
+release stage. The docs POST is unconditional. Another publisher can change the
+release or write docs between the check and the POST, and approval in that
+window can turn a staged docs POST into a live write.
+
+When the workflow reports a hold, approve on npmjs.com or hex.pm as appropriate,
+then dispatch Publish from the default branch again.
 A second dispatch with the same `release_commit` finishes a held release,
-however far that branch has moved. The next run
-uploads only what is missing. Missing docs are uploaded only for a package Hex
-serves. Matching served package bytes succeed; differing package bytes, retirement,
-and unknown state refuse. No upload replaces a package or served docs.
+however far that branch has moved. The next run uploads only what is missing.
 
 After package and docs read-back, all consumer files leave together as
 `release-assets`, including both package archives, the standalone verifier,

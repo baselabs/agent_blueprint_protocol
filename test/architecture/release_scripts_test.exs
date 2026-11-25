@@ -3,6 +3,97 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
 
   @moduletag timeout: 180_000
   @version "1.1.0"
+  @checksum String.duplicate("a", 64)
+
+  setup_all do
+    path = "scripts/publish_hex_artifacts.exs"
+
+    {:__block__, _, [{:defmodule, _, _} = definition, _main]} =
+      File.read!(path) |> Code.string_to_quoted!(file: path)
+
+    {{:module, uploader, _, _}, []} = Code.eval_quoted(definition, [], file: path)
+    %{uploader: uploader}
+  end
+
+  test "only a matching unretired release with explicit docs state can reach a live upload",
+       %{uploader: uploader} do
+    release = %{
+      "version" => @version,
+      "retirement" => nil,
+      "checksum" => @checksum,
+      "has_docs" => false
+    }
+
+    assert uploader.release_state({:ok, {200, %{}, release}}, @version, @checksum) ==
+             {:served, false}
+
+    assert uploader.release_state(
+             {:ok, {200, %{}, %{release | "has_docs" => true}}},
+             @version,
+             @checksum
+           ) ==
+             {:served, true}
+
+    assert uploader.release_state({:ok, {404, %{}, nil}}, @version, @checksum) == :missing
+    assert uploader.release_state({:ok, {403, %{}, release}}, @version, @checksum) == :unknown
+
+    for {unconfirmed, state} <- [
+          {%{release | "version" => "0.0.0"}, :unknown},
+          {%{release | "retirement" => %{"reason" => "invalid"}}, :retired},
+          {%{release | "checksum" => String.duplicate("b", 64)}, :different_package},
+          {%{release | "has_docs" => "false"}, :unknown},
+          {Map.delete(release, "has_docs"), :unknown}
+        ] do
+      assert uploader.release_state({:ok, {200, %{}, unconfirmed}}, @version, @checksum) ==
+               state
+    end
+  end
+
+  test "staged docs must join the release stage for the inspected checksum", %{uploader: uploader} do
+    receipt = %{"status" => "staged", "kind" => "release", "checksum" => @checksum}
+    assert uploader.release_stage?(receipt, @checksum)
+
+    for invalid <- [
+          %{receipt | "status" => "published"},
+          %{receipt | "kind" => "docs"},
+          %{receipt | "checksum" => String.duplicate("b", 64)},
+          Map.delete(receipt, "status"),
+          Map.delete(receipt, "kind"),
+          Map.delete(receipt, "checksum"),
+          nil
+        ] do
+      refute uploader.release_stage?(invalid, @checksum)
+    end
+  end
+
+  test "both Hex docs POST paths check fresh state in the CLI-selected repository" do
+    script = File.read!("scripts/publish_hex_artifacts.exs")
+
+    assert script =~
+             "publish(opts[:organization], name, version, opts[:package], opts[:docs], checksum)"
+
+    assert script =~ "Hex.API.Client.build_config(repo, auth)"
+    assert script =~ ~s|Map.put(&1, "cache-control", "no-cache")|
+    assert script =~ ":mix_hex_api_release.get(config, name, version)"
+
+    assert script =~
+             ~s|:mix_hex_api.build_repository_path(config, ["packages", name, "releases", version, "staged"])|
+
+    assert script =~ ":mix_hex_api.get(config, path)"
+
+    assert script =~
+             ~s|case served_release!(config, name, version, checksum) do\n      {:served, false} ->\n        upload_docs!(repo, name, version, docs, auth)|
+
+    assert script =~
+             ~r/unless served_release!\(config, name, version, checksum\) == :missing do.*?require_active_stage!\(config, name, version, checksum\)\s+case upload_docs!\(repo, name, version, docs, auth\) do\s+\{:staged, receipt\} ->\s+unless release_stage\?\(receipt, checksum\)/s
+
+    assert script =~
+             ~r/package_result =.*?docs_result =.*?publish_docs!\(repo, name, version, docs, checksum, auth, config, package_result\).*?if match\?\(\{:staged, _\}, package_result\) or match\?\(\{:staged, _\}, docs_result\)/s
+
+    assert script =~ ~s|when code in 200..299, do: {:staged, body}|
+    assert length(:binary.matches(script, "Hex.API.ReleaseDocs.publish(")) == 1
+    refute script =~ "require_unheld!"
+  end
 
   test "no-project Hex scripts resolve Hex and refuse a loaded project before reading a key" do
     AgentBlueprintProtocol.Scratch.with_dir("hex-scripts", fn dir ->
@@ -18,7 +109,15 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       end
       """)
 
-      args = ["agent_blueprint_protocol", @version, "--docs", "docs.tar.gz"]
+      args = [
+        "agent_blueprint_protocol",
+        @version,
+        "--checksum",
+        @checksum,
+        "--docs",
+        "docs.tar.gz"
+      ]
+
       {output, status} = hex("publish_hex_artifacts.exs", args, outside)
       assert status != 0
       assert output =~ "HEX_API_KEY"
@@ -41,6 +140,18 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       {output, status} = hex("publish_hex_artifacts.exs", ["name", @version], outside)
       assert status != 0
       assert output =~ "at least one archive is required"
+
+      for checksum_args <- [[], ["--checksum", "invalid"]] do
+        {output, status} =
+          hex(
+            "publish_hex_artifacts.exs",
+            ["name", @version, "--docs", "docs" | checksum_args],
+            outside
+          )
+
+        assert status != 0
+        assert output =~ "--checksum must be a full lowercase SHA-256"
+      end
 
       {output, status} =
         hex("hex_release_state.exs", ["plan", "name", @version, "p"], outside)
@@ -96,7 +207,12 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
       args = ["agent_blueprint_protocol", @version, "package"]
       assert {summary, 0} = hex("hex_release_state.exs", ["plan" | args], dir, env)
       assert summary =~ "package is already served with these bytes and its docs are served"
-      assert File.read!(output_file) == "package=served\ndocs=served\n"
+
+      checksum =
+        :crypto.hash(:sha256, File.read!(Path.join(dir, "package")))
+        |> Base.encode16(case: :lower)
+
+      assert File.read!(output_file) == "package=served\ndocs=served\nchecksum=#{checksum}\n"
       repository = Path.join(dir, "repository")
       File.mkdir!(repository)
       AgentBlueprintProtocol.Scratch.init_git!(repository)

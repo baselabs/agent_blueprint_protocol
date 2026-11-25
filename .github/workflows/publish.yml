@@ -41,6 +41,7 @@ jobs:
       npm: ${{ steps.npm.outputs.npm }}
       hex_package: ${{ steps.hex.outputs.package }}
       hex_docs: ${{ steps.hex.outputs.docs }}
+      hex_checksum: ${{ steps.hex.outputs.checksum }}
     steps:
       - name: Refuse refs outside the default branch
         env:
@@ -191,7 +192,6 @@ jobs:
           env MIX_ENV=test mix release.asset --write
           mv "verifier-${VERSION}.tar.gz" verified-release/
           mix hex.build --output "verified-release/agent_blueprint_protocol-${VERSION}.tar"
-          echo "Package checksum: $(sha256sum "verified-release/agent_blueprint_protocol-${VERSION}.tar" | cut -d' ' -f1)"
           tar -czf verified-release/kit-dist.tar.gz \
             --exclude='.DS_Store' --exclude='._*' dist agent_blueprint_protocol_conformance
 
@@ -331,6 +331,10 @@ jobs:
         run: |
           mix run --no-mix-exs ../scripts/hex_release_state.exs plan \
             agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar"
+          if ! grep -Eq '^checksum=[0-9a-f]{64}$' "$GITHUB_OUTPUT"; then
+            echo "::error::The Hex plan did not emit the package checksum. Use a qualified release_commit with the checksum-aware Hex scripts and the same package bytes."
+            exit 1
+          fi
 
       - name: Refuse inconsistent registry state
         env:
@@ -587,9 +591,10 @@ jobs:
         env:
           HEX_PACKAGE: ${{ needs.verify.outputs.hex_package }}
           HEX_DOCS: ${{ needs.verify.outputs.hex_docs }}
+          HEX_CHECKSUM: ${{ needs.verify.outputs.hex_checksum }}
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: |
-          set -- agent_blueprint_protocol "$VERSION"
+          set -- agent_blueprint_protocol "$VERSION" --checksum "$HEX_CHECKSUM"
           if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package "agent_blueprint_protocol-${VERSION}.tar"; fi
           if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs hex-docs.tar.gz; fi
           mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs "$@"

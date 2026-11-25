@@ -51,7 +51,15 @@ defmodule HexReleaseState do
     case action do
       :plan ->
         {package_state, docs_state, _response} = state(repo, name, version, checksum)
-        File.write!(output, "package=#{package_state}\ndocs=#{docs_state}\n", [:append])
+        package_sha256 = Base.encode16(checksum, case: :lower)
+
+        File.write!(
+          output,
+          "package=#{package_state}\ndocs=#{docs_state}\nchecksum=#{package_sha256}\n",
+          [:append]
+        )
+
+        IO.puts("Package checksum: #{package_sha256}")
 
         if {package_state, docs_state} == {:served, :served} do
           IO.puts(

@@ -182,7 +182,15 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     assert key_step =~ "HEX_PACKAGE: ${{ needs.verify.outputs.hex_package }}"
     assert key_step =~ "HEX_DOCS: ${{ needs.verify.outputs.hex_docs }}"
+    assert key_step =~ "HEX_CHECKSUM: ${{ needs.verify.outputs.hex_checksum }}"
     assert key_step =~ "HEX_API_KEY: ${{ secrets.HEX_API_KEY }}"
+
+    assert_before(
+      key_step,
+      ~s|set -- agent_blueprint_protocol "$VERSION" --checksum "$HEX_CHECKSUM"|,
+      ~s|if [ "$HEX_PACKAGE" = upload ]|
+    )
+
     assert key_step =~ ~s|if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package|
     assert key_step =~ ~s|if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs|
     assert key_step =~ ~s|mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs "$@"|
@@ -204,6 +212,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert verify =~ "npm: ${{ steps.npm.outputs.npm }}"
     assert verify =~ "hex_package: ${{ steps.hex.outputs.package }}"
     assert verify =~ "hex_docs: ${{ steps.hex.outputs.docs }}"
+    assert verify =~ "hex_checksum: ${{ steps.hex.outputs.checksum }}"
     assert verify =~ "mix deps.get --check-locked"
     assert verify =~ "npm ci --ignore-scripts --no-audit --no-fund"
     assert verify =~ "mix release.promote --check"
@@ -213,7 +222,16 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert verify =~ ~s|cmp "$RUNNER_TEMP/packed-report.json" "$RUNNER_TEMP/verified-report.json"|
     assert verify =~ "node scripts/npm_release_state.mjs plan"
     assert verify =~ "mix run --no-mix-exs ../scripts/hex_release_state.exs plan"
-    assert step(verify, "Plan the Hex uploads") =~ "working-directory: verified-release"
+    hex_plan = step(verify, "Plan the Hex uploads")
+    assert hex_plan =~ "working-directory: verified-release"
+
+    assert_before(
+      hex_plan,
+      "mix run --no-mix-exs ../scripts/hex_release_state.exs plan",
+      ~s|if ! grep -Eq '^checksum=[0-9a-f]{64}$' "$GITHUB_OUTPUT"|
+    )
+
+    assert hex_plan =~ "exit 1"
     assert verify =~ ~s|[ "$NPM_STATE" = upload ]|
     assert verify =~ ~s|[ "$HEX_PACKAGE" = served ] \|\| [ "$HEX_DOCS" = served ]|
     refute workflow =~ "continue-on-error"
@@ -239,7 +257,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     assert verify =~ "-cf - -C doc . | gzip -n > verified-release/hex-docs.tar.gz"
     assert verify =~ "Docs checksum:"
-    assert verify =~ "Package checksum:"
+    assert File.read!("scripts/hex_release_state.exs") =~ "Package checksum:"
     assets = step(verify, "Prepare consumer release assets")
 
     for file <- [
