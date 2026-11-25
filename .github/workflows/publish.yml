@@ -28,7 +28,6 @@ jobs:
   verify:
     name: Verify the qualified release source
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
-    environment: publish
     permissions:
       contents: read
       checks: read
@@ -42,6 +41,9 @@ jobs:
       hex_package: ${{ steps.hex.outputs.package }}
       hex_docs: ${{ steps.hex.outputs.docs }}
       hex_checksum: ${{ steps.hex.outputs.checksum }}
+      nodejs: ${{ steps.versions.outputs.nodejs }}
+      elixir: ${{ steps.versions.outputs.elixir }}
+      otp: ${{ steps.versions.outputs.otp }}
     steps:
       - name: Refuse refs outside the default branch
         env:
@@ -401,27 +403,11 @@ jobs:
             exit 1
           fi
 
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.verify.outputs.release_commit }}
-          persist-credentials: false
-
-      - name: Read the default toolchain
-        id: versions
-        run: scripts/toolchain.sh >> "$GITHUB_OUTPUT"
-
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ steps.versions.outputs.nodejs }}
+          node-version: ${{ needs.verify.outputs.nodejs }}
           package-manager-cache: false
-
-      - name: Verify installed Node versions
-        shell: bash
-        env:
-          TOOLCHAIN_NODEJS: ${{ steps.versions.outputs.nodejs }}
-        run: scripts/toolchain.sh --installed nodejs="$TOOLCHAIN_NODEJS"
 
       - name: Download the verified release artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -445,11 +431,6 @@ jobs:
             echo "::error::npm upload failed or staging slot occupied; approve staged bytes on npmjs.com if held, then dispatch Publish again with the same release_commit; the next run uploads only what is missing."
             exit 1
           fi
-
-      - name: Read back the served npm version
-        run: |
-          node scripts/npm_release_state.mjs read-back "$VERSION" \
-            "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
 
   npm-kit:
     name: Check the published npm kit
@@ -518,6 +499,11 @@ jobs:
           name: verified-release
           path: verified-release
 
+      - name: Read back the served npm version
+        run: |
+          node scripts/npm_release_state.mjs read-back "$VERSION" \
+            "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
+
       - name: Restore the verified kit
         run: tar -xzf verified-release/kit-dist.tar.gz
 
@@ -561,31 +547,22 @@ jobs:
             exit 1
           fi
 
-      - name: Check out source
+      - name: Check out the workflow's Hex tool
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.verify.outputs.release_commit }}
+          ref: ${{ github.sha }}
+          path: workflow-tools
           persist-credentials: false
-          fetch-depth: 0
-
-      - name: Read the default toolchain
-        id: versions
-        run: scripts/toolchain.sh >> "$GITHUB_OUTPUT"
+          sparse-checkout: /scripts/publish_hex_artifacts.exs
+          sparse-checkout-cone-mode: false
 
       - name: Set up BEAM
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: ${{ steps.versions.outputs.elixir }}
-          otp-version: ${{ steps.versions.outputs.otp }}
+          elixir-version: ${{ needs.verify.outputs.elixir }}
+          otp-version: ${{ needs.verify.outputs.otp }}
           version-type: strict
           install-hex: false
-
-      - name: Verify installed BEAM versions
-        shell: bash
-        env:
-          TOOLCHAIN_ELIXIR: ${{ steps.versions.outputs.elixir }}
-          TOOLCHAIN_ERLANG: ${{ steps.versions.outputs.otp }}
-        run: scripts/toolchain.sh --installed elixir="$TOOLCHAIN_ELIXIR" erlang="$TOOLCHAIN_ERLANG"
 
       - name: Install the pinned Hex client
         run: mix local.hex 2.7.0 --force
@@ -596,18 +573,9 @@ jobs:
           name: verified-release
           path: verified-release
 
-      - name: Check out the workflow's Hex tool
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          path: workflow-tools
-          persist-credentials: false
-          sparse-checkout: /scripts/publish_hex_artifacts.exs
-          sparse-checkout-cone-mode: false
-
       - name: Publish the verified Hex archive and docs to public hexpm
         if: needs.verify.outputs.hex_package == 'upload' || needs.verify.outputs.hex_docs == 'upload'
-        working-directory: verified-release
+        working-directory: workflow-tools
         env:
           HEX_PACKAGE: ${{ needs.verify.outputs.hex_package }}
           HEX_DOCS: ${{ needs.verify.outputs.hex_docs }}
@@ -615,9 +583,53 @@ jobs:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: |
           set -- agent_blueprint_protocol "$VERSION" --checksum "$HEX_CHECKSUM"
-          if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package "agent_blueprint_protocol-${VERSION}.tar"; fi
-          if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs hex-docs.tar.gz; fi
-          mix run --no-mix-exs ../workflow-tools/scripts/publish_hex_artifacts.exs "$@"
+          if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package "../verified-release/agent_blueprint_protocol-${VERSION}.tar"; fi
+          if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs ../verified-release/hex-docs.tar.gz; fi
+          mix run --no-mix-exs scripts/publish_hex_artifacts.exs "$@"
+
+  hex-read-back:
+    name: Read back Hex and assemble release assets
+    needs: [verify, hex-publish]
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
+    runs-on: ubuntu-24.04
+    # The combined upload and read-back took 1.1 min in run 44085034568.
+    timeout-minutes: 5
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - name: Refuse refs outside the default branch
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$RELEASE_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "::error::Publication requires the default branch"
+            exit 1
+          fi
+
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.verify.outputs.release_commit }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: ${{ needs.verify.outputs.elixir }}
+          otp-version: ${{ needs.verify.outputs.otp }}
+          version-type: strict
+          install-hex: false
+
+      - name: Install the pinned Hex client
+        run: mix local.hex 2.7.0 --force
+
+      - name: Download the verified release artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verified-release
+          path: verified-release
 
       - name: Read back the served Hex package and docs
         working-directory: verified-release
@@ -638,7 +650,7 @@ jobs:
           retention-days: 7
 
   smoke:
-    needs: [verify, hex-publish]
+    needs: [verify, hex-read-back]
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     permissions:
       contents: read
@@ -691,7 +703,7 @@ jobs:
         shell: pwsh
 
   livebooks:
-    needs: [verify, hex-publish]
+    needs: [verify, hex-read-back]
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     permissions:
       contents: read

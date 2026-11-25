@@ -49,52 +49,152 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
     end
   end
 
-  test "staged docs must join the release stage for the inspected checksum", %{uploader: uploader} do
-    receipt = %{"status" => "staged", "kind" => "release", "checksum" => @checksum}
-    assert uploader.release_stage?(receipt, @checksum)
+  test "pending stages distinguish matching assets, conflicts, and terminal receipts",
+       %{uploader: uploader} do
+    approval = String.duplicate("b", 64)
+
+    release = %{
+      "name" => "name",
+      "version" => @version,
+      "status" => "staged",
+      "kind" => "release",
+      "checksum" => @checksum,
+      "approval_checksum" => approval
+    }
+
+    assert uploader.stage_state(
+             {:ok, {200, %{}, release}},
+             "release",
+             "name",
+             @version,
+             @checksum
+           ) ==
+             {:pending_release, approval}
 
     for invalid <- [
-          %{receipt | "status" => "published"},
-          %{receipt | "kind" => "docs"},
-          %{receipt | "checksum" => String.duplicate("b", 64)},
-          Map.delete(receipt, "status"),
-          Map.delete(receipt, "kind"),
-          Map.delete(receipt, "checksum"),
+          %{release | "name" => "other"},
+          %{release | "version" => "0.0.0"},
+          %{release | "checksum" => approval},
+          %{release | "kind" => "docs"},
+          %{release | "status" => "unknown"},
+          Map.delete(release, "approval_checksum")
+        ] do
+      assert uploader.stage_state(
+               {:ok, {200, %{}, invalid}},
+               "release",
+               "name",
+               @version,
+               @checksum
+             ) ==
+               :invalid
+    end
+
+    for status <- ["expired", "rejected", "approved"] do
+      terminal = %{release | "status" => status}
+
+      assert uploader.stage_state(
+               {:ok, {200, %{}, terminal}},
+               "release",
+               "name",
+               @version,
+               @checksum
+             ) ==
+               :absent
+    end
+
+    docs = %{release | "kind" => "docs", "checksum" => approval}
+
+    assert uploader.stage_state({:ok, {200, %{}, docs}}, "docs", "name", @version, @checksum) ==
+             :pending_docs
+
+    assert uploader.stage_state({:ok, {404, %{}, nil}}, "docs", "name", @version, @checksum) ==
+             :absent
+
+    assert uploader.stage_state({:ok, {403, %{}, nil}}, "docs", "name", @version, @checksum) ==
+             :invalid
+
+    pending = {:pending_release, approval}
+    fresh = {:staged, approval}
+    assert uploader.package_action(:missing, pending, :absent) == :keep
+    assert uploader.package_action(:missing, :absent, :pending_docs) == :wait
+    assert uploader.package_action(:missing, :absent, :absent) == :upload
+    assert uploader.package_action({:served, false}, :absent, :absent) == :skip
+
+    assert uploader.docs_action(pending, :absent, :missing, fresh) == :attach
+    assert uploader.docs_action(pending, :absent, :missing, :held) == :keep
+    assert uploader.docs_action(pending, :absent, :missing, :skipped) == :keep
+    assert uploader.docs_action({:pending_release, @checksum}, :absent, :missing, fresh) == :keep
+    assert uploader.docs_action(pending, :pending_docs, :missing, fresh) == :keep
+    assert uploader.docs_action(pending, :absent, {:served, false}, fresh) == :keep
+    assert uploader.docs_action(:absent, :absent, {:served, false}, fresh) == :wait
+    assert uploader.docs_action(:absent, :pending_docs, {:served, false}, :skipped) == :keep
+    assert uploader.docs_action(:absent, :absent, {:served, false}, :skipped) == :upload
+    assert uploader.docs_action(:absent, :absent, {:served, true}, :skipped) == :skip
+  end
+
+  test "live and staged package receipts must identify the inspected package",
+       %{uploader: uploader} do
+    package_url = "https://hex.pm/api/repos/example-org/packages/name"
+    approval = String.duplicate("b", 64)
+    live = %{"package_url" => package_url, "version" => @version, "checksum" => @checksum}
+
+    staged = %{
+      "name" => "name",
+      "version" => @version,
+      "checksum" => @checksum,
+      "status" => "staged",
+      "kind" => "release",
+      "approval_checksum" => approval
+    }
+
+    assert uploader.package_receipt(live, "name", @version, @checksum, package_url) == :live
+
+    assert uploader.package_receipt(staged, "name", @version, @checksum, package_url) ==
+             {:staged, approval}
+
+    for invalid <- [
+          %{live | "package_url" => package_url <> "-other"},
+          %{live | "version" => "0.0.0"},
+          %{live | "checksum" => approval},
+          Map.put(live, "status", "staged"),
+          %{staged | "name" => "other"},
+          %{staged | "version" => "0.0.0"},
+          %{staged | "checksum" => approval},
+          %{staged | "status" => "approved"},
+          %{staged | "kind" => "docs"},
+          Map.delete(staged, "approval_checksum"),
           nil
         ] do
-      refute uploader.release_stage?(invalid, @checksum)
+      assert uploader.package_receipt(invalid, "name", @version, @checksum, package_url) ==
+               :invalid
     end
   end
 
-  test "both Hex docs POST paths check fresh state in the CLI-selected repository" do
+  test "both upload gates read stages before their final release GET" do
     script = File.read!("scripts/publish_hex_artifacts.exs")
 
     assert script =~
              "publish(opts[:organization], name, version, opts[:package], opts[:docs], checksum)"
 
     assert script =~ "release_config = uncached_config(repo, release_read_auth!(repo))"
-    assert script =~ "Hex.API.Client.build_config(repo, auth)"
     assert script =~ ~s|Map.put(&1, "cache-control", "no-cache")|
+    assert script =~ "if target.repo, do: require_org_package!(target)"
+    assert script =~ ":mix_hex_api_package.get(release_config, name)"
+    assert script =~ ~s|{200, _headers, %{"name" => ^name, "repository" => ^repo}}|
     assert script =~ ":mix_hex_api_release.get(release_config, name, version)"
-    assert script =~ "upload_config = uncached_config(repo, upload_auth)"
+    assert script =~ "upload_config: uncached_config(repo, upload_auth)"
+    assert script =~ ":mix_hex_api.get(target.upload_config, path)"
 
     assert script =~
-             ~r/:mix_hex_api\.build_repository_path\(upload_config, \[\s*"packages",\s*name,\s*"releases",\s*version,\s*"staged"\s*\]\)/
-
-    assert script =~ ":mix_hex_api.get(upload_config, path)"
+             ~r/defp publish_package!.*?require_org_package!\(target\).*?pending_stages!\(target\)\s+case package_action\(served_release!\(target\), release_stage, docs_stage\) do.*?:upload ->\s+body =\s+Hex.API.Release.publish/s
 
     assert script =~
-             ~s|case served_release!(release_config, name, version, checksum) do\n      {:served, false} ->\n        upload_docs!(repo, name, version, docs, upload_auth)|
+             ~r/defp publish_docs!.*?require_org_package!\(target\).*?pending_stages!\(target\).*?case docs_action\(release_stage, docs_stage, served_release!\(target\), package_result\) do\s+:attach ->\s+case upload_docs!/s
 
-    assert script =~
-             ~r/unless served_release!\(release_config, name, version, checksum\) == :missing do.*?require_active_stage!\(repo, name, version, checksum, upload_auth\)\s+case upload_docs!\(repo, name, version, docs, upload_auth\) do\s+\{:staged, receipt\} ->\s+unless release_stage\?\(receipt, checksum\)/s
-
-    assert script =~
-             ~r/package_result =.*?docs_result =.*?publish_docs!\(\s*repo,\s*name,\s*version,\s*docs,\s*checksum,\s*upload_auth,\s*release_config,\s*package_result\s*\).*?if match\?\(\{:staged, _\}, package_result\) or match\?\(\{:staged, _\}, docs_result\)/s
-
-    assert script =~ ~s|when code in 200..299, do: {:staged, body}|
+    assert script =~ "case upload_docs!(target, docs) do"
+    assert script =~ ~s|"status" => "staged",|
+    assert script =~ ~s|"kind" => "release",|
     assert length(:binary.matches(script, "Hex.API.ReleaseDocs.publish(")) == 1
-    refute script =~ "require_unheld!"
   end
 
   test "release reads use anonymous public access or a separate organization API-read key" do
@@ -106,9 +206,10 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
 
     assert script =~ ~s|upload_key = System.fetch_env!("HEX_API_KEY")|
     assert script =~ "upload_auth = [key: upload_key]"
-    assert script =~ "case served_release!(release_config, name, version, checksum)"
-    assert script =~ "Hex.API.Release.publish(repo, archive, upload_auth,"
-    assert script =~ "Hex.API.ReleaseDocs.publish(repo, name, version, docs, upload_auth)"
+    assert script =~ "Hex.API.Release.publish(target.repo, archive, target.upload_auth,"
+
+    assert script =~
+             "Hex.API.ReleaseDocs.publish(target.repo, target.name, target.version, docs, target.upload_auth)"
   end
 
   test "organization uploads fail before any request when their API-read key is absent or blank" do

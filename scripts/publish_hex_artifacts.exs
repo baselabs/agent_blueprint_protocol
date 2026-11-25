@@ -43,38 +43,25 @@ defmodule PublishHexArtifacts do
     archive = if archive, do: File.read!(archive)
     docs = if docs, do: File.read!(docs)
 
-    if archive && Base.encode16(:crypto.hash(:sha256, archive), case: :lower) != checksum do
-      raise "package archive does not match --checksum; verify the archive and dispatch Publish again"
+    if archive && digest(archive) != checksum do
+      raise "package archive does not match --checksum. Verify the archive and dispatch Publish again."
     end
 
-    package_result =
-      if archive do
-        case served_release!(release_config, name, version, checksum) do
-          :missing ->
-            Hex.API.Release.publish(repo, archive, upload_auth, fn _ -> :ok end, replace: false)
-            |> upload_result!(name, version, "package")
+    target = %{
+      repo: repo,
+      name: name,
+      version: version,
+      checksum: checksum,
+      release_config: release_config,
+      upload_config: uncached_config(repo, upload_auth),
+      upload_auth: upload_auth
+    }
 
-          {:served, _} ->
-            IO.puts("Hex package: already served; upload skipped")
-        end
-      end
+    package_result = if archive, do: publish_package!(target, archive), else: :skipped
+    docs_result = if docs, do: publish_docs!(target, docs, package_result)
 
-    docs_result =
-      if docs do
-        publish_docs!(
-          repo,
-          name,
-          version,
-          docs,
-          checksum,
-          upload_auth,
-          release_config,
-          package_result
-        )
-      end
-
-    if match?({:staged, _}, package_result) or match?({:staged, _}, docs_result) do
-      raise "Hex holds #{name} #{version} for approval; approve it on hex.pm, then dispatch Publish again on the same commit; the next run uploads only what is missing"
+    if package_result == :held or match?({:staged, _}, package_result) or docs_result == :held do
+      raise "Hex holds #{name} #{version} for approval. Approve it on hex.pm, then dispatch Publish again on the same commit."
     end
   end
 
@@ -96,7 +83,22 @@ defmodule PublishHexArtifacts do
     |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
   end
 
-  defp served_release!(release_config, name, version, checksum) do
+  defp require_org_package!(%{repo: repo, name: name, release_config: release_config}) do
+    case :mix_hex_api_package.get(release_config, name) do
+      {:ok, {200, _headers, %{"name" => ^name, "repository" => ^repo}}} ->
+        :ok
+
+      _ ->
+        raise "could not confirm access to Hex package #{repo}/#{name}. Check the organization API-read key and package name."
+    end
+  end
+
+  defp served_release!(%{
+         release_config: release_config,
+         name: name,
+         version: version,
+         checksum: checksum
+       }) do
     case release_state(:mix_hex_api_release.get(release_config, name, version), version, checksum) do
       :retired ->
         raise "#{name} #{version} is retired; publication refused"
@@ -136,114 +138,220 @@ defmodule PublishHexArtifacts do
 
   def release_state(_response, _version, _checksum), do: :unknown
 
-  def release_stage?(body, checksum) do
-    match?(%{"status" => "staged", "kind" => "release", "checksum" => ^checksum}, body)
+  defp publish_package!(target, archive) do
+    if target.repo, do: require_org_package!(target)
+    {release_stage, docs_stage} = pending_stages!(target)
+
+    case package_action(served_release!(target), release_stage, docs_stage) do
+      :skip ->
+        IO.puts("Hex package: already served; upload skipped")
+        :live
+
+      :keep ->
+        IO.puts("Hex package: matching stage kept")
+        :held
+
+      :wait ->
+        raise "Hex still holds docs for this version. Check the release and docs stage before retrying."
+
+      :upload ->
+        body =
+          Hex.API.Release.publish(target.repo, archive, target.upload_auth, fn _ -> :ok end,
+            replace: false
+          )
+          |> upload_body!(target, "package")
+
+        case package_receipt(
+               body,
+               target.name,
+               target.version,
+               target.checksum,
+               package_url(target)
+             ) do
+          :invalid ->
+            raise "Hex did not confirm the inspected package in its upload receipt. Check the version on Hex before retrying."
+
+          result ->
+            result
+        end
+    end
   end
 
-  defp publish_docs!(
-         repo,
-         name,
-         version,
-         docs,
-         checksum,
-         upload_auth,
-         release_config,
-         {:staged, package}
-       ) do
-    unless release_stage?(package, checksum) do
-      raise "Hex did not confirm the staged package checksum; inspect the stage before dispatching Publish again"
+  def package_action({:served, _}, _, _), do: :skip
+  def package_action(:missing, {:pending_release, _}, _), do: :keep
+  def package_action(:missing, :absent, :absent), do: :upload
+  def package_action(_, _, _), do: :wait
+
+  def package_receipt(body, name, version, checksum, package_url) do
+    case body do
+      %{
+        "name" => ^name,
+        "version" => ^version,
+        "checksum" => ^checksum,
+        "status" => "staged",
+        "kind" => "release",
+        "approval_checksum" => approval
+      } ->
+        if sha256?(approval), do: {:staged, approval}, else: :invalid
+
+      %{"package_url" => ^package_url, "version" => ^version, "checksum" => ^checksum}
+      when not is_map_key(body, "status") and not is_map_key(body, "kind") ->
+        :live
+
+      _ ->
+        :invalid
     end
+  end
 
-    unless served_release!(release_config, name, version, checksum) == :missing do
-      raise "Hex already serves #{name} #{version}; dispatch Publish again to recheck its docs"
-    end
+  defp package_url(%{release_config: config, name: name}) do
+    path =
+      config
+      |> :mix_hex_api.build_repository_path(["packages", name])
+      |> :mix_hex_api.join_path_segments()
 
-    require_active_stage!(repo, name, version, checksum, upload_auth)
+    config.api_url <> "/" <> path
+  end
 
-    case upload_docs!(repo, name, version, docs, upload_auth) do
-      {:staged, receipt} ->
-        unless release_stage?(receipt, checksum) do
-          raise "Hex did not confirm docs joined the inspected release stage; check the stage before approving"
+  defp publish_docs!(target, docs, package_result) do
+    if target.repo, do: require_org_package!(target)
+    {release_stage, docs_stage} = pending_stages!(target)
+
+    # Approval can serve the release while its stage still exists.
+    case docs_action(release_stage, docs_stage, served_release!(target), package_result) do
+      :attach ->
+        case upload_docs!(target, docs) do
+          %{
+            "name" => name,
+            "version" => version,
+            "status" => "staged",
+            "kind" => "release",
+            "checksum" => checksum
+          }
+          when name == target.name and version == target.version and checksum == target.checksum ->
+            IO.puts("Hex package and docs: staged together for approval")
+            :held
+
+          _ ->
+            raise "Hex did not confirm docs joined the inspected release stage. Check the served release and stage before retrying."
         end
 
-        IO.puts("Hex package and docs: staged together for approval")
-        {:staged, receipt}
+      :upload ->
+        case upload_docs!(target, docs) do
+          %{"status" => "staged"} ->
+            IO.puts("Hex docs: staged for approval")
+            :held
 
-      :ok ->
-        raise "Hex did not confirm docs joined the inspected release stage; check the served release and stage before retrying"
-    end
-  end
+          _ ->
+            IO.puts("Hex docs: archive accepted")
+        end
 
-  defp publish_docs!(
-         repo,
-         name,
-         version,
-         docs,
-         checksum,
-         upload_auth,
-         release_config,
-         _package_result
-       ) do
-    case served_release!(release_config, name, version, checksum) do
-      {:served, false} ->
-        upload_docs!(repo, name, version, docs, upload_auth)
+      :keep ->
+        IO.puts("Hex stage kept. Approve it, then dispatch again to fill any missing docs.")
+        :held
 
-      {:served, true} ->
+      :skip ->
         IO.puts("Hex docs: already served; upload skipped")
 
-      :missing ->
-        raise "Hex does not serve #{name} #{version} yet; dispatch Publish again on the same commit once it is served"
+      :wait ->
+        raise "Hex release or stage changed before the docs upload. Dispatch Publish again on the same commit."
     end
   end
 
-  defp require_active_stage!(repo, name, version, checksum, upload_auth) do
-    upload_config = uncached_config(repo, upload_auth)
+  # A package POST creates a stage without docs. Hex folds the docs checksum
+  # into its approval checksum, so only this run's unchanged receipt proves
+  # that the active stage is still empty.
+  def docs_action({:pending_release, approval}, :absent, :missing, {:staged, approval}),
+    do: :attach
 
+  def docs_action({:pending_release, _}, _, _, _), do: :keep
+  def docs_action(_, :pending_docs, {:served, _}, _), do: :keep
+  def docs_action(:absent, :absent, {:served, true}, _), do: :skip
+
+  def docs_action(:absent, :absent, {:served, false}, result) when result in [:live, :skipped],
+    do: :upload
+
+  def docs_action(_, _, _, _), do: :wait
+
+  defp pending_stages!(target) do
+    docs_stage = pending_stage!(target, "docs", ["docs", "staged"])
+    release_stage = pending_stage!(target, "release", ["staged"])
+    {release_stage, docs_stage}
+  end
+
+  defp pending_stage!(target, kind, suffix) do
     path =
-      :mix_hex_api.build_repository_path(upload_config, [
-        "packages",
-        name,
-        "releases",
-        version,
-        "staged"
-      ])
+      :mix_hex_api.build_repository_path(
+        target.upload_config,
+        ["packages", target.name, "releases", target.version] ++ suffix
+      )
 
-    confirmed =
-      case :mix_hex_api.get(upload_config, path) do
-        {:ok, {200, _headers, %{"name" => ^name, "version" => ^version} = stage}} ->
-          release_stage?(stage, checksum)
+    response = :mix_hex_api.get(target.upload_config, path)
 
-        _ ->
-          false
-      end
+    case stage_state(response, kind, target.name, target.version, target.checksum) do
+      :invalid ->
+        raise "could not confirm a matching Hex #{kind} stage for #{target.name} #{target.version}. Inspect the pending stage before retrying."
 
-    unless confirmed do
-      raise "Hex did not confirm an active stage for #{name} #{version}; inspect the stage before dispatching Publish again"
+      state ->
+        state
     end
   end
 
-  defp upload_docs!(repo, name, version, docs, upload_auth) do
+  def stage_state({:ok, {404, _headers, _body}}, _kind, _name, _version, _checksum), do: :absent
+
+  def stage_state({:ok, {200, _headers, body}}, kind, name, version, checksum) do
+    case body do
+      %{"name" => ^name, "version" => ^version, "kind" => ^kind, "status" => status}
+      when status in ["approved", "rejected", "expired"] ->
+        :absent
+
+      %{
+        "name" => ^name,
+        "version" => ^version,
+        "kind" => "release",
+        "status" => "staged",
+        "checksum" => ^checksum,
+        "approval_checksum" => approval
+      }
+      when kind == "release" ->
+        if sha256?(approval), do: {:pending_release, approval}, else: :invalid
+
+      %{
+        "name" => ^name,
+        "version" => ^version,
+        "kind" => "docs",
+        "status" => "staged",
+        "checksum" => docs_checksum
+      }
+      when kind == "docs" ->
+        if sha256?(docs_checksum), do: :pending_docs, else: :invalid
+
+      _ ->
+        :invalid
+    end
+  end
+
+  def stage_state(_, _, _, _, _), do: :invalid
+
+  defp upload_docs!(target, docs) do
     # The POST has no create-only precondition. State can change after the last read.
-    Hex.API.ReleaseDocs.publish(repo, name, version, docs, upload_auth)
-    |> upload_result!(name, version, "docs")
+    Hex.API.ReleaseDocs.publish(
+      target.repo,
+      target.name,
+      target.version,
+      docs,
+      target.upload_auth
+    )
+    |> upload_body!(target, "docs")
   end
 
-  defp upload_result!(
-         {:ok, {code, _headers, %{"status" => "staged"} = body}},
-         _name,
-         _version,
-         _label
-       )
-       when code in 200..299, do: {:staged, body}
+  defp upload_body!({:ok, {code, _headers, body}}, _target, _kind) when code in 200..299, do: body
 
-  defp upload_result!({:ok, {code, _headers, _body}}, _name, _version, label)
-       when code in 200..299 do
-    IO.puts("Hex #{label}: archive accepted")
+  defp upload_body!(_result, target, kind) do
+    raise "#{target.name} #{target.version} #{kind} upload failed. Resolve the cause and dispatch Publish again on the same commit."
   end
 
-  defp upload_result!(_result, name, version, label) do
-    raise "#{name} #{version} #{label} upload failed; dispatch Publish again on the same commit once the cause is resolved; the next run uploads only what is missing"
-  end
+  defp sha256?(value), do: is_binary(value) and Regex.match?(~r/\A[0-9a-f]{64}\z/, value)
+  defp digest(bytes), do: :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
 end
 
 PublishHexArtifacts.main(System.argv())

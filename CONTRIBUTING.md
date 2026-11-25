@@ -128,15 +128,22 @@ through the pinned client's API from a directory with no Mix project. The upload
 step uses `HEX_API_KEY` for both POSTs and the staged-status GET. Release API
 GETs for public packages are anonymous. With `--organization`, the uploader
 requires a non-empty `HEX_ORG_KEY_PUBLISH_API_READ` key scoped to `api:read`.
-An organization workflow gives that key only to its upload step. A docs-only retry
+An organization workflow gives that key only to its upload step. Before checking
+for a missing organization release, the uploader confirms access with an uncached
+package GET that returns the expected package and repository. A docs-only retry
 carries the verified package checksum from the plan. Immediately before a live
 docs POST, the uploader rereads the release API and requires an unretired release
 with that checksum and `has_docs: false`.
 
-If Hex stages the package, the uploader confirms the release is still unpublished
-through the release API. It uses the upload credential to confirm the stage still
-matches the verified checksum. It posts docs in the same run and requires Hex to
-confirm that they joined that release stage. The docs POST is unconditional.
+Before either POST, the uploader checks for pending release and docs stages. It
+keeps a matching release stage and any pending docs. For a stage created in the
+current run, it checks that the approval checksum is still the one from the
+package receipt. It then confirms the release is still unpublished as its final
+request before posting docs. Hex must confirm that the docs joined the matching
+release stage. Hex's stage response omits docs presence for an existing release
+stage. Approve the existing stage and dispatch again to fill any missing docs.
+
+The docs POST is unconditional.
 Another publisher can change the release or write docs between the check and the
 POST, and approval in that window can turn a staged docs POST into a live write.
 
@@ -145,8 +152,10 @@ then dispatch Publish from the default branch again.
 A second dispatch with the same `release_commit` finishes a held release,
 however far that branch has moved. The next run uploads only what is missing.
 
-After package and docs read-back, all consumer files leave together as
-`release-assets`, including both package archives, the standalone verifier,
+The npm and Hex upload jobs use the verified toolchain and archives in fresh
+workspaces. Registry read-back runs in `npm-kit` and `hex-read-back` without
+publishing credentials. After package and docs read-back, all consumer files
+leave together as `release-assets`, including both package archives, the standalone verifier,
 certified results, CHANGELOG release notes, the inspected served
 `hex-docs-<version>.tar.gz`, and SHA256SUMS. Publish's separate
 published-package jobs run installed consumers on Linux, macOS, and Windows with

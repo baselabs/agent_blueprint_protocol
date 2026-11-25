@@ -24,13 +24,13 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert workflow =~ "group: publish\n  cancel-in-progress: false"
 
     assert Enum.map(jobs(workflow), &elem(&1, 0)) ==
-             ~w(verify npm-publish npm-kit hex-publish smoke livebooks)
+             ~w(verify npm-publish npm-kit hex-publish hex-read-back smoke livebooks)
 
     for {name, job} <- jobs(workflow) do
       assert job =~ "    if: " <> @owners <> "\n"
       assert_default_branch_first(job)
 
-      if name in ~w(verify npm-publish hex-publish),
+      if name in ~w(npm-publish hex-publish),
         do: assert(job =~ "environment: publish"),
         else: refute(job =~ "environment:")
     end
@@ -51,9 +51,9 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert_before(verify, "Validate the release commit", "uses: actions/checkout@")
     assert verify =~ "release_commit: ${{ steps.release.outputs.commit }}"
     refute Regex.match?(~r/\bHEAD\b/, workflow)
-    assert length(Enum.filter(steps(workflow), &(&1 =~ "uses: actions/checkout@"))) == 8
+    assert length(Enum.filter(steps(workflow), &(&1 =~ "uses: actions/checkout@"))) == 7
 
-    for {name, job} <- jobs(workflow) do
+    for {name, job} <- jobs(workflow), name not in ~w(npm-publish hex-publish) do
       [checkout] =
         Enum.filter(steps(job), fn step ->
           step =~ "uses: actions/checkout@" and
@@ -98,6 +98,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     download = step(hex, "Download the verified release artifacts")
     assert download =~ "name: verified-release"
     assert download =~ "path: verified-release"
+    assert_before(hex, upload_checkout, download)
     assert_before(hex, download, "Publish the verified Hex archive and docs")
     assert_before(hex, upload_checkout, "Publish the verified Hex archive and docs")
   end
@@ -164,7 +165,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
           {"livebooks", "2.9", "44022461020", 6}
         ] do
       job = job(workflow, name)
-      assert job =~ "needs: [verify, hex-publish]"
+      assert job =~ "needs: [verify, hex-read-back]"
       assert job =~ "permissions:\n      contents: read"
       assert job =~ "ABP_VERSION: ${{ needs.verify.outputs.version }}"
       assert job =~ "os: [ubuntu-24.04, macos-15, windows-2025]"
@@ -211,7 +212,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert npm =~ "needs: verify"
     assert hex =~ "needs: [verify, npm-kit]"
     key_step = step(hex, "Publish the verified Hex archive and docs to public hexpm")
-    assert key_step =~ "working-directory: verified-release"
+    assert key_step =~ "working-directory: workflow-tools"
 
     assert key_step =~
              "if: needs.verify.outputs.hex_package == 'upload' || needs.verify.outputs.hex_docs == 'upload'"
@@ -229,14 +230,51 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     assert key_step =~ ~s|if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package|
     assert key_step =~ ~s|if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs|
+    assert key_step =~ ~s|--package "../verified-release/agent_blueprint_protocol-${VERSION}.tar"|
+    assert key_step =~ "--docs ../verified-release/hex-docs.tar.gz"
 
     assert key_step =~
-             ~s|mix run --no-mix-exs ../workflow-tools/scripts/publish_hex_artifacts.exs "$@"|
+             ~s|mix run --no-mix-exs scripts/publish_hex_artifacts.exs "$@"|
 
     refute key_step =~ "--organization"
     refute workflow =~ "HEX_ORG_KEY_PUBLISH_API_READ"
     assert length(Enum.filter(steps(workflow), &(&1 =~ "HEX_API_KEY"))) == 1
     refute npm =~ "HEX_API_KEY"
+  end
+
+  test "credential jobs consume verified inputs and run only workflow-owned commands" do
+    workflow = workflow("publish")
+    verify = job(workflow, "verify")
+    npm = job(workflow, "npm-publish")
+    hex = job(workflow, "hex-publish")
+
+    for version <- ~w(nodejs elixir otp) do
+      assert verify =~ version <> ": ${{ steps.versions.outputs." <> version <> " }}"
+    end
+
+    assert npm =~ "node-version: ${{ needs.verify.outputs.nodejs }}"
+    assert hex =~ "elixir-version: ${{ needs.verify.outputs.elixir }}"
+    assert hex =~ "otp-version: ${{ needs.verify.outputs.otp }}"
+    refute npm =~ "actions/checkout@"
+    refute npm =~ "scripts/"
+    assert length(Regex.scan(~r/uses: actions\/checkout@/, hex)) == 1
+
+    assert Regex.scan(~r/scripts\/[^\s]+/, hex) ==
+             [["scripts/publish_hex_artifacts.exs"], ["scripts/publish_hex_artifacts.exs"]]
+
+    for job <- [npm, hex] do
+      refute job =~ "needs.verify.outputs.release_commit"
+      refute job =~ "scripts/toolchain.sh"
+      refute job =~ "Read back"
+    end
+
+    for name <- ~w(npm-kit hex-read-back) do
+      read_back = job(workflow, name)
+      refute read_back =~ "environment:"
+      refute read_back =~ "id-token:"
+      refute read_back =~ "HEX_API_KEY"
+      refute read_back =~ "HEX_ORG_KEY_PUBLISH_API_READ"
+    end
   end
 
   test "source and artifacts are verified before read-only plans compare package bytes" do
@@ -325,7 +363,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
              ~s|agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar"|
 
     refute plan =~ "hex-docs"
-    hex = job(workflow, "hex-publish")
+    hex = job(workflow, "hex-read-back")
+    assert hex =~ "needs: [verify, hex-publish]"
     assert step(hex, "Check out source") =~ "fetch-depth: 0"
     read_back = step(hex, "Read back the served Hex package and docs")
     assert read_back =~ "RELEASE_COMMIT: ${{ needs.verify.outputs.release_commit }}"
@@ -378,7 +417,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
             "Plan the Hex uploads",
             "uses: actions/upload-artifact@",
             "npm stage publish",
-            "mix run --no-mix-exs ../workflow-tools/scripts/publish_hex_artifacts.exs"
+            "mix run --no-mix-exs scripts/publish_hex_artifacts.exs"
           ] do
         assert_before(workflow, stamp, later)
       end
@@ -445,6 +484,8 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     workflow = workflow("publish")
     npm = job(workflow, "npm-publish")
     hex = job(workflow, "hex-publish")
+    npm_read_back = job(workflow, "npm-kit")
+    hex_read_back = job(workflow, "hex-read-back")
 
     assert step(npm, "Publish the npm kit (staged trusted publishing, provenance)") =~
              "if: needs.verify.outputs.npm == 'upload'"
@@ -452,10 +493,10 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert npm =~ "npm stage publish"
     assert npm =~ "--ignore-scripts --access public --provenance"
     assert npm =~ ~s|grep -ih 'oidc' "$HOME"/.npm/_logs/*-debug-0.log|
-    assert npm =~ "node scripts/npm_release_state.mjs read-back"
-    refute step(npm, "Read back the served npm version") =~ "if:"
-    assert hex =~ "mix run --no-mix-exs ../scripts/hex_release_state.exs read-back"
-    refute step(hex, "Read back the served Hex package and docs") =~ "if:"
+    assert npm_read_back =~ "node scripts/npm_release_state.mjs read-back"
+    refute step(npm_read_back, "Read back the served npm version") =~ "if:"
+    assert hex_read_back =~ "mix run --no-mix-exs ../scripts/hex_release_state.exs read-back"
+    refute step(hex_read_back, "Read back the served Hex package and docs") =~ "if:"
     refute hex =~ "check_hex_release.mjs"
     refute hex =~ "check_publication.sh"
 
