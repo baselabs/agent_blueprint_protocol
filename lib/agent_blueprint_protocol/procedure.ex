@@ -6,7 +6,7 @@ defmodule AgentBlueprintProtocol.Procedure do
   This module does not authorize operations.
   Roles and profiles are host data. Validity is digest-covered and host-owned.
   """
-  @moduledoc since: "1.2.0"
+  @moduledoc since: "1.5.0"
   alias AgentBlueprintProtocol.{
     Base64Url,
     Bounds,
@@ -64,7 +64,7 @@ defmodule AgentBlueprintProtocol.Procedure do
   end
 
   @doc "The shipped procedure schema. Hosts supply it through negotiation support."
-  @doc since: "1.2.0"
+  @doc since: "1.5.0"
   @spec schema() :: Json.value()
   def schema do
     {:ok, value} = Json.decode(@schema_bytes)
@@ -72,7 +72,7 @@ defmodule AgentBlueprintProtocol.Procedure do
   end
 
   @doc "Decode a closed procedure body, with the registry's pinned failure precedence."
-  @doc since: "1.2.0"
+  @doc since: "1.5.0"
   @spec decode(Json.value() | binary(), Bounds.t() | map()) :: {:ok, t()} | {:error, Error.t()}
   def decode(input, bounds \\ Bounds.maximum())
 
@@ -89,7 +89,7 @@ defmodule AgentBlueprintProtocol.Procedure do
   end
 
   @doc "Compute SHA-256 over JCS of a typed document with a 256-bit nonce."
-  @doc since: "1.2.0"
+  @doc since: "1.5.0"
   @spec document_commitment(Json.value()) :: {:ok, binary()} | {:error, Error.t()}
   def document_commitment({:object, _} = document) do
     with {:ok, bytes} <- Canonicalization.encode(document),
@@ -104,7 +104,7 @@ defmodule AgentBlueprintProtocol.Procedure do
   def document_commitment(_), do: error(:invalid_type, ["document"])
 
   @doc "Verify procedure bindings as part of an import; a denial halts that import."
-  @doc since: "1.2.0"
+  @doc since: "1.5.0"
   @spec verify(Deployment.t(), Inputs.t()) :: {:ok, Evidence.t()} | {:error, Error.t()}
   def verify(%Deployment{} = deployment, %Inputs{} = inputs) do
     with :ok <- input_shape(inputs),

@@ -162,7 +162,7 @@ export function verifyCompatibility(value:Deployment,observed:Observed):Result<E
 export function reconcile(blueprint:Blueprint,deployment:Deployment,options:Inputs):Result<Evidence>{return guarded(()=>{if(options.observations.now!==null&&dep.parseTimestamp(options.observations.now)===null)return {ok:false,e:"invalid_type"};return imports.reconcile({value:tagged(blueprint.value)},{value:tagged(deployment.value)},{...options,procedure:options.procedure==null?undefined:procedureInputs(options.procedure),hostBounds:options.hostBounds as any,support:support(options.support),keys:options.keys.map(key=>({keyId:key.keyId,key:key.algorithm==='ed25519'?key.key:new Uint8Array()})),observations:options.observations as dep.Observations});});}
 /** Return the 23 transport mapping rows as data. */
 export function federationMapping():Result<readonly MappingRow[]>{return guarded(()=>rows.map(row=>({...row})));}
-/** Return the tagged digest of the canonical transport mapping rows (since 1.2.0). */
+/** Return the tagged digest of the canonical transport mapping rows (since 1.5.0). */
 export function federationMappingIdentity():Result<string>{return guarded(fed.mappingIdentity);}
 /** Verify a detached signature and return the verified attributes. */
 export function verifySignature(entry:JsonValue,keys:readonly PublicKey[]):Result<SignedAttributes>{return guarded(()=>{const r=sig.verify(tagged(entry),keys.map(key=>({keyId:key.keyId,key:key.algorithm==='ed25519'?key.key:new Uint8Array()})));return r.ok?{ok:true,v:{...r.v,contentDigest:toTagged(r.v.contentDigest)}}:r;});}

@@ -96,7 +96,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistry do
   end
 
   @doc "Returns the shipped procedure identity schema."
-  @doc since: "1.2.0"
+  @doc since: "1.5.0"
   @spec procedure_schema() :: Json.value()
   def procedure_schema, do: AgentBlueprintProtocol.Procedure.schema()
 

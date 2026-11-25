@@ -27,7 +27,7 @@ defmodule AgentBlueprintProtocol.PackageContents do
   unsupported tree returns `:invalid_constraint`, and a different digest
   returns `:digest_mismatch`.
   """
-  @doc since: "1.2.0"
+  @doc since: "1.5.0"
   @spec verify(Path.t(), distribution(), term()) :: :ok | {:error, Error.t()}
   def verify(root, distribution, expected) when is_map_key(@exclusions, distribution) do
     cond do

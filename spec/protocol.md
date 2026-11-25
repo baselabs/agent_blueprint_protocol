@@ -1201,7 +1201,7 @@ between pins.
 
 ### Installed package contents identity (normative for the reference releases)
 
-Starting with release 1.2.0, the published `release-manifest.json` MUST
+Starting with release 1.5.0, the published `release-manifest.json` MUST
 contain the release metadata and a `package_checksums` object with one
 tagged SHA-256 digest each under `hex` and `npm`. Each checksum MUST be
 derived from the corresponding published archive. The Hex file set is

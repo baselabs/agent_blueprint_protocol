@@ -260,7 +260,7 @@ defmodule AgentBlueprintProtocol.Federation do
       iex> String.starts_with?(AgentBlueprintProtocol.Federation.mapping_identity(), "sha-256:")
       true
   """
-  @doc since: "1.2.0"
+  @doc since: "1.5.0"
   @spec mapping_identity() :: binary()
   def mapping_identity do
     rows =

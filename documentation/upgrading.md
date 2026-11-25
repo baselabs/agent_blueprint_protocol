@@ -14,22 +14,22 @@ The protocol uses separate version values for separate contracts:
 The Hex and npm packages carry the same complete version, including prerelease identifiers. To select this exact release in both registries, use this Hex requirement and npm command:
 
 ```elixir
-{:agent_blueprint_protocol, "== 1.2.0"}
+{:agent_blueprint_protocol, "== 1.5.0"}
 ```
 
 Install the exact release from npm:
 
 ```sh
-npm install @agent-blueprint-protocol/verifier@1.2.0
+npm install @agent-blueprint-protocol/verifier@1.5.0
 ```
 
-Use `~> 1.2.0` when later compatible 1.2 patches are acceptable, and use the resolved lockfile version for identity comparisons.
+Use `~> 1.5.0` when later compatible 1.5 patches are acceptable, and use the resolved lockfile version for identity comparisons.
 
 ## Release identity
 
 `priv/release-metadata.json` records the package version, verification-semantics version, and current specification, corpus, and registry identities. `priv/release-history.json` carries an append-only row for each manifest-era release. Published identities are immutable; corrections appear in a later release.
 
-## Changes in 1.2
+## Changes in 1.5
 
 Receivers can opt into [federation mapping identity pins](federation.md#pinning-the-carrier-mapping).
 The protocol revision and verification-semantics version stay at `1` and `4`.
