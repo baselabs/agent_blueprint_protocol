@@ -67,7 +67,8 @@
               "federation.decode",
               "federation.verify_commitment",
               "reconcile",
-              "predicate"
+              "predicate",
+              "procedure.verify"
             ]
           },
           "input": {

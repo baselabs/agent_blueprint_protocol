@@ -11,7 +11,12 @@ import {documentDigest} from '../verifier/harness.ts';
 import '../test/typescript/harness_startup.mjs';
 const scratch=mkdtempSync(join(tmpdir(),'abp-conformance-'));
 const certified=readFileSync('spec/conformance/certified-results.json');
-function run(args,expected=0){const r=stream(process.execPath,args,{timeout:15000});assert.equal(r.status,expected);return r;}
+function run(args, expected = 0, timeout = 15_000) {
+  const result = stream(process.execPath, args, {timeout});
+  if (result.error) throw result.error;
+  assert.equal(result.status, expected);
+  return result;
+}
 try {
   for(const [label,command] of [['escript',['escript','agent_blueprint_protocol_conformance','--serve','--corpus','priv/conformance']],['kit',[process.execPath,'dist/kit/cli.mjs','--serve','--corpus','priv/conformance']]]) {
     const output=join(scratch,label+'.json');
@@ -37,6 +42,7 @@ try {
   assert.deepEqual(readFileSync('dist/release-history.json'),readFileSync('priv/release-history.json'));
   assert.deepEqual(readFileSync('dist/package/dist/release-history.json'),readFileSync('priv/release-history.json'));
   run(['dist/kit/cli.mjs','conformance','run','--corpus','priv/conformance','--results',result,...identity,'--prior-corpus-digest',document.corpus_digest,'--',...adapter]);
-  run(['scripts/check_reconcile_mutations.mjs']);
+  // This batch runs the full corpus once per mutation.
+  run(['scripts/check_reconcile_mutations.mjs'], 0, 60_000);
   console.log('conformance product: schemas, both adapters, certified results, and 14 adapter denials passed');
 }finally{rmSync(scratch,{recursive:true,force:true});}
