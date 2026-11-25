@@ -12,7 +12,8 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
   @artifacts [
     {"blueprint.cddl", "blueprint", "blueprint-decode"},
     {"deployment.cddl", "deployment", "deployment-decode"},
-    {"taskenvelope.cddl", "taskenvelope", "federation-decode"}
+    {"taskenvelope.cddl", "taskenvelope", "federation-decode"},
+    {"procedure.cddl", "procedure", "procedure-verify"}
   ]
 
   def run(write?) do
@@ -20,6 +21,8 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
       Enum.flat_map(@artifacts, fn {cddl, root, decode_case} ->
         derive_findings(cddl, root, decode_case, write?)
       end)
+
+    findings = findings ++ procedure_twin_findings(write?)
 
     if findings != [] do
       raise """
@@ -37,7 +40,26 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
       end)
       |> Enum.join(", ")
 
-    IO.puts("grammar derivation: ok (3 grammars derived byte-exact; #{goldens})")
+    IO.puts(
+      "grammar derivation: ok (#{length(@artifacts)} grammars derived byte-exact; #{goldens})"
+    )
+  end
+
+  defp procedure_twin_findings(write?) do
+    {:ok, schema} = derive(File.read!(Path.join(@grammar_dir, "procedure.cddl")), "procedure")
+
+    bytes =
+      "// Derived from spec/grammar/procedure.cddl by grammar.derivation.\nexport const PROCEDURE_SCHEMA = " <>
+        Jason.encode!(schema) <> ";\n"
+
+    path = "verifier/procedure_schema.ts"
+
+    if write? do
+      File.write!(path, bytes)
+      []
+    else
+      if File.read!(path) == bytes, do: [], else: ["#{path} differs from the derived schema"]
+    end
   end
 
   defp derive_findings(cddl, root, decode_case, write?) do
@@ -86,6 +108,10 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
           table = AgentBlueprintProtocol.Deployment.table()
           {Enum.map(table, & &1.name), table |> Enum.filter(& &1.required) |> Enum.map(& &1.name)}
 
+        "procedure" ->
+          table = AgentBlueprintProtocol.Procedure.table()
+          {Enum.map(table, & &1.name), table |> Enum.filter(& &1.required) |> Enum.map(& &1.name)}
+
         "taskenvelope" ->
           names = AgentBlueprintProtocol.Federation.envelope_members()
           {names, nil}
@@ -126,6 +152,29 @@ defmodule AgentBlueprintProtocol.GrammarDerivation do
 
   # Corpus goldens: every VALID case of the artifact's decode surface
   # plus the golden vectors must validate under the derived schema.
+  defp corpus_findings("procedure", _decode_case, schema) do
+    cases = Jason.decode!(File.read!(case_file("procedure-verify")))["cases"]
+    {:ok, tagged_schema} = schema |> Jason.encode!() |> AgentBlueprintProtocol.Json.decode()
+
+    Enum.flat_map(Enum.filter(cases, &(&1["expected"]["verdict"] == "valid")), fn c ->
+      deployment = Jason.decode!(c["input"]["text"])
+
+      {:ok, body} =
+        deployment["extensions"]["critical"]["io.github.baselabs/procedure"]
+        |> Jason.encode!()
+        |> AgentBlueprintProtocol.Json.decode()
+
+      case AgentBlueprintProtocol.Schema.validate_instance(
+             tagged_schema,
+             body,
+             AgentBlueprintProtocol.Schema.dialect()
+           ) do
+        :ok -> []
+        {:error, error} -> ["procedure golden #{c["id"]} fails its schema: #{inspect(error)}"]
+      end
+    end)
+  end
+
   defp corpus_findings(root, decode_case, schema) do
     cases =
       decode_case

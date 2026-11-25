@@ -31,6 +31,7 @@ Each `cases/*.json` file uses [`case-file.schema.json`](https://github.com/basel
 - `negotiation.negotiate`: [`negotiation-negotiate.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/negotiation-negotiate.schema.json)
 - `portability.scan`: [`portability-scan.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/portability-scan.schema.json)
 - `predicate`: [`predicate.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/predicate.schema.json)
+- `procedure.verify`: [`procedure-verify.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/procedure-verify.schema.json)
 - `reconcile`: [`reconcile.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/reconcile.schema.json)
 - `schema.validate_instance`: [`schema-validate_instance.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/schema-validate_instance.schema.json)
 - `signature.verify`: [`signature-verify.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/signature-verify.schema.json)
@@ -44,13 +45,13 @@ An [execution adapter](glossary.md#execution-adapter) reads one JSON object per 
 The following transcript was captured while the npm package's harness ran its own `--serve` adapter over its shipped corpus. The handshake request was:
 
 ```json
-{"corpus_digest":"sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk","version":1}
+{"corpus_digest":"sha-256:2WOmWAgEXiA3-m6-mAoAFOGBOeod5e8SdrURdax-G5g","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI","version":1}
 ```
 
 The adapter answered:
 
 ```json
-{"corpus_digest":"sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk","version":1}
+{"corpus_digest":"sha-256:2WOmWAgEXiA3-m6-mAoAFOGBOeod5e8SdrURdax-G5g","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI","version":1}
 ```
 
 The first case request was:
@@ -79,7 +80,7 @@ node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.rea
 
 The adapter command after `--` is started directly without a shell. A Windows `.cmd` or `.bat` launcher must be run through its interpreter, such as `cmd.exe /c`. The installed package command above uses `node` so the same adapter command runs on Linux, macOS, and Windows. If the adapter cannot be started, the harness names the startup failure and exits `18` (`early_exit`).
 
-The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 630` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
+The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 741` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
 
 Rerun with all claim metadata to produce an unsigned claim. These generic labels describe this demonstration; replace them with your implementation's actual source revision, version, platform, and run date when making your own claim:
 

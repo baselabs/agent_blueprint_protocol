@@ -55,6 +55,7 @@ defmodule AgentBlueprintProtocol.PublicInputsTest do
           Negotiation,
           BoundsAlgebra,
           Compatibility,
+          Procedure,
           Evidence,
           Reconcile,
           Registry,

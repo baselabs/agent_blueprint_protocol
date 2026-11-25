@@ -1,9 +1,13 @@
 # Registry operations process
 
-The shipped registry contains the protocol's two federation registrations.
+The shipped registry contains the protocol-owned federation and procedure registrations.
 `registry.json` is its canonical source; the compiled Elixir and TypeScript
 forms are bound to it by the registry equality check. Product and third-party
 entries belong in the host support registry, not in these packages.
+
+The active, critical `io.github.baselabs/procedure` registration is for
+Deployment Manifests. Its schema pin binds the derived procedure schema at
+`spec/grammar/derived/procedure.schema.json`.
 
 ## Host registrations
 

@@ -42,9 +42,12 @@ The name after the slash is nonempty. It starts and ends with a lowercase letter
 
 ## Register a namespace with the host
 
-The packages ship only `io.github.baselabs/federation` (active) and
-`com.example/federation` (deprecated). Both are critical and pin the protocol's
-federation schema. The deprecated spelling remains supported throughout 1.x.
+The registry ships the active `io.github.baselabs/federation` registration
+and the deprecated `com.example/federation` spelling. Both are critical
+and pin the federation schema. The deprecated spelling remains supported
+throughout 1.x. The active, critical `io.github.baselabs/procedure` registration
+pins the [procedure identity schema and binding rules](procedure-identity.md)
+for Deployment Manifests.
 
 Supply product and third-party entries in the host support registry. No package
 change is required. A critical entry declares its schema digest, and the host

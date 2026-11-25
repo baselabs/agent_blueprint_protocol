@@ -63,7 +63,8 @@
                 "max_attestation_age_ms": {},
                 "observed": {}
               }
-            }
+            },
+            "procedure": {}
           },
           "additionalProperties": false
         }

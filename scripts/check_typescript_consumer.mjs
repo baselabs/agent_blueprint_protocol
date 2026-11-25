@@ -43,6 +43,9 @@ try {
     "const signed:SignedAttributes={algorithm,purpose,contentDigest:'',createdAt:'',keyId:''};\n"+
     "// @ts-expect-error verification input algorithms remain strict\nconst unsupported:PublicKey={algorithm:'future_algorithm',keyId:'',key:new Uint8Array()};\n"+
     "// @ts-expect-error negotiation input lifecycle states remain strict\nconst state:Support['registry'][string]['state']='future_state';\n"+
+    "import {procedureSchema,procedureDocumentCommitment,verifyProcedure,type ProcedureInputs,type Deployment,type Evidence} from '@agent-blueprint-protocol/verifier';\n"+
+    "declare const procedureDeployment:Deployment;declare const procedureInputs:ProcedureInputs;const procedureResult:Result<Evidence>=verifyProcedure(procedureDeployment,procedureInputs);const procedureCommitment:Result<string>=procedureDocumentCommitment({type:'example.document',nonce:'0'.repeat(64)});procedureSchema();\n"+
+    "// @ts-expect-error procedure import phases remain strict\nconst phase:ProcedureInputs['phase']='future_phase';\n"+
     "export function inspectNotice(value:Notice):boolean {switch(value){case KNOWN_NOTICES.extension_deprecated:return true;default:return false;}}\n";
   writeFileSync(join(scratch,'consumer.ts'),source+forward);
   writeFileSync(join(scratch,'tsconfig.json'),JSON.stringify({compilerOptions:{module:'nodenext',moduleResolution:'nodenext',target:'es2022',lib:['es2022'],types:[],strict:true,skipLibCheck:false,noEmit:true},files:['consumer.ts']}));

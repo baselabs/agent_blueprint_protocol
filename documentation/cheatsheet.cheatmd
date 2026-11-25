@@ -56,7 +56,7 @@ Use `support` with `negotiate/2` or `Reconcile.Inputs`. `Federation.members/1` r
 `Negotiation.Support.registry` maps namespaces to `ExtensionRegistry` entries.
 Supply criticality, state, and a schema digest pin; put the held schema in
 `schemas`. In TypeScript, the public `Support` type exposes the same fields
-with `schemaDigest` spelling. Only the protocol's two federation entries ship.
+with `schemaDigest` spelling. The registry ships federation and procedure entries.
 See the [complete examples](extensions.md#register-a-namespace-with-the-host).
 
 ### Run the corpus

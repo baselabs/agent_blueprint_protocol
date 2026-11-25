@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2026-11-25
 
+### Procedure identity
+
+- Register `io.github.baselabs/procedure` as a critical Deployment Manifest
+  extension. The manifest digest covers the declaration and its host-defined
+  profile.
+- Bind observed instances, builds and committed documents to the Deployment
+  and attempt in both verifiers. Reconcile runs the binding stage when the
+  critical extension is present.
+- Add procedure cases for carrier rejection, signed reconcile and before-send
+  and returned-run verification.
+
 ### Added
 
 - Expose a canonical digest of the federation mapping rows in Elixir and

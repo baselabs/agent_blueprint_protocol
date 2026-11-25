@@ -71,13 +71,14 @@ console.log(result.ok ? "valid" : result.error.code); // valid
 
 `npm view @agent-blueprint-protocol/verifier dist-tags` lists the published version for each npm tag.
 
-The conformance corpus contains 630 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
+The conformance corpus contains 741 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
 
 ## Documentation
 
 - [HexDocs](https://hexdocs.pm/agent_blueprint_protocol/1.2.0/)
 - [Quickstart](documentation/quickstart.md)
 - [TypeScript guide](documentation/typescript.md)
+- [Procedure identity guide](documentation/procedure-identity.md)
 - [Conformance guide](documentation/conformance.md)
 - [Protocol specification](spec/protocol.md)
 - [Stability policy](documentation/stability.md)

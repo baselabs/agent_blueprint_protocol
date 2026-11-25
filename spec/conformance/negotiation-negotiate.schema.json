@@ -210,6 +210,15 @@
                 "unknown_bound",
                 "unknown_member"
               ]
+            },
+            "subject": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "integer"
+                ]
+              }
             }
           },
           "required": [

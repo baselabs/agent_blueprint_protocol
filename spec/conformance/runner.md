@@ -81,6 +81,7 @@ nullable decoder override object; wrong shapes reach the bounds denial.
 | `compatibility.verify` | byte source for Deployment; `observed.identities`: array of exact `{kind,name,version,digest}` identities | `verified`: true |
 | `federation.decode` | byte source and `bounds`, or one of the state/carrier inputs below | `canonical`: base64url canonical envelope bytes; codec `value`: string, or carrier `decoded`: true |
 | `federation.verify_commitment` | `envelope`: canonical bytes as text; optional nullable receiving `context` | `task_identity`: string |
+| `procedure.verify` | Deployment byte source and procedure host inputs | `verified`: true and `evidence`: the complete typed evidence projection |
 | `reconcile` | `blueprint`, `deployment`: canonical bytes as text; `inputs`: import options below | `evidence`: the complete typed evidence projection |
 | `predicate` | `mode`: `validate` or `evaluate`; `predicate`: JSON AST; `port_names`: string array; `ports`: JSON object for evaluation | `valid`: true for validation; `value`: boolean for evaluation |
 
@@ -128,12 +129,23 @@ and ordered, deduplicated `not_verified`. A clamp has `field`, `class`, `unit`,
 `requested`, `effective`, `source`, and `acknowledged`. Signature detail is
 `{key_ids:[...]}` or `no_signatures_present`; binding detail has string arrays
 `checked` and `not_verified`; digest detail is a tagged digest; other details
-are null, `retained`, or `quarantined`.
+are null, `retained`, or `quarantined`, or procedure-specific detail.
+
+The `procedure.verify` inputs and reconcile’s optional `inputs.procedure`
+carry `inventory`, `documents`, `children`, `accepted_profiles`, `attempt`,
+`execution_boundary` and `phase` as defined by the procedure identity namespace.
+Inventory builds and instances use JSON records. Documents are JSON values
+keyed by commitment. Children are canonical Deployment bytes as text.
+`phase` is `before_send` or `returned`. Procedure evidence projects the
+profile, attempt and execution-boundary commitments, phase, provenance basis,
+assurance, validity, child Deployment digests and checked bindings.
 
 ## Agreement and output
 
-An expected invalid result has `verdict: invalid` and `code`; reconcile also
-pins `subject`, an array of member names and indices. An expected valid
+An expected invalid result has `verdict: invalid` and `code`. Reconcile and
+`procedure.verify` also pin `subject`, an array of member names and indices.
+Negotiation and extension resolution pin a nonempty subject for
+`extension_payload_forbidden` when one is present. An expected valid
 result has `verdict: valid` and one or more projected fields. Legacy cases
 may pin a subset of the projection. Numbers compare by mathematical value.
 Legacy byte fields accept their exact UTF-8 string or base64url spelling.

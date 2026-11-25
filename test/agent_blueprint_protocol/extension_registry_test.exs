@@ -5,7 +5,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
 
   alias AgentBlueprintProtocol.{Canonicalization, Digest, ExtensionRegistry, Schema}
 
-  test "only the protocol federation entries are compiled" do
+  test "only protocol-owned entries are compiled" do
     {:ok, types} = Code.Typespec.fetch_types(ExtensionRegistry)
 
     {:type, {:state, {:type, _, :union, states}, []}} =
@@ -24,7 +24,8 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
     assert MapSet.new(Map.keys(by_ns)) ==
              MapSet.new([
                "com.example/federation",
-               "io.github.baselabs/federation"
+               "io.github.baselabs/federation",
+               "io.github.baselabs/procedure"
              ])
 
     assert by_ns["com.example/federation"].criticality == :critical
@@ -62,18 +63,29 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
 
   test "every compiled schema is a closed object schema" do
     for entry <- ExtensionRegistry.registered_extensions(), entry.schema_digest != nil do
-      document = ExtensionRegistry.federation_schema()
+      document =
+        if entry.namespace == "io.github.baselabs/procedure",
+          do: ExtensionRegistry.procedure_schema(),
+          else: ExtensionRegistry.federation_schema()
 
-      {:ok, parsed} = Schema.parse(document, Schema.dialect())
+      {:ok, encoded} = Canonicalization.encode(document)
+      assert entry.schema_digest == Digest.to_tagged(Digest.hash(:extension_schema, encoded))
+      assert {:ok, _} = Schema.parse(document, Schema.dialect())
+      {:object, members} = document
 
-      root = parsed.root
+      root =
+        case List.keyfind(members, "$ref", 0) do
+          nil ->
+            document
 
-      assert match?({:object, _}, root)
+          {_, {:string, "#/$defs/procedure"}} ->
+            {_, {:object, definitions}} = List.keyfind(members, "$defs", 0)
+            {_, value} = List.keyfind(definitions, "procedure", 0)
+            value
+        end
 
       assert List.keyfind(elem(root, 1), "additionalProperties", 0) ==
                {"additionalProperties", {:boolean, false}}
-
-      _ = entry
     end
   end
 
@@ -89,7 +101,7 @@ defmodule AgentBlueprintProtocol.ExtensionRegistryTest do
   describe "digest/0 (the corpus-registry binding)" do
     test "is the pinned content digest — any registry edit consciously moves it" do
       assert Digest.to_tagged(ExtensionRegistry.digest()) ==
-               "sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk"
+               "sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI"
     end
 
     test "is the domain-separated JCS digest over the projected entries" do

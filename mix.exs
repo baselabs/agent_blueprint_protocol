@@ -97,6 +97,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/0019-runtime-boundary.md",
         "docs/adr/0020-kit-cli.md",
         "docs/adr/0021-federation-mapping-identity.md",
+        "docs/adr/0022-procedure-identity.md",
         "spec/protocol.md",
         "spec/README.md",
         "spec/LICENSE",
@@ -170,6 +171,8 @@ defmodule AgentBlueprintProtocol.MixProject do
           AgentBlueprintProtocol.Evidence.Binding,
           AgentBlueprintProtocol.Evidence.Signatures,
           AgentBlueprintProtocol.Compatibility,
+          AgentBlueprintProtocol.Procedure,
+          AgentBlueprintProtocol.Procedure.Inputs,
           AgentBlueprintProtocol.Compatibility.Observed,
           AgentBlueprintProtocol.Negotiation,
           AgentBlueprintProtocol.Negotiation.Outcome,
@@ -220,6 +223,7 @@ defmodule AgentBlueprintProtocol.MixProject do
           "documentation/what-a-blueprint-is.md",
           "documentation/what-a-deployment-is.md",
           "documentation/portability.md",
+          "documentation/procedure-identity.md",
           "documentation/federation.md",
           "documentation/evidence-commitments.md",
           "documentation/positioning.md"
@@ -274,7 +278,8 @@ defmodule AgentBlueprintProtocol.MixProject do
           "docs/adr/0018-normative-extraction.md",
           "docs/adr/0019-runtime-boundary.md",
           "docs/adr/0020-kit-cli.md",
-          "docs/adr/0021-federation-mapping-identity.md"
+          "docs/adr/0021-federation-mapping-identity.md",
+          "docs/adr/0022-procedure-identity.md"
         ],
         Governance: [
           "spec/IPR.md",
@@ -304,6 +309,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "documentation/what-a-blueprint-is.md",
         "documentation/what-a-deployment-is.md",
         "documentation/portability.md",
+        "documentation/procedure-identity.md",
         "documentation/federation.md",
         "documentation/architecture.md",
         "documentation/evidence-commitments.md",
@@ -351,6 +357,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/0019-runtime-boundary.md",
         "docs/adr/0020-kit-cli.md",
         "docs/adr/0021-federation-mapping-identity.md",
+        "docs/adr/0022-procedure-identity.md",
         "CONTRIBUTING.md",
         "SUPPORT.md",
         "CODE_OF_CONDUCT.md",
@@ -384,7 +391,8 @@ defmodule AgentBlueprintProtocol.MixProject do
         "run --no-start scripts/check_verifier_agreement.exs"
       ],
       "compatibility.replay": [
-        "run --no-start scripts/check_compatibility_replay.exs"
+        "run --no-start scripts/check_compatibility_replay.exs",
+        "cmd elixir scripts/check_procedure_consumers.exs"
       ],
       "kit.build": [
         "cmd npm ci --ignore-scripts --no-audit --no-fund --loglevel=error",

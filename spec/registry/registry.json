@@ -18,6 +18,15 @@
       "promoted_at_revision": null,
       "schema_digest": "sha-256:NgfEJT8JXJqRMpQS5TVBQDrk97-PzUtbgnRgWc8Dki0",
       "state": "active"
+    },
+    {
+      "a2a_uri": "https://baselabs.github.io/agent_blueprint_protocol/extensions/procedure",
+      "criticality": "critical",
+      "namespace": "io.github.baselabs/procedure",
+      "owner": "Agent Blueprint Protocol",
+      "promoted_at_revision": null,
+      "schema_digest": "sha-256:ejV-S5zndDzvQ0hx2N90-rMGy3pjZCqSWPtcTDUSsWc",
+      "state": "active"
     }
   ]
 }

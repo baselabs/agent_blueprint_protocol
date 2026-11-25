@@ -77,6 +77,93 @@
                   "not_verified"
                 ],
                 "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "profile_digest": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "attempt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "execution_boundary": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "phase": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "basis": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "assurance": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "deployment_digest": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "validity": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "not_before": {
+                            "type": "string"
+                          },
+                          "not_after": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "not_before"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "checked": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "profile_digest",
+                  "attempt",
+                  "execution_boundary",
+                  "phase",
+                  "basis",
+                  "assurance",
+                  "deployment_digest",
+                  "validity",
+                  "checked"
+                ],
+                "additionalProperties": false
               }
             ]
           }

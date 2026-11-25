@@ -3,7 +3,7 @@
 Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes`, 630 cases) are
+`sha-256:2WOmWAgEXiA3-m6-mAoAFOGBOeod5e8SdrURdax-G5g`, 741 cases) are
 certified against this document at every release through the release
 identity chain: the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -524,6 +524,7 @@ compiled twins and the corpus index by the registry equality gate. The shipped p
 |---|---|---|---|
 | `com.example/federation` | Agent Blueprint Protocol | critical | deprecated |
 | `io.github.baselabs/federation` | Agent Blueprint Protocol | critical | active |
+| `io.github.baselabs/procedure` | Agent Blueprint Protocol | critical | active |
 
 The active federation namespace is `io.github.baselabs/federation`, with
 A2A declaration URI
@@ -545,7 +546,7 @@ two-label restrictions are stricter than the MCP grammar. Prefixes whose second 
 are reserved. The registry applies these rules at registration, without
 narrowing revision 1 artifact decoding.
 
-The shipped registry contains only the protocol's federation registrations.
+The shipped registry contains the protocol-owned federation and procedure registrations.
 Hosts supply product and third-party registrations through negotiation support:
 a namespace-keyed registry with criticality, lifecycle state, and schema digest,
 plus the schema documents they hold. An unshipped namespace uses that host entry.
@@ -561,6 +562,102 @@ bound into the corpus index but not into artifact digests: an artifact
 must remain verifiable against a registry that legitimately gained
 entries after it was produced; hosts wanting pinning SHOULD use
 `build_identities`.
+
+### Procedure identity namespace
+
+`io.github.baselabs/procedure` is owned by Agent Blueprint Protocol. It is
+critical and active, with `promoted_at_revision: null`. Its schema pin is
+the extension-schema digest of the [derived schema](grammar/derived/procedure.schema.json).
+The [CDDL grammar](grammar/procedure.cddl) defines the closed body. The typed
+decoder applies unknown member, missing member, type, constraint, cardinality,
+nested and cross-field checks in that order. This body always receives the
+strict portability scan, even when authored or validated as a critical extension.
+
+The registry defines this payload for Deployment Manifests only. A Blueprint
+carrying the namespace in either `extensions.critical` or `extensions.optional`
+denies `extension_payload_forbidden` during negotiation, before lifecycle or
+criticality checks, with subject `["extensions"]`. Reconcile prefixes that
+subject with `"blueprint"` and denies before binding.
+
+Profiles are inline and commit to host-defined roles, allowed forms and bases,
+cardinalities, total configuration schemas, exact version fields, coverage and
+relations. The host accepts profiles by their plain SHA-256 over JCS digest.
+The protocol ships no roles or profiles. Instance ids and (role, identity)
+pairs are unique. Build references resolve to revision 1 `build_identities`.
+Relations resolve to declared instances and form an acyclic graph. `covers`
+never exempts a covered instance from attribution and transitive comparison.
+Every declared instance of a covered role requires a `part_of` bind to an
+instance whose role covers it.
+
+Host documents have a mandatory `type` and a 256-bit nonce, spelled as 64
+lowercase hexadecimal characters or 43 canonical unpadded base64url characters.
+Configuration, enrollment, contract, environment and principal enrollment use
+respectively the types `agent-blueprint-protocol/procedure-configuration`,
+`agent-blueprint-protocol/procedure-enrollment`,
+`agent-blueprint-protocol/procedure-contract`,
+`agent-blueprint-protocol/procedure-environment` and
+`agent-blueprint-protocol/procedure-principal-enrollment`.
+A contract document describes a service's interface, and an enrollment document records a principal's or a service's enrollment with the host; neither is an agreement between parties, and ABP evaluates neither.
+Their commitments are plain SHA-256 over JCS. Every committed document is supplied, keyed by its
+recomputed digest. Decimal fields use fixed-scale integers. Digest and instance
+references are instance `binds` relations, never document strings. The bounded
+schema dialect remains unchanged. After local `$ref` resolution, configuration
+schema roots are closed objects with `type: object`,
+`additionalProperties: false` and every property required.
+All nested object schemas also close their objects and require every member.
+`exact` members satisfy the revision 1 exact-version predicate.
+
+Verification is an import binding stage, available standalone and in reconcile.
+In order it checks input shape, the Deployment digest, critical namespace
+presence, the typed body and portability, profile validity and acceptance,
+declaration conformance, committed documents with their schemas and exactness,
+unchanged revision 1 build compatibility over `inventory.builds`, child
+Deployment decoding with their digests, profiles and graph bounds, inventory
+binding to the manifest and attempt, and exact instance pairing.
+Reconcile requires procedure inputs whenever the namespace is critical and
+runs the procedure stage during binding. A denial halts the import.
+
+The inventory carries `builds`, `instances`, `manifest_digest` and `attempt`.
+`instances` contains observations in the declaration's instance shape.
+The verifier pairs each declaration by instance id and compares identity,
+provenance and relations. It compares the inventory's `manifest_digest` to
+the recomputed Deployment digest and its `attempt` to the supplied attempt
+commitment. The execution-boundary commitment identifies the host's selected
+measurement boundary.
+
+Every pairing failure, absent child or document, copied inventory, extra or
+ambiguous observation denies `binding_incomplete`. Declaration faults,
+document schema or exactness failures, cycles and graph-limit violations deny
+`invalid_constraint`; role-count failures deny `invalid_cardinality`.
+Document faults name the document member in the subject. Pairing denials
+append the first differing member path in UTF-8 byte order, using member
+names. Structural and digest syntax failures retain their existing codes. A
+child Deployment whose declared digest differs from its bytes denies
+`digest_mismatch`. The `compatibility_*` codes arise only from the unchanged
+`build_identities` check.
+
+The subject, trigger and host action remain part of each error code’s meaning.
+The procedure stage uses the closed 1.x code vocabulary and core
+`protocol_revision` 1. Its cases extend the conformance census.
+
+The bounds are 256 instances, 128 roles, 16 relations per instance, 16 covered
+roles per role, 64 ordered composition members, depth 8 including the root,
+256 manifests in the closure, 1,024 observations and schema complexity 512.
+Host inputs admit at most 255 children, 1,024 documents and 256 accepted profiles.
+Exceeding these input-shape limits denies `invalid_type`. Unreferenced children
+are ignored; referenced children are decoded and validated once per digest.
+Composition hashes literal child references, constructed child-first. Shared
+children are allowed; a digest repeated on a path denies.
+
+The stage runs for `before_send` and `returned` imports. For returned runs the
+host rebuilds documents using reported values and the same nonce. Evidence
+records the profile digest, attempt commitment, execution-boundary commitment,
+phase, per-instance basis and assurance, validity statements and member digests.
+Validity is decoded and digest-covered without comparison to a clock.
+`identity_validity`, `observer_trust`, `measurement_freshness`,
+`evidence_authenticity`, `holder_assertion_truth`, `configuration_execution` and
+`service_implementation` remain unverified. Evidence contains no document contents.
+A consumer lacking the namespace denies `extension_unknown_critical`.
 
 ## 9. Bounds algebra
 
@@ -971,10 +1068,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-630 cases covering every required cell of the 18-surface × 31-class
+741 cases covering every required cell of the 19-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes`. Corpus identity
+`sha-256:2WOmWAgEXiA3-m6-mAoAFOGBOeod5e8SdrURdax-G5g`. Corpus identity
 is the digest of the domain-separated index, versioned by digest, not
 by name. The loader is pure over an in-memory path-to-bytes map and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,

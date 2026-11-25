@@ -25,6 +25,41 @@ value(api.intersect({blueprint:bounds,deployment:bounds,host:bounds,protectedCla
 value(api.verifyCompatibility(deployment,{identities:deployment.value.build_identities}));
 value(api.reconcile(blueprint,deployment,{hostBounds:bounds,support,keys:[],protectedClamp:'acknowledge',observations:{now:null,maxAttestationAgeMs:null,observed:{}}}));
 assert.equal(api.reconcile(blueprint,deployment,{hostBounds:bounds,support,keys:[],protectedClamp:'acknowledge',observations:{now:'invalid',maxAttestationAgeMs:10,observed:{}}}).ok,false);
+const procedures=JSON.parse(readFileSync(join(root,'priv/conformance/cases/procedure-verify.json'))).cases;
+for(const row of procedures) {
+  const decoded=api.decodeDeployment(row.input.text);
+  const result=decoded.ok?api.verifyProcedure(decoded.value,row.input.inputs):decoded;
+  assert.equal(result.ok,row.expected.verdict==='valid',row.id);
+  if(result.ok)assert.deepEqual(result.value,row.expected.evidence,row.id);
+  else {assert.equal(result.error.code,row.expected.code,row.id);assert.deepEqual(result.error.subject,row.expected.subject,row.id);}
+}
+const procedureCase=procedures.find(row=>row.id==='procedure-valid');
+const procedureDeployment=value(api.decodeDeployment(procedureCase.input.text));
+const forgedProcedure={...procedureDeployment,value:{...procedureDeployment.value,deployment_digest:deployment.contentDigest}};
+assert.equal(api.verifyProcedure(forgedProcedure,procedureCase.input.inputs).error.code,'digest_mismatch');
+for(const documents of [false,[],1,null]) {
+  const denied=api.verifyProcedure(procedureDeployment,{...procedureCase.input.inputs,documents});
+  assert.equal(denied.ok,false,'malformed procedure documents');
+  assert.equal(denied.error.code,'invalid_type');
+  assert.deepEqual(denied.error.subject,['inputs']);
+}
+// These API boundary values exceed the corpus JSON object's 1,000-member ceiling.
+for(const count of [1024,1025]) {
+  const documents=Object.fromEntries(Array.from({length:count},(_,i)=>[String(i),false]));
+  const result=api.verifyProcedure(procedureDeployment,{...procedureCase.input.inputs,documents});
+  assert.equal(result.ok,count===1024,'host document input count '+count);
+  if(!result.ok)assert.deepEqual(result.error,{code:'invalid_type',subject:['inputs']});
+}
+const procedureSupport={...support,schemas:{'io.github.baselabs/procedure':value(api.procedureSchema())}};
+const procedureOptions={hostBounds:bounds,support:procedureSupport,keys:[],protectedClamp:'acknowledge',observations:{now:null,maxAttestationAgeMs:null,observed:{}}};
+assert.equal(api.reconcile(blueprint,procedureDeployment,procedureOptions).error.code,'binding_incomplete');
+const procedureEvidence=value(api.reconcile(blueprint,procedureDeployment,{...procedureOptions,procedure:procedureCase.input.inputs}));
+assert.ok(procedureEvidence.checks.some(check=>check.surface==='procedure'));
+assert.ok(procedureEvidence.not_verified.includes('identity_validity'));
+for(const [commitment,document] of Object.entries(procedures.find(row=>row.id==='procedure-configuration').input.inputs.documents))assert.equal(value(api.procedureDocumentCommitment(document)),commitment);
+const shared=procedures.find(row=>row.id==='procedure-dag-sharing');
+const childViews=shared.input.inputs.children.map(text=>value(api.decodeDeployment(text)));
+value(api.verifyProcedure(value(api.decodeDeployment(shared.input.text)),{...shared.input.inputs,children:childViews}));
 assert.equal(value(api.federationMapping()).length,23);
 assert.equal(value(api.federationMappingIdentity()),'sha-256:4MYCdBdV__u-TTsGPJ5QdpHq_irb4PxhHRBdm64jjPg');
 if(existsSync('expected-mapping.json'))assert.deepEqual(value(api.federationMapping()),JSON.parse(readFileSync('expected-mapping.json','utf8')));

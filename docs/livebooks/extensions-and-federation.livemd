@@ -45,7 +45,7 @@ true = File.regular?(Application.app_dir(:agent_blueprint_protocol, "priv/exampl
 
 Registry states may grow. This reader matches the names used here and preserves an unknown state as unknown.
 
-The shipped registry contains only the active and deprecated federation registrations. Read both entries.
+The shipped registry contains active and deprecated federation registrations and an active procedure registration.
 
 ```elixir
 alias AgentBlueprintProtocol.ExtensionRegistry
@@ -73,7 +73,8 @@ registry_view
 ```
 [
   {"com.example/federation", :critical, :deprecated, true},
-  {"io.github.baselabs/federation", :critical, :active, true}
+  {"io.github.baselabs/federation", :critical, :active, true},
+  {"io.github.baselabs/procedure", :critical, :active, true}
 ]
 ```
 
@@ -281,7 +282,7 @@ host_support = %Negotiation.Support{
   missing_registration: :extension_unknown_critical,
   missing_schema: :extension_schema_unavailable,
   mismatched_schema: :extension_schema_digest_mismatch,
-  shipped_entries: 2
+  shipped_entries: 3
 }
 ```
 

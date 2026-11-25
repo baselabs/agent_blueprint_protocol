@@ -32,6 +32,14 @@ defmodule AgentBlueprintProtocol.Architecture.PublicApiCensusTest do
     AgentBlueprintProtocol.Signature.PublicKey => [],
     AgentBlueprintProtocol.Compatibility => [exact?: 1, verify: 2],
     AgentBlueprintProtocol.Compatibility.Observed => [],
+    AgentBlueprintProtocol.Procedure => [
+      decode: 1,
+      decode: 2,
+      document_commitment: 1,
+      schema: 0,
+      verify: 2
+    ],
+    AgentBlueprintProtocol.Procedure.Inputs => [],
     AgentBlueprintProtocol.Error => [ceiling_keys: 0, codes: 0, declared?: 1],
     AgentBlueprintProtocol.Portability => [
       scan: 1,
@@ -76,6 +84,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicApiCensusTest do
     AgentBlueprintProtocol.ExtensionRegistry => [
       digest: 0,
       federation_schema: 0,
+      procedure_schema: 0,
       registered_extensions: 0
     ],
     AgentBlueprintProtocol.Blueprint => [

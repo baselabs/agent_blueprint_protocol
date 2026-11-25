@@ -3713,9 +3713,20 @@ large_number_cases =
     }
   end
 
+Code.require_file("procedure_cases.exs", __DIR__)
+
 all_cases =
   all_cases ++
+    AgentBlueprintProtocol.ProcedureCases.cases() ++
+    AgentBlueprintProtocol.ProcedureCases.carrier_cases(
+      Enum.find(ImportCases.cases(), &(&1["id"] == "reconcile-unsigned"))
+    ) ++
     ImportCases.cases() ++
+    AgentBlueprintProtocol.ProcedureCases.reconcile_cases(
+      Enum.find(ImportCases.cases(), &(&1["id"] == "reconcile-unsigned")),
+      &ImportCases.expectation/3,
+      &CorpusGen.signature_entry/3
+    ) ++
     predicate_cases ++ unicode_case_ids ++ absent_root_cases ++ large_number_cases
 
 # --- vectors + schemas (hash-bound non-case data) ----------------------------
@@ -3767,7 +3778,17 @@ defmodule GenMain do
   defp project(other), do: other
 
   def main(all_cases, data, root) do
-    map = AgentBlueprintProtocol.ConformanceTest.Builder.build(all_cases, %{}, data: data)
+    map =
+      AgentBlueprintProtocol.ConformanceTest.Builder.build(all_cases, %{},
+        data: data,
+        case_file: fn c ->
+          cond do
+            String.starts_with?(c["id"], "procedure-blueprint-") -> "procedure-carriers"
+            String.starts_with?(c["id"], "reconcile-procedure-") -> "procedure-reconcile"
+            true -> c["surface"]
+          end
+        end
+      )
 
     with {:ok, corpus} <- AgentBlueprintProtocol.Conformance.Corpus.load(map) do
       results = AgentBlueprintProtocol.Conformance.Runner.run(corpus)

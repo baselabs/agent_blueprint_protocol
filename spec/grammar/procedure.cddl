@@ -1,0 +1,27 @@
+; Procedure identity is a critical Deployment Manifest extension.
+procedure = { profile: profile, instances: [1*256 instance], ? composition: composition }
+profile = { profile_id: identifier, roles: [1*128 role-rule], ? composition: composition-rule }
+role-rule = { role: identifier, forms: [1*5 form-name], bases: [1*5 basis], min: integer, max: integer,
+  ? schema: any, ? exact: [0*128 identifier], ? covers: [0*16 identifier],
+  ? relations: [0*16 relation-rule], evidence: requirement, principal: principal-rule, validity: requirement }
+composition-rule = { min: integer, max: integer, member_profiles: [1*128 tagged-digest] }
+relation-rule = { relation: identifier, target_role: identifier, min: integer, max: integer }
+instance = { id: identifier, role: identifier, identity: identity, provenance: provenance, ? binds: [0*16 relation] }
+identity = { form: "artifact", digest: tagged-digest } /
+  { form: "build", name: identifier } /
+  { form: "configuration", digest: tagged-digest } /
+  { form: "service", enrollment: tagged-digest, contract: tagged-digest, ? published: tagged-digest } /
+  { form: "environment", digest: tagged-digest }
+provenance = { basis: basis, ? evidence: tagged-digest, ? principal: principal, ? validity: validity }
+principal = { key: tagged-digest } / { enrollment: tagged-digest }
+validity = { not_before: timestamp, ? not_after: timestamp }
+relation = { relation: identifier, target: identifier }
+composition = { members: [1*64 member] }
+member = { id: identifier, deployment_digest: tagged-digest }
+form-name = "artifact" / "build" / "configuration" / "service" / "environment"
+basis = "host_computed" / "operator_attested" / "host_configured" / "host_observed" / "holder_asserted"
+requirement = "required" / "optional"
+principal-rule = "required" / "optional" / "forbidden"
+identifier = tstr
+tagged-digest = tstr
+timestamp = tstr

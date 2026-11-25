@@ -55,7 +55,7 @@ defmodule AgentBlueprintProtocol.ConformanceTest.Builder do
   defp build_with_files(cases, raws, data_files, opts) do
     case_files =
       cases
-      |> Enum.group_by(& &1["surface"], & &1)
+      |> Enum.group_by(Keyword.get(opts, :case_file, & &1["surface"]), & &1)
       |> Enum.map(fn {surface, file_cases} ->
         path = "cases/" <> String.replace(surface, ".", "-") <> ".json"
         body = %{"format" => @case_file_format, "cases" => Enum.sort_by(file_cases, & &1["id"])}

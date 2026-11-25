@@ -46,6 +46,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/0019-runtime-boundary.md
     docs/adr/0020-kit-cli.md
     docs/adr/0021-federation-mapping-identity.md
+    docs/adr/0022-procedure-identity.md
     priv/release-metadata.json
     priv/release-history.json
     spec/protocol.md
@@ -54,9 +55,11 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     spec/NOTICE
     spec/grammar/blueprint.cddl
     spec/grammar/deployment.cddl
+    spec/grammar/procedure.cddl
     spec/grammar/taskenvelope.cddl
     spec/grammar/derived/blueprint.schema.json
     spec/grammar/derived/deployment.schema.json
+    spec/grammar/derived/procedure.schema.json
     spec/grammar/derived/taskenvelope.schema.json
     spec/registry/registry.json
     spec/IPR.md
@@ -77,6 +80,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     documentation/handling-errors.md
     documentation/host-integration.md
     documentation/portability.md
+    documentation/procedure-identity.md
     documentation/positioning.md
     documentation/producer.md
     documentation/reading-evidence.md
@@ -121,6 +125,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     lib/agent_blueprint_protocol/json.ex
     lib/agent_blueprint_protocol/portability.ex
     lib/agent_blueprint_protocol/predicate.ex
+    lib/agent_blueprint_protocol/procedure.ex
     lib/agent_blueprint_protocol/reconcile.ex
     lib/agent_blueprint_protocol/registry.ex
     lib/agent_blueprint_protocol/schema.ex
@@ -157,6 +162,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     spec/conformance/negotiation-negotiate.schema.json
     spec/conformance/portability-scan.schema.json
     spec/conformance/predicate.schema.json
+    spec/conformance/procedure-verify.schema.json
     spec/conformance/reconcile.schema.json
     spec/conformance/runner.md
     spec/conformance/schema-validate_instance.schema.json
@@ -200,6 +206,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/0019-runtime-boundary.md
     docs/adr/0020-kit-cli.md
     docs/adr/0021-federation-mapping-identity.md
+    docs/adr/0022-procedure-identity.md
     spec/protocol.md
     spec/README.md
     spec/LICENSE

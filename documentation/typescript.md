@@ -196,6 +196,16 @@ if (!result.ok) throw new Error(result.error.code);
 console.log(result.value.not_verified.includes("signature_time_validity")); // true
 ```
 
+## Verify procedure identity
+
+Supply `procedureSchema()` in negotiation support for the critical
+`io.github.baselabs/procedure` Deployment extension. Call
+`verifyProcedure(deployment, inputs)` for an attempt, or pass the same
+`ProcedureInputs` as `options.procedure` to reconcile. Use
+`procedureDocumentCommitment(document)` to compute the key for each typed
+host document. The [procedure identity guide](procedure-identity.md) defines
+the inventory, profile acceptance and execution phases.
+
 ## Verify a signature
 
 Save the next block as `signature.mts`, then type-check it and run `node signature.mts`. `verifySignature` accepts a signature entry and the [host](glossary.md#host)'s public keys. This public corpus vector prints `example-signing-key`:

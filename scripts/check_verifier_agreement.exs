@@ -74,6 +74,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
     kit_checks!(node, escript_bytes)
 
+    seeded_native_carrier_red!()
     seeded_reds(node, escript_bytes)
     IO.puts("verifier agreement gate: ok")
   end
@@ -509,7 +510,158 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
   # ---- seeded reds ------------------------------------------------------------------
 
+  defp seeded_native_carrier_red! do
+    path = Path.join(@root, "lib/agent_blueprint_protocol/negotiation.ex")
+    source = File.read!(path)
+
+    denial =
+      ~s({:error,\n       %AgentBlueprintProtocol.Error{code: :extension_payload_forbidden, subject: ["extensions"]}})
+
+    unless length(:binary.matches(source, denial)) == 1,
+      do: raise("native carrier seed: denial anchor must be unique")
+
+    mutant = AgentBlueprintProtocol.CarrierRemovalSeed
+
+    source =
+      source
+      |> String.replace(
+        "defmodule AgentBlueprintProtocol.Negotiation do",
+        "defmodule #{inspect(mutant)} do",
+        global: false
+      )
+      |> String.replace(denial, ":ok", global: false)
+
+    modules = Code.compile_string(source, path)
+
+    try do
+      rows =
+        Path.join(@root, "priv/conformance/cases/procedure-carriers.json")
+        |> File.read!()
+        |> Jason.decode!()
+        |> Map.fetch!("cases")
+        |> Enum.filter(&(&1["surface"] == "negotiation.negotiate"))
+
+      unless length(rows) == 2, do: raise("native carrier seed: expected both regions")
+
+      for row <- rows do
+        {:ok, artifact} =
+          row["input"]["artifact"] |> Jason.encode!() |> AgentBlueprintProtocol.Json.decode()
+
+        {:ok, schema} =
+          row["input"]["support"]["schemas"]["io.github.baselabs/procedure"]
+          |> Jason.encode!()
+          |> AgentBlueprintProtocol.Json.decode()
+
+        support =
+          struct(Module.concat(mutant, "Support"),
+            revisions: MapSet.new([1]),
+            schemas: %{"io.github.baselabs/procedure" => schema}
+          )
+
+        case apply(mutant, :negotiate, [artifact, support]) do
+          {:ok, _} ->
+            unless row["id"] == "procedure-blueprint-critical-negotiate",
+              do: raise("native carrier seed accepted optional region")
+
+          {:error, %AgentBlueprintProtocol.Error{code: :extension_criticality_conflict}} ->
+            unless row["id"] == "procedure-blueprint-optional-negotiate",
+              do: raise("native carrier seed misclassified critical region")
+
+          other ->
+            raise "native carrier seed did not expose the removed denial: #{inspect(other)}"
+        end
+      end
+
+      IO.puts(
+        "seeded red fired: native-procedure-blueprint-carrier-denial-removed (both regions)"
+      )
+    after
+      for {module, _binary} <- Enum.reverse(modules) do
+        :code.purge(module)
+        :code.delete(module)
+      end
+    end
+  end
+
   @seeded_reds [
+    %{
+      name: "procedure-blueprint-carrier-denial-removed",
+      path: "negotiation.ts",
+      from:
+        ~s|  if (memberOf(value, "content_digest")?.t === "str" && [...critical, ...optional].includes("io.github.baselabs/procedure")) {\n    return { ok: false, e: "extension_payload_forbidden", subject: ["extensions"] };\n  }\n|,
+      to: "",
+      expect: :carrier_denial_removed
+    },
+    %{
+      name: "procedure-object-union-openness",
+      path: "procedure.ts",
+      from: "Array.isArray(s.type)?s.type.includes('object'):s.type==='object'",
+      to: "s.type==='object'",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-false-schema-ignored",
+      path: "procedure.ts",
+      from: "if(Object.hasOwn(role,'schema'))",
+      to: "if(role.schema)",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-observation-equality-removed",
+      path: "procedure.ts",
+      from: "hash(matches[0])===hash(inst)",
+      to: "true",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-depth-widened",
+      path: "procedure.ts",
+      from: "depth<8",
+      to: "depth<9",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-compatibility-checks-removed",
+      path: "procedure.ts",
+      from: "...members,...compatible.checks",
+      to: "...members",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-member-order-drift",
+      path: "procedure.ts",
+      from: ".sort((a,b)=>Buffer.compare(Buffer.from(a),Buffer.from(b)))",
+      to: ".sort()",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-pairing-subject-lost",
+      path: "procedure.ts",
+      from: "...path,...firstDifference(inst,matches[0])",
+      to: "...path",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-shared-depth-widened",
+      path: "procedure.ts",
+      from: "depth+entry.height<=8",
+      to: "depth+entry.height<=9",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-part-of-removed",
+      path: "procedure.ts",
+      from: "const covered=b.relation==='part_of'&&target&&",
+      to: "const covered=false&&target&&",
+      expect: :byte_drift
+    },
+    %{
+      name: "procedure-bounds-ignored",
+      path: "procedure.ts",
+      from: "coerce(bounds===undefined?{}:bounds)",
+      to: "coerce({})",
+      expect: :self_check_failure
+    },
     %{
       # DIRECTIONAL disagreement-forcing: every invalid-case code comparison
       # inverts, so the TS side disagrees where the escript agrees — report
@@ -712,7 +864,7 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
       )
 
       case seed.expect do
-        :byte_drift ->
+        expectation when expectation in [:byte_drift, :carrier_denial_removed] ->
           {out, status} =
             AgentBlueprintProtocol.GateCommand.capture(
               node,
@@ -722,6 +874,14 @@ defmodule AgentBlueprintProtocol.VerifierAgreementGate do
 
           if out == baseline_bytes do
             raise "seeded red did not diverge: #{seed.name} (vacuous seed or broken detector)"
+          end
+
+          if expectation == :carrier_denial_removed do
+            unless status == 1 and Jason.decode!(out)["disagreed"] == 4,
+              do:
+                raise(
+                  "carrier seed must produce exactly four behavioral disagreements, not an exception"
+                )
           end
 
           # The verdict seed must also flip the exit contract; the format

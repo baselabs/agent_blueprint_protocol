@@ -1192,7 +1192,7 @@ const hostShapes: unknown[] = [null, undefined, 1, "x", Symbol("example"), {}, [
   { value: null }, { value: obj([]) }, new Map([["index.json", null]])];
 for (const [moduleName, api] of Object.entries({ b64, blueprint, deployment, compatibility, boundsAlgebra,
     corpusApi, decoder, digest, extension, federation, negotiation, portability, predicate, registryEngine,
-    report, runner, schema, signatures, values })) {
+    report, runner, schema, signatures, values, procedure })) {
   for (const [name, fn] of Object.entries(api)) {
     if (typeof fn !== "function" || name === "CodeFail" || name === "SyntaxFail") continue;
     const call = fn as (...args: unknown[]) => unknown;
@@ -1213,7 +1213,21 @@ check("registry: malformed check denies", resultCode(() => registryEngine.valida
   [{ name: "example", kind: "any", check: 1 } as unknown as registryEngine.Spec], obj([["example", nil]]))), "invalid_type");
 
 
-check("registry: only protocol federation entries ship", registry.registeredExtensions().map(e => e.namespace).sort().join(","), "com.example/federation,io.github.baselabs/federation");
+import * as procedure from "./procedure.ts";
+import { tagged } from "./plain.ts";
+const procedureCase=JSON.parse(readFileSync("priv/conformance/cases/procedure-verify.json","utf8")).cases.find((row:any)=>row.id==='procedure-valid');
+for(const documents of [false,[],1,null]) {
+  const input={...procedureCase.input,inputs:{...procedureCase.input.inputs,documents}};
+  const row=inputCase('procedure.verify',tagged(input),tagged({verdict:'invalid',code:'invalid_type'}));
+  check("procedure runner: malformed documents deny",runner.execute(row,new Map(),new Map()).agree,true);
+}
+check("procedure: byte ceilings cover canonical bytes", resultCode(() => procedure.decode("{}", { bytes: 1 })), "ceiling:bytes");
+check("procedure: byte ceilings cover tagged values", resultCode(() => procedure.decode(obj([]), { bytes: 1 })), "ceiling:bytes");
+check("procedure: unknown bounds deny", resultCode(() => procedure.decode("{}", { unknown: 1 })), "unknown_bound");
+check("procedure: invalid bounds deny", resultCode(() => procedure.decode("{}", { depth: 0 })), "ceiling:depth");
+check("procedure: null bounds deny", resultCode(() => procedure.decode("{}", null as unknown as Record<string, unknown>)), "invalid_type");
+
+check("registry: only protocol-owned entries ship", registry.registeredExtensions().map(e => e.namespace).sort().join(","), "com.example/federation,io.github.baselabs/federation,io.github.baselabs/procedure");
 
 // The package-root support type exposes host registrations and held schema documents.
 const hostValue = {
