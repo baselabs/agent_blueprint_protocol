@@ -3,8 +3,8 @@ defmodule AgentBlueprintProtocol.PackageContentsTest do
 
   alias AgentBlueprintProtocol.{Error, PackageContents, Scratch}
 
-  @hex "sha-256:-N1GvPYuKnv6Br--iACuSSCvmVojkp5MQGObQb0b41w"
-  @npm "sha-256:4M6Z06tLFrxM9rwwrYtoAhLPVXNtiSP3dKOmebaG0yY"
+  @hex "sha-256:QJ6dGdth9IliURlm8DMHq-wPLPw5Y6cgc5Iq4POAvqw"
+  @npm "sha-256:C3QUdir9QxblCm8x6az5QrRRYopPPH-ndi4f4b3lXpQ"
 
   setup do
     root = Scratch.dir!("package-contents")
@@ -16,7 +16,6 @@ defmodule AgentBlueprintProtocol.PackageContentsTest do
           {".sample", <<0, 255>>},
           {"nested/z", "abc"},
           {"nested/中", ""},
-          {"nested/𐀀", "d"},
           {"nested/\uE000", "e"}
         ],
         do: File.write!(Path.join(root, path), bytes)
@@ -80,6 +79,23 @@ defmodule AgentBlueprintProtocol.PackageContentsTest do
   end
 
   if not match?({:win32, _}, :os.type()) do
+    # The Windows BEAM filename conversion uses one UTF-16 unit per code point.
+    test "supplementary names sort after BMP names in UTF-8 byte order", %{root: root} do
+      File.write!(Path.join(root, "nested/𐀀"), "d")
+
+      assert PackageContents.verify(
+               root,
+               :hex,
+               "sha-256:-N1GvPYuKnv6Br--iACuSSCvmVojkp5MQGObQb0b41w"
+             ) == :ok
+
+      assert PackageContents.verify(
+               root,
+               :npm,
+               "sha-256:4M6Z06tLFrxM9rwwrYtoAhLPVXNtiSP3dKOmebaG0yY"
+             ) == :ok
+    end
+
     test "links cannot stand in for packaged files", %{root: root} do
       File.ln_s!(Path.join(root, ".sample"), Path.join(root, "linked"))
 
