@@ -40,6 +40,9 @@ defmodule AgentBlueprintProtocol.Federation do
 
     Use it when checking a Federation envelope against supplied receiver facts.
 
+    Set `mapping_identity` to require an exact match in the signed compatibility
+    references. A nil pin skips this comparison.
+
     This module does not authorize operations.
 
     ## Example
@@ -60,6 +63,7 @@ defmodule AgentBlueprintProtocol.Federation do
       :issuer_key_sets,
       :created_after,
       :created_before,
+      :mapping_identity,
       prior_receipts: []
     ]
 
@@ -83,6 +87,7 @@ defmodule AgentBlueprintProtocol.Federation do
             issuer_key_sets: %{optional(binary()) => [Signature.PublicKey.t()]} | nil,
             created_after: binary() | nil,
             created_before: binary() | nil,
+            mapping_identity: binary() | nil,
             prior_receipts: [receipt_fact()]
           }
   end
@@ -245,6 +250,36 @@ defmodule AgentBlueprintProtocol.Federation do
   end
 
   @doc """
+  Returns the tagged SHA-256 digest of the canonical federation mapping rows.
+
+  Rows are encoded as a JSON array in index order. Each row contains
+  `index`, `logical_field`, `a2a_location`, `mcp_location`, and a string `verdict`.
+
+  ## Example
+
+      iex> String.starts_with?(AgentBlueprintProtocol.Federation.mapping_identity(), "sha-256:")
+      true
+  """
+  @doc since: "1.2.0"
+  @spec mapping_identity() :: binary()
+  def mapping_identity do
+    rows =
+      Enum.map(mapping(), fn row ->
+        {:object,
+         [
+           {"index", {:integer, row.index}},
+           {"logical_field", {:string, row.logical_field}},
+           {"a2a_location", {:string, row.a2a_location}},
+           {"mcp_location", {:string, row.mcp_location}},
+           {"verdict", {:string, Atom.to_string(row.verdict)}}
+         ]}
+      end)
+
+    {:ok, bytes} = Canonicalization.encode({:array, rows})
+    bytes |> Digest.of() |> Digest.to_tagged()
+  end
+
+  @doc """
     Returns the sorted Federation TaskEnvelope member names for a supported protocol revision.
 
     Use this vocabulary when inspecting TaskEnvelope members. For
@@ -349,6 +384,7 @@ defmodule AgentBlueprintProtocol.Federation do
          {:ok, commitment} <- terminal_commitment(%__MODULE__{value: value}),
          :ok <- commitment_check(receipt_members, commitment),
          :ok <- context_compare(members, context),
+         :ok <- mapping_compare(members["compatibility_reference"], context.mapping_identity),
          :ok <- conflict_check(members, commitment, context),
          :ok <- freshness_check(signature, context) do
       {:string, task_identity} = members["task_identity"]
@@ -578,6 +614,25 @@ defmodule AgentBlueprintProtocol.Federation do
       {member, _pin} -> {:error, %Error{code: :audience_mismatch, subject: [member]}}
     end
   end
+
+  defp mapping_compare(_references, nil), do: :ok
+
+  defp mapping_compare(references, pin) do
+    if mapping_match?(references, pin) do
+      :ok
+    else
+      {:error, %Error{code: :compatibility_entry_missing, subject: ["compatibility_reference"]}}
+    end
+  end
+
+  defp mapping_match?({:array, references}, pin) when is_binary(pin) do
+    Enum.any?(references, fn
+      {:object, row} -> List.keyfind(row, "identity", 0) == {"identity", {:string, pin}}
+      _ -> false
+    end)
+  end
+
+  defp mapping_match?(_, _), do: false
 
   defp conflict_check(members, commitment, context) do
     # Both members passed string_member in verify_commitment's with-chain;

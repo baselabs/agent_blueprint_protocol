@@ -39,6 +39,7 @@ defmodule AgentBlueprintProtocol.Architecture.FederationShapeTest do
   test "mapping rows and envelope members are bijective" do
     rows = Federation.mapping()
     assert length(rows) == 23
+    assert Enum.map(rows, & &1.index) == Enum.to_list(1..23)
 
     row_fields = rows |> Enum.map(& &1.logical_field) |> MapSet.new()
     member_names = Federation.envelope_members() |> MapSet.new()
@@ -54,6 +55,26 @@ defmodule AgentBlueprintProtocol.Architecture.FederationShapeTest do
       assert is_binary(row.a2a_location) and row.a2a_location != ""
       assert is_binary(row.mcp_location) and row.mcp_location != ""
     end
+  end
+
+  test "the mapping identity covers the ordered row data" do
+    alias AgentBlueprintProtocol.{Canonicalization, Digest}
+
+    rows =
+      Enum.map(Federation.mapping(), fn row ->
+        {:object,
+         [
+           {"index", {:integer, row.index}},
+           {"logical_field", {:string, row.logical_field}},
+           {"a2a_location", {:string, row.a2a_location}},
+           {"mcp_location", {:string, row.mcp_location}},
+           {"verdict", {:string, Atom.to_string(row.verdict)}}
+         ]}
+      end)
+
+    assert {:ok, bytes} = Canonicalization.encode({:array, rows})
+    assert Federation.mapping_identity() == Digest.to_tagged(Digest.of(bytes))
+    assert Federation.mapping_identity() == "sha-256:4MYCdBdV__u-TTsGPJ5QdpHq_irb4PxhHRBdm64jjPg"
   end
 
   test "federation.ex delegates validation to the generic engine" do

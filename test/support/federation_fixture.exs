@@ -54,13 +54,13 @@ defmodule AgentBlueprintProtocol.FederationFixture do
         ]}},
       {"compatibility_reference",
        {:array,
-        [
+        Keyword.get(opts, :compatibility_reference, [
           {:object,
            [
              {"name", {:string, "abp"}},
              {"identity", {:string, "0.1.0-dev.abc"}}
            ]}
-        ]}},
+        ])}},
       {"authority_proof_references",
        {:array, [tagged_digest(:federation_envelope, "proof-ref-1")]}}
     ]

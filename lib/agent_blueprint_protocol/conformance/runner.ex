@@ -1034,6 +1034,7 @@ defmodule AgentBlueprintProtocol.Conformance.Runner do
          issuer_key_sets: issuer_key_sets,
          created_after: ctx["created_after"],
          created_before: ctx["created_before"],
+         mapping_identity: ctx["mapping_identity"],
          prior_receipts: receipts
        }}
     else

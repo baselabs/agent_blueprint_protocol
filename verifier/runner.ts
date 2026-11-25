@@ -739,6 +739,7 @@ function buildContext(input: Value): { ok: true; v: federation.Context } | { ok:
       issuerKeySets,
       createdAfter: plainOptional(ctx, "created_after"),
       createdBefore: plainOptional(ctx, "created_before"),
+      mappingIdentity: plainOptional(ctx, "mapping_identity"),
       priorReceipts,
     },
   };

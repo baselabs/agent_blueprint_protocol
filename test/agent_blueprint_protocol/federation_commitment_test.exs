@@ -151,13 +151,15 @@ defmodule AgentBlueprintProtocol.FederationCommitmentTest do
   defp honest_envelope(opts \\ []) do
     shell =
       FederationFixture.value(
-        terminal: true,
-        task_identity: Keyword.get(opts, :task_identity, "task-7f3a2c"),
-        terminal_state: Keyword.get(opts, :terminal_state, "completed"),
-        result_material: Keyword.get(opts, :result_material, "result-bytes"),
-        audience: Keyword.get(opts, :audience, "audience-gamma"),
-        issuer: Keyword.get(opts, :issuer, "issuer-alpha"),
-        subject: Keyword.get(opts, :subject, "subject-beta")
+        [
+          terminal: true,
+          task_identity: Keyword.get(opts, :task_identity, "task-7f3a2c"),
+          terminal_state: Keyword.get(opts, :terminal_state, "completed"),
+          result_material: Keyword.get(opts, :result_material, "result-bytes"),
+          audience: Keyword.get(opts, :audience, "audience-gamma"),
+          issuer: Keyword.get(opts, :issuer, "issuer-alpha"),
+          subject: Keyword.get(opts, :subject, "subject-beta")
+        ] ++ Keyword.take(opts, [:compatibility_reference])
       )
 
     with_commitment =
@@ -258,6 +260,56 @@ defmodule AgentBlueprintProtocol.FederationCommitmentTest do
   defp prior_facts(env) do
     assert {:ok, facts} = Federation.verify_commitment(env, context())
     facts
+  end
+
+  describe "mapping identity pin" do
+    test "any named signed reference can satisfy the pin" do
+      identity = Federation.mapping_identity()
+
+      refs = [
+        {:object, [{"name", {:string, "build"}}, {"identity", {:string, "1.2.0"}}]},
+        {:object, [{"name", {:string, "transport-table"}}, {"identity", {:string, identity}}]}
+      ]
+
+      envelope = honest_envelope(compatibility_reference: refs)
+      assert {:ok, facts} = Federation.verify_commitment(envelope, context())
+
+      assert {:ok, ^facts} =
+               Federation.verify_commitment(envelope, context(mapping_identity: identity))
+    end
+
+    test "an absent match denies with a value-free subject" do
+      envelope = honest_envelope()
+      pin = Federation.mapping_identity()
+
+      assert {:error,
+              %AgentBlueprintProtocol.Error{
+                code: :compatibility_entry_missing,
+                subject: ["compatibility_reference"]
+              }} = Federation.verify_commitment(envelope, context(mapping_identity: pin))
+    end
+
+    test "a matching unsigned edit fails binding before pin comparison" do
+      envelope = honest_envelope()
+      pin = Federation.mapping_identity()
+      refs = [{:object, [{"name", {:string, "mapping"}}, {"identity", {:string, pin}}]}]
+      {:object, members} = envelope.value
+
+      tampered = %{
+        envelope
+        | value:
+            {:object,
+             List.keyreplace(
+               members,
+               "compatibility_reference",
+               0,
+               {"compatibility_reference", {:array, refs}}
+             )}
+      }
+
+      assert {:error, %AgentBlueprintProtocol.Error{code: :digest_mismatch}} =
+               Federation.verify_commitment(tampered, context(mapping_identity: pin))
+    end
   end
 
   # ---- the decided reds ------------------------------------------------------------

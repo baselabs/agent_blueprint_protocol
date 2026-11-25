@@ -26,6 +26,7 @@ value(api.verifyCompatibility(deployment,{identities:deployment.value.build_iden
 value(api.reconcile(blueprint,deployment,{hostBounds:bounds,support,keys:[],protectedClamp:'acknowledge',observations:{now:null,maxAttestationAgeMs:null,observed:{}}}));
 assert.equal(api.reconcile(blueprint,deployment,{hostBounds:bounds,support,keys:[],protectedClamp:'acknowledge',observations:{now:'invalid',maxAttestationAgeMs:10,observed:{}}}).ok,false);
 assert.equal(value(api.federationMapping()).length,23);
+assert.equal(value(api.federationMappingIdentity()),'sha-256:4MYCdBdV__u-TTsGPJ5QdpHq_irb4PxhHRBdm64jjPg');
 if(existsSync('expected-mapping.json'))assert.deepEqual(value(api.federationMapping()),JSON.parse(readFileSync('expected-mapping.json','utf8')));
 const signatures=JSON.parse(readFileSync(join(root,'priv/conformance/cases/signature-verify.json'))).cases;
 const valid=signatures.find(c=>c.expected.verdict==='valid');

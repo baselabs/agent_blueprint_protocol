@@ -125,6 +125,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublicApiCensusTest do
       from_mcp_state: 1,
       from_value: 1,
       mapping: 0,
+      mapping_identity: 0,
       mcp_carrier_key: 0,
       members: 1,
       terminal_commitment: 1,

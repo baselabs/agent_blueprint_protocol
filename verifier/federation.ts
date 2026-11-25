@@ -12,6 +12,7 @@ import { coerce as coerceBounds, maximum as maxBounds } from "./bounds.ts";
 import * as blueprint from "./blueprint.ts";
 import * as canonical from "./canonical.ts";
 import * as digest from "./digest.ts";
+import { rows as mappingRows } from "./mapping.ts";
 import { entry as compiledEntry } from "./registry.ts";
 import { field, keyfind, validate, type Spec } from "./registry_engine.ts";
 import * as portability from "./portability.ts";
@@ -36,10 +37,27 @@ export interface Context {
   issuer?: unknown;
   subject?: unknown;
   audience?: unknown;
+  mappingIdentity?: unknown;
   issuerKeySets: Record<string, signature.PublicKey[]> | null;
   createdAfter?: unknown;
   createdBefore?: unknown;
   priorReceipts: PriorReceipt[];
+}
+
+export function mappingIdentity(): string {
+  const rows: Value[] = mappingRows.map((row) => ({
+    t: "obj",
+    v: [
+      ["index", { t: "int", v: row.index }],
+      ["logical_field", { t: "str", v: row.logical_field }],
+      ["a2a_location", { t: "str", v: row.a2a_location }],
+      ["mcp_location", { t: "str", v: row.mcp_location }],
+      ["verdict", { t: "str", v: row.verdict }],
+    ],
+  }));
+  const encoded = canonical.encode({ t: "arr", v: rows });
+  if (!encoded.ok) throw new Error("invalid compiled federation mapping");
+  return digest.toTagged(digest.of(Buffer.from(encoded.v, "utf8")));
 }
 
 export type CodecResult = { ok: true; v: string | { decoded: true } } | { ok: false; e: string };
@@ -581,7 +599,7 @@ export function terminalCommitment(envelope: Envelope): { ok: true; v: digest.Di
 export function verifyCommitment(
   envelope: Envelope,
   context: Context,
-): { ok: true; v: { taskIdentity: string } } | { ok: false; e: string } {
+): { ok: true; v: { taskIdentity: string } } | { ok: false; e: string; subject?: string[] } {
   if (!envelope || !isValue(envelope.value) || envelope.value.t !== "obj") return { ok: false, e: "invalid_type" };
   const members = new Map(envelope.value.v);
 
@@ -615,6 +633,16 @@ export function verifyCommitment(
 
   const contextOk = contextCompare(members, context);
   if (!contextOk.ok) return contextOk;
+
+  if (context.mappingIdentity !== undefined && context.mappingIdentity !== null) {
+    const references = members.get("compatibility_reference");
+    const matches = references?.t === "arr" && references.v.some((row) => {
+      if (row.t !== "obj") return false;
+      const identity = keyfind(row.v, "identity");
+      return identity?.t === "str" && identity.v === context.mappingIdentity;
+    });
+    if (!matches) return { ok: false, e: "compatibility_entry_missing", subject: ["compatibility_reference"] };
+  }
 
   const conflictOk = conflictCheck(members, commitment.v, context);
   if (!conflictOk.ok) return conflictOk;
