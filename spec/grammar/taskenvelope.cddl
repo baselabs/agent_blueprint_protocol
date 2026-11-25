@@ -58,7 +58,19 @@ evidence-receipt-object = {
 
 compatibility-ref-element = {
   name: identity-string
-  identity: tstr             ; nonempty
+  identity: tstr             ; nonempty, may carry a tagged mapping identity
+}
+
+; Digest preimage data, referenced as a digest in the envelope.
+; The specification fixes row order and the canonical encoding.
+federation-mapping = [23*23 federation-mapping-row]
+
+federation-mapping-row = {
+  index: positive-integer
+  logical_field: tstr
+  a2a_location: tstr
+  mcp_location: tstr
+  verdict: "native" / "partial" / "extension"
 }
 
 ; hook-noted states (wire enums, values pinned by the corpus):

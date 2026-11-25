@@ -45,6 +45,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/0018-normative-extraction.md
     docs/adr/0019-runtime-boundary.md
     docs/adr/0020-kit-cli.md
+    docs/adr/0021-federation-mapping-identity.md
     priv/release-metadata.json
     priv/release-history.json
     spec/protocol.md
@@ -198,6 +199,7 @@ defmodule AgentBlueprintProtocol.Architecture.PackageBoundaryTest do
     docs/adr/0018-normative-extraction.md
     docs/adr/0019-runtime-boundary.md
     docs/adr/0020-kit-cli.md
+    docs/adr/0021-federation-mapping-identity.md
     spec/protocol.md
     spec/README.md
     spec/LICENSE

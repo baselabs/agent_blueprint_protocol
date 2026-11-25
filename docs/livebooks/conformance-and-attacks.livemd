@@ -2,7 +2,7 @@
 livebook:{"persist_outputs":true}
 -->
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.1.2/docs/livebooks/conformance-and-attacks.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https://raw.githubusercontent.com/baselabs/agent_blueprint_protocol/v1.2.0/docs/livebooks/conformance-and-attacks.livemd)
 
 # Conformance and attacks
 
@@ -10,12 +10,12 @@ This notebook runs the shipped corpus and inspects one case. It also presents th
 
 ## Before you run
 
-Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.1.2` requirement permits later 1.1 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.1.2`.
+Use a tested combination: Elixir 1.19 with Erlang/OTP 28, or Elixir 1.20 with OTP 27, 28, or 29. You also need an internet connection for the first Hex install. Open this notebook with its Run in Livebook badge, choose a compatible runtime, then evaluate cells from top to bottom. No repository checkout is needed; examples and corpus files are read from the installed Hex package. The `~> 1.2.0` requirement permits later 1.1 patch releases. To replay this release's recorded outputs, change the install requirement to `== 1.2.0`.
 
 The first cell installs the published package. Resources are read from the installed application with `Application.app_dir/2`.
 
 ```elixir
-Mix.install([{:agent_blueprint_protocol, "~> 1.1.2"}])
+Mix.install([{:agent_blueprint_protocol, "~> 1.2.0"}])
 ```
 
 Locate the package files and load the shipped conformance corpus.
@@ -66,7 +66,7 @@ sample =
 
 ```
 %{
-  total: 626,
+  total: 630,
   agreement: true,
   sample: %{case_id: "blueprint-decode-header-Ed25519", agree: true}
 }
@@ -106,8 +106,8 @@ case_response =
 
 ```
 %{
-  handshake_request: "{\"corpus_digest\":\"sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk\",\"version\":1}",
-  handshake_response: "{\"corpus_digest\":\"sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk\",\"version\":1}",
+  handshake_request: "{\"corpus_digest\":\"sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk\",\"version\":1}",
+  handshake_response: "{\"corpus_digest\":\"sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes\",\"protocol\":\"agent-blueprint-protocol-conformance-execution\",\"registry_digest\":\"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk\",\"version\":1}",
   case_request: "{\"id\":\"base64url-decode-valid\",\"input\":{\"base64url\":\"-_8\"},\"surface\":\"base64url.decode\"}",
   case_response: "{\"id\":\"base64url-decode-valid\",\"result\":{\"decoded\":\"-_8\",\"verdict\":\"valid\"}}"
 }
@@ -119,20 +119,20 @@ Use Node.js 24 or newer and npm. In a new working directory, install the release
 
 ```sh
 npm init -y
-npm install @agent-blueprint-protocol/verifier@1.1.2
+npm install @agent-blueprint-protocol/verifier@1.2.0
 node --input-type=module -e "import fs from 'node:fs'; fs.cpSync('node_modules/@agent-blueprint-protocol/verifier/dist/corpus', 'conformance', {recursive: true});"
-npx @agent-blueprint-protocol/verifier@1.1.2 conformance run --corpus ./conformance --results results.json -- node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs --serve --corpus ./conformance
+npx @agent-blueprint-protocol/verifier@1.2.0 conformance run --corpus ./conformance --results results.json -- node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs --serve --corpus ./conformance
 node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('results.json','utf8')); console.log(r.format, r.results.length);"
 ```
 
 The adapter command after `--` is started directly without a shell. A Windows `.cmd` or `.bat` launcher must be run through its interpreter, such as `cmd.exe /c`. The installed package command above uses `node` so the same adapter command runs on Linux, macOS, and Windows. If the adapter cannot be started, the harness names the startup failure and exits `18` (`early_exit`).
 
-The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 626` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
+The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 630` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
 
 Rerun with all claim metadata to produce an unsigned claim. These generic labels describe this demonstration; replace them with your implementation's actual source revision, version, platform, and run date when making your own claim:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.1.2 conformance run --corpus ./conformance --results results.json --claim claim.json --implementation example-verifier --implementation-version 1 --source https://github.com/baselabs/agent_blueprint_protocol/tree/v1.1.2 --platform node-24-linux --date 2026-11-12 -- node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs --serve --corpus ./conformance
+npx @agent-blueprint-protocol/verifier@1.2.0 conformance run --corpus ./conformance --results results.json --claim claim.json --implementation example-verifier --implementation-version 1 --source https://github.com/baselabs/agent_blueprint_protocol/tree/v1.2.0 --platform node-24-linux --date 2026-11-12 -- node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs --serve --corpus ./conformance
 node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('claim.json','utf8')); console.log(c.format, c.implementation, c.results_digest);"
 ```
 

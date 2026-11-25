@@ -6,36 +6,36 @@ This guide is for implementers of another Agent Blueprint Protocol verifier. You
 
 The [Hex package](https://hex.pm/packages/agent_blueprint_protocol) includes the corpus under `priv/conformance/`. In an installed Elixir project, find it at `Application.app_dir(:agent_blueprint_protocol, "priv/conformance")`.
 
-The npm package includes the same files under `node_modules/@agent-blueprint-protocol/verifier/dist/corpus/`. The [release asset](https://github.com/baselabs/agent_blueprint_protocol/releases/download/v1.1.2/verifier-1.1.2.tar.gz) stores them under `conformance/`.
+The npm package includes the same files under `node_modules/@agent-blueprint-protocol/verifier/dist/corpus/`. The [release asset](https://github.com/baselabs/agent_blueprint_protocol/releases/download/v1.2.0/verifier-1.2.0.tar.gz) stores them under `conformance/`.
 
 ## Case format and schemas
 
 The [runner contract](../spec/conformance/runner.md) defines corpus integrity, input dispatch, expected projections, and results. The [execution protocol](../spec/conformance/execution.md) defines the process exchange.
 
-The corpus index is `index.json`. Its schema is [`index.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/index.schema.json). It lists the case files and data files, their hashes, the case totals, and the corpus and registry identities.
+The corpus index is `index.json`. Its schema is [`index.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/index.schema.json). It lists the case files and data files, their hashes, the case totals, and the corpus and registry identities.
 
-Each `cases/*.json` file uses [`case-file.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/case-file.schema.json). A case contains an `id`, `surface`, `class`, `input`, and `expected` value. Each case also validates against its surface schema:
+Each `cases/*.json` file uses [`case-file.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/case-file.schema.json). A case contains an `id`, `surface`, `class`, `input`, and `expected` value. Each case also validates against its surface schema:
 
-- `base64url.decode`: [`base64url-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/base64url-decode.schema.json)
-- `blueprint.decode`: [`blueprint-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/blueprint-decode.schema.json)
-- `bounds.new`: [`bounds-new.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/bounds-new.schema.json)
-- `bounds_algebra.intersect`: [`bounds_algebra-intersect.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/bounds_algebra-intersect.schema.json)
-- `canonicalization.encode`: [`canonicalization-encode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/canonicalization-encode.schema.json)
-- `compatibility.verify`: [`compatibility-verify.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/compatibility-verify.schema.json)
-- `deployment.decode`: [`deployment-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/deployment-decode.schema.json)
-- `digest.tagged`: [`digest-tagged.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/digest-tagged.schema.json)
-- `extension.resolve`: [`extension-resolve.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/extension-resolve.schema.json)
-- `federation.decode`: [`federation-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/federation-decode.schema.json)
-- `federation.verify_commitment`: [`federation-verify_commitment.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/federation-verify_commitment.schema.json)
-- `json.decode`: [`json-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/json-decode.schema.json)
-- `negotiation.negotiate`: [`negotiation-negotiate.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/negotiation-negotiate.schema.json)
-- `portability.scan`: [`portability-scan.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/portability-scan.schema.json)
-- `predicate`: [`predicate.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/predicate.schema.json)
-- `reconcile`: [`reconcile.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/reconcile.schema.json)
-- `schema.validate_instance`: [`schema-validate_instance.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/schema-validate_instance.schema.json)
-- `signature.verify`: [`signature-verify.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/signature-verify.schema.json)
+- `base64url.decode`: [`base64url-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/base64url-decode.schema.json)
+- `blueprint.decode`: [`blueprint-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/blueprint-decode.schema.json)
+- `bounds.new`: [`bounds-new.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/bounds-new.schema.json)
+- `bounds_algebra.intersect`: [`bounds_algebra-intersect.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/bounds_algebra-intersect.schema.json)
+- `canonicalization.encode`: [`canonicalization-encode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/canonicalization-encode.schema.json)
+- `compatibility.verify`: [`compatibility-verify.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/compatibility-verify.schema.json)
+- `deployment.decode`: [`deployment-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/deployment-decode.schema.json)
+- `digest.tagged`: [`digest-tagged.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/digest-tagged.schema.json)
+- `extension.resolve`: [`extension-resolve.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/extension-resolve.schema.json)
+- `federation.decode`: [`federation-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/federation-decode.schema.json)
+- `federation.verify_commitment`: [`federation-verify_commitment.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/federation-verify_commitment.schema.json)
+- `json.decode`: [`json-decode.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/json-decode.schema.json)
+- `negotiation.negotiate`: [`negotiation-negotiate.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/negotiation-negotiate.schema.json)
+- `portability.scan`: [`portability-scan.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/portability-scan.schema.json)
+- `predicate`: [`predicate.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/predicate.schema.json)
+- `reconcile`: [`reconcile.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/reconcile.schema.json)
+- `schema.validate_instance`: [`schema-validate_instance.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/schema-validate_instance.schema.json)
+- `signature.verify`: [`signature-verify.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/signature-verify.schema.json)
 
-The successful reconcile projection also uses [`evidence.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/evidence.schema.json); its support object uses [`support.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/support.schema.json). The normative directory contains [the complete conformance schemas](https://github.com/baselabs/agent_blueprint_protocol/tree/v1.1.2/spec/conformance).
+The successful reconcile projection also uses [`evidence.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/evidence.schema.json); its support object uses [`support.schema.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/support.schema.json). The normative directory contains [the complete conformance schemas](https://github.com/baselabs/agent_blueprint_protocol/tree/v1.2.0/spec/conformance).
 
 ## Write an execution adapter
 
@@ -44,13 +44,13 @@ An [execution adapter](glossary.md#execution-adapter) reads one JSON object per 
 The following transcript was captured while the npm package's harness ran its own `--serve` adapter over its shipped corpus. The handshake request was:
 
 ```json
-{"corpus_digest":"sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk","version":1}
+{"corpus_digest":"sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk","version":1}
 ```
 
 The adapter answered:
 
 ```json
-{"corpus_digest":"sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk","version":1}
+{"corpus_digest":"sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes","protocol":"agent-blueprint-protocol-conformance-execution","registry_digest":"sha-256:hreDA2_XbV5J9geMJDDYG5BB42AGkh9jmQ9bqHe8kRk","version":1}
 ```
 
 The first case request was:
@@ -71,20 +71,20 @@ Use Node.js 24 or newer and npm. In a new working directory, install the release
 
 ```sh
 npm init -y
-npm install @agent-blueprint-protocol/verifier@1.1.2
+npm install @agent-blueprint-protocol/verifier@1.2.0
 node --input-type=module -e "import fs from 'node:fs'; fs.cpSync('node_modules/@agent-blueprint-protocol/verifier/dist/corpus', 'conformance', {recursive: true});"
-npx @agent-blueprint-protocol/verifier@1.1.2 conformance run --corpus ./conformance --results results.json -- node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs --serve --corpus ./conformance
+npx @agent-blueprint-protocol/verifier@1.2.0 conformance run --corpus ./conformance --results results.json -- node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs --serve --corpus ./conformance
 node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('results.json','utf8')); console.log(r.format, r.results.length);"
 ```
 
 The adapter command after `--` is started directly without a shell. A Windows `.cmd` or `.bat` launcher must be run through its interpreter, such as `cmd.exe /c`. The installed package command above uses `node` so the same adapter command runs on Linux, macOS, and Windows. If the adapter cannot be started, the harness names the startup failure and exits `18` (`early_exit`).
 
-The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 626` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
+The harness performs the handshake and all request/response exchanges against the shipped adapter. It writes canonical `results.json` only after all expected responses and a clean adapter exit (a disagreement can still produce results, then exits nonzero). The inspection prints `agent-blueprint-protocol-conformance-results 630` for this release. Adapter stdout is reserved for protocol lines; diagnostics go to stderr. With `--results`, the harness writes the document to the file and reports `harness: agreement` on stderr. Do not redirect diagnostics into results.
 
 Rerun with all claim metadata to produce an unsigned claim. These generic labels describe this demonstration; replace them with your implementation's actual source revision, version, platform, and run date when making your own claim:
 
 ```sh
-npx @agent-blueprint-protocol/verifier@1.1.2 conformance run --corpus ./conformance --results results.json --claim claim.json --implementation example-verifier --implementation-version 1 --source https://github.com/baselabs/agent_blueprint_protocol/tree/v1.1.2 --platform node-24-linux --date 2026-11-12 -- node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs --serve --corpus ./conformance
+npx @agent-blueprint-protocol/verifier@1.2.0 conformance run --corpus ./conformance --results results.json --claim claim.json --implementation example-verifier --implementation-version 1 --source https://github.com/baselabs/agent_blueprint_protocol/tree/v1.2.0 --platform node-24-linux --date 2026-11-12 -- node node_modules/@agent-blueprint-protocol/verifier/dist/kit/cli.mjs --serve --corpus ./conformance
 node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('claim.json','utf8')); console.log(c.format, c.implementation, c.results_digest);"
 ```
 
@@ -94,11 +94,11 @@ Exit `0` means agreement. Exit `2` is usage, corpus, or claim-input failure; `3`
 
 ## Read and compare results
 
-A [results document](glossary.md#results-document) contains `format`, `corpus_digest`, `registry_digest`, and one `id`, `surface`, and `result` object per case. The harness writes it to the path given by `--results`. The release-certified document is [`certified-results.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/certified-results.json). For the release corpus, the harness compares each complete projection with that document. A successful run exits `0` and writes `harness: agreement` to standard error.
+A [results document](glossary.md#results-document) contains `format`, `corpus_digest`, `registry_digest`, and one `id`, `surface`, and `result` object per case. The harness writes it to the path given by `--results`. The release-certified document is [`certified-results.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/certified-results.json). For the release corpus, the harness compares each complete projection with that document. A successful run exits `0` and writes `harness: agreement` to standard error.
 
 ## Publish a claim
 
-The terminal walkthrough above shows every required flag. After a successful run, provide `--claim`, `--implementation`, `--implementation-version`, `--source`, `--platform`, and `--date` to the harness. The [claim schema](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/spec/conformance/claim.schema.json) defines the claim document. Publish the claim with the results document, source revision, and command used to run the adapter.
+The terminal walkthrough above shows every required flag. After a successful run, provide `--claim`, `--implementation`, `--implementation-version`, `--source`, `--platform`, and `--date` to the harness. The [claim schema](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/spec/conformance/claim.schema.json) defines the claim document. Publish the claim with the results document, source revision, and command used to run the adapter.
 
 ## What a pass establishes
 
@@ -109,4 +109,4 @@ The expected answers are public, so a pass does not establish how an implementat
 - [Quickstart](quickstart.md)
 - [TypeScript guide](typescript.md)
 - [Protocol specification](../spec/protocol.md)
-- [Conformance schemas](https://github.com/baselabs/agent_blueprint_protocol/tree/v1.1.2/spec/conformance)
+- [Conformance schemas](https://github.com/baselabs/agent_blueprint_protocol/tree/v1.2.0/spec/conformance)

@@ -100,10 +100,10 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
     line = current_version() |> String.split(".") |> Enum.take(2) |> Enum.join(".")
 
     assert checklist =~
-             "verification semantics is `#{historic["verification_semantics_version"]}` at 1.0 and `#{metadata["verification_semantics_version"]}` from #{line}",
+             "verification semantics is `#{historic["verification_semantics_version"]}` at 1.0 and `#{metadata["verification_semantics_version"]}` as of #{line}",
            "migration checklist must distinguish 1.0 semantics from current release semantics #{metadata["verification_semantics_version"]}"
 
-    assert checklist =~ "[1.1 changes](upgrading.md)",
+    assert checklist =~ "[1.1 changes](upgrading.md#changes-in-11)",
            "migration checklist must link the current upgrade instructions"
   end
 

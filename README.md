@@ -14,7 +14,7 @@ Every successful verification is non-authorizing: it reports protocol facts and 
 - **Deployment Manifest** binds a Blueprint release to environment-specific descriptors and bounds.
 - **Federation TaskEnvelope** records a task's identity, state, and terminal commitments for carriage in Agent2Agent (A2A) task metadata and Model Context Protocol (MCP) `_meta`.
 
-This is the complete example from [`priv/examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/priv/examples/echo-blueprint.json), formatted for reading:
+This is the complete example from [`priv/examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/priv/examples/echo-blueprint.json), formatted for reading:
 
 ```json
 {
@@ -45,8 +45,8 @@ Verification decodes bounded JSON, negotiates protocol support, binds related ar
 
 | Language | Package | Install |
 | --- | --- | --- |
-| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.1.2"}` |
-| TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@1.1.2` |
+| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.2.0"}` |
+| TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@1.2.0` |
 
 The Elixir package requires Elixir 1.19 or newer on Erlang/OTP 27, 28, or 29. The npm package requires Node.js 24 or newer. Both implement protocol revision 1; the [stability policy](documentation/stability.md) lists the tested combinations.
 
@@ -71,11 +71,11 @@ console.log(result.ok ? "valid" : result.error.code); // valid
 
 `npm view @agent-blueprint-protocol/verifier dist-tags` lists the published version for each npm tag.
 
-The conformance corpus contains 626 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
+The conformance corpus contains 630 cases. It is a collection of inputs and expected results for implementations; see the [glossary](documentation/glossary.md#conformance-corpus).
 
 ## Documentation
 
-- [HexDocs](https://hexdocs.pm/agent_blueprint_protocol/1.1.2/)
+- [HexDocs](https://hexdocs.pm/agent_blueprint_protocol/1.2.0/)
 - [Quickstart](documentation/quickstart.md)
 - [TypeScript guide](documentation/typescript.md)
 - [Conformance guide](documentation/conformance.md)

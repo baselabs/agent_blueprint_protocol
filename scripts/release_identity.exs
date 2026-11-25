@@ -66,7 +66,8 @@ defmodule AgentBlueprintProtocol.ReleaseIdentity do
     "sha-256:vMyREM8ggUqVvGG0y2e4Gf-KmpksJjnx2eF8UjtpVP8" => "diverged_by_registry_census",
     "sha-256:WOZcBfvCW88L6TG_66vxG1fw0QN8cCXrJxveqHgI8a4" => "diverged_by_registry_census",
     "sha-256:SvJLvMwXdYQZBjOrklsQSHQRX8PhxPHOv23C2rmFazQ" => "diverged_by_registry_census",
-    "sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8" => "diverged_by_registry_census"
+    "sha-256:305LYavPWYaZP_pYGcZBPploy27btWTyMhiKd7XiRb8" => "diverged_by_registry_census",
+    "sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE" => "equivalent"
   }
 
   def metadata_path, do: @metadata_path

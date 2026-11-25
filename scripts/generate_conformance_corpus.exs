@@ -122,9 +122,11 @@ defmodule CorpusGen do
   end
 
   # An honestly signed federation terminal receipt over the covered body.
-  def signed_receipt(seed, kid, alg \\ "EdDSA", purpose \\ "federation-envelope") do
+  def signed_receipt(seed, kid, alg \\ "EdDSA", purpose \\ "federation-envelope", opts \\ []) do
     {pub, priv} = keypair(seed)
-    shell = FederationFixture.value(terminal: true)
+
+    shell =
+      FederationFixture.value([terminal: true] ++ Keyword.take(opts, [:compatibility_reference]))
 
     {:ok, commitment} = Federation.terminal_commitment(%Federation{value: shell})
 
@@ -144,7 +146,7 @@ defmodule CorpusGen do
        [
          {"algorithm", {:string, "Ed25519"}},
          {"content_digest", {:string, Digest.to_tagged(digest)}},
-         {"created_at", {:string, "2026-08-23T00:00:00Z"}},
+         {"created_at", {:string, Keyword.get(opts, :created_at, "2026-08-23T00:00:00Z")}},
          {"key_id", {:string, kid}},
          {"purpose", {:string, purpose}}
        ]}
@@ -2008,6 +2010,56 @@ verify_commitment_cases = [
   }
 ]
 
+mapping_identity = Federation.mapping_identity()
+
+mapping_reference =
+  {:object, [{"name", {:string, "mapping"}}, {"identity", {:string, mapping_identity}}]}
+
+mapping_seed = "mapping conformance seed"
+mapping_receipt_opts = [created_at: "2026-08-22T00:00:00Z"]
+
+{mapping_receipt, mapping_pub, _} =
+  CorpusGen.signed_receipt(
+    mapping_seed,
+    "remote-key",
+    "EdDSA",
+    "federation-envelope",
+    mapping_receipt_opts ++ [compatibility_reference: [mapping_reference]]
+  )
+
+{legacy_receipt, ^mapping_pub, _} =
+  CorpusGen.signed_receipt(
+    mapping_seed,
+    "remote-key",
+    "EdDSA",
+    "federation-envelope",
+    mapping_receipt_opts
+  )
+
+mapping_keys = [%{"key_id" => "remote-key", "key" => CorpusGen.b64(mapping_pub)}]
+different_mapping = "sha-256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+mapping_success = %{"verdict" => "valid", "task_identity" => "task-7f3a2c"}
+mapping_denial = %{"verdict" => "invalid", "code" => "compatibility_entry_missing"}
+
+mapping_cases =
+  for {id, envelope, pin, expected} <- [
+        {"mapping-honest-pin", mapping_receipt, mapping_identity, mapping_success},
+        {"mapping-different-pin", mapping_receipt, different_mapping, mapping_denial},
+        {"mapping-no-pin", legacy_receipt, nil, mapping_success},
+        {"mapping-absent-pin", legacy_receipt, mapping_identity, mapping_denial}
+      ] do
+    context = %{"keys" => mapping_keys}
+    context = if pin == nil, do: context, else: Map.put(context, "mapping_identity", pin)
+
+    %{
+      "id" => id,
+      "surface" => "federation.verify_commitment",
+      "class" => if(expected == mapping_success, do: "valid", else: "invalid_constraint"),
+      "input" => %{"envelope" => envelope, "context" => context},
+      "expected" => expected
+    }
+  end
+
 # Malformed escapes exercise the shared decoder through every text surface.
 unicode_escape_cases =
   for {name, text} <- [
@@ -2525,6 +2577,7 @@ all_cases =
     compatibility_cases ++
     federation_decode_cases ++
     verify_commitment_cases ++
+    mapping_cases ++
     unicode_escape_cases ++
     predicate_operator_cases ++
     unknown_state_cases ++

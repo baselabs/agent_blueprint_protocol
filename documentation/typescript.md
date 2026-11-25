@@ -12,7 +12,7 @@ In a new working directory, install the exact release. The package ships the can
 
 ```sh
 npm init -y
-npm install @agent-blueprint-protocol/verifier@1.1.2
+npm install @agent-blueprint-protocol/verifier@1.2.0
 ```
 
 Save the following block as `verify.mjs`, then run `node verify.mjs`. It prints `valid`.
@@ -284,7 +284,7 @@ For `conformance run`, the harness writes a results document only after receivin
 
 ## Package-root reference
 
-All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/verifier/index.ts).
+All functions below return `Result<T>`. On denial, read `error.code` and the value-free `error.subject` path; never read `value` before checking `ok`. Parameters are required unless a default is shown. Read-only types describe data, not permission. The source contracts are [facade.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/verifier/facade.ts) and [index.ts](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/verifier/index.ts).
 
 | Export and signature (outer return is `Result<…>`) | Inputs, defaults, and success value |
 |---|---|
@@ -300,6 +300,7 @@ All functions below return `Result<T>`. On denial, read `error.code` and the val
 | `verifyCompatibility(value: Deployment, observed: Observed)` → `Evidence` | Exact independently observed kind/name/version/digest tuples. Missing, duplicate, or inexact identities deny. |
 | `reconcile(blueprint: Blueprint, deployment: Deployment, options: Inputs)` → `Evidence` | All host input fields are required; no implicit key discovery, limits, or clock. Skipped checks remain unverified. |
 | `federationMapping()` → `readonly MappingRow[]` | No arguments. Returns 23 inert mapping rows inside a `Result`; does not perform carrier conversion. |
+| `federationMappingIdentity()` → `string` | No arguments. Returns the tagged SHA-256 of the canonical mapping rows in index order. |
 | `verifySignature(entry: JsonValue, keys: readonly PublicKey[])` → `SignedAttributes` | Detached entry and caller-trusted raw Ed25519 public keys. Returns verified algorithm, digest, time, key ID, and purpose. Missing key or failed verification denies. |
 | `loadCorpus(files: ReadonlyMap<string, Uint8Array>, options: {priorCensus?: boolean} = {})` → `Corpus` | Paths relative to corpus root, including index/data/cases. Integrity-checks the set. `priorCensus` defaults to `false`; `true` permits an earlier census, without establishing release certification. Returns an in-memory handle. |
 | `runCorpus(value: Corpus)` → `readonly (readonly CaseResult[])[]` | Handle returned by this package instance's loader. Nested arrays group file results; flatten them for per-case `caseId`/`agree`. |
@@ -470,7 +471,7 @@ if (!document.ok) throw new Error(document.error.code);
 console.log(report.value.agreement, document.value.results.length === run.value.flat().length);
 ```
 
-To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.1.2 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
+To write canonical results, use `npx @agent-blueprint-protocol/verifier@1.2.0 --results --corpus node_modules/@agent-blueprint-protocol/verifier/dist/corpus > results.json`. `JSON.stringify(document.value)` produces JSON but is not a canonical-byte guarantee.
 
 ## Import migration
 
@@ -489,7 +490,7 @@ Import from `@agent-blueprint-protocol/verifier`. Deep imports are not part of t
 | `dist/verifier/corpus.js`: `load` | `loadCorpus` |
 | `dist/verifier/runner.js`: `run` | `runCorpus` |
 | `dist/verifier/report.js`: `build` | `buildReport` with `(corpus, results)` returns the aggregate report as a `Result<Report>`. |
-| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder. Use `npx @agent-blueprint-protocol/verifier@1.1.2 --corpus <dir> > report.json` for canonical aggregate-report bytes. |
+| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder. Use `npx @agent-blueprint-protocol/verifier@1.2.0 --corpus <dir> > report.json` for canonical aggregate-report bytes. |
 
 `buildResultsDocument(corpus)` builds the separate per-case results document, not the aggregate report. `JSON.stringify(report.value)` is JSON but does not guarantee canonical report bytes.
 

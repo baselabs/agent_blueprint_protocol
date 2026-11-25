@@ -22,6 +22,7 @@ defmodule AgentBlueprintProtocol.Architecture.DecisionRecordsTest do
     normative-extraction
     runtime-boundary
     kit-cli
+    federation-mapping-identity
   )
 
   test "tracked decision records have contiguous numbers, matching headings, and one status" do

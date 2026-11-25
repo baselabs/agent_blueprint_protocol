@@ -21,7 +21,7 @@ Deep imports no longer resolve. Replace internal imports and names with the pack
 | `dist/verifier/corpus.js`: `load` | `loadCorpus` |
 | `dist/verifier/runner.js`: `run` | `runCorpus` |
 | `dist/verifier/report.js`: `build` | `buildReport` with `(corpus, results)` returns the aggregate report as a `Result<Report>`. |
-| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder. Use `npx @agent-blueprint-protocol/verifier@1.1.2 --corpus <dir> > report.json` for canonical aggregate-report bytes. |
+| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder. Use `npx @agent-blueprint-protocol/verifier@1.2.0 --corpus <dir> > report.json` for canonical aggregate-report bytes. |
 
 `buildResultsDocument(corpus)` builds the separate per-case results document, not the aggregate report. `JSON.stringify(report.value)` is JSON but does not guarantee canonical report bytes.
 
@@ -243,11 +243,11 @@ import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 const newResult = decodeBlueprint(bytes);
 ```
 
-Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.1.2/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
+Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.2.0/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
 
 ## 6. Update package and release identity pins
 
-Version 1.0 changes the registry digest and sets `verification_semantics_version` to `3`. From 1.1, verification semantics is `4`; see the [1.1 changes](upgrading.md). The protocol revision remains `1`.
+Version 1.0 changes the registry digest and sets `verification_semantics_version` to `3`. From 1.1, verification semantics is `4`; see the [1.1 changes](upgrading.md#changes-in-11). The protocol revision remains `1`.
 
 Before, pin the previous Hex release:
 
@@ -260,16 +260,16 @@ After, select the current 1.x release:
 
 <!-- fragment -->
 ```elixir
-{:agent_blueprint_protocol, "~> 1.1.2"}
+{:agent_blueprint_protocol, "~> 1.2.0"}
 ```
 
-For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.1.2`. The Hex and npm packages carry the same version.
+For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.2.0`. The Hex and npm packages carry the same version.
 
 Before, install the previous npm release; after, install the current 1.x release:
 
 ```sh
 npm install @agent-blueprint-protocol/verifier@0.8.4
-npm install @agent-blueprint-protocol/verifier@1.1.2
+npm install @agent-blueprint-protocol/verifier@1.2.0
 ```
 
 ## 7. Use the preferred identifiers
@@ -349,7 +349,7 @@ Old input remains accepted throughout 1.x; new carrier output uses the active sp
 - Read signature checks for both artifact subjects and retain skipped binding checks and unknown detail branches.
 - Supply host registrations, held schemas, all thirteen host bounds, trusted public keys, and independent observations.
 - Emit active carrier keys; rebuild intentionally edited artifacts and their affected signatures.
-- Update package pins and release identities together; protocol revision stays `1`, verification semantics is `3` at 1.0 and `4` from 1.1. See the [1.1 changes](upgrading.md).
+- Update package pins and release identities together; protocol revision stays `1`, verification semantics is `3` at 1.0 and `4` as of 1.2. See the [1.1 changes](upgrading.md#changes-in-11).
 
 Before (0.8 TypeScript integration excerpt):
 

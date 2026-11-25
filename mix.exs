@@ -1,7 +1,7 @@
 defmodule AgentBlueprintProtocol.MixProject do
   use Mix.Project
 
-  @version "1.1.2"
+  @version "1.2.0"
   @source_url "https://github.com/baselabs/agent_blueprint_protocol"
 
   def project do
@@ -96,6 +96,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/0018-normative-extraction.md",
         "docs/adr/0019-runtime-boundary.md",
         "docs/adr/0020-kit-cli.md",
+        "docs/adr/0021-federation-mapping-identity.md",
         "spec/protocol.md",
         "spec/README.md",
         "spec/LICENSE",
@@ -272,7 +273,8 @@ defmodule AgentBlueprintProtocol.MixProject do
           "docs/adr/0017-artifact-portability.md",
           "docs/adr/0018-normative-extraction.md",
           "docs/adr/0019-runtime-boundary.md",
-          "docs/adr/0020-kit-cli.md"
+          "docs/adr/0020-kit-cli.md",
+          "docs/adr/0021-federation-mapping-identity.md"
         ],
         Governance: [
           "spec/IPR.md",
@@ -348,6 +350,7 @@ defmodule AgentBlueprintProtocol.MixProject do
         "docs/adr/0018-normative-extraction.md",
         "docs/adr/0019-runtime-boundary.md",
         "docs/adr/0020-kit-cli.md",
+        "docs/adr/0021-federation-mapping-identity.md",
         "CONTRIBUTING.md",
         "SUPPORT.md",
         "CODE_OF_CONDUCT.md",

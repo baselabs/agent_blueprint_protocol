@@ -3,7 +3,7 @@
 Status: normative protocol 1.0. This document is
 the normative specification of the Agent Blueprint Protocol. The
 reference implementation and its conformance corpus (digest
-`sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE`, 626 cases) are
+`sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes`, 630 cases) are
 certified against this document at every release through the release
 identity chain: the specification digest, the package version, and the
 corpus and registry digests are pinned together per release, and the
@@ -738,6 +738,30 @@ The hash preimage is UTF-8 `agent-blueprint-protocol/federation-envelope`,
 one zero octet, then UTF-8 JCS of that object. Corpus reference:
 the terminal-equivocation cases on `federation.verify_commitment`.
 
+### Mapping content identity
+
+The mapping identity is the tagged SHA-256 digest of the RFC 8785
+canonical JSON array of the 23 federation mapping rows in ascending
+`index` order. Each row has exactly five members. `index` is an integer
+from 1 to 23. `logical_field`, `a2a_location`, `mcp_location`, and
+`verdict` are strings. The location strings are the mapping table's
+literal values, including citations and punctuation. The verdict is
+`native`, `partial`, or `extension`. The hash preimage starts with the
+canonical array's opening bracket and ends with its closing bracket.
+The mapping rows for this profile produce
+`sha-256:4MYCdBdV__u-TTsGPJ5QdpHq_irb4PxhHRBdm64jjPg`.
+
+A producer MAY put that tagged digest in the `identity` of an existing
+`compatibility_reference` entry under a producer-selected name.
+A receiver MAY supply a mapping identity pin to commitment verification.
+After signature, binding, terminal commitment, and issuer, subject, and
+audience comparisons succeed, the verifier MUST check that at least one
+signed compatibility entry has an `identity` string equal to the pin.
+If no entry matches, it MUST deny with `compatibility_entry_missing`
+and subject `["compatibility_reference"]`. An omitted or null pin skips
+this comparison. Receipt conflict and freshness checks follow it.
+The match establishes only a signed reference to mapping content.
+
 ### Member grammar: Federation TaskEnvelope (23 members)
 
 The reconstructed envelope is a closed world: one member per logical
@@ -806,7 +830,7 @@ raised, the subject it names, and the host action it demands):
 | `bound_unknown` | a bounds-algebra BoundSet names a member outside its closed 13-name vocabulary | bounds set | reject the artifact |
 | `bound_value_invalid` | a bound value fails its shape or range check | bounds | reject the artifact |
 | `compatibility_duplicate_entry` | build_identities carries a duplicate identity | build_identities | reject the manifest |
-| `compatibility_entry_missing` | verification names an identity with no manifest entry | build_identities | deny compatibility |
+| `compatibility_entry_missing` | verification requires an identity with no matching entry | build_identities or compatibility_reference | deny compatibility |
 | `compatibility_identity_inexact` | a build identity is a range or fuzzy form | build_identities | reject the manifest |
 | `corpus_applicability_incomplete` | the corpus applicability floor has uncovered cells | corpus index | operator: fix the corpus; never a wire condition |
 | `corpus_case_id_duplicate` | two corpus cases share an id | corpus | operator: fix the corpus |
@@ -945,10 +969,10 @@ unrepresentable in self-fulfilling artifacts.
 ## 15. Conformance
 
 The package ships a portable conformance corpus (`priv/conformance/`):
-626 cases covering every required cell of the 18-surface × 31-class
+630 cases covering every required cell of the 18-surface × 31-class
 applicability floor, full-registry golden artifacts, RFC 8785 number
 vectors, and deterministic Ed25519 fixtures, at corpus digest
-`sha-256:uwbwaxugSBQKC_3Byy86_3N-Z6RBCBvW7rP79SGmSLE`. Corpus identity
+`sha-256:WjAO3K5gRjXc6X30a2fJoR3_rd2d0V--u5nI04UbSes`. Corpus identity
 is the digest of the domain-separated index, versioned by digest, not
 by name. The loader is pure over an in-memory path-to-bytes map and verifies
 per-file hashes, exact file set (both directions), counts, id-uniqueness,

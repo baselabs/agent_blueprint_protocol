@@ -62,4 +62,25 @@ defmodule AgentBlueprintProtocol.GrammarDerivationTest do
       assert result == :ok == accepted?, "as_of grammar disagrees for #{inspect(policy)}"
     end
   end
+
+  test "federation mapping preimage has 23 five-member rows outside the envelope root" do
+    assert {:ok, schema} =
+             GrammarDerivation.derive(
+               File.read!("spec/grammar/taskenvelope.cddl"),
+               "taskenvelope"
+             )
+
+    defs = schema["$defs"]
+
+    assert %{"minItems" => 23, "maxItems" => 23, "items" => %{"$ref" => reference}} =
+             defs["federation-mapping"]
+
+    assert reference == "#/$defs/federation-mapping-row"
+
+    assert defs["federation-mapping-row"]["required"] ==
+             ~w(a2a_location index logical_field mcp_location verdict)
+
+    assert map_size(defs["taskenvelope"]["properties"]) == 23
+    refute Map.has_key?(defs["taskenvelope"]["properties"], "mapping_identity")
+  end
 end

@@ -20,6 +20,16 @@
             "string"
           ],
           "properties": {
+            "mapping_identity": {
+              "type": [
+                "null",
+                "boolean",
+                "object",
+                "array",
+                "number",
+                "string"
+              ]
+            },
             "keys": {
               "type": [
                 "null",

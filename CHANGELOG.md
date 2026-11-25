@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose a canonical digest of the federation mapping rows in Elixir and
+  TypeScript. Terminal receipt verification accepts an optional receiver pin
+  against the signed compatibility references.
+- Add four signed conformance cases covering mapping pin agreement, a
+  different digest, legacy verification, and an absent mapping reference.
+
 ## [1.1.2] - 2026-11-24
 
 Promotes 1.1.2-rc.3 without changes. The specification cites the IETF SCITT

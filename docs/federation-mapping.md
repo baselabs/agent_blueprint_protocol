@@ -37,9 +37,22 @@ The active namespace is `io.github.baselabs/federation`. Producers use the A2A m
 | `compatibility_reference` | Federation extension body | Federation extension body |
 | `authority_proof_references` | Federation extension body | Federation extension body |
 
+## Mapping identity
+
+`AgentBlueprintProtocol.Federation.mapping_identity/0` and the TypeScript
+package-root `federationMappingIdentity()` expose the digest of the
+compiled mapping data. The digest covers all 23 ordered rows, including
+their full location strings and verdicts. Compute it from the mapping
+data returned by the implementation if you need an independent check.
+
+A producer can carry the digest in a named `compatibility_reference`
+entry. A receiver that pins it checks the signed reference for an exact
+match. The [federation guide](../documentation/federation.md#pinning-the-carrier-mapping)
+describes when verification performs the comparison.
+
 ## State codecs
 
-The Elixir `AgentBlueprintProtocol.Federation` module exposes conversions to and from A2A and MCP task states and carriers. Unmappable states return typed errors. The TypeScript package root exposes envelope decoding, canonical encoding, and mapping rows; state and carrier codecs are not exported in 1.1.2.
+The Elixir `AgentBlueprintProtocol.Federation` module exposes conversions to and from A2A and MCP task states and carriers. Unmappable states return typed errors. The TypeScript package root exposes envelope decoding, canonical encoding, mapping rows, and the mapping identity.
 
 The shipped conformance corpus covers state conversion and carrier decoding. Its commitment fixtures cover terminal commitment verification and receipt conflict detection.
 

@@ -84,6 +84,45 @@
       ],
       "type": "object"
     },
+    "federation-mapping": {
+      "items": {
+        "$ref": "#/$defs/federation-mapping-row"
+      },
+      "maxItems": 23,
+      "minItems": 23,
+      "type": "array"
+    },
+    "federation-mapping-row": {
+      "properties": {
+        "a2a_location": {
+          "type": "string"
+        },
+        "index": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "logical_field": {
+          "type": "string"
+        },
+        "mcp_location": {
+          "type": "string"
+        },
+        "verdict": {
+          "enum": [
+            "extension",
+            "native",
+            "partial"
+          ]
+        }
+      },
+      "required": [
+        "a2a_location",
+        "index",
+        "logical_field",
+        "mcp_location",
+        "verdict"
+      ],
+      "type": "object"
+    },
     "identity-string": {
       "type": "string"
     },

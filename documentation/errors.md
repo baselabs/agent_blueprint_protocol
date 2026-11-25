@@ -28,7 +28,7 @@ Subjects contain schema-defined member names and array indexes where available. 
 | ceiling:number_lexeme | Bounded JSON decoder | Shorten the number lexeme below the 64-byte maximum. |
 | ceiling:string | Bounded JSON decoder | Shorten strings below the 100,000-byte maximum. |
 | compatibility_duplicate_entry | Compatibility check | Remove the duplicate build identity. |
-| compatibility_entry_missing | Compatibility check | Add the missing exact build identity. |
+| compatibility_entry_missing | Compatibility or federation commitment check | Supply the required exact build identity or a signed compatibility reference matching the mapping pin. |
 | compatibility_identity_inexact | Compatibility check | Replace a range with an exact identity. |
 | corpus_applicability_incomplete | Corpus integrity check | Consumers restore the exact released corpus files. Corpus authors complete the corpus applicability data. |
 | corpus_case_id_duplicate | Corpus integrity check | Consumers restore the exact released corpus files. Corpus authors assign unique case identifiers. |

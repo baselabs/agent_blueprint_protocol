@@ -103,14 +103,15 @@ The logical and A2A spelling is `canceled`; MCP uses `cancelled`. Some native st
 |---|---|---|
 | Envelope decode / canonical bytes | `Federation.decode/2`, `canonical_bytes/1` | `decodeFederationEnvelope`, `canonicalBytes` |
 | Mapping rows | `federation_mapping/0` | `federationMapping()` returning a `Result` |
-| State and carrier codecs | `from_a2a_state/1`, `to_a2a_state/1`, MCP equivalents; `to_a2a_carrier/1`, `from_a2a_carrier/1`, MCP equivalents | Not exported in 1.1.2 |
-| Commitment verification and receiver context | `Federation.verify_commitment/2`, `Federation.Context` | Not exported in 1.1.2 |
+| Mapping identity | `Federation.mapping_identity/0` | `federationMappingIdentity()` returning a `Result` |
+| State and carrier codecs | `from_a2a_state/1`, `to_a2a_state/1`, MCP equivalents; `to_a2a_carrier/1`, `from_a2a_carrier/1`, MCP equivalents | Not exported in 1.2.0 |
+| Commitment verification and receiver context | `Federation.verify_commitment/2`, `Federation.Context` | Not exported in 1.2.0 |
 
 Do not deep-import npm implementation modules. Exposing more functions requires a code release; the [root reference](typescript.md#package-root-reference) is the supported surface.
 
 ## Terminal commitments
 
-The public `AgentBlueprintProtocol.Federation.verify_commitment/2` function performs federation commitment verification. The shipped fixtures demonstrate a valid terminal commitment and cases that return `federation_terminal_conflict`. See the [federation commitment cases](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.1.2/priv/conformance/cases/federation-verify_commitment.json).
+The public `AgentBlueprintProtocol.Federation.verify_commitment/2` function performs federation commitment verification. The shipped fixtures demonstrate a valid terminal commitment and cases that return `federation_terminal_conflict`. See the [federation commitment cases](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.2.0/priv/conformance/cases/federation-verify_commitment.json).
 
 ### Receiver context and returned facts
 
@@ -121,10 +122,23 @@ The public `AgentBlueprintProtocol.Federation.verify_commitment/2` function perf
 | `keys` | Flat list of public keys when no issuer-key map is supplied. |
 | `issuer_key_sets` | Optional map from issuer string to public-key list. When present it takes precedence over `keys`; an absent issuer has no keys. |
 | `issuer`, `subject`, `audience` | Optional exact string comparisons. `nil` skips that comparison; mismatch returns `audience_mismatch` with the member path. |
+| `mapping_identity` | Optional exact match in the signed `compatibility_reference` identities. `nil` skips the comparison. A missing match denies with `compatibility_entry_missing` on `["compatibility_reference"]`. |
 | `created_after`, `created_before` | Optional inclusive Z-form timestamp bounds on the signed creation time. Malformed or out-of-window values deny. |
 | `prior_receipts` | Previously verified facts, each with `task_identity`, `terminal_state`, and a `Digest` in `terminal_commitment`; conflicting terminal facts deny. Defaults to `[]`. |
 
 The notebook loads `commitment-valid` from the installed `priv/conformance/cases/federation-verify_commitment.json`, decodes its envelope, converts the fixture's public keys, and calls `verify_commitment/2`. Success is `{:ok, %{task_identity: ..., terminal_state: ..., terminal_commitment: %Digest{}}}`. This fact can be retained for subsequent consistency comparisons. It does not authorize execution. The context's public keys are verification inputs; the fixture demonstrates verification only.
+
+### Pinning the carrier mapping
+
+A producer can place the mapping digest in an existing compatibility entry's
+`identity` string before it computes the commitment and signs the envelope.
+It chooses the entry name. A receiver sets `Federation.Context.mapping_identity`
+to the digest it expects. The verifier checks the signed list for that exact
+string after it verifies signature, binding, commitment, and addressing.
+
+The TypeScript conformance runner reads the same optional pin from the case's
+`input.context.mapping_identity`. The four mapping cases exercise a match,
+a different digest, an omitted pin, and a pin with no matching entry.
 
 ## Next steps
 

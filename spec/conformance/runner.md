@@ -110,7 +110,7 @@ Federation codec inputs, in precedence order, are strings `from_a2a_state`,
 `from_a2a_carrier`, `from_mcp_carrier`. Byte inputs take precedence over codecs.
 Receiving-context members are `keys` (as above), nullable `issuer`, `subject`,
 `audience` strings, nullable `issuer_key_sets` (issuer-to-key-array object),
-nullable `created_after`, `created_before` timestamp strings, and
+nullable `mapping_identity` string, nullable `created_after`, `created_before` timestamp strings, and
 `prior_receipts` (array of string `task_identity`, `terminal_state`,
 `commitment` objects). These are inputs to existing receipt checks only.
 
