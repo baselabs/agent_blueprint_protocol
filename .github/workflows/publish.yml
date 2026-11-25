@@ -325,14 +325,25 @@ jobs:
           node scripts/npm_release_state.mjs plan "$VERSION" \
             "verified-release/agent-blueprint-protocol-verifier-${VERSION}.tgz"
 
+      - name: Check out the workflow's Hex tool
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: workflow-tools
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/hex_release_state.exs
+            /scripts/gate_command.exs
+          sparse-checkout-cone-mode: false
+
       - name: Plan the Hex uploads
         id: hex
         working-directory: verified-release
         run: |
-          mix run --no-mix-exs ../scripts/hex_release_state.exs plan \
+          mix run --no-mix-exs ../workflow-tools/scripts/hex_release_state.exs plan \
             agent_blueprint_protocol "$VERSION" "agent_blueprint_protocol-${VERSION}.tar"
           if ! grep -Eq '^checksum=[0-9a-f]{64}$' "$GITHUB_OUTPUT"; then
-            echo "::error::The Hex plan did not emit the package checksum. Use a qualified release_commit with the checksum-aware Hex scripts and the same package bytes."
+            echo "::error::The workflow's Hex planner did not emit the package checksum. Check the planner before dispatching Publish again."
             exit 1
           fi
 
@@ -585,6 +596,15 @@ jobs:
           name: verified-release
           path: verified-release
 
+      - name: Check out the workflow's Hex tool
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: workflow-tools
+          persist-credentials: false
+          sparse-checkout: /scripts/publish_hex_artifacts.exs
+          sparse-checkout-cone-mode: false
+
       - name: Publish the verified Hex archive and docs to public hexpm
         if: needs.verify.outputs.hex_package == 'upload' || needs.verify.outputs.hex_docs == 'upload'
         working-directory: verified-release
@@ -597,7 +617,7 @@ jobs:
           set -- agent_blueprint_protocol "$VERSION" --checksum "$HEX_CHECKSUM"
           if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package "agent_blueprint_protocol-${VERSION}.tar"; fi
           if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs hex-docs.tar.gz; fi
-          mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs "$@"
+          mix run --no-mix-exs ../workflow-tools/scripts/publish_hex_artifacts.exs "$@"
 
       - name: Read back the served Hex package and docs
         working-directory: verified-release

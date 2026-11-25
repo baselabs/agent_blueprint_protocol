@@ -96,16 +96,17 @@ install commands, documentation links, and notebook targets. Maintainers dispatc
 **Publish** from the default branch with exactly one required input,
 `release_commit`, a full 40-hex lowercase SHA. The first job validates it, proves ancestry
 from the default-branch head with full history, and requires a successful
-`qualified` check run on that exact SHA through the GitHub API. Every checkout,
-build, release record, and read-back uses that SHA. The version reader compares
-`mix.exs`, `priv/release-metadata.json` (`package_version`), and `package.json`
+`qualified` check run on that exact SHA through the GitHub API. The source checkout,
+build, release record, and read-back use that SHA. The Hex planner and uploader
+come from the revision that supplied the dispatched workflow. The version reader
+compares `mix.exs`, `priv/release-metadata.json` (`package_version`), and `package.json`
 at that commit before building. Both package names must already exist, and an
 existing remote tag refuses publication. Qualification on `kci/**`, with every
 job required by `qualified`, precedes acceptance on the default branch.
 
-Use a `qualified` release commit with the same declared version and package bytes
-when resuming publication. The release commit is independent of the default
-branch's current head and must include the checksum-aware Hex plan and uploader.
+When resuming publication, use the same `qualified` release commit to build the
+same declared version and package bytes. The release commit is independent of
+the default branch's current head.
 
 Publish verifies the source, builds and inspects both archives, and compares
 served package bytes before uploading only missing packages or docs. The package
@@ -123,18 +124,21 @@ success prints the published commit from the served docs.
 
 npm uses staged trusted publishing with provenance in environment `publish`.
 Hex uses `scripts/publish_hex_artifacts.exs [--organization ORG] NAME VERSION --checksum SHA256 [--package ARCHIVE] [--docs DOCS]`
-through the pinned client's API from a directory with no Mix project. The Hex key
-reaches only that upload step. A docs-only retry carries the verified package
-checksum from the plan. Immediately before a live docs POST, the uploader rereads
-the release API and requires an unretired release with that checksum and
-`has_docs: false`.
+through the pinned client's API from a directory with no Mix project. The upload
+step uses `HEX_API_KEY` for both POSTs and the staged-status GET. Release API
+GETs for public packages are anonymous. With `--organization`, the uploader
+requires a non-empty `HEX_ORG_KEY_PUBLISH_API_READ` key scoped to `api:read`.
+An organization workflow gives that key only to its upload step. A docs-only retry
+carries the verified package checksum from the plan. Immediately before a live
+docs POST, the uploader rereads the release API and requires an unretired release
+with that checksum and `has_docs: false`.
 
-If Hex stages the package, the uploader uses the same credential to confirm the
-release is still unpublished and the stage still matches the verified checksum.
-It posts docs in the same run and requires Hex to confirm that they joined that
-release stage. The docs POST is unconditional. Another publisher can change the
-release or write docs between the check and the POST, and approval in that
-window can turn a staged docs POST into a live write.
+If Hex stages the package, the uploader confirms the release is still unpublished
+through the release API. It uses the upload credential to confirm the stage still
+matches the verified checksum. It posts docs in the same run and requires Hex to
+confirm that they joined that release stage. The docs POST is unconditional.
+Another publisher can change the release or write docs between the check and the
+POST, and approval in that window can turn a staged docs POST into a live write.
 
 When the workflow reports a hold, approve on npmjs.com or hex.pm as appropriate,
 then dispatch Publish from the default branch again.

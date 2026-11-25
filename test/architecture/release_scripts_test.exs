@@ -72,27 +72,67 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
     assert script =~
              "publish(opts[:organization], name, version, opts[:package], opts[:docs], checksum)"
 
+    assert script =~ "release_config = uncached_config(repo, release_read_auth!(repo))"
     assert script =~ "Hex.API.Client.build_config(repo, auth)"
     assert script =~ ~s|Map.put(&1, "cache-control", "no-cache")|
-    assert script =~ ":mix_hex_api_release.get(config, name, version)"
+    assert script =~ ":mix_hex_api_release.get(release_config, name, version)"
+    assert script =~ "upload_config = uncached_config(repo, upload_auth)"
 
     assert script =~
-             ~s|:mix_hex_api.build_repository_path(config, ["packages", name, "releases", version, "staged"])|
+             ~r/:mix_hex_api\.build_repository_path\(upload_config, \[\s*"packages",\s*name,\s*"releases",\s*version,\s*"staged"\s*\]\)/
 
-    assert script =~ ":mix_hex_api.get(config, path)"
-
-    assert script =~
-             ~s|case served_release!(config, name, version, checksum) do\n      {:served, false} ->\n        upload_docs!(repo, name, version, docs, auth)|
+    assert script =~ ":mix_hex_api.get(upload_config, path)"
 
     assert script =~
-             ~r/unless served_release!\(config, name, version, checksum\) == :missing do.*?require_active_stage!\(config, name, version, checksum\)\s+case upload_docs!\(repo, name, version, docs, auth\) do\s+\{:staged, receipt\} ->\s+unless release_stage\?\(receipt, checksum\)/s
+             ~s|case served_release!(release_config, name, version, checksum) do\n      {:served, false} ->\n        upload_docs!(repo, name, version, docs, upload_auth)|
 
     assert script =~
-             ~r/package_result =.*?docs_result =.*?publish_docs!\(repo, name, version, docs, checksum, auth, config, package_result\).*?if match\?\(\{:staged, _\}, package_result\) or match\?\(\{:staged, _\}, docs_result\)/s
+             ~r/unless served_release!\(release_config, name, version, checksum\) == :missing do.*?require_active_stage!\(repo, name, version, checksum, upload_auth\)\s+case upload_docs!\(repo, name, version, docs, upload_auth\) do\s+\{:staged, receipt\} ->\s+unless release_stage\?\(receipt, checksum\)/s
+
+    assert script =~
+             ~r/package_result =.*?docs_result =.*?publish_docs!\(\s*repo,\s*name,\s*version,\s*docs,\s*checksum,\s*upload_auth,\s*release_config,\s*package_result\s*\).*?if match\?\(\{:staged, _\}, package_result\) or match\?\(\{:staged, _\}, docs_result\)/s
 
     assert script =~ ~s|when code in 200..299, do: {:staged, body}|
     assert length(:binary.matches(script, "Hex.API.ReleaseDocs.publish(")) == 1
     refute script =~ "require_unheld!"
+  end
+
+  test "release reads use anonymous public access or a separate organization API-read key" do
+    script = File.read!("scripts/publish_hex_artifacts.exs")
+    assert script =~ "defp release_read_auth!(nil), do: []"
+
+    assert script =~
+             ~r/defp release_read_auth!\(_repo\) do\s*key = System.fetch_env!\("HEX_ORG_KEY_PUBLISH_API_READ"\).*?\[key: key\]/s
+
+    assert script =~ ~s|upload_key = System.fetch_env!("HEX_API_KEY")|
+    assert script =~ "upload_auth = [key: upload_key]"
+    assert script =~ "case served_release!(release_config, name, version, checksum)"
+    assert script =~ "Hex.API.Release.publish(repo, archive, upload_auth,"
+    assert script =~ "Hex.API.ReleaseDocs.publish(repo, name, version, docs, upload_auth)"
+  end
+
+  test "organization uploads fail before any request when their API-read key is absent or blank" do
+    AgentBlueprintProtocol.Scratch.with_dir("hex-org-read-key", fn dir ->
+      args = [
+        "--organization",
+        "example-org",
+        "name",
+        @version,
+        "--checksum",
+        @checksum,
+        "--docs",
+        "docs"
+      ]
+
+      for value <- [nil, "", "  "] do
+        {output, status} =
+          hex("publish_hex_artifacts.exs", args, dir, [{"HEX_ORG_KEY_PUBLISH_API_READ", value}])
+
+        assert status != 0
+        assert output =~ "HEX_ORG_KEY_PUBLISH_API_READ"
+        refute output =~ "HEX_API_KEY"
+      end
+    end)
   end
 
   test "no-project Hex scripts resolve Hex and refuse a loaded project before reading a key" do
@@ -477,6 +517,7 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
   defp hex_path(script, args, dir, env) do
     base = [
       {"HEX_API_KEY", nil},
+      {"HEX_ORG_KEY_PUBLISH_API_READ", nil},
       {"HEX_HOME", Path.join(dir, "hex-home")},
       {"GITHUB_OUTPUT", nil},
       {"MIX_ENV", "dev"},

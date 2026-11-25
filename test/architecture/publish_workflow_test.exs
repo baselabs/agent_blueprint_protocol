@@ -40,7 +40,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     refute File.exists?(".github/workflows/postpublish.yml")
   end
 
-  test "the release SHA is validated before use and pins every publication checkout" do
+  test "the release SHA is validated before use and pins every source checkout" do
     workflow = workflow("publish")
     verify = job(workflow, "verify")
     validation = step(verify, "Validate the release commit")
@@ -50,13 +50,18 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert validation =~ ~s|printf 'commit=%s\\n' "$RELEASE_COMMIT" >> "$GITHUB_OUTPUT"|
     assert_before(verify, "Validate the release commit", "uses: actions/checkout@")
     assert verify =~ "release_commit: ${{ steps.release.outputs.commit }}"
-    refute workflow =~ "github.sha"
     refute Regex.match?(~r/\bHEAD\b/, workflow)
-    assert length(Enum.filter(steps(workflow), &(&1 =~ "uses: actions/checkout@"))) == 6
+    assert length(Enum.filter(steps(workflow), &(&1 =~ "uses: actions/checkout@"))) == 8
 
-    for {name, job} <- jobs(workflow),
-        checkout <- steps(job),
-        checkout =~ "uses: actions/checkout@" do
+    for {name, job} <- jobs(workflow) do
+      [checkout] =
+        Enum.filter(steps(job), fn step ->
+          step =~ "uses: actions/checkout@" and
+            not String.starts_with?(step, "Check out the workflow's Hex tool\n")
+        end)
+
+      refute checkout =~ "path:"
+
       reference =
         if name == "verify",
           do: "${{ steps.release.outputs.commit }}",
@@ -64,6 +69,37 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
       assert checkout =~ "ref: " <> reference
     end
+  end
+
+  test "Hex planning and upload use workflow-revision scripts over release-commit archives" do
+    workflow = workflow("publish")
+    verify = job(workflow, "verify")
+    hex = job(workflow, "hex-publish")
+
+    for job <- [verify, hex] do
+      checkout = step(job, "Check out the workflow's Hex tool")
+      assert checkout =~ "uses: actions/checkout@"
+      assert checkout =~ "ref: ${{ github.sha }}"
+      assert checkout =~ "path: workflow-tools"
+      assert checkout =~ "sparse-checkout-cone-mode: false"
+    end
+
+    plan_checkout = step(verify, "Check out the workflow's Hex tool")
+
+    assert plan_checkout =~
+             "sparse-checkout: |\n            /scripts/hex_release_state.exs\n            /scripts/gate_command.exs"
+
+    assert_before(verify, "Check out source", "Prepare the verified release artifacts")
+    assert_before(verify, "Prepare the verified documentation archive", plan_checkout)
+    assert_before(verify, plan_checkout, "Plan the Hex uploads")
+
+    upload_checkout = step(hex, "Check out the workflow's Hex tool")
+    assert upload_checkout =~ "sparse-checkout: /scripts/publish_hex_artifacts.exs"
+    download = step(hex, "Download the verified release artifacts")
+    assert download =~ "name: verified-release"
+    assert download =~ "path: verified-release"
+    assert_before(hex, download, "Publish the verified Hex archive and docs")
+    assert_before(hex, upload_checkout, "Publish the verified Hex archive and docs")
   end
 
   test "the first job checks ancestry, exact-commit qualification, versions and tag before building" do
@@ -193,8 +229,12 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
 
     assert key_step =~ ~s|if [ "$HEX_PACKAGE" = upload ]; then set -- "$@" --package|
     assert key_step =~ ~s|if [ "$HEX_DOCS" = upload ]; then set -- "$@" --docs|
-    assert key_step =~ ~s|mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs "$@"|
+
+    assert key_step =~
+             ~s|mix run --no-mix-exs ../workflow-tools/scripts/publish_hex_artifacts.exs "$@"|
+
     refute key_step =~ "--organization"
+    refute workflow =~ "HEX_ORG_KEY_PUBLISH_API_READ"
     assert length(Enum.filter(steps(workflow), &(&1 =~ "HEX_API_KEY"))) == 1
     refute npm =~ "HEX_API_KEY"
   end
@@ -221,13 +261,12 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
     assert verify =~ "Check public privacy over full history"
     assert verify =~ ~s|cmp "$RUNNER_TEMP/packed-report.json" "$RUNNER_TEMP/verified-report.json"|
     assert verify =~ "node scripts/npm_release_state.mjs plan"
-    assert verify =~ "mix run --no-mix-exs ../scripts/hex_release_state.exs plan"
     hex_plan = step(verify, "Plan the Hex uploads")
     assert hex_plan =~ "working-directory: verified-release"
 
     assert_before(
       hex_plan,
-      "mix run --no-mix-exs ../scripts/hex_release_state.exs plan",
+      "mix run --no-mix-exs ../workflow-tools/scripts/hex_release_state.exs plan",
       ~s|if ! grep -Eq '^checksum=[0-9a-f]{64}$' "$GITHUB_OUTPUT"|
     )
 
@@ -339,7 +378,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishWorkflowTest do
             "Plan the Hex uploads",
             "uses: actions/upload-artifact@",
             "npm stage publish",
-            "mix run --no-mix-exs ../scripts/publish_hex_artifacts.exs"
+            "mix run --no-mix-exs ../workflow-tools/scripts/publish_hex_artifacts.exs"
           ] do
         assert_before(workflow, stamp, later)
       end

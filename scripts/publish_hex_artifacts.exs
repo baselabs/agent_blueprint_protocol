@@ -2,7 +2,8 @@
 # From a directory without mix.exs (no project is loaded or compiled under the key):
 #   mix run --no-mix-exs PATH/publish_hex_artifacts.exs [--organization ORG] NAME VERSION --checksum SHA256 [--package ARCHIVE] [--docs DOCS]
 # Check the live release and, when held, its stage immediately before posting docs.
-# HEX_API_KEY comes only from this step's env. No response body or key is printed.
+# Public release reads are anonymous. Organization release reads use a separate API-read key.
+# Credentials come only from this step's env. No response body or key is printed.
 defmodule PublishHexArtifacts do
   @moduledoc false
 
@@ -34,9 +35,10 @@ defmodule PublishHexArtifacts do
 
     Hex.start()
     Enum.each([Hex.API.Client, Hex.API.Release, Hex.API.ReleaseDocs], &Code.ensure_loaded!/1)
-    key = System.fetch_env!("HEX_API_KEY")
-    if key == "", do: raise("HEX_API_KEY is empty; publication stopped")
-    auth = [key: key]
+    release_config = uncached_config(repo, release_read_auth!(repo))
+    upload_key = System.fetch_env!("HEX_API_KEY")
+    if upload_key == "", do: raise("HEX_API_KEY is empty; publication stopped")
+    upload_auth = [key: upload_key]
 
     archive = if archive, do: File.read!(archive)
     docs = if docs, do: File.read!(docs)
@@ -45,17 +47,11 @@ defmodule PublishHexArtifacts do
       raise "package archive does not match --checksum; verify the archive and dispatch Publish again"
     end
 
-    # Use the same repository configuration as Hex.API.Release.get/4, but
-    # revalidate the API response instead of accepting its cached release state.
-    config =
-      Hex.API.Client.build_config(repo, auth)
-      |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
-
     package_result =
       if archive do
-        case served_release!(config, name, version, checksum) do
+        case served_release!(release_config, name, version, checksum) do
           :missing ->
-            Hex.API.Release.publish(repo, archive, auth, fn _ -> :ok end, replace: false)
+            Hex.API.Release.publish(repo, archive, upload_auth, fn _ -> :ok end, replace: false)
             |> upload_result!(name, version, "package")
 
           {:served, _} ->
@@ -65,7 +61,16 @@ defmodule PublishHexArtifacts do
 
     docs_result =
       if docs do
-        publish_docs!(repo, name, version, docs, checksum, auth, config, package_result)
+        publish_docs!(
+          repo,
+          name,
+          version,
+          docs,
+          checksum,
+          upload_auth,
+          release_config,
+          package_result
+        )
       end
 
     if match?({:staged, _}, package_result) or match?({:staged, _}, docs_result) do
@@ -73,8 +78,26 @@ defmodule PublishHexArtifacts do
     end
   end
 
-  defp served_release!(config, name, version, checksum) do
-    case release_state(:mix_hex_api_release.get(config, name, version), version, checksum) do
+  defp release_read_auth!(nil), do: []
+
+  defp release_read_auth!(_repo) do
+    key = System.fetch_env!("HEX_ORG_KEY_PUBLISH_API_READ")
+
+    if String.trim(key) == "" do
+      raise "HEX_ORG_KEY_PUBLISH_API_READ is empty. Configure the organization API-read key before dispatching Publish again."
+    end
+
+    [key: key]
+  end
+
+  # Use Hex's repository routing and ask the API to revalidate cached responses.
+  defp uncached_config(repo, auth) do
+    Hex.API.Client.build_config(repo, auth)
+    |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
+  end
+
+  defp served_release!(release_config, name, version, checksum) do
+    case release_state(:mix_hex_api_release.get(release_config, name, version), version, checksum) do
       :retired ->
         raise "#{name} #{version} is retired; publication refused"
 
@@ -117,18 +140,27 @@ defmodule PublishHexArtifacts do
     match?(%{"status" => "staged", "kind" => "release", "checksum" => ^checksum}, body)
   end
 
-  defp publish_docs!(repo, name, version, docs, checksum, auth, config, {:staged, package}) do
+  defp publish_docs!(
+         repo,
+         name,
+         version,
+         docs,
+         checksum,
+         upload_auth,
+         release_config,
+         {:staged, package}
+       ) do
     unless release_stage?(package, checksum) do
       raise "Hex did not confirm the staged package checksum; inspect the stage before dispatching Publish again"
     end
 
-    unless served_release!(config, name, version, checksum) == :missing do
+    unless served_release!(release_config, name, version, checksum) == :missing do
       raise "Hex already serves #{name} #{version}; dispatch Publish again to recheck its docs"
     end
 
-    require_active_stage!(config, name, version, checksum)
+    require_active_stage!(repo, name, version, checksum, upload_auth)
 
-    case upload_docs!(repo, name, version, docs, auth) do
+    case upload_docs!(repo, name, version, docs, upload_auth) do
       {:staged, receipt} ->
         unless release_stage?(receipt, checksum) do
           raise "Hex did not confirm docs joined the inspected release stage; check the stage before approving"
@@ -142,10 +174,19 @@ defmodule PublishHexArtifacts do
     end
   end
 
-  defp publish_docs!(repo, name, version, docs, checksum, auth, config, _package_result) do
-    case served_release!(config, name, version, checksum) do
+  defp publish_docs!(
+         repo,
+         name,
+         version,
+         docs,
+         checksum,
+         upload_auth,
+         release_config,
+         _package_result
+       ) do
+    case served_release!(release_config, name, version, checksum) do
       {:served, false} ->
-        upload_docs!(repo, name, version, docs, auth)
+        upload_docs!(repo, name, version, docs, upload_auth)
 
       {:served, true} ->
         IO.puts("Hex docs: already served; upload skipped")
@@ -155,12 +196,20 @@ defmodule PublishHexArtifacts do
     end
   end
 
-  defp require_active_stage!(config, name, version, checksum) do
+  defp require_active_stage!(repo, name, version, checksum, upload_auth) do
+    upload_config = uncached_config(repo, upload_auth)
+
     path =
-      :mix_hex_api.build_repository_path(config, ["packages", name, "releases", version, "staged"])
+      :mix_hex_api.build_repository_path(upload_config, [
+        "packages",
+        name,
+        "releases",
+        version,
+        "staged"
+      ])
 
     confirmed =
-      case :mix_hex_api.get(config, path) do
+      case :mix_hex_api.get(upload_config, path) do
         {:ok, {200, _headers, %{"name" => ^name, "version" => ^version} = stage}} ->
           release_stage?(stage, checksum)
 
@@ -173,9 +222,9 @@ defmodule PublishHexArtifacts do
     end
   end
 
-  defp upload_docs!(repo, name, version, docs, auth) do
+  defp upload_docs!(repo, name, version, docs, upload_auth) do
     # The POST has no create-only precondition. State can change after the last read.
-    Hex.API.ReleaseDocs.publish(repo, name, version, docs, auth)
+    Hex.API.ReleaseDocs.publish(repo, name, version, docs, upload_auth)
     |> upload_result!(name, version, "docs")
   end
 
