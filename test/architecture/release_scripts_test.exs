@@ -400,8 +400,8 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
 
   test "the real anonymous counterpart API detects a listed version after a missing twin",
        %{uploader: uploader} do
-    Application.ensure_all_started!(:ssl)
-    Application.ensure_all_started!(:inets)
+    {:ok, _} = Application.ensure_all_started(:ssl)
+    {:ok, _} = Application.ensure_all_started(:inets)
     missing = "abp_release_probe_nonexistent_7e1d4cca8233"
 
     assert capture_io(fn ->
