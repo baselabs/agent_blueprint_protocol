@@ -208,7 +208,7 @@ defmodule AgentBlueprintProtocol.Architecture.PublishGuardTest do
 
   test "only known public decision record paths and their own headings spare numbers" do
     records = AgentBlueprintProtocol.ArchitectureScan.public_records()
-    assert length(records) == 20
+    assert length(records) == 21
 
     for path <- records do
       basename = Path.basename(path)

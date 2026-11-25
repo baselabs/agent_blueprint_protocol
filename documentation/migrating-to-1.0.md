@@ -247,7 +247,7 @@ Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_
 
 ## 6. Update package and release identity pins
 
-Version 1.0 changes the registry digest and sets `verification_semantics_version` to `3`. From 1.1, verification semantics is `4`; see the [1.1 changes](upgrading.md#changes-in-11). The protocol revision remains `1`.
+Version 1.0 changes the registry digest and sets `verification_semantics_version` to `3`. From 1.1, verification semantics is `4`; see the [1.1 changes](upgrading.md#changes-in-1-1). The protocol revision remains `1`.
 
 Before, pin the previous Hex release:
 
@@ -349,7 +349,7 @@ Old input remains accepted throughout 1.x; new carrier output uses the active sp
 - Read signature checks for both artifact subjects and retain skipped binding checks and unknown detail branches.
 - Supply host registrations, held schemas, all thirteen host bounds, trusted public keys, and independent observations.
 - Emit active carrier keys; rebuild intentionally edited artifacts and their affected signatures.
-- Update package pins and release identities together; protocol revision stays `1`, verification semantics is `3` at 1.0 and `4` as of 1.2. See the [1.1 changes](upgrading.md#changes-in-11).
+- Update package pins and release identities together; protocol revision stays `1`, verification semantics is `3` at 1.0 and `4` from 1.1. See the [1.1 changes](upgrading.md#changes-in-1-1).
 
 Before (0.8 TypeScript integration excerpt):
 
