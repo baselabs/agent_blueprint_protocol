@@ -398,25 +398,44 @@ defmodule AgentBlueprintProtocol.Architecture.ReleaseScriptsTest do
              ~r/if repo, do: counterpart_access!\(:mix_hex_api.get\(config, \["repos", repo\]\), repo, version\)\s+packages\s+\|> Stream.map\(&:mix_hex_api_release.get\(config, &1, version\)\)/
   end
 
-  test "the real anonymous counterpart API detects a listed version after a missing twin",
-       %{uploader: uploader} do
-    {:ok, _} = Application.ensure_all_started(:ssl)
-    {:ok, _} = Application.ensure_all_started(:inets)
-    missing = "abp_release_probe_nonexistent_7e1d4cca8233"
+  test "the real anonymous counterpart API detects a listed version after a missing twin" do
+    AgentBlueprintProtocol.Scratch.with_dir("hex-counterpart-live", fn dir ->
+      # Run the check where Publish runs it: a project-less mix run with the
+      # installed Hex archive started, never inside the test VM.
+      driver = Path.join(dir, "counterpart.exs")
+      script = Path.expand("scripts/publish_hex_artifacts.exs")
 
-    assert capture_io(fn ->
-             uploader.check_counterpart!(nil, [missing], @version)
-           end) == "Hex counterpart check passed\n"
+      File.write!(driver, """
+      path = #{inspect(script)}
 
-    assert_raise Mix.Error,
-                 "Hex counterpart check refused version #{@version}: already listed",
-                 fn ->
-                   uploader.check_counterpart!(
-                     nil,
-                     [missing, "agent_blueprint_protocol"],
-                     @version
-                   )
-                 end
+      {:__block__, _, [{:defmodule, _, _} = definition, _main]} =
+        File.read!(path) |> Code.string_to_quoted!(file: path)
+
+      {{:module, uploader, _, _}, []} = Code.eval_quoted(definition, [], file: path)
+      Hex.start()
+      [version | packages] = System.argv()
+
+      try do
+        uploader.check_counterpart!(nil, packages, version)
+      rescue
+        error in Mix.Error -> IO.puts("refused: " <> Exception.message(error))
+      end
+      """)
+
+      missing = "abp_release_probe_nonexistent_7e1d4cca8233"
+
+      assert {passed, 0} = hex_path(driver, [@version, missing], dir, [])
+      assert passed =~ "Hex counterpart check passed\n"
+      refute passed =~ "refused"
+
+      assert {refused, 0} =
+               hex_path(driver, [@version, missing, "agent_blueprint_protocol"], dir, [])
+
+      assert refused =~
+               "refused: Hex counterpart check refused version #{@version}: already listed\n"
+
+      refute refused =~ "check passed"
+    end)
   end
 
   test "release reads use anonymous public access or a separate organization API-read key" do
