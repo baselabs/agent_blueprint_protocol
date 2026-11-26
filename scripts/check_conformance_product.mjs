@@ -11,7 +11,9 @@ import {documentDigest} from '../verifier/harness.ts';
 import '../test/typescript/harness_startup.mjs';
 const scratch=mkdtempSync(join(tmpdir(),'abp-conformance-'));
 const certified=readFileSync('spec/conformance/certified-results.json');
-function run(args, expected = 0, timeout = 15_000) {
+// The harness enforces per-case deadlines itself; this bound only stops a hung run.
+// A full-corpus run took 8.8 s on one hosted macOS runner and over 15 s on another.
+function run(args, expected = 0, timeout = 120_000) {
   const result = stream(process.execPath, args, {timeout});
   if (result.error) throw result.error;
   assert.equal(result.status, expected);
