@@ -14,7 +14,7 @@ Every successful verification is non-authorizing: it reports protocol facts and 
 - **Deployment Manifest** binds a Blueprint release to environment-specific descriptors and bounds.
 - **Federation TaskEnvelope** records a task's identity, state, and terminal commitments for carriage in Agent2Agent (A2A) task metadata and Model Context Protocol (MCP) `_meta`.
 
-This is the complete example from [`priv/examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.5.0/priv/examples/echo-blueprint.json), formatted for reading:
+This is the complete example from [`priv/examples/echo-blueprint.json`](https://github.com/baselabs/agent_blueprint_protocol/blob/v1.5.1-rc.1/priv/examples/echo-blueprint.json), formatted for reading:
 
 ```json
 {
@@ -45,8 +45,8 @@ Verification decodes bounded JSON, negotiates protocol support, binds related ar
 
 | Language | Package | Install |
 | --- | --- | --- |
-| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.5.0"}` |
-| TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@1.5.0` |
+| Elixir | Hex `agent_blueprint_protocol` | `{:agent_blueprint_protocol, "~> 1.5.1-rc.1"}` |
+| TypeScript | npm `@agent-blueprint-protocol/verifier` | `npm install @agent-blueprint-protocol/verifier@1.5.1-rc.1` |
 
 The Elixir package requires Elixir 1.19 or newer on Erlang/OTP 27, 28, or 29. The npm package requires Node.js 24 or newer. Both implement protocol revision 1; the [stability policy](documentation/stability.md) lists the tested combinations.
 
@@ -75,7 +75,7 @@ The conformance corpus contains 747 cases. It is a collection of inputs and expe
 
 ## Documentation
 
-- [HexDocs](https://hexdocs.pm/agent_blueprint_protocol/1.5.0/)
+- [HexDocs](https://hexdocs.pm/agent_blueprint_protocol/1.5.1-rc.1/)
 - [Quickstart](documentation/quickstart.md)
 - [TypeScript guide](documentation/typescript.md)
 - [Procedure identity guide](documentation/procedure-identity.md)
@@ -88,6 +88,11 @@ The conformance corpus contains 747 cases. It is a collection of inputs and expe
 ## Status
 
 The 1.x line follows its stability promise: documented APIs remain stable within the major version, and deprecations follow the [stability policy](documentation/stability.md).
+
+## License
+
+Apache-2.0, maintained by BaseLabs Holdings LLC. See [LICENSE](LICENSE) and [NOTICE](NOTICE), and [spec/IPR.md](spec/IPR.md)
+for contributions and use of the name.
 
 ## Contributing
 

@@ -21,7 +21,7 @@ Deep imports no longer resolve. Replace internal imports and names with the pack
 | `dist/verifier/corpus.js`: `load` | `loadCorpus` |
 | `dist/verifier/runner.js`: `run` | `runCorpus` |
 | `dist/verifier/report.js`: `build` | `buildReport` with `(corpus, results)` returns the aggregate report as a `Result<Report>`. |
-| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder. Use `npx @agent-blueprint-protocol/verifier@1.5.0 --corpus <dir> > report.json` for canonical aggregate-report bytes. |
+| `dist/verifier/report.js`: `toBytes` | No package-root byte encoder. Use `npx @agent-blueprint-protocol/verifier@1.5.1-rc.1 --corpus <dir> > report.json` for canonical aggregate-report bytes. |
 
 `buildResultsDocument(corpus)` builds the separate per-case results document, not the aggregate report. `JSON.stringify(report.value)` is JSON but does not guarantee canonical report bytes.
 
@@ -243,7 +243,7 @@ import { decodeBlueprint } from "@agent-blueprint-protocol/verifier";
 const newResult = decodeBlueprint(bytes);
 ```
 
-Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.5.0/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
+Use the documented functions in the [Elixir reference](https://hexdocs.pm/agent_blueprint_protocol/1.5.1-rc.1/). For TypeScript, use the package-root exports in the [TypeScript guide](typescript.md).
 
 ## 6. Update package and release identity pins
 
@@ -260,16 +260,16 @@ After, select the current 1.x release:
 
 <!-- fragment -->
 ```elixir
-{:agent_blueprint_protocol, "~> 1.5.0"}
+{:agent_blueprint_protocol, "~> 1.5.1-rc.1"}
 ```
 
-For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.5.0`. The Hex and npm packages carry the same version.
+For TypeScript, select the current release with `npm install @agent-blueprint-protocol/verifier@1.5.1-rc.1`. The Hex and npm packages carry the same version.
 
 Before, install the previous npm release; after, install the current 1.x release:
 
 ```sh
 npm install @agent-blueprint-protocol/verifier@0.8.4
-npm install @agent-blueprint-protocol/verifier@1.5.0
+npm install @agent-blueprint-protocol/verifier@1.5.1-rc.1
 ```
 
 ## 7. Use the preferred identifiers

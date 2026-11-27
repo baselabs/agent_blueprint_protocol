@@ -507,8 +507,9 @@ defmodule AgentBlueprintProtocol.Architecture.DocumentationCurrencyTest do
   defp allowed_document_version?("documentation/migrating-to-1.0.md", claim, version),
     do: claim in [version, "0.8.4"]
 
+  # The release guide names 1.5.0 as the start of published contents checksums.
   defp allowed_document_version?("documentation/verifying-releases.md", claim, version),
-    do: claim in [version, "0.8.4", hd(String.split(version, "-"))]
+    do: claim in [version, "0.8.4", "1.5.0", hd(String.split(version, "-"))]
 
   # These guides reproduce the shipped echo Deployment Manifest, whose
   # build identities intentionally name the fixtures' original package versions.

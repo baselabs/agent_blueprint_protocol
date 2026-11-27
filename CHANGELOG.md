@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1-rc.1] - 2026-11-27
+
+Names BaseLabs Holdings LLC as steward and updates the copyright notices,
+Apache-2.0 licensing text, and Developer Certificate of Origin sign-off
+guidance. Library and verifier behavior, protocol revision 1, and verification
+semantics 4 are unchanged from 1.5.0. The corpus digest
+`sha-256:4y6KXOJ0d5mnjGt1xLpjniB049qFK_z1i_Nz_3B6EwA` and registry digest
+`sha-256:twXxkjjJ_xwDcZ5I5ef2fGsGYR0meUQ-6gxe2PwOMbI` are unchanged.
+The specification digest is `sha-256:acEwzN2Vrc8gjNVCD2v-_3WXTG6zKeD3CvCFz3TOwp0`.
+
 ## [1.5.0] - 2026-11-26
 
 Promotes 1.5.0-rc.1 without changes. Library and verifier behavior, protocol
@@ -1259,7 +1269,8 @@ second-language verifier.
   raise. Multi-failure reasons follow a fixed canonical keyword order
   (mirrored for the TS verifier).
 
-[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.5.1-rc.1...HEAD
+[1.5.1-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.5.0...v1.5.1-rc.1
 [1.5.0]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.5.0-rc.1...v1.5.0
 [1.5.0-rc.1]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2...v1.5.0-rc.1
 [1.1.2]: https://github.com/baselabs/agent_blueprint_protocol/compare/v1.1.2-rc.3...v1.1.2

@@ -1,7 +1,8 @@
 # Contributing
 
-Contributions use the Developer Certificate of Origin: sign commits with `git commit -s`.
-No contributor license agreement is required. See [LICENSE](LICENSE) for Apache-2.0.
+Contributions are licensed under Apache-2.0, as section 5 of the license describes, and
+every commit carries a Developer Certificate of Origin sign-off (`git commit -s`). See
+[spec/IPR.md](spec/IPR.md).
 
 ## Prerequisites
 
